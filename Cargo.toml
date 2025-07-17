@@ -1,0 +1,11 @@
+[package]
+name = "rust-imperialism"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { version = "0.16", features = ["dynamic_linking", "bevy_dev_tools", "bevy_mesh_picking_backend"] }
+hexx = { version = "0.21", features = ["bevy", "algorithms", "serde"] }
+bevy_ecs_tilemap = { git = "https://github.com/StarArawn/bevy_ecs_tilemap.git", branch = "main" }
+rand = "0.9"
+
