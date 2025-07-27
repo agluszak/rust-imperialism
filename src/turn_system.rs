@@ -49,19 +49,14 @@ pub struct TurnSystemPlugin;
 
 impl Plugin for TurnSystemPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<TurnSystem>()
-            .add_systems(Update, (
-                handle_turn_input,
-                process_turn_phases,
-                update_turn_display,
-            ));
+        app.init_resource::<TurnSystem>().add_systems(
+            Update,
+            (handle_turn_input, process_turn_phases, update_turn_display),
+        );
     }
 }
 
-fn handle_turn_input(
-    keys: Res<ButtonInput<KeyCode>>,
-    mut turn_system: ResMut<TurnSystem>,
-) {
+fn handle_turn_input(keys: Res<ButtonInput<KeyCode>>, mut turn_system: ResMut<TurnSystem>) {
     if keys.just_pressed(KeyCode::Space) && turn_system.is_player_turn() {
         turn_system.end_player_turn();
         println!("Player turn ended. Turn: {}", turn_system.current_turn);
@@ -70,21 +65,48 @@ fn handle_turn_input(
 
 fn process_turn_phases(
     mut turn_system: ResMut<TurnSystem>,
+    mut turn_timer: Local<Timer>,
+    time: Res<Time>,
 ) {
-    // Auto-advance from Processing to EnemyTurn after a short delay
-    if turn_system.phase == TurnPhase::Processing {
-        // For now, immediately advance to PlayerTurn (skipping enemy turn)
-        // In a real game, you'd process enemy AI here
-        turn_system.advance_turn(); // Processing -> EnemyTurn
-        turn_system.advance_turn(); // EnemyTurn -> PlayerTurn with new turn number
-        println!("Starting turn {}", turn_system.current_turn);
+    // Handle turn phase transitions with timing
+    match turn_system.phase {
+        TurnPhase::Processing => {
+            // Short delay before enemy turn
+            if turn_timer.duration().is_zero() {
+                *turn_timer = Timer::from_seconds(0.5, TimerMode::Once);
+            }
+
+            turn_timer.tick(time.delta());
+
+            if turn_timer.just_finished() {
+                turn_system.advance_turn(); // Processing -> EnemyTurn
+                println!("=== Enemy Turn ===");
+                turn_timer.reset();
+            }
+        }
+        TurnPhase::EnemyTurn => {
+            // Give monsters time to act, then advance
+            if turn_timer.duration().is_zero() {
+                *turn_timer = Timer::from_seconds(2.0, TimerMode::Once);
+            }
+
+            turn_timer.tick(time.delta());
+
+            if turn_timer.just_finished() {
+                turn_system.advance_turn(); // EnemyTurn -> PlayerTurn with new turn number
+                println!("Starting turn {}", turn_system.current_turn);
+                turn_timer.reset();
+            }
+        }
+        _ => {}
     }
 }
 
-fn update_turn_display(
-    turn_system: Res<TurnSystem>,
-) {
+fn update_turn_display(turn_system: Res<TurnSystem>) {
     if turn_system.is_changed() {
-        println!("=== Turn {} - {:?} ===", turn_system.current_turn, turn_system.phase);
+        println!(
+            "=== Turn {} - {:?} ===",
+            turn_system.current_turn, turn_system.phase
+        );
     }
 }

@@ -1,4 +1,9 @@
-use bevy::{input::{ButtonInput, mouse::MouseWheel}, math::Vec3, prelude::*, render::camera::Camera};
+use bevy::{
+    input::{ButtonInput, mouse::MouseWheel},
+    math::Vec3,
+    prelude::*,
+    render::camera::Camera,
+};
 
 // A simple camera system for moving and zooming the camera.
 #[allow(dead_code)]
@@ -51,7 +56,7 @@ pub fn movement(
 
         // Scale movement speed based on zoom level for consistent feel
         let movement_speed = 500.0 * ortho.scale;
-        
+
         let z = transform.translation.z;
         transform.translation += time.delta_secs() * direction * movement_speed;
         // Important! We need to restore the Z values when moving the camera around.

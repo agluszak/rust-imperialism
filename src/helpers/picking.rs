@@ -8,9 +8,9 @@ use bevy::{
     },
     math::{Vec2, Vec4},
     picking::{
+        PickSet, Pickable,
         backend::{HitData, PointerHits},
         pointer::{PointerId, PointerLocation},
-        PickSet, Pickable,
     },
     prelude::{App, IntoScheduleConfigs, Vec4Swizzles},
     render::camera::Projection,
@@ -64,8 +64,7 @@ fn tile_picking(
             .find(|(_, camera, _, _)| {
                 camera
                     .target
-                    .normalize(primary_window.as_deref().copied()
-                    )
+                    .normalize(primary_window.as_deref().copied())
                     .is_some_and(|p| p == p_loc.target)
             })
         else {

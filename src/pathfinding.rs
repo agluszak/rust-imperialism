@@ -1,47 +1,13 @@
+use crate::tile_pos::{HexExt, TilePosExt};
+use crate::tiles::TileType;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
-use hexx::Hex;
-use std::collections::{HashMap, VecDeque, BinaryHeap};
-use std::cmp::Reverse;
-use crate::tiles::{TileType, TileCategory};
-
-#[derive(Debug, Clone)]
-pub struct PathfindingNode {
-    pub position: TilePos,
-    pub cost: f32,
-    pub heuristic: f32,
-    pub parent: Option<TilePos>,
-}
-
-impl PathfindingNode {
-    pub fn total_cost(&self) -> f32 {
-        self.cost + self.heuristic
-    }
-}
-
-impl PartialEq for PathfindingNode {
-    fn eq(&self, other: &Self) -> bool {
-        self.position == other.position
-    }
-}
-
-impl Eq for PathfindingNode {}
-
-impl PartialOrd for PathfindingNode {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for PathfindingNode {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.total_cost().partial_cmp(&other.total_cost()).unwrap_or(std::cmp::Ordering::Equal)
-    }
-}
+use hexx::{Hex, algorithms::a_star};
 
 pub struct PathfindingSystem;
 
 impl PathfindingSystem {
+    /// Find a path using hexx's built-in A* algorithm
     pub fn find_path(
         start: TilePos,
         goal: TilePos,
@@ -49,133 +15,146 @@ impl PathfindingSystem {
         tile_query: &Query<&TileType>,
         tile_storage: &TileStorage,
     ) -> Option<Vec<TilePos>> {
-        let mut open_set = BinaryHeap::new();
-        let mut closed_set = HashMap::new();
-        let mut came_from = HashMap::new();
-        let mut cost_so_far = HashMap::new();
+        let start_hex = start.to_hex();
+        let goal_hex = goal.to_hex();
 
-        let start_node = PathfindingNode {
-            position: start,
-            cost: 0.0,
-            heuristic: Self::heuristic(start, goal),
-            parent: None,
+        // Create a cost function that considers tile movement costs and bounds
+        let cost_fn = |_from: Hex, to: Hex| -> Option<u32> {
+            // Convert hex back to tile position for bounds checking
+            let to_pos = to.to_tile_pos()?;
+
+            // Check bounds
+            if to_pos.x >= tilemap_size.x || to_pos.y >= tilemap_size.y {
+                return None;
+            }
+
+            // Get tile entity and check passability/cost
+            if let Some(tile_entity) = tile_storage.get(&to_pos)
+                && let Ok(tile_type) = tile_query.get(tile_entity)
+            {
+                if !tile_type.properties.is_passable {
+                    return None; // Impassable tile
+                }
+                return Some(tile_type.properties.movement_cost.ceil() as u32);
+            }
+
+            Some(1) // Default movement cost
         };
 
-        open_set.push(Reverse(start_node));
-        cost_so_far.insert(start, 0.0);
+        // Use hexx's A* algorithm
+        let hex_path = a_star(start_hex, goal_hex, cost_fn)?;
 
-        while let Some(Reverse(current)) = open_set.pop() {
-            if current.position == goal {
-                return Some(Self::reconstruct_path(came_from, current.position));
-            }
-
-            if closed_set.contains_key(&current.position) {
-                continue;
-            }
-
-            closed_set.insert(current.position, current.cost);
-
-            for neighbor in Self::get_neighbors(current.position, tilemap_size) {
-                if closed_set.contains_key(&neighbor) {
-                    continue;
-                }
-
-                let movement_cost = Self::get_movement_cost(neighbor, tile_query, tile_storage);
-                if movement_cost < 0.0 {
-                    continue; // Impassable tile
-                }
-
-                let tentative_cost = current.cost + movement_cost;
-                
-                if let Some(&existing_cost) = cost_so_far.get(&neighbor) {
-                    if tentative_cost >= existing_cost {
-                        continue;
-                    }
-                }
-
-                cost_so_far.insert(neighbor, tentative_cost);
-                came_from.insert(neighbor, current.position);
-
-                let neighbor_node = PathfindingNode {
-                    position: neighbor,
-                    cost: tentative_cost,
-                    heuristic: Self::heuristic(neighbor, goal),
-                    parent: Some(current.position),
-                };
-
-                open_set.push(Reverse(neighbor_node));
-            }
-        }
-
-        None // No path found
+        // Convert hex path back to tile positions
+        hex_path
+            .into_iter()
+            .filter_map(|hex| hex.to_tile_pos())
+            .collect::<Vec<_>>()
+            .into()
     }
 
-    fn heuristic(from: TilePos, to: TilePos) -> f32 {
-        // Hexagonal distance using cube coordinates
-        let from_hex = Hex::new(from.x as i32, from.y as i32);
-        let to_hex = Hex::new(to.x as i32, to.y as i32);
-        from_hex.distance_to(to_hex) as f32
-    }
+    /// Find a path using a combined tile query (for use with ParamSet)
+    pub fn find_path_with_combined_query(
+        start: TilePos,
+        goal: TilePos,
+        tilemap_size: &TilemapSize,
+        tile_query: &Query<(&TileType, &TilePos)>,
+        tile_storage: &TileStorage,
+    ) -> Option<Vec<TilePos>> {
+        let start_hex = start.to_hex();
+        let goal_hex = goal.to_hex();
 
-    fn get_neighbors(pos: TilePos, tilemap_size: &TilemapSize) -> Vec<TilePos> {
-        let mut neighbors = Vec::new();
-        let hex = Hex::new(pos.x as i32, pos.y as i32);
-        
-        // Get hexagonal neighbors
-        for neighbor_hex in hex.all_neighbors() {
-            let neighbor_pos = TilePos {
-                x: neighbor_hex.x as u32,
-                y: neighbor_hex.y as u32,
-            };
-            
+        // Create a cost function that considers tile movement costs and bounds
+        let cost_fn = |_from: Hex, to: Hex| -> Option<u32> {
+            // Convert hex back to tile position for bounds checking
+            let to_pos = to.to_tile_pos()?;
+
             // Check bounds
-            if neighbor_pos.x < tilemap_size.x && neighbor_pos.y < tilemap_size.y {
-                neighbors.push(neighbor_pos);
+            if to_pos.x >= tilemap_size.x || to_pos.y >= tilemap_size.y {
+                return None;
             }
-        }
-        
-        neighbors
+
+            // Get tile entity and check passability/cost
+            if let Some(tile_entity) = tile_storage.get(&to_pos)
+                && let Ok((tile_type, _)) = tile_query.get(tile_entity)
+            {
+                if !tile_type.properties.is_passable {
+                    return None; // Impassable tile
+                }
+                return Some(tile_type.properties.movement_cost.ceil() as u32);
+            }
+
+            Some(1) // Default movement cost
+        };
+
+        // Use hexx's A* algorithm
+        let hex_path = a_star(start_hex, goal_hex, cost_fn)?;
+
+        // Convert hex path back to tile positions
+        hex_path
+            .into_iter()
+            .filter_map(|hex| hex.to_tile_pos())
+            .collect::<Vec<_>>()
+            .into()
     }
 
+    /// Helper function to get tile movement cost
     fn get_movement_cost(
         pos: TilePos,
         tile_query: &Query<&TileType>,
         tile_storage: &TileStorage,
     ) -> f32 {
-        if let Some(tile_entity) = tile_storage.get(&pos) {
-            if let Ok(tile_type) = tile_query.get(tile_entity) {
-                if !tile_type.properties.is_passable {
-                    return -1.0; // Impassable
-                }
-                return tile_type.properties.movement_cost;
+        if let Some(tile_entity) = tile_storage.get(&pos)
+            && let Ok(tile_type) = tile_query.get(tile_entity)
+        {
+            if !tile_type.properties.is_passable {
+                return -1.0; // Impassable
             }
+            return tile_type.properties.movement_cost;
         }
         1.0 // Default cost
     }
 
-    fn reconstruct_path(came_from: HashMap<TilePos, TilePos>, mut current: TilePos) -> Vec<TilePos> {
-        let mut path = vec![current];
-        
-        while let Some(&parent) = came_from.get(&current) {
-            current = parent;
-            path.push(current);
-        }
-        
-        path.reverse();
-        path
-    }
-
+    /// Calculate the total movement cost for a path
     pub fn calculate_path_cost(
         path: &[TilePos],
         tile_query: &Query<&TileType>,
         tile_storage: &TileStorage,
     ) -> u32 {
         let mut total_cost = 0.0;
-        
-        for pos in path.iter().skip(1) { // Skip starting position
+
+        for pos in path.iter().skip(1) {
+            // Skip starting position
             total_cost += Self::get_movement_cost(*pos, tile_query, tile_storage);
         }
-        
+
+        total_cost.ceil() as u32
+    }
+
+    /// Calculate the total movement cost for a path using combined query
+    pub fn calculate_path_cost_with_combined_query(
+        path: &[TilePos],
+        tile_query: &Query<(&TileType, &TilePos)>,
+        tile_storage: &TileStorage,
+    ) -> u32 {
+        let mut total_cost = 0.0;
+
+        for pos in path.iter().skip(1) {
+            // Skip starting position
+            if let Some(tile_entity) = tile_storage.get(pos) {
+                if let Ok((tile_type, _)) = tile_query.get(tile_entity) {
+                    if !tile_type.properties.is_passable {
+                        total_cost += 999.0; // High cost for impassable
+                    } else {
+                        total_cost += tile_type.properties.movement_cost;
+                    }
+                } else {
+                    total_cost += 1.0; // Default cost
+                }
+            } else {
+                total_cost += 1.0; // Default cost
+            }
+        }
+
         total_cost.ceil() as u32
     }
 }

@@ -46,6 +46,9 @@ src/
 ├── tiles.rs          # Tile system with extensive terrain/building types
 ├── turn_system.rs    # Turn-based gameplay system
 ├── hero.rs           # Hero units with movement and selection
+├── monster.rs        # Monster AI system with turn-based spawning
+├── health.rs         # Health and combat system
+├── tile_pos.rs       # Tile position utilities for hexagonal grid
 ├── pathfinding.rs    # A* pathfinding for hexagonal grids
 ├── ui.rs             # Game UI for turn/hero status display
 └── helpers/
@@ -69,11 +72,28 @@ src/
 - Hero movement points refresh at start of each turn
 
 ### Hero System (`hero.rs`)
-- `Hero` component with name, movement points, and selection state
-- `HeroMovement` component for pathfinding and animation
+- `Hero` component with name, movement points, selection state, and kill tracking
+- `HeroMovement` component for pathfinding with smooth animation
 - Heroes spawn as blue squares on the tilemap
 - Selection indicated by yellow color
 - Movement points consumed based on terrain cost
+- Manual attack system that costs 1 MP - click on monster to attack
+
+### Monster System (`monster.rs`)
+- `Monster` component with name, sight range, behavior types, and spawn turn tracking
+- AI behaviors: Aggressive (attacks on sight), Defensive (attacks when close), Fleeing (retreats when low HP)
+- Turn-based AI decisions made only during EnemyTurn phase
+- Smooth animation for movement with logical position updates
+- Spawns every 3 turns with different monster types (Goblin, Orc, Skeleton)
+
+### Health & Combat System (`combat.rs`, `health.rs`, `tile_pos.rs`)
+- Manual combat system - no automatic attacks
+- Combat events system for processing damage and deaths
+- Health component with current/max HP and healing mechanics
+- Combat component with attack damage values
+- Tile position utilities for hexagonal coordinate conversions
+- Low health triggers behavioral changes in monsters
+- Hero attacks cost 1 MP and must be initiated by clicking on monsters
 
 ### Pathfinding System (`pathfinding.rs`)
 - A* pathfinding algorithm for hexagonal grids
@@ -117,19 +137,25 @@ src/
 
 - Game uses hexagonal coordinate system (HexCoordSystem::Row)
 - Tiles are 16x16 pixels with center anchor
-- Hero represented as blue square sprite with collision detection
-- Turn-based movement with pathfinding validation
+- Heroes represented as blue squares, monsters as red squares
+- **Turn-based timing**: Spawning and turn logic are turn-based, but movement has smooth animation
+- Movement animation is smooth but logical position updates happen discretely
+- Monster AI only processes during EnemyTurn phase
+- Camera controls remain real-time for responsive user experience
 - Movement costs vary by terrain type (grass=1, mountain=3, water=impassable)
 - Asset loading uses "colored_packed.png" tileset
 - Extensive tile type system ready for future expansion
 
 ## Gameplay Features
 
-- **Turn-based Movement**: Heroes have limited movement points per turn
+- **Turn-based Movement**: Heroes have limited movement points per turn with smooth animated movement
+- **Monster AI**: Monsters spawn every 3 turns and use sight-based AI, only acting during EnemyTurn phase
+- **Manual Combat System**: Heroes must manually attack monsters by clicking on them (costs 1 MP)
+- **Health & Death**: Heroes and monsters have health/attack values with kill tracking and healing mechanics
 - **Pathfinding**: Click-to-move with automatic path calculation
 - **Terrain Effects**: Different terrain types affect movement cost
 - **Hero Selection**: Click on hero to select/deselect, indicated by color change
-- **Real-time UI**: Turn counter and hero status display
+- **Turn-based UI**: Turn counter and hero status display
 
 ## Controls (Runtime)
 

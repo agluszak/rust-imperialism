@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy_ecs_tilemap::prelude::*;
 
 /// Component to identify the type and properties of a tile
 #[derive(Component, Debug, Clone, PartialEq)]
@@ -26,52 +25,52 @@ pub enum TileCategory {
 /// Different terrain types for map generation
 #[derive(Debug, Clone, PartialEq)]
 pub enum TerrainType {
-    Grass,      // Plains - good for agriculture
-    Water,      // Ocean/rivers - naval movement
-    Mountain,   // High ground - defensive bonus
-    Desert,     // Harsh terrain - movement penalty
-    Forest,     // Dense vegetation - hiding bonus
-    Snow,       // Cold climate - harsh conditions
-    Hills,      // Rolling terrain - minor defensive bonus
-    Swamp,      // Wetlands - movement penalty
+    Grass,    // Plains - good for agriculture
+    Water,    // Ocean/rivers - naval movement
+    Mountain, // High ground - defensive bonus
+    Desert,   // Harsh terrain - movement penalty
+    Forest,   // Dense vegetation - hiding bonus
+    Snow,     // Cold climate - harsh conditions
+    Hills,    // Rolling terrain - minor defensive bonus
+    Swamp,    // Wetlands - movement penalty
 }
 
 /// Military units and fortifications
 #[derive(Debug, Clone, PartialEq)]
 pub enum MilitaryType {
-    Infantry,   // Basic ground troops
-    Cavalry,    // Fast moving units
-    Artillery,  // Long range siege weapons
-    Navy,       // Naval vessels
-    Fortress,   // Heavy fortification
-    Barracks,   // Unit production
-    Arsenal,    // Weapon storage
-    Wall,       // Defensive structure
+    Infantry,  // Basic ground troops
+    Cavalry,   // Fast moving units
+    Artillery, // Long range siege weapons
+    Navy,      // Naval vessels
+    Fortress,  // Heavy fortification
+    Barracks,  // Unit production
+    Arsenal,   // Weapon storage
+    Wall,      // Defensive structure
 }
 
 /// Resources for empire building
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResourceType {
-    Gold,       // Currency
-    Food,       // Population support
-    Iron,       // Military production
-    Wood,       // Construction material
-    Stone,      // Fortification material
-    Gems,       // Luxury goods
-    Trade,      // Commerce routes
+    Gold,  // Currency
+    Food,  // Population support
+    Iron,  // Military production
+    Wood,  // Construction material
+    Stone, // Fortification material
+    Gems,  // Luxury goods
+    Trade, // Commerce routes
 }
 
 /// Buildings and infrastructure
 #[derive(Debug, Clone, PartialEq)]
 pub enum BuildingType {
-    City,       // Population center
-    Capital,    // Empire capital
-    Farm,       // Food production
-    Mine,       // Resource extraction
-    Market,     // Trade center
-    Road,       // Transportation
-    Bridge,     // River crossing
-    Port,       // Naval base
+    City,    // Population center
+    Capital, // Empire capital
+    Farm,    // Food production
+    Mine,    // Resource extraction
+    Market,  // Trade center
+    Road,    // Transportation
+    Bridge,  // River crossing
+    Port,    // Naval base
 }
 
 /// UI and interface elements
@@ -89,12 +88,12 @@ pub enum UIType {
 /// Properties that affect gameplay
 #[derive(Debug, Clone, PartialEq)]
 pub struct TileProperties {
-    pub movement_cost: f32,     // Cost to move through this tile
-    pub defense_bonus: f32,     // Defensive advantage
-    pub resource_yield: f32,    // Resource production
+    pub movement_cost: f32,       // Cost to move through this tile
+    pub defense_bonus: f32,       // Defensive advantage
+    pub resource_yield: f32,      // Resource production
     pub population_capacity: u32, // How many people can live here
-    pub is_passable: bool,      // Can units move through
-    pub is_buildable: bool,     // Can structures be built
+    pub is_passable: bool,        // Can units move through
+    pub is_buildable: bool,       // Can structures be built
 }
 
 impl Default for TileProperties {
@@ -115,23 +114,23 @@ pub struct TileIndex;
 
 impl TileIndex {
     // Terrain tile indices (approximate based on the tileset layout)
-    pub const GRASS: u32 = 0;      // Green grass tile
-    pub const WATER: u32 = 100;    // Blue water tile
+    pub const GRASS: u32 = 0; // Green grass tile
+    pub const WATER: u32 = 100; // Blue water tile
     pub const MOUNTAIN: u32 = 200; // Brown mountain tile
-    pub const DESERT: u32 = 300;   // Tan desert tile
-    pub const FOREST: u32 = 400;   // Dark green forest
-    pub const SNOW: u32 = 500;     // White snow tile
-    
+    pub const DESERT: u32 = 300; // Tan desert tile
+    pub const FOREST: u32 = 400; // Dark green forest
+    pub const SNOW: u32 = 500; // White snow tile
+
     // Military structures
     pub const FORTRESS: u32 = 600;
     pub const BARRACKS: u32 = 650;
     pub const WALL: u32 = 700;
-    
+
     // Resources
     pub const GOLD: u32 = 800;
     pub const IRON: u32 = 850;
     pub const WOOD: u32 = 900;
-    
+
     // Buildings
     pub const CITY: u32 = 950;
     pub const FARM: u32 = 1000;
@@ -160,7 +159,7 @@ impl TileType {
             },
             TerrainType::Mountain => TileProperties {
                 movement_cost: 3.0,
-                defense_bonus: 2.0, // High ground advantage
+                defense_bonus: 2.0,  // High ground advantage
                 resource_yield: 1.0, // Mining
                 population_capacity: 2,
                 is_passable: true,
@@ -176,7 +175,7 @@ impl TileType {
             },
             TerrainType::Forest => TileProperties {
                 movement_cost: 2.0,
-                defense_bonus: 1.0, // Cover advantage
+                defense_bonus: 1.0,  // Cover advantage
                 resource_yield: 1.5, // Wood production
                 population_capacity: 5,
                 is_passable: true,
@@ -207,13 +206,13 @@ impl TileType {
                 is_buildable: false,
             },
         };
-        
+
         Self {
             category: TileCategory::Terrain(terrain_type),
             properties,
         }
     }
-    
+
     /// Create a military structure tile
     pub fn military(military_type: MilitaryType) -> Self {
         let properties = match military_type {
@@ -235,13 +234,13 @@ impl TileType {
             },
             _ => TileProperties::default(),
         };
-        
+
         Self {
             category: TileCategory::Military(military_type),
             properties,
         }
     }
-    
+
     /// Get the recommended texture index for this tile type
     pub fn get_texture_index(&self) -> u32 {
         match &self.category {

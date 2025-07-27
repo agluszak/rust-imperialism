@@ -1,35 +1,38 @@
 //! Example of tiles receiving pick events
 //! Click on a tile to change its texture.
-//! 
+//!
 //! Camera Controls:
 //! - WASD: Move camera
 //! - Z: Zoom out (keyboard)
-//! - X: Zoom in (keyboard) 
+//! - X: Zoom in (keyboard)
 //! - Mouse wheel: Zoom in/out
 
 use bevy::prelude::*;
-use bevy_ecs_tilemap::prelude::*;
 use bevy_ecs_tilemap::map::HexCoordSystem;
-use bevy::ecs::system::ParamSet;
+use bevy_ecs_tilemap::prelude::*;
 
+mod combat;
+mod health;
 mod helpers;
+mod hero;
+mod input;
+mod monster;
+mod pathfinding;
+mod tile_pos;
 mod tiles;
 mod turn_system;
-mod hero;
-mod pathfinding;
 mod ui;
-mod monster;
-mod combat;
 
-use crate::helpers::picking::TilemapBackend;
+use crate::combat::CombatPlugin;
+use crate::health::{Combat, Health};
 use crate::helpers::camera;
-use crate::tiles::{TileType, TileCategory, TerrainType};
+use crate::helpers::picking::TilemapBackend;
+use crate::hero::{Hero, HeroMovement, HeroPathPreview, HeroPlugin, HeroSprite, PathPreviewMarker};
+use crate::input::{InputPlugin, handle_tile_click};
+use crate::monster::MonsterPlugin;
+use crate::tiles::{TerrainType, TileType};
 use crate::turn_system::{TurnSystem, TurnSystemPlugin};
-use crate::hero::{Hero, HeroMovement, HeroSprite, HeroPlugin};
-use crate::pathfinding::PathfindingSystem;
 use crate::ui::GameUIPlugin;
-use crate::monster::{Monster, MonsterPlugin};
-use crate::combat::{CombatPlugin, CombatEvent};
 
 /// mostly the same as the `basic` example from `bevy_ecs_tilemap`
 fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -43,7 +46,7 @@ fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
     println!("Right click: Cycle terrain types");
     println!("Space: End turn");
     println!("=====================");
-    
+
     // Asset by Kenney
     let texture_handle: Handle<Image> = asset_server.load("colored_packed.png");
     let map_size = TilemapSize { x: 20, y: 20 };
@@ -55,7 +58,7 @@ fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
     for x in 0..map_size.x {
         for y in 0..map_size.y {
             let tile_pos = TilePos { x, y };
-            
+
             // Create different terrain types based on position for variety
             let tile_type = if x < 5 {
                 TileType::terrain(TerrainType::Water)
@@ -68,9 +71,9 @@ fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
             } else {
                 TileType::terrain(TerrainType::Grass)
             };
-            
+
             let texture_index = tile_type.get_texture_index();
-            
+
             let tile_entity = commands
                 .spawn((
                     TileBundle {
@@ -101,14 +104,23 @@ fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
         anchor: TilemapAnchor::Center,
         ..Default::default()
     });
-    
+
     // Spawn hero at starting position
     let hero_pos = TilePos { x: 10, y: 10 };
-    let hero_world_pos = hero_pos.center_in_world(&map_size, &grid_size, &tile_size, &map_type, &TilemapAnchor::Center);
-    
+    let hero_world_pos = hero_pos.center_in_world(
+        &map_size,
+        &grid_size,
+        &tile_size,
+        &map_type,
+        &TilemapAnchor::Center,
+    );
+
     commands.spawn((
         Hero::new("Player Hero".to_string(), 3),
+        Health::new(10),
+        Combat::new(3),
         HeroMovement::default(),
+        HeroPathPreview::default(),
         hero_pos,
         HeroSprite,
         Sprite {
@@ -120,134 +132,7 @@ fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
     ));
 }
 
-fn handle_tile_click(
-    trigger: Trigger<Pointer<Click>>,
-    mut queries: ParamSet<(
-        Query<(&mut TileTextureIndex, &mut TileType, &TilePos)>,
-        Query<(&TileType, &TilePos)>,
-        Query<(&mut Hero, &mut HeroMovement, &mut TilePos), With<Hero>>,
-        Query<(Entity, &Monster, &TilePos), With<Monster>>,
-    )>,
-    tilemap_query: Query<(&TilemapSize, &TileStorage, &TilemapGridSize, &TilemapType), With<TilemapGridSize>>,
-    mut combat_events: EventWriter<CombatEvent>,
-    turn_system: Res<TurnSystem>,
-) {
-    let entity = trigger.target();
-    let pointer_button = trigger.event().button;
-    
-    // Get tilemap info
-    let Ok((tilemap_size, _tile_storage, grid_size, map_type)) = tilemap_query.single() else {
-        return;
-    };
-    
-    // Get the clicked tile position directly from the entity
-    let target_pos = if let Ok((_, tile_pos)) = queries.p1().get(entity) {
-        *tile_pos
-    } else {
-        return;
-    };
-    
-    match pointer_button {
-        PointerButton::Primary => {
-            // Left click: Hero movement
-            if !turn_system.is_player_turn() {
-                return;
-            }
-            
-            // Check if clicking on hero (select)
-            for (mut hero, _movement, hero_pos) in queries.p2().iter_mut() {
-                if *hero_pos == target_pos {
-                    // Select/deselect hero
-                    if hero.is_selected {
-                        hero.deselect();
-                    } else {
-                        hero.select();
-                    }
-                    return;
-                }
-            }
-            
-            // Get movement cost for the tile
-            let movement_cost = if let Ok((tile_type, _)) = queries.p1().get(entity) {
-                tile_type.properties.movement_cost as u32
-            } else {
-                1 // Default cost
-            };
-            
-            // Check if there's a monster at the target position first
-            let mut monster_at_target = None;
-            {
-                let monster_query = queries.p3();
-                for (monster_entity, monster, monster_pos) in monster_query.iter() {
-                    if *monster_pos == target_pos {
-                        monster_at_target = Some((monster_entity, monster.name.clone()));
-                        break;
-                    }
-                }
-            }
-            
-            // Now handle hero actions
-            let mut hero_query = queries.p2();
-            for (mut hero, mut hero_movement, mut hero_pos) in hero_query.iter_mut() {
-                if hero.is_selected {
-                    if let Some((_monster_entity, monster_name)) = monster_at_target {
-                        // Attack the monster
-                        if hero.can_attack() {
-                            hero.attack();
-                            // We'll rely on the auto-combat system to handle combat when hero moves adjacent
-                            println!("Hero attacks {}!", monster_name);
-                        } else {
-                            println!("Hero doesn't have enough movement points to attack!");
-                        }
-                    } else {
-                        // Move to the tile
-                        if hero.can_move(movement_cost) {
-                            hero.consume_movement(movement_cost);
-                            
-                            // Create a simple direct path for now
-                            hero_movement.path = vec![target_pos].into();
-                            
-                            if let Some(first_step) = hero_movement.path.front() {
-                                hero_movement.target_world_pos = Some(
-                                    first_step.center_in_world(tilemap_size, grid_size, &TilemapTileSize { x: 16.0, y: 16.0 }, map_type, &TilemapAnchor::Center).extend(1.0)
-                                );
-                                hero_movement.is_moving = true;
-                            }
-                            
-                            // Update hero position immediately
-                            *hero_pos = target_pos;
-                            
-                            println!("Hero moving to {:?}, cost: {}, remaining movement: {}", 
-                                    target_pos, movement_cost, hero.movement_points);
-                        } else {
-                            println!("Not enough movement points! Need {}, have {}", 
-                                    movement_cost, hero.movement_points);
-                        }
-                    }
-                    break;
-                }
-            }
-        },
-        PointerButton::Secondary => {
-            // Right click: Cycle through terrain types
-            if let Ok((mut texture_index, mut tile_type, _)) = queries.p0().get_mut(entity) {
-                let new_terrain = match &tile_type.category {
-                    TileCategory::Terrain(TerrainType::Grass) => TerrainType::Water,
-                    TileCategory::Terrain(TerrainType::Water) => TerrainType::Mountain,
-                    TileCategory::Terrain(TerrainType::Mountain) => TerrainType::Desert,
-                    TileCategory::Terrain(TerrainType::Desert) => TerrainType::Forest,
-                    TileCategory::Terrain(TerrainType::Forest) => TerrainType::Snow,
-                    TileCategory::Terrain(TerrainType::Snow) => TerrainType::Grass,
-                    _ => TerrainType::Grass, // Default fallback
-                };
-                
-                *tile_type = TileType::terrain(new_terrain);
-                texture_index.0 = tile_type.get_texture_index();
-            }
-        },
-        _ => {}
-    }
-}
+// The tile click handler is now much simpler - just dispatch to input system
 
 fn main() {
     App::new()
@@ -262,6 +147,7 @@ fn main() {
             GameUIPlugin,
             MonsterPlugin,
             CombatPlugin,
+            InputPlugin,
         ))
         .add_systems(
             Startup,
@@ -275,19 +161,20 @@ fn main() {
                 ));
             }),
         )
-        .add_systems(Update, (
-            camera::movement,
-            hero_turn_refresh,
-            update_hero_position,
-        ))
+        .add_systems(
+            Update,
+            (
+                camera::movement,
+                hero_turn_refresh,
+                update_hero_position,
+                clear_path_preview_on_turn_change,
+            ),
+        )
         .run();
 }
 
 // System to refresh hero movement points at start of turn
-fn hero_turn_refresh(
-    mut hero_query: Query<&mut Hero>,
-    turn_system: Res<TurnSystem>,
-) {
+fn hero_turn_refresh(mut hero_query: Query<&mut Hero>, turn_system: Res<TurnSystem>) {
     if turn_system.is_changed() && turn_system.is_player_turn() {
         for mut hero in hero_query.iter_mut() {
             hero.refresh_movement();
@@ -303,7 +190,7 @@ fn update_hero_position(
     let Ok((tilemap_size, grid_size, map_type)) = tilemap_query.single() else {
         return;
     };
-    
+
     for (mut tile_pos, movement, transform) in hero_query.iter_mut() {
         if !movement.is_moving && movement.path.is_empty() {
             // Update tile position based on world position
@@ -314,11 +201,30 @@ fn update_hero_position(
                 &TilemapTileSize { x: 16.0, y: 16.0 },
                 map_type,
                 &TilemapAnchor::Center,
-            ) {
-                if *tile_pos != new_pos {
-                    *tile_pos = new_pos;
-                }
+            ) && *tile_pos != new_pos
+            {
+                *tile_pos = new_pos;
             }
+        }
+    }
+}
+
+// System to clear path preview markers when turn changes
+fn clear_path_preview_on_turn_change(
+    mut commands: Commands,
+    turn_system: Res<TurnSystem>,
+    preview_markers: Query<Entity, With<PathPreviewMarker>>,
+    mut hero_query: Query<&mut HeroPathPreview, With<Hero>>,
+) {
+    if turn_system.is_changed() {
+        // Clear all path preview markers
+        for entity in preview_markers.iter() {
+            commands.entity(entity).despawn();
+        }
+
+        // Clear all hero path previews
+        for mut path_preview in hero_query.iter_mut() {
+            path_preview.clear();
         }
     }
 }
