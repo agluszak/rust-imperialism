@@ -109,7 +109,7 @@ pub fn handle_scrollbar_drag(
                 if let Ok((scroll_position, _, _)) = scrollable_query.single() {
                     commands.entity(thumb_entity).insert(ScrollbarDragStart {
                         position: pos,
-                        scroll_position: Vec2::new(
+                        _scroll_position: Vec2::new(
                             scroll_position.offset_x,
                             scroll_position.offset_y,
                         ),
@@ -160,7 +160,7 @@ pub fn handle_scrollbar_drag(
             && let Ok(drag_start) = drag_query.get(thumb_entity)
         {
             // Use the track's cursor position for dragging so we can move across the full range
-            if let Ok(track_cursor) = track_query.get_single()
+            if let Ok(track_cursor) = track_query.single()
                 && let Some(track_pos) = track_cursor.normalized
                 && let Ok((mut scroll_position, _node, computed)) = scrollable_query.single_mut()
             {

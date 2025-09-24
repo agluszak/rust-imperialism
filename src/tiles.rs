@@ -185,34 +185,6 @@ impl TileType {
         }
     }
 
-    /// Create a military structure tile
-    pub fn military(military_type: MilitaryType) -> Self {
-        let properties = match military_type {
-            MilitaryType::Fortress => TileProperties {
-                movement_cost: 1.0,
-                defense_bonus: 3.0,
-                resource_yield: 0.0,
-                population_capacity: 20,
-                is_passable: true,
-                is_buildable: false,
-            },
-            MilitaryType::Barracks => TileProperties {
-                movement_cost: 1.0,
-                defense_bonus: 1.0,
-                resource_yield: 0.0,
-                population_capacity: 10,
-                is_passable: true,
-                is_buildable: false,
-            },
-            _ => TileProperties::default(),
-        };
-
-        Self {
-            category: TileCategory::Military(military_type),
-            properties,
-        }
-    }
-
     /// Get the recommended texture index for this tile type
     pub fn get_texture_index(&self) -> u32 {
         match &self.category {

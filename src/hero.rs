@@ -7,7 +7,7 @@ use crate::ui::logging::TerminalLogEvent;
 
 #[derive(Component, Debug, Clone)]
 pub struct Hero {
-    pub name: String,
+    pub _name: String,
     pub is_selected: bool,
     pub kills: u32,
 }
@@ -40,7 +40,7 @@ pub struct PathPreviewMarker;
 impl Default for Hero {
     fn default() -> Self {
         Self {
-            name: "Hero".to_string(),
+            _name: "Hero".to_string(),
             is_selected: false,
             kills: 0,
         }
@@ -74,14 +74,6 @@ impl HeroPathPreview {
 }
 
 impl Hero {
-    pub fn new(name: String) -> Self {
-        Self {
-            name,
-            is_selected: false,
-            kills: 0,
-        }
-    }
-
     pub fn select(&mut self) {
         self.is_selected = true;
     }

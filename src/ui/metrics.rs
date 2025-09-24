@@ -1,20 +1,14 @@
 #[derive(Debug, Clone)]
 pub struct ScrollbarMetrics {
-    pub content_height: f32,
-    pub visible_height: f32,
     pub max_scroll: f32,
     pub thumb_size_ratio: f32,
     pub can_scroll: bool,
 }
 
 impl ScrollbarMetrics {
-    pub fn calculate(visible_size: bevy::math::Vec2, font_size: f32) -> Self {
-        Self::calculate_with_content_size(visible_size, font_size, None)
-    }
-
     pub fn calculate_with_content_size(
         visible_size: bevy::math::Vec2,
-        font_size: f32,
+        _font_size: f32,
         actual_content_size: Option<bevy::math::Vec2>,
     ) -> Self {
         let visible_height = visible_size.y;
@@ -45,8 +39,6 @@ impl ScrollbarMetrics {
         };
 
         Self {
-            content_height,
-            visible_height,
             max_scroll,
             thumb_size_ratio,
             can_scroll,

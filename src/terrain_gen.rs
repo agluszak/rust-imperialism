@@ -75,24 +75,6 @@ impl TerrainGenerator {
             TerrainType::Grass // Default grassland
         }
     }
-
-    /// Get a preview of what terrain would be generated (useful for debugging)
-    pub fn get_terrain_preview(&self, map_size_x: u32, map_size_y: u32) -> Vec<Vec<TerrainType>> {
-        let mut preview = Vec::new();
-
-        for y in 0..map_size_y {
-            let mut row = Vec::new();
-            for x in 0..map_size_x {
-                let tile = self.generate_terrain(x, y, map_size_x, map_size_y);
-                if let crate::tiles::TileCategory::Terrain(terrain_type) = tile.category {
-                    row.push(terrain_type);
-                }
-            }
-            preview.push(row);
-        }
-
-        preview
-    }
 }
 
 impl Default for TerrainGenerator {

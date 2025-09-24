@@ -97,10 +97,3 @@ pub fn update_terminal_output(
         }
     }
 }
-
-// Helper function to emit log events
-pub fn emit_log(mut writer: EventWriter<TerminalLogEvent>, message: impl Into<String>) {
-    writer.write(TerminalLogEvent {
-        message: message.into(),
-    });
-}

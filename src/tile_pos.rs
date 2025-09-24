@@ -3,19 +3,11 @@ use hexx::Hex;
 
 pub trait TilePosExt {
     fn to_hex(&self) -> Hex;
-    fn from_hex(hex: Hex) -> Self;
 }
 
 impl TilePosExt for TilePos {
     fn to_hex(&self) -> Hex {
         Hex::new(self.x as i32, self.y as i32)
-    }
-
-    fn from_hex(hex: Hex) -> Self {
-        TilePos {
-            x: hex.x as u32,
-            y: hex.y as u32,
-        }
     }
 }
 

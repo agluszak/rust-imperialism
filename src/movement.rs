@@ -38,16 +38,6 @@ impl MovementAnimation {
         self.path = path;
         self.is_moving = true;
     }
-
-    pub fn stop_movement(&mut self) {
-        self.is_moving = false;
-        self.target_world_pos = None;
-        self.path.clear();
-    }
-
-    pub fn is_idle(&self) -> bool {
-        !self.is_moving && self.path.is_empty()
-    }
 }
 
 /// Component for entities that have movement points and can execute tactical movement

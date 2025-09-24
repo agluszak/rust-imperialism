@@ -153,7 +153,7 @@ fn spawn_hero(
 
     commands.spawn((
         Hero {
-            name: "Player Hero".to_string(),
+            _name: "Player Hero".to_string(),
             is_selected: false,
             kills: 0,
         },

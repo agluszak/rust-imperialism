@@ -9,7 +9,7 @@ use crate::ui::logging::TerminalLogEvent;
 
 #[derive(Event)]
 pub struct CombatEvent {
-    pub attacker: Entity,
+    pub _attacker: Entity,
     pub defender: Entity,
     pub damage: u32,
 }
@@ -187,7 +187,7 @@ fn hero_attack_system(
                         };
 
                         combat_events.write(CombatEvent {
-                            attacker: hero_entity,
+                            _attacker: hero_entity,
                             defender: monster_entity,
                             damage,
                         });

@@ -13,7 +13,6 @@ pub struct Monster {
     pub name: String,
     pub sight_range: u32,
     pub behavior: MonsterBehavior,
-    pub spawn_turn: u32,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -32,18 +31,16 @@ impl Default for Monster {
             name: "Goblin".to_string(),
             sight_range: 5,
             behavior: MonsterBehavior::Aggressive,
-            spawn_turn: 0,
         }
     }
 }
 
 impl Monster {
-    pub fn new(name: String, spawn_turn: u32) -> Self {
+    pub fn new(name: String) -> Self {
         Self {
             name,
             sight_range: 5,
             behavior: MonsterBehavior::Aggressive,
-            spawn_turn,
         }
     }
 
@@ -115,7 +112,7 @@ fn spawn_monsters_system(
         let monster_name = monster_types[rng.random_range(0..monster_types.len())];
 
         commands.spawn((
-            Monster::new(monster_name.to_string(), turn_system.current_turn),
+            Monster::new(monster_name.to_string()),
             Health::new(3),
             Combat::new(2),
             ActionPoints::new(4),          // Monsters have 4 action points
@@ -229,7 +226,7 @@ fn monster_ai_system(
                 if action_points.can_move(1) {
                     action_points.consume(1);
                     combat_events.write(crate::combat::CombatEvent {
-                        attacker: monster_entity,
+                        _attacker: monster_entity,
                         defender: hero_entity,
                         damage: 2, // Default monster damage
                     });

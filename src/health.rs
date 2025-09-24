@@ -19,16 +19,8 @@ impl Health {
         }
     }
 
-    pub fn with_current(current: u32, max: u32) -> Self {
-        Self { current, max }
-    }
-
     pub fn take_damage(&mut self, damage: u32) {
         self.current = self.current.saturating_sub(damage);
-    }
-
-    pub fn heal(&mut self, amount: u32) {
-        self.current = (self.current + amount).min(self.max);
     }
 
     pub fn heal_to_full(&mut self) {
@@ -41,14 +33,6 @@ impl Health {
 
     pub fn is_low_health(&self) -> bool {
         self.current <= self.max / 3
-    }
-
-    pub fn health_percentage(&self) -> f32 {
-        if self.max == 0 {
-            0.0
-        } else {
-            self.current as f32 / self.max as f32
-        }
     }
 }
 
