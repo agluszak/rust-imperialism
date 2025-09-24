@@ -1,5 +1,6 @@
-use crate::ui::TerminalLog;
 use bevy::prelude::*;
+
+use crate::ui::logging::TerminalLogEvent;
 
 #[derive(Resource, Debug, Clone)]
 pub struct TurnSystem {
@@ -60,14 +61,13 @@ impl Plugin for TurnSystemPlugin {
 fn handle_turn_input(
     keys: Res<ButtonInput<KeyCode>>,
     mut turn_system: ResMut<TurnSystem>,
-    mut terminal_log: ResMut<TerminalLog>,
+    mut log_writer: EventWriter<TerminalLogEvent>,
 ) {
     if keys.just_pressed(KeyCode::Space) && turn_system.is_player_turn() {
         turn_system.end_player_turn();
-        terminal_log.add_message(format!(
-            "Player turn ended. Turn: {}",
-            turn_system.current_turn
-        ));
+        log_writer.write(TerminalLogEvent {
+            message: format!("Player turn ended. Turn: {}", turn_system.current_turn),
+        });
     }
 }
 
@@ -75,7 +75,7 @@ fn process_turn_phases(
     mut turn_system: ResMut<TurnSystem>,
     mut turn_timer: Local<Timer>,
     time: Res<Time>,
-    mut terminal_log: ResMut<TerminalLog>,
+    mut log_writer: EventWriter<TerminalLogEvent>,
 ) {
     // Handle turn phase transitions with timing
     match turn_system.phase {
@@ -89,7 +89,9 @@ fn process_turn_phases(
 
             if turn_timer.just_finished() {
                 turn_system.advance_turn(); // Processing -> EnemyTurn
-                terminal_log.add_message("=== Enemy Turn ===".to_string());
+                log_writer.write(TerminalLogEvent {
+                    message: "=== Enemy Turn ===".to_string(),
+                });
                 turn_timer.reset();
             }
         }
@@ -103,7 +105,9 @@ fn process_turn_phases(
 
             if turn_timer.just_finished() {
                 turn_system.advance_turn(); // EnemyTurn -> PlayerTurn with new turn number
-                terminal_log.add_message(format!("Starting turn {}", turn_system.current_turn));
+                log_writer.write(TerminalLogEvent {
+                    message: format!("Starting turn {}", turn_system.current_turn),
+                });
                 turn_timer.reset();
             }
         }
@@ -111,11 +115,16 @@ fn process_turn_phases(
     }
 }
 
-fn update_turn_display(turn_system: Res<TurnSystem>, mut terminal_log: ResMut<TerminalLog>) {
+fn update_turn_display(
+    turn_system: Res<TurnSystem>,
+    mut log_writer: EventWriter<TerminalLogEvent>,
+) {
     if turn_system.is_changed() {
-        terminal_log.add_message(format!(
-            "=== Turn {} - {:?} ===",
-            turn_system.current_turn, turn_system.phase
-        ));
+        log_writer.write(TerminalLogEvent {
+            message: format!(
+                "=== Turn {} - {:?} ===",
+                turn_system.current_turn, turn_system.phase
+            ),
+        });
     }
 }

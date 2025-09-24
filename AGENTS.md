@@ -111,16 +111,20 @@ src/
 - Returns optimal paths respecting tile properties
 
 ### UI System (`ui.rs`)
-- Displays current turn number and phase
-- Shows hero status including movement points
-- Updates in real-time as game state changes
-- Simple text-based interface in top-left corner
+- **Terminal Interface**: Scrollable terminal with game logs and status messages
+- **Turn Display**: Shows current turn number and phase
+- **Hero Status**: Displays hero movement points and stats
+- **Advanced Scrollbar**: Custom scrollbar with proper drag, wheel, and click support
+- **System Ordering**: Mouse wheel events prioritize terminal over camera when over terminal
+- **Dynamic Layout**: Adapts to font size changes and window resizing
+- **Event Logging**: Comprehensive game event logging with timestamps
 
 ### Camera System (`helpers/camera.rs`)
 - WASD movement controls
 - Z/X keyboard zoom + mouse wheel zoom
 - Movement speed scales with zoom level
 - Orthographic projection with scale bounds (0.1-5.0)
+- **System Ordering**: Runs after terminal scroll to prevent interference
 
 ### Picking System (`helpers/picking.rs`)
 - Custom tilemap picking backend for Bevy
@@ -163,15 +167,46 @@ src/
 - **Pathfinding**: Click-to-move with automatic path calculation
 - **Terrain Effects**: Different terrain types affect movement cost
 - **Hero Selection**: Click on hero to select/deselect, indicated by color change
-- **Turn-based UI**: Turn counter and hero status display
+- **Advanced Terminal UI**:
+  - Scrollable terminal with game logs and event history
+  - Custom scrollbar with drag, click, and mouse wheel support
+  - No overscroll - proper bounds enforcement
+  - Dynamic content sizing and layout adaptation
+  - Mouse wheel isolation - terminal scroll doesn't affect map
 
 ## Controls (Runtime)
 
 - **WASD**: Move camera
 - **Z**: Zoom out (keyboard)
 - **X**: Zoom in (keyboard)
-- **Mouse wheel**: Zoom in/out
+- **Mouse wheel**: Zoom in/out (only when not over terminal)
 - **Left click on hero**: Select/deselect hero
 - **Left click on tile**: Move selected hero to that tile (if possible)
 - **Right click on tile**: Cycle through terrain types
 - **Space**: End current turn
+
+### Terminal UI Controls:
+- **Mouse wheel**: Scroll terminal content (when mouse over terminal)
+- **Click scrollbar track**: Jump to position
+- **Drag scrollbar thumb**: Smooth scrolling
+- **Automatic scrolling**: Terminal auto-scrolls to show new messages
+
+## Technical Implementation Notes
+
+### Scrollbar System Architecture
+- **ScrollbarMetrics**: Centralized calculation system for all scroll operations
+- **Dynamic font detection**: Uses actual font size from text components
+- **Robust content sizing**: Prefers computed layout size with intelligent fallback estimation
+- **System ordering**: Terminal scroll system runs before camera system to prevent interference
+- **Overscroll prevention**: Strict bounds checking prevents scrolling past content limits
+- **Real-time updates**: Scrollbar position and size update during drag operations without flickering
+
+### Event Handling Priority
+- Mouse wheel events are processed by terminal first when mouse is over terminal
+- Camera zoom only processes mouse wheel events when terminal doesn't handle them
+- Clean separation prevents both systems from processing the same scroll event
+
+### Performance Optimizations
+- Clippy lints configured to allow complex function signatures and type complexity
+- Efficient query systems with proper filtering to avoid unnecessary computations
+- Dynamic content height calculation only when needed

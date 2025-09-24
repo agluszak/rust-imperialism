@@ -1,11 +1,12 @@
 use crate::health::{Combat, Health};
 use crate::tile_pos::{HexExt, TilePosExt};
 use crate::turn_system::TurnSystem;
-use crate::ui::TerminalLog;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 use rand::Rng;
 use std::collections::VecDeque;
+
+use crate::ui::logging::TerminalLogEvent;
 
 #[derive(Component, Debug, Clone)]
 pub struct Monster {
@@ -104,7 +105,7 @@ fn spawn_monsters_system(
     tilemap_query: Query<(&TilemapSize, &TilemapGridSize, &TilemapType), With<TilemapGridSize>>,
     turn_system: Res<TurnSystem>,
     mut last_spawn_turn: Local<u32>,
-    mut terminal_log: ResMut<TerminalLog>,
+    mut log_writer: EventWriter<TerminalLogEvent>,
 ) {
     // Only spawn if we have less than 5 monsters
     if monster_query.iter().count() >= 5 {
@@ -148,10 +149,12 @@ fn spawn_monsters_system(
         ));
 
         *last_spawn_turn = turn_system.current_turn;
-        terminal_log.add_message(format!(
-            "Spawned {} at {:?} on turn {}",
-            monster_name, monster_pos, turn_system.current_turn
-        ));
+        log_writer.write(TerminalLogEvent {
+            message: format!(
+                "Spawned {} at {:?} on turn {}",
+                monster_name, monster_pos, turn_system.current_turn
+            ),
+        });
     }
 }
 
@@ -170,7 +173,7 @@ fn monster_ai_system(
     tilemap_query: Query<(&TilemapSize, &TilemapGridSize, &TilemapType), With<TilemapGridSize>>,
     turn_system: Res<TurnSystem>,
     mut combat_events: EventWriter<crate::combat::CombatEvent>,
-    mut terminal_log: ResMut<TerminalLog>,
+    mut log_writer: EventWriter<TerminalLogEvent>,
 ) {
     // Only allow monster AI during EnemyTurn phase
     if turn_system.phase != crate::turn_system::TurnPhase::EnemyTurn {
@@ -226,7 +229,9 @@ fn monster_ai_system(
                     defender: hero_entity,
                     damage: 2, // Default monster damage
                 });
-                terminal_log.add_message(format!("{} attacks the hero!", monster.name));
+                log_writer.write(TerminalLogEvent {
+                    message: format!("{} attacks the hero!", monster.name),
+                });
             }
         }
     }

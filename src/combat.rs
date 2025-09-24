@@ -2,9 +2,10 @@ use crate::health::{Combat, Health};
 use crate::hero::Hero;
 use crate::monster::Monster;
 use crate::tile_pos::TilePosExt;
-use crate::ui::TerminalLog;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
+
+use crate::ui::logging::TerminalLogEvent;
 
 #[derive(Event)]
 pub struct CombatEvent {
@@ -51,7 +52,7 @@ fn process_combat_events(
     mut health_query: Query<&mut Health>,
     hero_query: Query<&Hero>,
     monster_query: Query<&Monster>,
-    mut terminal_log: ResMut<TerminalLog>,
+    mut log_writer: EventWriter<TerminalLogEvent>,
 ) {
     for event in combat_events.read() {
         // Apply damage to defender
@@ -60,10 +61,12 @@ fn process_combat_events(
 
             // Check if this is a hero or monster for different logging
             if let Ok(_hero) = hero_query.get(event.defender) {
-                terminal_log.add_message(format!(
-                    "Hero takes {} damage! HP: {}/{}",
-                    event.damage, health.current, health.max
-                ));
+                log_writer.write(TerminalLogEvent {
+                    message: format!(
+                        "Hero takes {} damage! HP: {}/{}",
+                        event.damage, health.current, health.max
+                    ),
+                });
 
                 if !health.is_alive() {
                     death_events.write(DeathEvent {
@@ -72,10 +75,12 @@ fn process_combat_events(
                     });
                 }
             } else if let Ok(monster) = monster_query.get(event.defender) {
-                terminal_log.add_message(format!(
-                    "{} takes {} damage! HP: {}/{}",
-                    monster.name, event.damage, health.current, health.max
-                ));
+                log_writer.write(TerminalLogEvent {
+                    message: format!(
+                        "{} takes {} damage! HP: {}/{}",
+                        monster.name, event.damage, health.current, health.max
+                    ),
+                });
 
                 if !health.is_alive() {
                     death_events.write(DeathEvent {
@@ -93,13 +98,15 @@ fn process_death_events(
     mut commands: Commands,
     mut hero_query: Query<(&mut Hero, &mut Health), With<Hero>>,
     monster_query: Query<&Monster>,
-    mut terminal_log: ResMut<TerminalLog>,
+    mut log_writer: EventWriter<TerminalLogEvent>,
 ) {
     for event in death_events.read() {
         if event.was_monster {
             // Monster died - remove it and give hero a kill
             if let Ok(monster) = monster_query.get(event.entity) {
-                terminal_log.add_message(format!("{} has been defeated!", monster.name));
+                log_writer.write(TerminalLogEvent {
+                    message: format!("{} has been defeated!", monster.name),
+                });
             }
 
             commands.entity(event.entity).despawn();
@@ -110,15 +117,16 @@ fn process_death_events(
                 // Heal after every 3 kills
                 if hero.should_heal_from_kills() {
                     health.heal_to_full();
-                    terminal_log.add_message(format!(
-                        "Hero healed to full HP after {} kills!",
-                        hero.kills
-                    ));
+                    log_writer.write(TerminalLogEvent {
+                        message: format!("Hero healed to full HP after {} kills!", hero.kills),
+                    });
                 }
             }
         } else {
             // Hero died - game over
-            terminal_log.add_message("GAME OVER - Hero has been defeated!".to_string());
+            log_writer.write(TerminalLogEvent {
+                message: "GAME OVER - Hero has been defeated!".to_string(),
+            });
             // You could add game over logic here
         }
     }
@@ -139,7 +147,7 @@ fn hero_attack_system(
     hero_combat_query: Query<&Combat, With<Hero>>,
     monster_query: Query<(Entity, &Monster, &TilePos), With<Monster>>,
     mut combat_events: EventWriter<CombatEvent>,
-    mut terminal_log: ResMut<TerminalLog>,
+    mut log_writer: EventWriter<TerminalLogEvent>,
 ) {
     for event in hero_attack_events.read() {
         // Find the monster at target position
@@ -158,10 +166,10 @@ fn hero_attack_system(
                     let distance = hero_hex.distance_to(monster_hex);
 
                     if distance > 1 {
-                        terminal_log.add_message(format!(
+                        log_writer.write(TerminalLogEvent { message: format!(
                             "Monster is too far away! Hero must be adjacent to attack (distance: {})",
                             distance
-                        ));
+                        )});
                         break;
                     }
 
@@ -180,11 +188,14 @@ fn hero_attack_system(
                             defender: monster_entity,
                             damage,
                         });
-                        terminal_log.add_message(format!("Hero attacks {monster_name}!"));
+                        log_writer.write(TerminalLogEvent {
+                            message: format!("Hero attacks {monster_name}!"),
+                        });
                     } else {
-                        terminal_log.add_message(
-                            "Hero doesn't have enough movement points to attack!".to_string(),
-                        );
+                        log_writer.write(TerminalLogEvent {
+                            message: "Hero doesn't have enough movement points to attack!"
+                                .to_string(),
+                        });
                     }
                     break;
                 }

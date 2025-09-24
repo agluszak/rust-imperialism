@@ -1,8 +1,9 @@
 use crate::turn_system::{TurnPhase, TurnSystem};
-use crate::ui::TerminalLog;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 use std::collections::VecDeque;
+
+use crate::ui::logging::TerminalLogEvent;
 
 #[derive(Component, Debug, Clone)]
 pub struct Hero {
@@ -372,7 +373,7 @@ fn hero_movement_system(
         (&TilemapSize, &TileStorage, &TilemapGridSize, &TilemapType),
         With<TilemapGridSize>,
     >,
-    mut terminal_log: ResMut<TerminalLog>,
+    mut log_writer: EventWriter<TerminalLogEvent>,
 ) {
     let Ok((tilemap_size, tile_storage, grid_size, map_type)) = tilemap_query.single() else {
         return;
@@ -408,17 +409,21 @@ fn hero_movement_system(
                         hero_movement.is_moving = true;
                     }
 
-                    terminal_log.add_message(format!(
-                        "Executing path to {:?}, cost: {}, remaining movement: {}",
-                        event.target_pos, path_preview.path_cost, hero.movement_points
-                    ));
+                    log_writer.write(TerminalLogEvent {
+                        message: format!(
+                            "Executing path to {:?}, cost: {}, remaining movement: {}",
+                            event.target_pos, path_preview.path_cost, hero.movement_points
+                        ),
+                    });
 
                     path_preview.clear();
                 } else {
-                    terminal_log.add_message(format!(
-                        "Not enough movement points! Need {}, have {}",
-                        path_preview.path_cost, hero.movement_points
-                    ));
+                    log_writer.write(TerminalLogEvent {
+                        message: format!(
+                            "Not enough movement points! Need {}, have {}",
+                            path_preview.path_cost, hero.movement_points
+                        ),
+                    });
                 }
             } else {
                 // First click - show path preview
@@ -448,18 +453,24 @@ fn hero_movement_system(
                     path_preview.set_path(event.target_pos, path, path_cost, reachable_steps);
 
                     if hero.can_move(path_cost) {
-                        terminal_log.add_message(format!(
-                            "Path to {:?} costs {} MP. Click again to execute.",
-                            event.target_pos, path_cost
-                        ));
+                        log_writer.write(TerminalLogEvent {
+                            message: format!(
+                                "Path to {:?} costs {} MP. Click again to execute.",
+                                event.target_pos, path_cost
+                            ),
+                        });
                     } else {
-                        terminal_log.add_message(format!(
-                            "Path to {:?} costs {} MP (not enough! have {})",
-                            event.target_pos, path_cost, hero.movement_points
-                        ));
+                        log_writer.write(TerminalLogEvent {
+                            message: format!(
+                                "Path to {:?} costs {} MP (not enough! have {})",
+                                event.target_pos, path_cost, hero.movement_points
+                            ),
+                        });
                     }
                 } else {
-                    terminal_log.add_message(format!("No path found to {:?}", event.target_pos));
+                    log_writer.write(TerminalLogEvent {
+                        message: format!("No path found to {:?}", event.target_pos),
+                    });
                     path_preview.clear();
                 }
             }
@@ -499,7 +510,7 @@ fn calculate_reachable_steps(
 fn refresh_hero_movement_points_system(
     mut hero_query: Query<&mut Hero>,
     turn_system: Res<TurnSystem>,
-    mut terminal_log: ResMut<TerminalLog>,
+    mut log_writer: EventWriter<TerminalLogEvent>,
 ) {
     // Only refresh on turn changes to PlayerTurn phase
     if turn_system.is_changed() && turn_system.phase == TurnPhase::PlayerTurn {
@@ -508,10 +519,12 @@ fn refresh_hero_movement_points_system(
             hero.refresh_movement();
 
             if old_mp < hero.movement_points {
-                terminal_log.add_message(format!(
-                    "Hero movement points refreshed: {}/{}",
-                    hero.movement_points, hero.max_movement_points
-                ));
+                log_writer.write(TerminalLogEvent {
+                    message: format!(
+                        "Hero movement points refreshed: {}/{}",
+                        hero.movement_points, hero.max_movement_points
+                    ),
+                });
             }
         }
     }

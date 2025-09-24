@@ -110,7 +110,10 @@ fn main() {
                 spawn_hero.after(tilemap_startup),
             ),
         )
-        .add_systems(Update, camera::movement)
+        .add_systems(
+            Update,
+            camera::movement.after(ui::handle_mouse_wheel_scroll),
+        )
         .run();
 }
 
