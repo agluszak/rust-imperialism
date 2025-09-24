@@ -1,31 +1,31 @@
 //! Rust Imperialism - A hexagonal tile-based strategy game
 
 use bevy::prelude::*;
-use bevy_ecs_tilemap::prelude::*;
 use bevy_ecs_tilemap::map::HexCoordSystem;
+use bevy_ecs_tilemap::prelude::*;
 
 // Import all game modules
-mod helpers;
-mod tiles;
-mod hero;
-mod monster;
-mod turn_system;
-mod ui;
-mod input;
 mod combat;
 mod health;
+mod helpers;
+mod hero;
+mod input;
+mod monster;
 mod pathfinding;
 mod tile_pos;
+mod tiles;
+mod turn_system;
+mod ui;
 
-use crate::helpers::{picking::TilemapBackend, camera};
-use crate::tiles::{TileType, TerrainType};
-use crate::hero::{HeroPlugin, Hero, HeroMovement, HeroPathPreview, HeroSprite};
+use crate::combat::CombatPlugin;
+use crate::health::{Combat, Health};
+use crate::helpers::{camera, picking::TilemapBackend};
+use crate::hero::{Hero, HeroMovement, HeroPathPreview, HeroPlugin, HeroSprite};
+use crate::input::{InputPlugin, handle_tile_click};
 use crate::monster::MonsterPlugin;
+use crate::tiles::{TerrainType, TileType};
 use crate::turn_system::TurnSystemPlugin;
 use crate::ui::GameUIPlugin;
-use crate::input::{InputPlugin, handle_tile_click};
-use crate::combat::CombatPlugin;
-use crate::health::{Health, Combat};
 
 /// mostly the same as the `basic` example from `bevy_ecs_tilemap`
 fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -40,7 +40,7 @@ fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
     for x in 0..map_size.x {
         for y in 0..map_size.y {
             let tile_pos = TilePos { x, y };
-            
+
             // Create different terrain types based on position for variety
             let tile_type = if x < 5 {
                 TileType::terrain(TerrainType::Water)
@@ -53,9 +53,9 @@ fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
             } else {
                 TileType::terrain(TerrainType::Grass)
             };
-            
+
             let texture_index = tile_type.get_texture_index();
-            
+
             let tile_entity = commands
                 .spawn((
                     TileBundle {
@@ -126,7 +126,15 @@ fn setup_camera(mut commands: Commands) {
 
 fn spawn_hero(
     mut commands: Commands,
-    tilemap_query: Query<(&TilemapSize, &TilemapGridSize, &TilemapTileSize, &TilemapType), With<TilemapGridSize>>,
+    tilemap_query: Query<
+        (
+            &TilemapSize,
+            &TilemapGridSize,
+            &TilemapTileSize,
+            &TilemapType,
+        ),
+        With<TilemapGridSize>,
+    >,
 ) {
     let Ok((tilemap_size, grid_size, tile_size, map_type)) = tilemap_query.single() else {
         return;

@@ -1,8 +1,8 @@
+use crate::turn_system::{TurnPhase, TurnSystem};
+use crate::ui::TerminalLog;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 use std::collections::VecDeque;
-use crate::ui::TerminalLog;
-use crate::turn_system::{TurnSystem, TurnPhase};
 
 #[derive(Component, Debug, Clone)]
 pub struct Hero {
@@ -481,14 +481,15 @@ fn calculate_reachable_steps(
     // Skip the first position (current position) and calculate cost for each step
     for (i, &pos) in path.iter().enumerate().skip(1) {
         if let Some(tile_entity) = tile_storage.get(&pos)
-            && let Ok((tile_type, _)) = tile_query.get(tile_entity) {
-                accumulated_cost += tile_type.properties.movement_cost as u32;
-                if accumulated_cost <= movement_points {
-                    reachable_steps = i as u32;
-                } else {
-                    break;
-                }
+            && let Ok((tile_type, _)) = tile_query.get(tile_entity)
+        {
+            accumulated_cost += tile_type.properties.movement_cost as u32;
+            if accumulated_cost <= movement_points {
+                reachable_steps = i as u32;
+            } else {
+                break;
             }
+        }
     }
 
     reachable_steps
@@ -509,8 +510,7 @@ fn refresh_hero_movement_points_system(
             if old_mp < hero.movement_points {
                 terminal_log.add_message(format!(
                     "Hero movement points refreshed: {}/{}",
-                    hero.movement_points,
-                    hero.max_movement_points
+                    hero.movement_points, hero.max_movement_points
                 ));
             }
         }

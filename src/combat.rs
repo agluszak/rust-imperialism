@@ -1,8 +1,8 @@
 use crate::health::{Combat, Health};
 use crate::hero::Hero;
 use crate::monster::Monster;
-use crate::ui::TerminalLog;
 use crate::tile_pos::TilePosExt;
+use crate::ui::TerminalLog;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 
@@ -59,7 +59,7 @@ fn process_combat_events(
             health.take_damage(event.damage);
 
             // Check if this is a hero or monster for different logging
-            if let Ok(hero) = hero_query.get(event.defender) {
+            if let Ok(_hero) = hero_query.get(event.defender) {
                 terminal_log.add_message(format!(
                     "Hero takes {} damage! HP: {}/{}",
                     event.damage, health.current, health.max
@@ -110,7 +110,10 @@ fn process_death_events(
                 // Heal after every 3 kills
                 if hero.should_heal_from_kills() {
                     health.heal_to_full();
-                    terminal_log.add_message(format!("Hero healed to full HP after {} kills!", hero.kills));
+                    terminal_log.add_message(format!(
+                        "Hero healed to full HP after {} kills!",
+                        hero.kills
+                    ));
                 }
             }
         } else {
@@ -124,7 +127,15 @@ fn process_death_events(
 // Hero attack system
 fn hero_attack_system(
     mut hero_attack_events: EventReader<HeroAttackClicked>,
-    mut hero_query: Query<(Entity, &mut Hero, &mut crate::hero::HeroPathPreview, &TilePos), With<Hero>>,
+    mut hero_query: Query<
+        (
+            Entity,
+            &mut Hero,
+            &mut crate::hero::HeroPathPreview,
+            &TilePos,
+        ),
+        With<Hero>,
+    >,
     hero_combat_query: Query<&Combat, With<Hero>>,
     monster_query: Query<(Entity, &Monster, &TilePos), With<Monster>>,
     mut combat_events: EventWriter<CombatEvent>,
@@ -171,7 +182,9 @@ fn hero_attack_system(
                         });
                         terminal_log.add_message(format!("Hero attacks {monster_name}!"));
                     } else {
-                        terminal_log.add_message("Hero doesn't have enough movement points to attack!".to_string());
+                        terminal_log.add_message(
+                            "Hero doesn't have enough movement points to attack!".to_string(),
+                        );
                     }
                     break;
                 }

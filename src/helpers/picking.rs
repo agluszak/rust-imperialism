@@ -35,7 +35,6 @@ impl Plugin for TilemapBackend {
     }
 }
 
-#[expect(clippy::type_complexity)]
 fn tile_picking(
     pointers: Query<(&PointerId, &PointerLocation)>,
     cameras: Query<(Entity, &Camera, &GlobalTransform, &Projection)>,

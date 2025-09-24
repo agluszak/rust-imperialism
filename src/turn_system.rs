@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use crate::ui::TerminalLog;
+use bevy::prelude::*;
 
 #[derive(Resource, Debug, Clone)]
 pub struct TurnSystem {
@@ -57,10 +57,17 @@ impl Plugin for TurnSystemPlugin {
     }
 }
 
-fn handle_turn_input(keys: Res<ButtonInput<KeyCode>>, mut turn_system: ResMut<TurnSystem>, mut terminal_log: ResMut<TerminalLog>) {
+fn handle_turn_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut turn_system: ResMut<TurnSystem>,
+    mut terminal_log: ResMut<TerminalLog>,
+) {
     if keys.just_pressed(KeyCode::Space) && turn_system.is_player_turn() {
         turn_system.end_player_turn();
-        terminal_log.add_message(format!("Player turn ended. Turn: {}", turn_system.current_turn));
+        terminal_log.add_message(format!(
+            "Player turn ended. Turn: {}",
+            turn_system.current_turn
+        ));
     }
 }
 

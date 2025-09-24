@@ -333,7 +333,7 @@ fn monster_movement_animation_system(
     mut monster_query: Query<(&mut Transform, &mut MonsterMovement, &mut TilePos), With<Monster>>,
     tilemap_query: Query<(&TilemapSize, &TilemapGridSize, &TilemapType), With<TilemapGridSize>>,
 ) {
-    let Ok((tilemap_size, grid_size, map_type)) = tilemap_query.single() else {
+    let Ok((_tilemap_size, _grid_size, _map_type)) = tilemap_query.single() else {
         return;
     };
 
