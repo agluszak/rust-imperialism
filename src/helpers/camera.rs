@@ -46,27 +46,39 @@ pub fn movement(
         let mut cursor_over_ui = false;
         for cursor in terminal_area.iter() {
             if let Some(pos) = cursor.normalized
-                && pos.x >= 0.0 && pos.x <= 1.0 && pos.y >= 0.0 && pos.y <= 1.0 {
-                    cursor_over_ui = true;
-                    break;
-                }
+                && pos.x >= 0.0
+                && pos.x <= 1.0
+                && pos.y >= 0.0
+                && pos.y <= 1.0
+            {
+                cursor_over_ui = true;
+                break;
+            }
         }
         if !cursor_over_ui {
             for cursor in scrollbar_track.iter() {
                 if let Some(pos) = cursor.normalized
-                    && pos.x >= 0.0 && pos.x <= 1.0 && pos.y >= 0.0 && pos.y <= 1.0 {
-                        cursor_over_ui = true;
-                        break;
-                    }
+                    && pos.x >= 0.0
+                    && pos.x <= 1.0
+                    && pos.y >= 0.0
+                    && pos.y <= 1.0
+                {
+                    cursor_over_ui = true;
+                    break;
+                }
             }
         }
         if !cursor_over_ui {
             for cursor in scrollbar_thumb.iter() {
                 if let Some(pos) = cursor.normalized
-                    && pos.x >= 0.0 && pos.x <= 1.0 && pos.y >= 0.0 && pos.y <= 1.0 {
-                        cursor_over_ui = true;
-                        break;
-                    }
+                    && pos.x >= 0.0
+                    && pos.x <= 1.0
+                    && pos.y >= 0.0
+                    && pos.y <= 1.0
+                {
+                    cursor_over_ui = true;
+                    break;
+                }
             }
         }
 

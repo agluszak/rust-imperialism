@@ -139,6 +139,7 @@ fn hero_attack_system(
         (
             Entity,
             &mut Hero,
+            &mut crate::movement::MovementPoints,
             &mut crate::hero::HeroPathPreview,
             &TilePos,
         ),
@@ -158,7 +159,9 @@ fn hero_attack_system(
 
         if let Some((monster_entity, monster_name)) = monster_info {
             // Find selected hero
-            for (hero_entity, mut hero, mut path_preview, hero_pos) in hero_query.iter_mut() {
+            for (hero_entity, hero, mut movement_points, mut path_preview, hero_pos) in
+                hero_query.iter_mut()
+            {
                 if hero.is_selected {
                     // Check if hero is adjacent to the monster (attack range = 1)
                     let hero_hex = hero_pos.to_hex();
@@ -173,8 +176,8 @@ fn hero_attack_system(
                         break;
                     }
 
-                    if hero.can_attack() {
-                        hero.attack();
+                    if movement_points.can_move(1) {
+                        movement_points.consume(1); // Attack costs 1 MP
                         path_preview.clear();
 
                         let damage = if let Ok(combat) = hero_combat_query.get(hero_entity) {

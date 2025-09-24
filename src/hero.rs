@@ -1,25 +1,15 @@
+use crate::movement::{MoveEntityRequest, MovementPoints};
 use crate::turn_system::{TurnPhase, TurnSystem};
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
-use std::collections::VecDeque;
 
 use crate::ui::logging::TerminalLogEvent;
 
 #[derive(Component, Debug, Clone)]
 pub struct Hero {
     pub name: String,
-    pub movement_points: u32,
-    pub max_movement_points: u32,
     pub is_selected: bool,
     pub kills: u32,
-}
-
-#[derive(Component, Debug, Clone)]
-pub struct HeroMovement {
-    pub path: VecDeque<TilePos>,
-    pub movement_speed: f32,
-    pub is_moving: bool,
-    pub target_world_pos: Option<Vec3>,
 }
 
 #[derive(Component, Debug, Clone, Default)]
@@ -51,21 +41,8 @@ impl Default for Hero {
     fn default() -> Self {
         Self {
             name: "Hero".to_string(),
-            movement_points: 3,
-            max_movement_points: 3,
             is_selected: false,
             kills: 0,
-        }
-    }
-}
-
-impl Default for HeroMovement {
-    fn default() -> Self {
-        Self {
-            path: VecDeque::new(),
-            movement_speed: 200.0,
-            is_moving: false,
-            target_world_pos: None,
         }
     }
 }
@@ -97,26 +74,12 @@ impl HeroPathPreview {
 }
 
 impl Hero {
-    pub fn new(name: String, movement_points: u32) -> Self {
+    pub fn new(name: String) -> Self {
         Self {
             name,
-            movement_points,
-            max_movement_points: movement_points,
             is_selected: false,
             kills: 0,
         }
-    }
-
-    pub fn can_move(&self, distance: u32) -> bool {
-        self.movement_points >= distance
-    }
-
-    pub fn consume_movement(&mut self, distance: u32) {
-        self.movement_points = self.movement_points.saturating_sub(distance);
-    }
-
-    pub fn refresh_movement(&mut self) {
-        self.movement_points = self.max_movement_points;
     }
 
     pub fn select(&mut self) {
@@ -125,19 +88,6 @@ impl Hero {
 
     pub fn deselect(&mut self) {
         self.is_selected = false;
-    }
-
-    pub fn can_attack(&self) -> bool {
-        self.movement_points >= 1
-    }
-
-    pub fn attack(&mut self) -> bool {
-        if self.can_attack() {
-            self.movement_points -= 1;
-            true
-        } else {
-            false
-        }
     }
 
     pub fn add_kill(&mut self) {
@@ -158,7 +108,6 @@ impl Plugin for HeroPlugin {
             .add_systems(
                 Update,
                 (
-                    hero_movement_animation_system,
                     hero_selection_visual_system,
                     path_preview_visual_system,
                     hero_selection_system,
@@ -166,64 +115,6 @@ impl Plugin for HeroPlugin {
                     refresh_hero_movement_points_system,
                 ),
             );
-    }
-}
-
-fn hero_movement_animation_system(
-    time: Res<Time>,
-    mut hero_query: Query<(&mut Transform, &mut HeroMovement, &mut TilePos), With<Hero>>,
-    tilemap_query: Query<(
-        &TilemapSize,
-        &TilemapGridSize,
-        &TilemapTileSize,
-        &TilemapType,
-    )>,
-) {
-    let Ok((tilemap_size, grid_size, tile_size, map_type)) = tilemap_query.single() else {
-        return;
-    };
-
-    for (mut transform, mut movement, mut hero_pos) in hero_query.iter_mut() {
-        if !movement.is_moving {
-            continue;
-        }
-
-        if let Some(target_pos) = movement.target_world_pos {
-            let direction = target_pos - transform.translation;
-            let distance = direction.length();
-
-            if distance < 5.0 {
-                transform.translation = target_pos;
-                movement.is_moving = false;
-                movement.target_world_pos = None;
-
-                // Update logical position
-                if let Some(next_tile) = movement.path.pop_front() {
-                    *hero_pos = next_tile;
-                }
-
-                if !movement.path.is_empty()
-                    && let Some(next_tile) = movement.path.front()
-                {
-                    movement.target_world_pos = Some(
-                        next_tile
-                            .center_in_world(
-                                tilemap_size,
-                                grid_size,
-                                tile_size,
-                                map_type,
-                                &TilemapAnchor::Center,
-                            )
-                            .extend(1.0),
-                    );
-                    movement.is_moving = true;
-                }
-            } else {
-                let move_direction = direction.normalize();
-                transform.translation +=
-                    move_direction * movement.movement_speed * time.delta_secs();
-            }
-        }
     }
 }
 
@@ -355,14 +246,14 @@ fn hero_selection_system(
     }
 }
 
-// Hero movement system
+// Hero movement system using the unified movement system
 fn hero_movement_system(
     mut hero_movement_events: EventReader<HeroMovementClicked>,
     mut hero_query: Query<
         (
             Entity,
             &mut Hero,
-            &mut HeroMovement,
+            &MovementPoints,
             &mut HeroPathPreview,
             &TilePos,
         ),
@@ -373,14 +264,15 @@ fn hero_movement_system(
         (&TilemapSize, &TileStorage, &TilemapGridSize, &TilemapType),
         With<TilemapGridSize>,
     >,
+    mut move_requests: EventWriter<MoveEntityRequest>,
     mut log_writer: EventWriter<TerminalLogEvent>,
 ) {
-    let Ok((tilemap_size, tile_storage, grid_size, map_type)) = tilemap_query.single() else {
+    let Ok((tilemap_size, tile_storage, _grid_size, _map_type)) = tilemap_query.single() else {
         return;
     };
 
     for event in hero_movement_events.read() {
-        for (_hero_entity, mut hero, mut hero_movement, mut path_preview, hero_pos) in
+        for (hero_entity, hero, movement_points, mut path_preview, hero_pos) in
             hero_query.iter_mut()
         {
             if !hero.is_selected {
@@ -389,30 +281,21 @@ fn hero_movement_system(
 
             if path_preview.has_path_to(event.target_pos) {
                 // Second click - execute planned path
-                if hero.can_move(path_preview.path_cost) {
-                    hero.consume_movement(path_preview.path_cost);
-
-                    hero_movement.path = path_preview.planned_path.clone().into();
-
-                    if let Some(first_step) = hero_movement.path.front() {
-                        hero_movement.target_world_pos = Some(
-                            first_step
-                                .center_in_world(
-                                    tilemap_size,
-                                    grid_size,
-                                    &TilemapTileSize { x: 16.0, y: 16.0 },
-                                    map_type,
-                                    &TilemapAnchor::Center,
-                                )
-                                .extend(1.0),
-                        );
-                        hero_movement.is_moving = true;
-                    }
+                if movement_points.can_move(path_preview.path_cost) {
+                    // Send movement request to unified system
+                    move_requests.write(MoveEntityRequest {
+                        entity: hero_entity,
+                        target: event.target_pos,
+                    });
 
                     log_writer.write(TerminalLogEvent {
                         message: format!(
                             "Executing path to {:?}, cost: {}, remaining movement: {}",
-                            event.target_pos, path_preview.path_cost, hero.movement_points
+                            event.target_pos,
+                            path_preview.path_cost,
+                            movement_points
+                                .current
+                                .saturating_sub(path_preview.path_cost)
                         ),
                     });
 
@@ -421,7 +304,7 @@ fn hero_movement_system(
                     log_writer.write(TerminalLogEvent {
                         message: format!(
                             "Not enough movement points! Need {}, have {}",
-                            path_preview.path_cost, hero.movement_points
+                            path_preview.path_cost, movement_points.current
                         ),
                     });
                 }
@@ -445,14 +328,14 @@ fn hero_movement_system(
                     // Calculate how many steps are reachable with current movement points
                     let reachable_steps = calculate_reachable_steps(
                         &path,
-                        hero.movement_points,
+                        movement_points.current,
                         &tile_query,
                         tile_storage,
                     );
 
                     path_preview.set_path(event.target_pos, path, path_cost, reachable_steps);
 
-                    if hero.can_move(path_cost) {
+                    if movement_points.can_move(path_cost) {
                         log_writer.write(TerminalLogEvent {
                             message: format!(
                                 "Path to {:?} costs {} MP. Click again to execute.",
@@ -463,7 +346,7 @@ fn hero_movement_system(
                         log_writer.write(TerminalLogEvent {
                             message: format!(
                                 "Path to {:?} costs {} MP (not enough! have {})",
-                                event.target_pos, path_cost, hero.movement_points
+                                event.target_pos, path_cost, movement_points.current
                             ),
                         });
                     }
@@ -508,21 +391,21 @@ fn calculate_reachable_steps(
 
 // System to refresh hero movement points at the start of each player turn
 fn refresh_hero_movement_points_system(
-    mut hero_query: Query<&mut Hero>,
+    mut hero_query: Query<&mut MovementPoints, With<Hero>>,
     turn_system: Res<TurnSystem>,
     mut log_writer: EventWriter<TerminalLogEvent>,
 ) {
     // Only refresh on turn changes to PlayerTurn phase
     if turn_system.is_changed() && turn_system.phase == TurnPhase::PlayerTurn {
-        for mut hero in hero_query.iter_mut() {
-            let old_mp = hero.movement_points;
-            hero.refresh_movement();
+        for mut movement_points in hero_query.iter_mut() {
+            let old_mp = movement_points.current;
+            movement_points.refresh();
 
-            if old_mp < hero.movement_points {
+            if old_mp < movement_points.current {
                 log_writer.write(TerminalLogEvent {
                     message: format!(
                         "Hero movement points refreshed: {}/{}",
-                        hero.movement_points, hero.max_movement_points
+                        movement_points.current, movement_points.max
                     ),
                 });
             }

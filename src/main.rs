@@ -11,6 +11,7 @@ mod helpers;
 mod hero;
 mod input;
 mod monster;
+mod movement;
 mod pathfinding;
 mod tile_pos;
 mod tiles;
@@ -20,9 +21,10 @@ mod ui;
 use crate::combat::CombatPlugin;
 use crate::health::{Combat, Health};
 use crate::helpers::{camera, picking::TilemapBackend};
-use crate::hero::{Hero, HeroMovement, HeroPathPreview, HeroPlugin, HeroSprite};
+use crate::hero::{Hero, HeroPathPreview, HeroPlugin, HeroSprite};
 use crate::input::{InputPlugin, handle_tile_click};
 use crate::monster::MonsterPlugin;
+use crate::movement::{MovementAnimation, MovementPlugin, MovementPoints, MovementType};
 use crate::tiles::{TerrainType, TileType};
 use crate::turn_system::TurnSystemPlugin;
 use crate::ui::GameUIPlugin;
@@ -95,6 +97,7 @@ fn main() {
             TilemapPlugin,
             TilemapBackend,
             // Game plugins
+            MovementPlugin,
             HeroPlugin,
             MonsterPlugin,
             TurnSystemPlugin,
@@ -158,12 +161,12 @@ fn spawn_hero(
     commands.spawn((
         Hero {
             name: "Player Hero".to_string(),
-            movement_points: 3,
-            max_movement_points: 3,
             is_selected: false,
             kills: 0,
         },
-        HeroMovement::default(),
+        MovementPoints::new(3),        // 3 movement points
+        MovementAnimation::new(200.0), // Hero movement speed
+        MovementType::Smart,           // Heroes use pathfinding
         HeroPathPreview::default(),
         hero_pos,
         Health::new(100),

@@ -1,10 +1,10 @@
 use crate::health::{Combat, Health};
+use crate::movement::{MoveEntityRequest, MovementAnimation, MovementPoints, MovementType};
 use crate::tile_pos::{HexExt, TilePosExt};
 use crate::turn_system::TurnSystem;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 use rand::Rng;
-use std::collections::VecDeque;
 
 use crate::ui::logging::TerminalLogEvent;
 
@@ -23,14 +23,6 @@ pub enum MonsterBehavior {
     Fleeing,    // Tries to retreat (low HP)
 }
 
-#[derive(Component, Debug, Clone)]
-pub struct MonsterMovement {
-    pub path: VecDeque<TilePos>,
-    pub movement_speed: f32,
-    pub is_moving: bool,
-    pub target_world_pos: Option<Vec3>,
-}
-
 #[derive(Component)]
 pub struct MonsterSprite;
 
@@ -41,17 +33,6 @@ impl Default for Monster {
             sight_range: 5,
             behavior: MonsterBehavior::Aggressive,
             spawn_turn: 0,
-        }
-    }
-}
-
-impl Default for MonsterMovement {
-    fn default() -> Self {
-        Self {
-            path: VecDeque::new(),
-            movement_speed: 150.0,
-            is_moving: false,
-            target_world_pos: None,
         }
     }
 }
@@ -88,14 +69,7 @@ pub struct MonsterPlugin;
 
 impl Plugin for MonsterPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                monster_ai_system,
-                monster_movement_animation_system,
-                spawn_monsters_system,
-            ),
-        );
+        app.add_systems(Update, (monster_ai_system, spawn_monsters_system));
     }
 }
 
@@ -137,7 +111,9 @@ fn spawn_monsters_system(
             Monster::new(monster_name.to_string(), turn_system.current_turn),
             Health::new(3),
             Combat::new(2),
-            MonsterMovement::default(),
+            MovementPoints::new(2),        // Monsters have 2 movement points
+            MovementAnimation::new(150.0), // Monster movement speed
+            MovementType::Simple,          // Monsters use simple movement
             monster_pos,
             MonsterSprite,
             Sprite {
@@ -163,25 +139,23 @@ fn monster_ai_system(
         (
             Entity,
             &mut Monster,
-            &mut MonsterMovement,
+            &MovementPoints,
+            &MovementAnimation,
             &TilePos,
             &Health,
         ),
         With<Monster>,
     >,
     hero_query: Query<(Entity, &TilePos), (With<crate::hero::Hero>, Without<Monster>)>,
-    tilemap_query: Query<(&TilemapSize, &TilemapGridSize, &TilemapType), With<TilemapGridSize>>,
     turn_system: Res<TurnSystem>,
     mut combat_events: EventWriter<crate::combat::CombatEvent>,
+    mut move_requests: EventWriter<MoveEntityRequest>,
     mut log_writer: EventWriter<TerminalLogEvent>,
 ) {
     // Only allow monster AI during EnemyTurn phase
     if turn_system.phase != crate::turn_system::TurnPhase::EnemyTurn {
         return;
     }
-    let Ok((tilemap_size, grid_size, map_type)) = tilemap_query.single() else {
-        return;
-    };
 
     let (hero_entity, hero_pos) = if let Ok((entity, pos)) = hero_query.single() {
         (entity, *pos)
@@ -189,12 +163,15 @@ fn monster_ai_system(
         return;
     };
 
-    for (monster_entity, mut monster, mut movement, monster_pos, health) in monster_query.iter_mut()
+    for (monster_entity, mut monster, movement_points, animation, monster_pos, health) in
+        monster_query.iter_mut()
     {
         // Update behavior based on health
         monster.update_behavior_from_health(health);
-        if movement.is_moving {
-            continue; // Skip if already moving
+
+        // Skip if already moving or out of movement points
+        if animation.is_moving || movement_points.is_exhausted() {
+            continue;
         }
 
         if monster.can_see_hero(*monster_pos, hero_pos) {
@@ -204,24 +181,19 @@ fn monster_ai_system(
 
             if monster.should_flee() {
                 // Move away from hero
-                move_monster_away_from_hero(
-                    &mut movement,
-                    *monster_pos,
-                    hero_pos,
-                    tilemap_size,
-                    grid_size,
-                    map_type,
-                );
+                let target = get_flee_target(*monster_pos, hero_pos);
+                if let Some(target) = target {
+                    move_requests.write(MoveEntityRequest {
+                        entity: monster_entity,
+                        target,
+                    });
+                }
             } else if distance > 1 {
                 // Move towards hero
-                move_monster_towards_hero(
-                    &mut movement,
-                    *monster_pos,
-                    hero_pos,
-                    tilemap_size,
-                    grid_size,
-                    map_type,
-                );
+                move_requests.write(MoveEntityRequest {
+                    entity: monster_entity,
+                    target: hero_pos,
+                });
             } else if distance == 1 {
                 // Monster is adjacent to hero - attack!
                 combat_events.write(crate::combat::CombatEvent {
@@ -237,134 +209,18 @@ fn monster_ai_system(
     }
 }
 
-fn move_monster_towards_hero(
-    movement: &mut MonsterMovement,
-    monster_pos: TilePos,
-    hero_pos: TilePos,
-    tilemap_size: &TilemapSize,
-    grid_size: &TilemapGridSize,
-    map_type: &TilemapType,
-) {
-    let target_pos = get_next_position_towards(monster_pos, hero_pos, tilemap_size);
-    if let Some(target) = target_pos {
-        movement.path = vec![target].into();
-        movement.target_world_pos = Some(
-            target
-                .center_in_world(
-                    tilemap_size,
-                    grid_size,
-                    &TilemapTileSize { x: 16.0, y: 16.0 },
-                    map_type,
-                    &TilemapAnchor::Center,
-                )
-                .extend(1.0),
-        );
-        movement.is_moving = true;
-    }
-}
+/// Calculate a position to flee away from the hero
+fn get_flee_target(monster_pos: TilePos, hero_pos: TilePos) -> Option<TilePos> {
+    let monster_hex = monster_pos.to_hex();
+    let hero_hex = hero_pos.to_hex();
 
-fn move_monster_away_from_hero(
-    movement: &mut MonsterMovement,
-    monster_pos: TilePos,
-    hero_pos: TilePos,
-    tilemap_size: &TilemapSize,
-    grid_size: &TilemapGridSize,
-    map_type: &TilemapType,
-) {
-    let target_pos = get_next_position_away(monster_pos, hero_pos, tilemap_size);
-    if let Some(target) = target_pos {
-        movement.path = vec![target].into();
-        movement.target_world_pos = Some(
-            target
-                .center_in_world(
-                    tilemap_size,
-                    grid_size,
-                    &TilemapTileSize { x: 16.0, y: 16.0 },
-                    map_type,
-                    &TilemapAnchor::Center,
-                )
-                .extend(1.0),
-        );
-        movement.is_moving = true;
-    }
-}
-
-fn get_next_position_towards(
-    from: TilePos,
-    to: TilePos,
-    tilemap_size: &TilemapSize,
-) -> Option<TilePos> {
-    let from_hex = from.to_hex();
-    let to_hex = to.to_hex();
-
-    // Get all neighbors of the from position
-    let neighbors = from_hex.all_neighbors();
-
-    // Find the neighbor closest to the target
-
-    neighbors
-        .into_iter()
-        .filter_map(|hex| hex.to_tile_pos())
-        .filter(|pos| pos.x < tilemap_size.x && pos.y < tilemap_size.y)
-        .min_by_key(|pos| {
-            let pos_hex = pos.to_hex();
-            pos_hex.distance_to(to_hex)
-        })
-}
-
-fn get_next_position_away(
-    from: TilePos,
-    away_from: TilePos,
-    tilemap_size: &TilemapSize,
-) -> Option<TilePos> {
-    let from_hex = from.to_hex();
-    let away_hex = away_from.to_hex();
-
-    // Get all neighbors and find the one farthest from the threat
-
-    from_hex
+    // Get all neighbors and find the one farthest from the hero
+    monster_hex
         .all_neighbors()
         .into_iter()
         .filter_map(|hex| hex.to_tile_pos())
-        .filter(|pos| pos.x < tilemap_size.x && pos.y < tilemap_size.y)
         .max_by_key(|pos| {
             let pos_hex = pos.to_hex();
-            pos_hex.distance_to(away_hex)
+            pos_hex.distance_to(hero_hex)
         })
-}
-
-fn monster_movement_animation_system(
-    time: Res<Time>,
-    mut monster_query: Query<(&mut Transform, &mut MonsterMovement, &mut TilePos), With<Monster>>,
-    tilemap_query: Query<(&TilemapSize, &TilemapGridSize, &TilemapType), With<TilemapGridSize>>,
-) {
-    let Ok((_tilemap_size, _grid_size, _map_type)) = tilemap_query.single() else {
-        return;
-    };
-
-    for (mut transform, mut movement, mut monster_pos) in monster_query.iter_mut() {
-        if !movement.is_moving {
-            continue;
-        }
-
-        if let Some(target_pos) = movement.target_world_pos {
-            let direction = target_pos - transform.translation;
-            let distance = direction.length();
-
-            if distance < 5.0 {
-                transform.translation = target_pos;
-                movement.is_moving = false;
-                movement.target_world_pos = None;
-
-                // Update logical position
-                if let Some(next_tile) = movement.path.pop_front() {
-                    *monster_pos = next_tile;
-                }
-            } else {
-                let move_direction = direction.normalize();
-                transform.translation +=
-                    move_direction * movement.movement_speed * time.delta_secs();
-            }
-        }
-    }
 }
