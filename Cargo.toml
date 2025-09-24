@@ -8,4 +8,5 @@ bevy = { version = "0.16.1", features = ["dynamic_linking", "bevy_dev_tools", "b
 hexx = { version = "0.21", features = ["algorithms", "serde", "bevy"] }
 bevy_ecs_tilemap = "0.16"
 rand = "0.9.0"
+noise = "0.9"
 

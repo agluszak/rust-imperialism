@@ -1,4 +1,4 @@
-use crate::movement::{MoveEntityRequest, ActionPoints};
+use crate::movement::{ActionPoints, MoveEntityRequest};
 use crate::turn_system::{TurnPhase, TurnSystem};
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
@@ -272,8 +272,7 @@ fn hero_movement_system(
     };
 
     for event in hero_movement_events.read() {
-        for (hero_entity, hero, action_points, mut path_preview, hero_pos) in
-            hero_query.iter_mut()
+        for (hero_entity, hero, action_points, mut path_preview, hero_pos) in hero_query.iter_mut()
         {
             if !hero.is_selected {
                 continue;
@@ -293,9 +292,7 @@ fn hero_movement_system(
                             "Executing path to {:?}, cost: {}, remaining AP: {}",
                             event.target_pos,
                             path_preview.path_cost,
-                            action_points
-                                .current
-                                .saturating_sub(path_preview.path_cost)
+                            action_points.current.saturating_sub(path_preview.path_cost)
                         ),
                     });
 
@@ -338,7 +335,7 @@ fn hero_movement_system(
                     if action_points.can_move(path_cost) {
                         log_writer.write(TerminalLogEvent {
                             message: format!(
-                                "Path to {:?} costs {} AP. Click again to execute.", 
+                                "Path to {:?} costs {} AP. Click again to execute.",
                                 event.target_pos, path_cost
                             ),
                         });

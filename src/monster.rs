@@ -1,5 +1,5 @@
 use crate::health::{Combat, Health};
-use crate::movement::{MoveEntityRequest, MovementAnimation, ActionPoints, MovementType};
+use crate::movement::{ActionPoints, MoveEntityRequest, MovementAnimation, MovementType};
 use crate::tile_pos::{HexExt, TilePosExt};
 use crate::turn_system::TurnSystem;
 use bevy::prelude::*;
@@ -118,7 +118,7 @@ fn spawn_monsters_system(
             Monster::new(monster_name.to_string(), turn_system.current_turn),
             Health::new(3),
             Combat::new(2),
-            ActionPoints::new(4),        // Monsters have 4 action points
+            ActionPoints::new(4),          // Monsters have 4 action points
             MovementAnimation::new(150.0), // Monster movement speed
             MovementType::Simple,          // Monsters use simple movement
             monster_pos,
@@ -238,7 +238,10 @@ fn monster_ai_system(
                     });
                 } else {
                     log_writer.write(TerminalLogEvent {
-                        message: format!("{} wants to attack but has no action points!", monster.name),
+                        message: format!(
+                            "{} wants to attack but has no action points!",
+                            monster.name
+                        ),
                     });
                 }
             }

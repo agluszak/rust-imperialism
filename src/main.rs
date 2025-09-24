@@ -13,6 +13,7 @@ mod input;
 mod monster;
 mod movement;
 mod pathfinding;
+mod terrain_gen;
 mod tile_pos;
 mod tiles;
 mod turn_system;
@@ -24,38 +25,30 @@ use crate::helpers::{camera, picking::TilemapBackend};
 use crate::hero::{Hero, HeroPathPreview, HeroPlugin, HeroSprite};
 use crate::input::{InputPlugin, handle_tile_click};
 use crate::monster::MonsterPlugin;
-use crate::movement::{MovementAnimation, MovementPlugin, ActionPoints, MovementType};
-use crate::tiles::{TerrainType, TileType};
+use crate::movement::{ActionPoints, MovementAnimation, MovementPlugin, MovementType};
+use crate::terrain_gen::TerrainGenerator;
 use crate::turn_system::TurnSystemPlugin;
 use crate::ui::GameUIPlugin;
 
-/// mostly the same as the `basic` example from `bevy_ecs_tilemap`
+/// Generate a realistic terrain map using noise functions
 fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Asset by Kenney
     let texture_handle: Handle<Image> = asset_server.load("colored_packed.png");
-    let map_size = TilemapSize { x: 20, y: 20 };
+    let map_size = TilemapSize { x: 32, y: 32 }; // Larger map for better noise patterns
 
     let tilemap_entity = commands.spawn_empty().id();
 
     let mut tile_storage = TileStorage::empty(map_size);
 
+    // Create terrain generator with a fixed seed for consistent worlds
+    let terrain_gen = TerrainGenerator::new(12345);
+
     for x in 0..map_size.x {
         for y in 0..map_size.y {
             let tile_pos = TilePos { x, y };
 
-            // Create different terrain types based on position for variety
-            let tile_type = if x < 5 {
-                TileType::terrain(TerrainType::Water)
-            } else if x > 15 {
-                TileType::terrain(TerrainType::Mountain)
-            } else if y < 5 {
-                TileType::terrain(TerrainType::Forest)
-            } else if y > 15 {
-                TileType::terrain(TerrainType::Desert)
-            } else {
-                TileType::terrain(TerrainType::Grass)
-            };
-
+            // Generate terrain using noise functions
+            let tile_type = terrain_gen.generate_terrain(x, y, map_size.x, map_size.y);
             let texture_index = tile_type.get_texture_index();
 
             let tile_entity = commands
@@ -146,8 +139,8 @@ fn spawn_hero(
         return;
     };
 
-    // Spawn hero at center position (10, 10) as mentioned in CLAUDE.md
-    let hero_pos = TilePos { x: 10, y: 10 };
+    // Spawn hero at center position (16, 16) for 32x32 map
+    let hero_pos = TilePos { x: 16, y: 16 };
     let hero_world_pos = hero_pos
         .center_in_world(
             tilemap_size,
@@ -164,7 +157,7 @@ fn spawn_hero(
             is_selected: false,
             kills: 0,
         },
-        ActionPoints::new(6),        // 6 action points
+        ActionPoints::new(6),          // 6 action points
         MovementAnimation::new(200.0), // Hero movement speed
         MovementType::Smart,           // Heroes use pathfinding
         HeroPathPreview::default(),

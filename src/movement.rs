@@ -131,9 +131,10 @@ fn sync_transform_from_tile_pos_system(
     for (mut transform, tile_pos, movement_anim) in entity_query.iter_mut() {
         // Only sync if entity is not currently animating movement
         if let Some(anim) = movement_anim
-            && anim.is_moving {
-                continue; // Skip entities that are animating
-            }
+            && anim.is_moving
+        {
+            continue; // Skip entities that are animating
+        }
 
         // Calculate world position from tile position
         let world_pos = tile_pos.center_in_world(

@@ -22,17 +22,14 @@ pub enum TileCategory {
     UI(UIType),
 }
 
-/// Different terrain types for map generation
+/// Essential terrain types for gameplay
 #[derive(Debug, Clone, PartialEq)]
 pub enum TerrainType {
-    Grass,    // Plains - good for agriculture
-    Water,    // Ocean/rivers - naval movement
-    Mountain, // High ground - defensive bonus
-    Desert,   // Harsh terrain - movement penalty
-    Forest,   // Dense vegetation - hiding bonus
-    Snow,     // Cold climate - harsh conditions
-    Hills,    // Rolling terrain - minor defensive bonus
-    Swamp,    // Wetlands - movement penalty
+    Grass,    // Plains - basic terrain, good movement
+    Water,    // Ocean/rivers - impassable without ships
+    Mountain, // High ground - defensive bonus, slow movement
+    Forest,   // Dense vegetation - cover bonus, moderate movement cost
+    Desert,   // Harsh terrain - movement penalty, low resources
 }
 
 /// Military units and fortifications
@@ -113,25 +110,24 @@ impl Default for TileProperties {
 pub struct TileIndex;
 
 impl TileIndex {
-    // Terrain tile indices (approximate based on the tileset layout)
+    // Essential terrain tile indices
     pub const GRASS: u32 = 0; // Green grass tile
     pub const WATER: u32 = 100; // Blue water tile
     pub const MOUNTAIN: u32 = 200; // Brown mountain tile
-    pub const DESERT: u32 = 300; // Tan desert tile
     pub const FOREST: u32 = 400; // Dark green forest
-    pub const SNOW: u32 = 500; // White snow tile
+    pub const DESERT: u32 = 300; // Tan desert tile
 
-    // Military structures
+    // Military structures (keeping for future use)
     pub const FORTRESS: u32 = 600;
     pub const BARRACKS: u32 = 650;
     pub const WALL: u32 = 700;
 
-    // Resources
+    // Resources (keeping for future use)
     pub const GOLD: u32 = 800;
     pub const IRON: u32 = 850;
     pub const WOOD: u32 = 900;
 
-    // Buildings
+    // Buildings (keeping for future use)
     pub const CITY: u32 = 950;
     pub const FARM: u32 = 1000;
     pub const MARKET: u32 = 1050;
@@ -181,30 +177,6 @@ impl TileType {
                 is_passable: true,
                 is_buildable: true,
             },
-            TerrainType::Snow => TileProperties {
-                movement_cost: 2.5,
-                defense_bonus: 0.5,
-                resource_yield: 0.5, // Cold climate
-                population_capacity: 1,
-                is_passable: true,
-                is_buildable: true,
-            },
-            TerrainType::Hills => TileProperties {
-                movement_cost: 1.5,
-                defense_bonus: 1.0,
-                resource_yield: 1.0,
-                population_capacity: 5,
-                is_passable: true,
-                is_buildable: true,
-            },
-            TerrainType::Swamp => TileProperties {
-                movement_cost: 3.0,
-                defense_bonus: -0.5,
-                resource_yield: 0.5,
-                population_capacity: 1,
-                is_passable: true,
-                is_buildable: false,
-            },
         };
 
         Self {
@@ -250,8 +222,6 @@ impl TileType {
                 TerrainType::Mountain => TileIndex::MOUNTAIN,
                 TerrainType::Desert => TileIndex::DESERT,
                 TerrainType::Forest => TileIndex::FOREST,
-                TerrainType::Snow => TileIndex::SNOW,
-                _ => TileIndex::GRASS, // Default fallback
             },
             TileCategory::Military(military) => match military {
                 MilitaryType::Fortress => TileIndex::FORTRESS,

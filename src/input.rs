@@ -92,10 +92,9 @@ fn terrain_editing_system(
             let new_terrain = match &tile_type.category {
                 TileCategory::Terrain(TerrainType::Grass) => TerrainType::Water,
                 TileCategory::Terrain(TerrainType::Water) => TerrainType::Mountain,
-                TileCategory::Terrain(TerrainType::Mountain) => TerrainType::Desert,
-                TileCategory::Terrain(TerrainType::Desert) => TerrainType::Forest,
-                TileCategory::Terrain(TerrainType::Forest) => TerrainType::Snow,
-                TileCategory::Terrain(TerrainType::Snow) => TerrainType::Grass,
+                TileCategory::Terrain(TerrainType::Mountain) => TerrainType::Forest,
+                TileCategory::Terrain(TerrainType::Forest) => TerrainType::Desert,
+                TileCategory::Terrain(TerrainType::Desert) => TerrainType::Grass,
                 _ => TerrainType::Grass,
             };
 
