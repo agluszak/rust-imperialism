@@ -54,7 +54,7 @@ pub fn handle_tile_click(
                 .any(|(_, hero_pos)| *hero_pos == *target_pos)
             {
                 // Clicking on hero - selection
-                hero_selection_events.send(HeroSelectionClicked {
+                hero_selection_events.write(HeroSelectionClicked {
                     target_pos: *target_pos,
                 });
             } else if monster_query
@@ -62,19 +62,19 @@ pub fn handle_tile_click(
                 .any(|monster_pos| *monster_pos == *target_pos)
             {
                 // Clicking on monster - combat
-                hero_combat_events.send(HeroAttackClicked {
+                hero_combat_events.write(HeroAttackClicked {
                     target_pos: *target_pos,
                 });
             } else {
                 // Clicking on empty tile - movement
-                hero_movement_events.send(HeroMovementClicked {
+                hero_movement_events.write(HeroMovementClicked {
                     target_pos: *target_pos,
                 });
             }
         }
         PointerButton::Secondary => {
             // Right click - terrain editing
-            terrain_edit_events.send(TerrainCycleClicked {
+            terrain_edit_events.write(TerrainCycleClicked {
                 target_entity: entity,
             });
         }

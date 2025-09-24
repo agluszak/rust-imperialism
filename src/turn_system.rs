@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use crate::ui::TerminalLog;
 
 #[derive(Resource, Debug, Clone)]
 pub struct TurnSystem {
@@ -56,10 +57,10 @@ impl Plugin for TurnSystemPlugin {
     }
 }
 
-fn handle_turn_input(keys: Res<ButtonInput<KeyCode>>, mut turn_system: ResMut<TurnSystem>) {
+fn handle_turn_input(keys: Res<ButtonInput<KeyCode>>, mut turn_system: ResMut<TurnSystem>, mut terminal_log: ResMut<TerminalLog>) {
     if keys.just_pressed(KeyCode::Space) && turn_system.is_player_turn() {
         turn_system.end_player_turn();
-        println!("Player turn ended. Turn: {}", turn_system.current_turn);
+        terminal_log.add_message(format!("Player turn ended. Turn: {}", turn_system.current_turn));
     }
 }
 
@@ -67,6 +68,7 @@ fn process_turn_phases(
     mut turn_system: ResMut<TurnSystem>,
     mut turn_timer: Local<Timer>,
     time: Res<Time>,
+    mut terminal_log: ResMut<TerminalLog>,
 ) {
     // Handle turn phase transitions with timing
     match turn_system.phase {
@@ -80,7 +82,7 @@ fn process_turn_phases(
 
             if turn_timer.just_finished() {
                 turn_system.advance_turn(); // Processing -> EnemyTurn
-                println!("=== Enemy Turn ===");
+                terminal_log.add_message("=== Enemy Turn ===".to_string());
                 turn_timer.reset();
             }
         }
@@ -94,7 +96,7 @@ fn process_turn_phases(
 
             if turn_timer.just_finished() {
                 turn_system.advance_turn(); // EnemyTurn -> PlayerTurn with new turn number
-                println!("Starting turn {}", turn_system.current_turn);
+                terminal_log.add_message(format!("Starting turn {}", turn_system.current_turn));
                 turn_timer.reset();
             }
         }
@@ -102,11 +104,11 @@ fn process_turn_phases(
     }
 }
 
-fn update_turn_display(turn_system: Res<TurnSystem>) {
+fn update_turn_display(turn_system: Res<TurnSystem>, mut terminal_log: ResMut<TerminalLog>) {
     if turn_system.is_changed() {
-        println!(
+        terminal_log.add_message(format!(
             "=== Turn {} - {:?} ===",
             turn_system.current_turn, turn_system.phase
-        );
+        ));
     }
 }

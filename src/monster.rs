@@ -1,6 +1,7 @@
 use crate::health::{Combat, Health};
 use crate::tile_pos::{HexExt, TilePosExt};
 use crate::turn_system::TurnSystem;
+use crate::ui::TerminalLog;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 use rand::Rng;
@@ -103,6 +104,7 @@ fn spawn_monsters_system(
     tilemap_query: Query<(&TilemapSize, &TilemapGridSize, &TilemapType), With<TilemapGridSize>>,
     turn_system: Res<TurnSystem>,
     mut last_spawn_turn: Local<u32>,
+    mut terminal_log: ResMut<TerminalLog>,
 ) {
     // Only spawn if we have less than 5 monsters
     if monster_query.iter().count() >= 5 {
@@ -115,9 +117,9 @@ fn spawn_monsters_system(
             return;
         };
 
-        let mut rng = rand::thread_rng();
-        let x = rng.gen_range(0..tilemap_size.x);
-        let y = rng.gen_range(0..tilemap_size.y);
+        let mut rng = rand::rng();
+        let x = rng.random_range(0..tilemap_size.x);
+        let y = rng.random_range(0..tilemap_size.y);
         let monster_pos = TilePos { x, y };
         let monster_world_pos = monster_pos.center_in_world(
             tilemap_size,
@@ -128,7 +130,7 @@ fn spawn_monsters_system(
         );
 
         let monster_types = ["Goblin", "Orc", "Skeleton"];
-        let monster_name = monster_types[rng.gen_range(0..monster_types.len())];
+        let monster_name = monster_types[rng.random_range(0..monster_types.len())];
 
         commands.spawn((
             Monster::new(monster_name.to_string(), turn_system.current_turn),
@@ -146,10 +148,10 @@ fn spawn_monsters_system(
         ));
 
         *last_spawn_turn = turn_system.current_turn;
-        println!(
+        terminal_log.add_message(format!(
             "Spawned {} at {:?} on turn {}",
             monster_name, monster_pos, turn_system.current_turn
-        );
+        ));
     }
 }
 
@@ -168,6 +170,7 @@ fn monster_ai_system(
     tilemap_query: Query<(&TilemapSize, &TilemapGridSize, &TilemapType), With<TilemapGridSize>>,
     turn_system: Res<TurnSystem>,
     mut combat_events: EventWriter<crate::combat::CombatEvent>,
+    mut terminal_log: ResMut<TerminalLog>,
 ) {
     // Only allow monster AI during EnemyTurn phase
     if turn_system.phase != crate::turn_system::TurnPhase::EnemyTurn {
@@ -177,7 +180,7 @@ fn monster_ai_system(
         return;
     };
 
-    let (hero_entity, hero_pos) = if let Ok((entity, pos)) = hero_query.get_single() {
+    let (hero_entity, hero_pos) = if let Ok((entity, pos)) = hero_query.single() {
         (entity, *pos)
     } else {
         return;
@@ -218,12 +221,12 @@ fn monster_ai_system(
                 );
             } else if distance == 1 {
                 // Monster is adjacent to hero - attack!
-                combat_events.send(crate::combat::CombatEvent {
+                combat_events.write(crate::combat::CombatEvent {
                     attacker: monster_entity,
                     defender: hero_entity,
                     damage: 2, // Default monster damage
                 });
-                println!("{} attacks the hero!", monster.name);
+                terminal_log.add_message(format!("{} attacks the hero!", monster.name));
             }
         }
     }

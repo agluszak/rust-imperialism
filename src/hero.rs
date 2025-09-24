@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 use std::collections::VecDeque;
+use crate::ui::TerminalLog;
+use crate::turn_system::{TurnSystem, TurnPhase};
 
 #[derive(Component, Debug, Clone)]
 pub struct Hero {
@@ -24,6 +26,7 @@ pub struct HeroPathPreview {
     pub planned_path: Vec<TilePos>,
     pub planned_target: Option<TilePos>,
     pub path_cost: u32,
+    pub reachable_steps: u32, // How many steps can be reached with current MP
 }
 
 #[derive(Component)]
@@ -67,16 +70,24 @@ impl Default for HeroMovement {
 }
 
 impl HeroPathPreview {
-    pub fn set_path(&mut self, target: TilePos, path: Vec<TilePos>, cost: u32) {
+    pub fn set_path(
+        &mut self,
+        target: TilePos,
+        path: Vec<TilePos>,
+        cost: u32,
+        reachable_steps: u32,
+    ) {
         self.planned_target = Some(target);
         self.planned_path = path;
         self.path_cost = cost;
+        self.reachable_steps = reachable_steps;
     }
 
     pub fn clear(&mut self) {
         self.planned_target = None;
         self.planned_path.clear();
         self.path_cost = 0;
+        self.reachable_steps = 0;
     }
 
     pub fn has_path_to(&self, target: TilePos) -> bool {
@@ -151,6 +162,7 @@ impl Plugin for HeroPlugin {
                     path_preview_visual_system,
                     hero_selection_system,
                     hero_movement_system,
+                    refresh_hero_movement_points_system,
                 ),
             );
     }
@@ -239,11 +251,13 @@ fn path_preview_visual_system(
     // Check if we need to show path preview
     let mut should_show_preview = false;
     let mut preview_path = Vec::new();
+    let mut reachable_steps = 0;
 
     for (hero, path_preview) in hero_query.iter() {
         if hero.is_selected && !path_preview.planned_path.is_empty() {
             should_show_preview = true;
             preview_path = path_preview.planned_path.clone();
+            reachable_steps = path_preview.reachable_steps;
             break;
         }
     }
@@ -262,10 +276,12 @@ fn path_preview_visual_system(
         commands.entity(entity).despawn();
     }
 
-    // Draw new path preview
+    // Draw new path preview with different colors for reachable/unreachable segments
     for (i, &pos) in preview_path.iter().enumerate().skip(1) {
+        let is_reachable = i <= reachable_steps as usize;
+
         if i == preview_path.len() - 1 {
-            // Last position - use target marker
+            // Last position - use target marker with color based on reachability
             let world_pos = pos.center_in_world(
                 tilemap_size,
                 grid_size,
@@ -274,17 +290,23 @@ fn path_preview_visual_system(
                 &TilemapAnchor::Center,
             );
 
+            let target_color = if is_reachable {
+                Color::srgba(0.0, 1.0, 0.0, 0.7) // Green for reachable target
+            } else {
+                Color::srgba(1.0, 0.5, 0.0, 0.7) // Orange for unreachable target
+            };
+
             commands.spawn((
                 PathPreviewMarker,
                 Sprite {
-                    color: Color::srgba(0.0, 1.0, 0.0, 0.7), // Semi-transparent green for target
+                    color: target_color,
                     custom_size: Some(Vec2::new(8.0, 8.0)),
                     ..default()
                 },
                 Transform::from_translation(world_pos.extend(2.0)),
             ));
         } else {
-            // Path waypoint
+            // Path waypoint with color based on reachability
             let world_pos = pos.center_in_world(
                 tilemap_size,
                 grid_size,
@@ -293,10 +315,16 @@ fn path_preview_visual_system(
                 &TilemapAnchor::Center,
             );
 
+            let waypoint_color = if is_reachable {
+                Color::srgba(1.0, 1.0, 0.0, 0.5) // Yellow for reachable path
+            } else {
+                Color::srgba(1.0, 0.0, 0.0, 0.5) // Red for unreachable path
+            };
+
             commands.spawn((
                 PathPreviewMarker,
                 Sprite {
-                    color: Color::srgba(1.0, 1.0, 0.0, 0.5), // Semi-transparent yellow for path
+                    color: waypoint_color,
                     custom_size: Some(Vec2::new(4.0, 4.0)),
                     ..default()
                 },
@@ -344,6 +372,7 @@ fn hero_movement_system(
         (&TilemapSize, &TileStorage, &TilemapGridSize, &TilemapType),
         With<TilemapGridSize>,
     >,
+    mut terminal_log: ResMut<TerminalLog>,
 ) {
     let Ok((tilemap_size, tile_storage, grid_size, map_type)) = tilemap_query.single() else {
         return;
@@ -379,17 +408,17 @@ fn hero_movement_system(
                         hero_movement.is_moving = true;
                     }
 
-                    println!(
+                    terminal_log.add_message(format!(
                         "Executing path to {:?}, cost: {}, remaining movement: {}",
                         event.target_pos, path_preview.path_cost, hero.movement_points
-                    );
+                    ));
 
                     path_preview.clear();
                 } else {
-                    println!(
+                    terminal_log.add_message(format!(
                         "Not enough movement points! Need {}, have {}",
                         path_preview.path_cost, hero.movement_points
-                    );
+                    ));
                 }
             } else {
                 // First click - show path preview
@@ -408,25 +437,82 @@ fn hero_movement_system(
                         tile_storage,
                     );
 
-                    path_preview.set_path(event.target_pos, path, path_cost);
+                    // Calculate how many steps are reachable with current movement points
+                    let reachable_steps = calculate_reachable_steps(
+                        &path,
+                        hero.movement_points,
+                        &tile_query,
+                        tile_storage,
+                    );
+
+                    path_preview.set_path(event.target_pos, path, path_cost, reachable_steps);
 
                     if hero.can_move(path_cost) {
-                        println!(
+                        terminal_log.add_message(format!(
                             "Path to {:?} costs {} MP. Click again to execute.",
                             event.target_pos, path_cost
-                        );
+                        ));
                     } else {
-                        println!(
+                        terminal_log.add_message(format!(
                             "Path to {:?} costs {} MP (not enough! have {})",
                             event.target_pos, path_cost, hero.movement_points
-                        );
+                        ));
                     }
                 } else {
-                    println!("No path found to {:?}", event.target_pos);
+                    terminal_log.add_message(format!("No path found to {:?}", event.target_pos));
                     path_preview.clear();
                 }
             }
             break;
+        }
+    }
+}
+
+// Helper function to calculate how many steps can be reached with current movement points
+fn calculate_reachable_steps(
+    path: &[TilePos],
+    movement_points: u32,
+    tile_query: &Query<(&crate::tiles::TileType, &TilePos)>,
+    tile_storage: &TileStorage,
+) -> u32 {
+    let mut accumulated_cost = 0;
+    let mut reachable_steps = 0;
+
+    // Skip the first position (current position) and calculate cost for each step
+    for (i, &pos) in path.iter().enumerate().skip(1) {
+        if let Some(tile_entity) = tile_storage.get(&pos)
+            && let Ok((tile_type, _)) = tile_query.get(tile_entity) {
+                accumulated_cost += tile_type.properties.movement_cost as u32;
+                if accumulated_cost <= movement_points {
+                    reachable_steps = i as u32;
+                } else {
+                    break;
+                }
+            }
+    }
+
+    reachable_steps
+}
+
+// System to refresh hero movement points at the start of each player turn
+fn refresh_hero_movement_points_system(
+    mut hero_query: Query<&mut Hero>,
+    turn_system: Res<TurnSystem>,
+    mut terminal_log: ResMut<TerminalLog>,
+) {
+    // Only refresh on turn changes to PlayerTurn phase
+    if turn_system.is_changed() && turn_system.phase == TurnPhase::PlayerTurn {
+        for mut hero in hero_query.iter_mut() {
+            let old_mp = hero.movement_points;
+            hero.refresh_movement();
+
+            if old_mp < hero.movement_points {
+                terminal_log.add_message(format!(
+                    "Hero movement points refreshed: {}/{}",
+                    hero.movement_points,
+                    hero.max_movement_points
+                ));
+            }
         }
     }
 }

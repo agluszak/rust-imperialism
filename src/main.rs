@@ -1,52 +1,34 @@
-//! Example of tiles receiving pick events
-//! Click on a tile to change its texture.
-//!
-//! Camera Controls:
-//! - WASD: Move camera
-//! - Z: Zoom out (keyboard)
-//! - X: Zoom in (keyboard)
-//! - Mouse wheel: Zoom in/out
+//! Rust Imperialism - A hexagonal tile-based strategy game
 
 use bevy::prelude::*;
-use bevy_ecs_tilemap::map::HexCoordSystem;
 use bevy_ecs_tilemap::prelude::*;
+use bevy_ecs_tilemap::map::HexCoordSystem;
 
-mod combat;
-mod health;
+// Import all game modules
 mod helpers;
-mod hero;
-mod input;
-mod monster;
-mod pathfinding;
-mod tile_pos;
 mod tiles;
+mod hero;
+mod monster;
 mod turn_system;
 mod ui;
+mod input;
+mod combat;
+mod health;
+mod pathfinding;
+mod tile_pos;
 
-use crate::combat::CombatPlugin;
-use crate::health::{Combat, Health};
-use crate::helpers::camera;
-use crate::helpers::picking::TilemapBackend;
-use crate::hero::{Hero, HeroMovement, HeroPathPreview, HeroPlugin, HeroSprite, PathPreviewMarker};
-use crate::input::{InputPlugin, handle_tile_click};
+use crate::helpers::{picking::TilemapBackend, camera};
+use crate::tiles::{TileType, TerrainType};
+use crate::hero::{HeroPlugin, Hero, HeroMovement, HeroPathPreview, HeroSprite};
 use crate::monster::MonsterPlugin;
-use crate::tiles::{TerrainType, TileType};
-use crate::turn_system::{TurnSystem, TurnSystemPlugin};
+use crate::turn_system::TurnSystemPlugin;
 use crate::ui::GameUIPlugin;
+use crate::input::{InputPlugin, handle_tile_click};
+use crate::combat::CombatPlugin;
+use crate::health::{Health, Combat};
 
 /// mostly the same as the `basic` example from `bevy_ecs_tilemap`
 fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // Print controls to console
-    println!("=== Game Controls ===");
-    println!("WASD: Move camera");
-    println!("Z: Zoom out (keyboard)");
-    println!("X: Zoom in (keyboard)");
-    println!("Mouse wheel: Zoom in/out");
-    println!("Left click: Select hero or move hero");
-    println!("Right click: Cycle terrain types");
-    println!("Space: End turn");
-    println!("=====================");
-
     // Asset by Kenney
     let texture_handle: Handle<Image> = asset_server.load("colored_packed.png");
     let map_size = TilemapSize { x: 20, y: 20 };
@@ -58,7 +40,7 @@ fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
     for x in 0..map_size.x {
         for y in 0..map_size.y {
             let tile_pos = TilePos { x, y };
-
+            
             // Create different terrain types based on position for variety
             let tile_type = if x < 5 {
                 TileType::terrain(TerrainType::Water)
@@ -71,9 +53,9 @@ fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
             } else {
                 TileType::terrain(TerrainType::Grass)
             };
-
+            
             let texture_index = tile_type.get_texture_index();
-
+            
             let tile_entity = commands
                 .spawn((
                     TileBundle {
@@ -99,132 +81,88 @@ fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
         map_type,
         size: map_size,
         storage: tile_storage,
-        texture: TilemapTexture::Single(texture_handle.clone()),
+        texture: TilemapTexture::Single(texture_handle),
         tile_size,
         anchor: TilemapAnchor::Center,
         ..Default::default()
     });
-
-    // Spawn hero at starting position
-    let hero_pos = TilePos { x: 10, y: 10 };
-    let hero_world_pos = hero_pos.center_in_world(
-        &map_size,
-        &grid_size,
-        &tile_size,
-        &map_type,
-        &TilemapAnchor::Center,
-    );
-
-    commands.spawn((
-        Hero::new("Player Hero".to_string(), 3),
-        Health::new(10),
-        Combat::new(3),
-        HeroMovement::default(),
-        HeroPathPreview::default(),
-        hero_pos,
-        HeroSprite,
-        Sprite {
-            color: Color::srgb(0.0, 0.0, 1.0), // Blue color for hero
-            custom_size: Some(Vec2::new(12.0, 12.0)),
-            ..default()
-        },
-        Transform::from_translation(hero_world_pos.extend(1.0)),
-    ));
 }
-
-// The tile click handler is now much simpler - just dispatch to input system
 
 fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins.set(ImagePlugin::default_nearest()),
             TilemapPlugin,
-            // The additional backend to check events against the tiles
             TilemapBackend,
-            // Game systems
-            TurnSystemPlugin,
+            // Game plugins
             HeroPlugin,
-            GameUIPlugin,
             MonsterPlugin,
-            CombatPlugin,
+            TurnSystemPlugin,
+            GameUIPlugin,
             InputPlugin,
+            CombatPlugin,
         ))
         .add_systems(
             Startup,
-            (tilemap_startup, |mut commands: Commands| {
-                commands.spawn((
-                    Camera2d,
-                    Projection::Orthographic(OrthographicProjection {
-                        scale: 0.5,
-                        ..OrthographicProjection::default_2d()
-                    }),
-                ));
-            }),
-        )
-        .add_systems(
-            Update,
             (
-                camera::movement,
-                hero_turn_refresh,
-                update_hero_position,
-                clear_path_preview_on_turn_change,
+                tilemap_startup,
+                setup_camera,
+                spawn_hero.after(tilemap_startup),
             ),
         )
+        .add_systems(Update, camera::movement)
         .run();
 }
 
-// System to refresh hero movement points at start of turn
-fn hero_turn_refresh(mut hero_query: Query<&mut Hero>, turn_system: Res<TurnSystem>) {
-    if turn_system.is_changed() && turn_system.is_player_turn() {
-        for mut hero in hero_query.iter_mut() {
-            hero.refresh_movement();
-        }
-    }
+fn setup_camera(mut commands: Commands) {
+    commands.spawn((
+        Camera2d,
+        Projection::Orthographic(OrthographicProjection {
+            scale: 0.5,
+            ..OrthographicProjection::default_2d()
+        }),
+    ));
 }
 
-// System to update hero tile position when movement is complete
-fn update_hero_position(
-    mut hero_query: Query<(&mut TilePos, &HeroMovement, &Transform), With<Hero>>,
-    tilemap_query: Query<(&TilemapSize, &TilemapGridSize, &TilemapType), With<TilemapGridSize>>,
+fn spawn_hero(
+    mut commands: Commands,
+    tilemap_query: Query<(&TilemapSize, &TilemapGridSize, &TilemapTileSize, &TilemapType), With<TilemapGridSize>>,
 ) {
-    let Ok((tilemap_size, grid_size, map_type)) = tilemap_query.single() else {
+    let Ok((tilemap_size, grid_size, tile_size, map_type)) = tilemap_query.single() else {
         return;
     };
 
-    for (mut tile_pos, movement, transform) in hero_query.iter_mut() {
-        if !movement.is_moving && movement.path.is_empty() {
-            // Update tile position based on world position
-            if let Some(new_pos) = TilePos::from_world_pos(
-                &transform.translation.xy(),
-                tilemap_size,
-                grid_size,
-                &TilemapTileSize { x: 16.0, y: 16.0 },
-                map_type,
-                &TilemapAnchor::Center,
-            ) && *tile_pos != new_pos
-            {
-                *tile_pos = new_pos;
-            }
-        }
-    }
-}
+    // Spawn hero at center position (10, 10) as mentioned in CLAUDE.md
+    let hero_pos = TilePos { x: 10, y: 10 };
+    let hero_world_pos = hero_pos
+        .center_in_world(
+            tilemap_size,
+            grid_size,
+            tile_size,
+            map_type,
+            &TilemapAnchor::Center,
+        )
+        .extend(2.0); // Place hero well above tiles
 
-// System to clear path preview markers when turn changes
-fn clear_path_preview_on_turn_change(
-    mut commands: Commands,
-    turn_system: Res<TurnSystem>,
-    preview_markers: Query<Entity, With<PathPreviewMarker>>,
-    mut hero_query: Query<&mut HeroPathPreview, With<Hero>>,
-) {
-    if turn_system.is_changed() {
-        // Clear all path preview markers
-        for entity in preview_markers.iter() {
-            commands.entity(entity).despawn();
-        }
-
-        // Clear all hero path previews
-        for mut path_preview in hero_query.iter_mut() {
-            path_preview.clear();
-        }
-    }
+    commands.spawn((
+        Hero {
+            name: "Player Hero".to_string(),
+            movement_points: 3,
+            max_movement_points: 3,
+            is_selected: false,
+            kills: 0,
+        },
+        HeroMovement::default(),
+        HeroPathPreview::default(),
+        hero_pos,
+        Health::new(100),
+        Combat::new(25),
+        HeroSprite,
+        Sprite {
+            color: Color::srgb(0.0, 0.0, 1.0), // Blue square
+            custom_size: Some(Vec2::new(16.0, 16.0)),
+            ..default()
+        },
+        Transform::from_translation(hero_world_pos),
+    ));
 }
