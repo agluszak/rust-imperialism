@@ -52,12 +52,12 @@ impl MovementAnimation {
 
 /// Component for entities that have movement points and can execute tactical movement
 #[derive(Component, Debug, Clone)]
-pub struct MovementPoints {
+pub struct ActionPoints {
     pub current: u32,
     pub max: u32,
 }
 
-impl MovementPoints {
+impl ActionPoints {
     pub fn new(max: u32) -> Self {
         Self { current: max, max }
     }
@@ -79,9 +79,9 @@ impl MovementPoints {
     }
 }
 
-impl Default for MovementPoints {
+impl Default for ActionPoints {
     fn default() -> Self {
-        Self::new(3)
+        Self::new(6)
     }
 }
 
@@ -216,7 +216,7 @@ fn movement_animation_system(
 fn movement_request_system(
     mut move_requests: EventReader<MoveEntityRequest>,
     mut entity_query: Query<(
-        &mut MovementPoints,
+        &mut ActionPoints,
         &mut MovementAnimation,
         &TilePos,
         &MovementType,

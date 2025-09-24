@@ -24,7 +24,7 @@ use crate::helpers::{camera, picking::TilemapBackend};
 use crate::hero::{Hero, HeroPathPreview, HeroPlugin, HeroSprite};
 use crate::input::{InputPlugin, handle_tile_click};
 use crate::monster::MonsterPlugin;
-use crate::movement::{MovementAnimation, MovementPlugin, MovementPoints, MovementType};
+use crate::movement::{MovementAnimation, MovementPlugin, ActionPoints, MovementType};
 use crate::tiles::{TerrainType, TileType};
 use crate::turn_system::TurnSystemPlugin;
 use crate::ui::GameUIPlugin;
@@ -164,7 +164,7 @@ fn spawn_hero(
             is_selected: false,
             kills: 0,
         },
-        MovementPoints::new(3),        // 3 movement points
+        ActionPoints::new(6),        // 6 action points
         MovementAnimation::new(200.0), // Hero movement speed
         MovementType::Smart,           // Heroes use pathfinding
         HeroPathPreview::default(),

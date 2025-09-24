@@ -44,7 +44,7 @@ impl Plugin for CombatPlugin {
     }
 }
 
-// Removed auto_combat_system - combat is now manual and costs MP
+// Removed auto_combat_system - combat is now manual and costs AP
 
 fn process_combat_events(
     mut combat_events: EventReader<CombatEvent>,
@@ -139,7 +139,7 @@ fn hero_attack_system(
         (
             Entity,
             &mut Hero,
-            &mut crate::movement::MovementPoints,
+            &mut crate::movement::ActionPoints,
             &mut crate::hero::HeroPathPreview,
             &TilePos,
         ),
@@ -159,7 +159,7 @@ fn hero_attack_system(
 
         if let Some((monster_entity, monster_name)) = monster_info {
             // Find selected hero
-            for (hero_entity, hero, mut movement_points, mut path_preview, hero_pos) in
+            for (hero_entity, hero, mut action_points, mut path_preview, hero_pos) in
                 hero_query.iter_mut()
             {
                 if hero.is_selected {
@@ -176,8 +176,8 @@ fn hero_attack_system(
                         break;
                     }
 
-                    if movement_points.can_move(1) {
-                        movement_points.consume(1); // Attack costs 1 MP
+                    if action_points.can_move(1) {
+                        action_points.consume(1); // Attack costs 1 AP
                         path_preview.clear();
 
                         let damage = if let Ok(combat) = hero_combat_query.get(hero_entity) {
@@ -196,7 +196,7 @@ fn hero_attack_system(
                         });
                     } else {
                         log_writer.write(TerminalLogEvent {
-                            message: "Hero doesn't have enough movement points to attack!"
+                            message: "Hero doesn't have enough action points to attack!"
                                 .to_string(),
                         });
                     }

@@ -1,4 +1,4 @@
-use crate::movement::{MoveEntityRequest, MovementPoints};
+use crate::movement::{MoveEntityRequest, ActionPoints};
 use crate::turn_system::{TurnPhase, TurnSystem};
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
@@ -17,7 +17,7 @@ pub struct HeroPathPreview {
     pub planned_path: Vec<TilePos>,
     pub planned_target: Option<TilePos>,
     pub path_cost: u32,
-    pub reachable_steps: u32, // How many steps can be reached with current MP
+    pub reachable_steps: u32, // How many steps can be reached with current AP
 }
 
 #[derive(Component)]
@@ -112,7 +112,7 @@ impl Plugin for HeroPlugin {
                     path_preview_visual_system,
                     hero_selection_system,
                     hero_movement_system,
-                    refresh_hero_movement_points_system,
+                    refresh_hero_action_points_system,
                 ),
             );
     }
@@ -253,7 +253,7 @@ fn hero_movement_system(
         (
             Entity,
             &mut Hero,
-            &MovementPoints,
+            &ActionPoints,
             &mut HeroPathPreview,
             &TilePos,
         ),
@@ -272,7 +272,7 @@ fn hero_movement_system(
     };
 
     for event in hero_movement_events.read() {
-        for (hero_entity, hero, movement_points, mut path_preview, hero_pos) in
+        for (hero_entity, hero, action_points, mut path_preview, hero_pos) in
             hero_query.iter_mut()
         {
             if !hero.is_selected {
@@ -281,7 +281,7 @@ fn hero_movement_system(
 
             if path_preview.has_path_to(event.target_pos) {
                 // Second click - execute planned path
-                if movement_points.can_move(path_preview.path_cost) {
+                if action_points.can_move(path_preview.path_cost) {
                     // Send movement request to unified system
                     move_requests.write(MoveEntityRequest {
                         entity: hero_entity,
@@ -290,10 +290,10 @@ fn hero_movement_system(
 
                     log_writer.write(TerminalLogEvent {
                         message: format!(
-                            "Executing path to {:?}, cost: {}, remaining movement: {}",
+                            "Executing path to {:?}, cost: {}, remaining AP: {}",
                             event.target_pos,
                             path_preview.path_cost,
-                            movement_points
+                            action_points
                                 .current
                                 .saturating_sub(path_preview.path_cost)
                         ),
@@ -303,8 +303,8 @@ fn hero_movement_system(
                 } else {
                     log_writer.write(TerminalLogEvent {
                         message: format!(
-                            "Not enough movement points! Need {}, have {}",
-                            path_preview.path_cost, movement_points.current
+                            "Not enough action points! Need {}, have {}",
+                            path_preview.path_cost, action_points.current
                         ),
                     });
                 }
@@ -325,28 +325,28 @@ fn hero_movement_system(
                         tile_storage,
                     );
 
-                    // Calculate how many steps are reachable with current movement points
+                    // Calculate how many steps are reachable with current action points
                     let reachable_steps = calculate_reachable_steps(
                         &path,
-                        movement_points.current,
+                        action_points.current,
                         &tile_query,
                         tile_storage,
                     );
 
                     path_preview.set_path(event.target_pos, path, path_cost, reachable_steps);
 
-                    if movement_points.can_move(path_cost) {
+                    if action_points.can_move(path_cost) {
                         log_writer.write(TerminalLogEvent {
                             message: format!(
-                                "Path to {:?} costs {} MP. Click again to execute.",
+                                "Path to {:?} costs {} AP. Click again to execute.", 
                                 event.target_pos, path_cost
                             ),
                         });
                     } else {
                         log_writer.write(TerminalLogEvent {
                             message: format!(
-                                "Path to {:?} costs {} MP (not enough! have {})",
-                                event.target_pos, path_cost, movement_points.current
+                                "Path to {:?} costs {} AP (not enough! have {})",
+                                event.target_pos, path_cost, action_points.current
                             ),
                         });
                     }
@@ -362,10 +362,10 @@ fn hero_movement_system(
     }
 }
 
-// Helper function to calculate how many steps can be reached with current movement points
+// Helper function to calculate how many steps can be reached with current action points
 fn calculate_reachable_steps(
     path: &[TilePos],
-    movement_points: u32,
+    action_points: u32,
     tile_query: &Query<(&crate::tiles::TileType, &TilePos)>,
     tile_storage: &TileStorage,
 ) -> u32 {
@@ -378,7 +378,7 @@ fn calculate_reachable_steps(
             && let Ok((tile_type, _)) = tile_query.get(tile_entity)
         {
             accumulated_cost += tile_type.properties.movement_cost as u32;
-            if accumulated_cost <= movement_points {
+            if accumulated_cost <= action_points {
                 reachable_steps = i as u32;
             } else {
                 break;
@@ -389,23 +389,23 @@ fn calculate_reachable_steps(
     reachable_steps
 }
 
-// System to refresh hero movement points at the start of each player turn
-fn refresh_hero_movement_points_system(
-    mut hero_query: Query<&mut MovementPoints, With<Hero>>,
+// System to refresh hero action points at the start of each player turn
+fn refresh_hero_action_points_system(
+    mut hero_query: Query<&mut ActionPoints, With<Hero>>,
     turn_system: Res<TurnSystem>,
     mut log_writer: EventWriter<TerminalLogEvent>,
 ) {
     // Only refresh on turn changes to PlayerTurn phase
     if turn_system.is_changed() && turn_system.phase == TurnPhase::PlayerTurn {
-        for mut movement_points in hero_query.iter_mut() {
-            let old_mp = movement_points.current;
-            movement_points.refresh();
+        for mut action_points in hero_query.iter_mut() {
+            let old_ap = action_points.current;
+            action_points.refresh();
 
-            if old_mp < movement_points.current {
+            if old_ap < action_points.current {
                 log_writer.write(TerminalLogEvent {
                     message: format!(
-                        "Hero movement points refreshed: {}/{}",
-                        movement_points.current, movement_points.max
+                        "Hero action points refreshed: {}/{}",
+                        action_points.current, action_points.max
                     ),
                 });
             }

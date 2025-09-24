@@ -52,7 +52,7 @@ src/
 ├── input.rs          # Input handling system
 ├── tile_pos.rs       # Tile position utilities for hexagonal grid
 ├── pathfinding.rs    # A* pathfinding for hexagonal grids
-├── ui.rs             # Game UI for turn/hero status display
+├── ui/               # Game UI module (terminal, components, status, scrollbar)
 └── helpers/
     ├── mod.rs        # Module declarations
     ├── camera.rs     # Camera movement and zoom controls
@@ -71,28 +71,31 @@ src/
 - Turn-based gameplay with `TurnSystem` resource
 - Three phases: PlayerTurn, Processing, EnemyTurn
 - Space key to end player turn
-- Hero movement points refresh at start of each turn
+- Action Points refresh on phase change: Heroes at start of PlayerTurn, Monsters at start of EnemyTurn
 
 ### Hero System (`hero.rs`)
-- `Hero` component with name, movement points, selection state, and kill tracking
-- `HeroMovement` component for pathfinding with smooth animation
+- `Hero` component with name, action points, selection state, and kill tracking
+- Pathfinding with smooth animation via `MovementAnimation` (Smart movement)
 - Heroes spawn as blue squares on the tilemap
-- Selection indicated by yellow color
-- Movement points consumed based on terrain cost
-- Manual attack system that costs 1 MP - click on monster to attack
+- Selection tracked in state and reflected in HUD
+- Action Points consumed based on terrain cost for movement
+- Manual attack system that costs 1 AP — click on a monster while adjacent to attack
+- Default AP: 6
 
 ### Monster System (`monster.rs`)
 - `Monster` component with name, sight range, behavior types, and spawn turn tracking
 - AI behaviors: Aggressive (attacks on sight), Defensive (attacks when close), Fleeing (retreats when low HP)
 - Turn-based AI decisions made only during EnemyTurn phase
+- Uses Simple movement (chooses best neighboring step toward target)
+- Movement and attacks consume Action Points; default AP: 4; refreshed at start of EnemyTurn
 - Smooth animation for movement with logical position updates
 - Spawns every 3 turns with different monster types (Goblin, Orc, Skeleton)
 
 ### Combat System (`combat.rs`)
-- Manual combat system - no automatic attacks
+- Mixed combat system: Monsters attack via AI during EnemyTurn; Hero attacks are manual
 - Combat events system for processing damage and deaths
 - Combat component with attack damage values
-- Hero attacks cost 1 MP and must be initiated by clicking on monsters
+- Attacks cost 1 AP; Hero must click a monster to attack (must be adjacent)
 
 ### Health System (`health.rs`)
 - Health component with current/max HP and healing mechanics
@@ -110,10 +113,10 @@ src/
 - Considers terrain movement costs and passability
 - Returns optimal paths respecting tile properties
 
-### UI System (`ui.rs`)
+### UI System (`ui/`)
 - **Terminal Interface**: Scrollable terminal with game logs and status messages
 - **Turn Display**: Shows current turn number and phase
-- **Hero Status**: Displays hero movement points and stats
+- **Hero Status**: Displays hero action points and stats
 - **Advanced Scrollbar**: Custom scrollbar with proper drag, wheel, and click support
 - **System Ordering**: Mouse wheel events prioritize terminal over camera when over terminal
 - **Dynamic Layout**: Adapts to font size changes and window resizing
@@ -160,13 +163,13 @@ src/
 
 ## Gameplay Features
 
-- **Turn-based Movement**: Heroes have limited movement points per turn with smooth animated movement
+- **Action Points**: Movement and attacks consume AP; Hero default AP = 6, Monsters = 4; AP refreshes at the start of each side's turn
 - **Monster AI**: Monsters spawn every 3 turns and use sight-based AI, only acting during EnemyTurn phase
-- **Manual Combat System**: Heroes must manually attack monsters by clicking on them (costs 1 MP)
+- **Combat**: Mixed system — monsters attack during EnemyTurn via AI; hero attacks are manual, cost 1 AP, and require adjacency
 - **Health & Death**: Heroes and monsters have health/attack values with kill tracking and healing mechanics
 - **Pathfinding**: Click-to-move with automatic path calculation
 - **Terrain Effects**: Different terrain types affect movement cost
-- **Hero Selection**: Click on hero to select/deselect, indicated by color change
+- **Hero Selection**: Click on the hero to select/deselect; selection is reflected in the HUD
 - **Advanced Terminal UI**:
   - Scrollable terminal with game logs and event history
   - Custom scrollbar with drag, click, and mouse wheel support

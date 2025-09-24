@@ -27,7 +27,7 @@ pub fn setup_ui(mut commands: Commands) {
 
             // Hero status display
             parent.spawn((
-                Text::new("Hero: HP 10/10, MP 3/3, Kills: 0"),
+                Text::new("Hero: HP 10/10, AP 6/6, Kills: 0"),
                 TextFont {
                     font_size: 18.0,
                     ..default()

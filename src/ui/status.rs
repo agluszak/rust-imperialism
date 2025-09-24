@@ -23,27 +23,27 @@ pub fn update_turn_display(
 
 pub fn update_hero_status_display(
     hero_query: Query<
-        (&Hero, &Health, &crate::movement::MovementPoints),
+        (&Hero, &Health, &crate::movement::ActionPoints),
         (
             With<Hero>,
             Or<(
                 Changed<Hero>,
                 Changed<Health>,
-                Changed<crate::movement::MovementPoints>,
+                Changed<crate::movement::ActionPoints>,
             )>,
         ),
     >,
     mut text_query: Query<&mut Text, With<HeroStatusDisplay>>,
 ) {
-    for (hero, health, movement_points) in hero_query.iter() {
+    for (hero, health, action_points) in hero_query.iter() {
         for mut text in text_query.iter_mut() {
             let selection_text = if hero.is_selected { " [SELECTED]" } else { "" };
             text.0 = format!(
-                "Hero: HP {}/{}, MP {}/{}, Kills: {}{}",
+                "Hero: HP {}/{}, AP {}/{}, Kills: {}{}",
                 health.current,
                 health.max,
-                movement_points.current,
-                movement_points.max,
+                action_points.current,
+                action_points.max,
                 hero.kills,
                 selection_text
             );

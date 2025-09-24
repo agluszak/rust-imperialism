@@ -1,5 +1,5 @@
 use crate::health::{Combat, Health};
-use crate::movement::{MoveEntityRequest, MovementAnimation, MovementPoints, MovementType};
+use crate::movement::{MoveEntityRequest, MovementAnimation, ActionPoints, MovementType};
 use crate::tile_pos::{HexExt, TilePosExt};
 use crate::turn_system::TurnSystem;
 use bevy::prelude::*;
@@ -69,7 +69,14 @@ pub struct MonsterPlugin;
 
 impl Plugin for MonsterPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (monster_ai_system, spawn_monsters_system));
+        app.add_systems(
+            Update,
+            (
+                refresh_monster_action_points_system,
+                monster_ai_system,
+                spawn_monsters_system,
+            ),
+        );
     }
 }
 
@@ -111,7 +118,7 @@ fn spawn_monsters_system(
             Monster::new(monster_name.to_string(), turn_system.current_turn),
             Health::new(3),
             Combat::new(2),
-            MovementPoints::new(2),        // Monsters have 2 movement points
+            ActionPoints::new(4),        // Monsters have 4 action points
             MovementAnimation::new(150.0), // Monster movement speed
             MovementType::Simple,          // Monsters use simple movement
             monster_pos,
@@ -134,12 +141,35 @@ fn spawn_monsters_system(
     }
 }
 
+fn refresh_monster_action_points_system(
+    mut monster_query: Query<&mut ActionPoints, With<Monster>>,
+    turn_system: Res<TurnSystem>,
+    mut log_writer: EventWriter<TerminalLogEvent>,
+) {
+    // Refresh monster action points when the phase changes to EnemyTurn
+    if turn_system.is_changed() && turn_system.phase == crate::turn_system::TurnPhase::EnemyTurn {
+        for mut action_points in monster_query.iter_mut() {
+            let old_ap = action_points.current;
+            action_points.refresh();
+
+            if old_ap < action_points.current {
+                log_writer.write(TerminalLogEvent {
+                    message: format!(
+                        "Monster action points refreshed: {}/{}",
+                        action_points.current, action_points.max
+                    ),
+                });
+            }
+        }
+    }
+}
+
 fn monster_ai_system(
     mut monster_query: Query<
         (
             Entity,
             &mut Monster,
-            &MovementPoints,
+            &mut ActionPoints,
             &MovementAnimation,
             &TilePos,
             &Health,
@@ -163,14 +193,14 @@ fn monster_ai_system(
         return;
     };
 
-    for (monster_entity, mut monster, movement_points, animation, monster_pos, health) in
+    for (monster_entity, mut monster, mut action_points, animation, monster_pos, health) in
         monster_query.iter_mut()
     {
         // Update behavior based on health
         monster.update_behavior_from_health(health);
 
-        // Skip if already moving or out of movement points
-        if animation.is_moving || movement_points.is_exhausted() {
+        // Skip if already moving or out of action points
+        if animation.is_moving || action_points.is_exhausted() {
             continue;
         }
 
@@ -195,15 +225,22 @@ fn monster_ai_system(
                     target: hero_pos,
                 });
             } else if distance == 1 {
-                // Monster is adjacent to hero - attack!
-                combat_events.write(crate::combat::CombatEvent {
-                    attacker: monster_entity,
-                    defender: hero_entity,
-                    damage: 2, // Default monster damage
-                });
-                log_writer.write(TerminalLogEvent {
-                    message: format!("{} attacks the hero!", monster.name),
-                });
+                // Monster is adjacent to hero - attack (costs 1 AP)
+                if action_points.can_move(1) {
+                    action_points.consume(1);
+                    combat_events.write(crate::combat::CombatEvent {
+                        attacker: monster_entity,
+                        defender: hero_entity,
+                        damage: 2, // Default monster damage
+                    });
+                    log_writer.write(TerminalLogEvent {
+                        message: format!("{} attacks the hero!", monster.name),
+                    });
+                } else {
+                    log_writer.write(TerminalLogEvent {
+                        message: format!("{} wants to attack but has no action points!", monster.name),
+                    });
+                }
             }
         }
     }
