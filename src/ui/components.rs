@@ -8,6 +8,9 @@ pub struct TurnDisplay;
 pub struct HeroStatusDisplay;
 
 #[derive(Component)]
+pub struct MonsterCountDisplay;
+
+#[derive(Component)]
 pub struct TerminalWindow;
 
 #[derive(Component)]

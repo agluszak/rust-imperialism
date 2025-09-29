@@ -1,3 +1,4 @@
+use crate::constants::*;
 use crate::pathfinding::PathfindingSystem;
 use crate::tile_pos::{HexExt, TilePosExt};
 use bevy::prelude::*;
@@ -18,7 +19,7 @@ impl Default for MovementAnimation {
     fn default() -> Self {
         Self {
             path: VecDeque::new(),
-            movement_speed: 150.0,
+            movement_speed: MONSTER_MOVEMENT_SPEED,
             is_moving: false,
             target_world_pos: None,
         }
@@ -71,7 +72,7 @@ impl ActionPoints {
 
 impl Default for ActionPoints {
     fn default() -> Self {
-        Self::new(6)
+        Self::new(HERO_MAX_ACTION_POINTS)
     }
 }
 
@@ -165,7 +166,7 @@ fn movement_animation_system(
             let direction = target_pos - transform.translation;
             let distance = direction.length();
 
-            if distance < 5.0 {
+            if distance < MOVEMENT_ARRIVAL_THRESHOLD {
                 // Reached current target
                 transform.translation = target_pos;
                 movement_anim.is_moving = false;
@@ -252,7 +253,11 @@ fn movement_request_system(
         };
 
         if let Some(path) = path {
-            let path_cost = calculate_path_cost(&path, &tile_query, tile_storage);
+            let path_cost = PathfindingSystem::calculate_path_cost_with_combined_query(
+                &path,
+                &tile_query,
+                tile_storage,
+            );
 
             if points.can_move(path_cost) {
                 points.consume(path_cost);
@@ -262,11 +267,14 @@ fn movement_request_system(
                         .center_in_world(
                             tilemap_size,
                             grid_size,
-                            &TilemapTileSize { x: 16.0, y: 16.0 },
+                            &TilemapTileSize {
+                                x: TILE_SIZE,
+                                y: TILE_SIZE,
+                            },
                             map_type,
                             &TilemapAnchor::Center,
                         )
-                        .extend(2.0); // Standard Z level
+                        .extend(Z_LAYER_HEROES);
 
                     animation.start_movement_to(target_world_pos, path.into());
                 }
@@ -296,28 +304,5 @@ fn get_simple_path(from: TilePos, to: TilePos, tilemap_size: &TilemapSize) -> Op
     Some(vec![from, next_pos])
 }
 
-/// Calculate path cost using tile movement costs
-fn calculate_path_cost(
-    path: &[TilePos],
-    tile_query: &Query<(&crate::tiles::TileType, &TilePos)>,
-    tile_storage: &TileStorage,
-) -> u32 {
-    let mut total_cost = 0.0;
-
-    for pos in path.iter().skip(1) {
-        // Skip starting position
-        if let Some(tile_entity) = tile_storage.get(pos)
-            && let Ok((tile_type, _)) = tile_query.get(tile_entity)
-        {
-            if !tile_type.properties.is_passable {
-                total_cost += 999.0; // High cost for impassable
-            } else {
-                total_cost += tile_type.properties.movement_cost;
-            }
-        } else {
-            total_cost += 1.0; // Default cost
-        }
-    }
-
-    total_cost.ceil() as u32
-}
+#[cfg(test)]
+mod tests;

@@ -35,6 +35,17 @@ pub fn setup_ui(mut commands: Commands) {
                 TextColor(Color::srgb(1.0, 1.0, 0.0)),
                 HeroStatusDisplay,
             ));
+
+            // Monster count display
+            parent.spawn((
+                Text::new("Monsters: 0"),
+                TextFont {
+                    font_size: 16.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(1.0, 0.5, 0.5)),
+                MonsterCountDisplay,
+            ));
         });
 
     // Create terminal window

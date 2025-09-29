@@ -8,7 +8,7 @@ pub struct TurnSystem {
     pub phase: TurnPhase,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TurnPhase {
     PlayerTurn,
     Processing,
@@ -128,3 +128,6 @@ fn update_turn_display(
         });
     }
 }
+
+#[cfg(test)]
+mod tests;

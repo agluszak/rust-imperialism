@@ -4,6 +4,7 @@ pub mod logging;
 pub mod metrics;
 pub mod scrollbar;
 pub mod setup;
+pub mod state;
 pub mod status;
 
 use bevy::prelude::*;
@@ -18,16 +19,24 @@ pub struct GameUIPlugin;
 impl Plugin for GameUIPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(logging::TerminalLog::new(100))
+            .insert_resource(state::UIState::default())
             .add_event::<logging::TerminalLogEvent>()
+            .add_event::<state::UIStateUpdated>()
             .add_systems(Startup, (setup::setup_ui, logging::setup_terminal_log))
             .add_systems(
                 Update,
                 (
+                    // State management runs first to collect current game state
+                    state::collect_ui_state,
+                    state::notify_ui_state_changes.after(state::collect_ui_state),
+                    // UI update systems run after state collection
                     // Consume log events before updating UI text so new lines appear
-                    logging::consume_log_events,
-                    status::update_turn_display,
-                    status::update_hero_status_display,
-                    logging::update_terminal_output,
+                    logging::consume_log_events.after(state::notify_ui_state_changes),
+                    status::update_turn_display.after(state::notify_ui_state_changes),
+                    status::update_hero_status_display.after(state::notify_ui_state_changes),
+                    status::update_monster_count_display.after(state::notify_ui_state_changes),
+                    logging::update_terminal_output.after(logging::consume_log_events),
+                    // Scrollbar systems run independently
                     scrollbar::handle_scrollbar_drag,
                     input::handle_mouse_wheel_scroll,
                     scrollbar::update_scrollbar

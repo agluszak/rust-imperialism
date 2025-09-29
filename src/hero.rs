@@ -1,4 +1,6 @@
+use crate::constants::*;
 use crate::movement::{ActionPoints, MoveEntityRequest};
+use crate::tile_pos::TilePosExt;
 use crate::turn_system::{TurnPhase, TurnSystem};
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
@@ -7,7 +9,7 @@ use crate::ui::logging::TerminalLogEvent;
 
 #[derive(Component, Debug, Clone)]
 pub struct Hero {
-    pub _name: String,
+    pub name: String,
     pub is_selected: bool,
     pub kills: u32,
 }
@@ -40,7 +42,7 @@ pub struct PathPreviewMarker;
 impl Default for Hero {
     fn default() -> Self {
         Self {
-            _name: "Hero".to_string(),
+            name: "Hero".to_string(),
             is_selected: false,
             kills: 0,
         }
@@ -87,7 +89,7 @@ impl Hero {
     }
 
     pub fn should_heal_from_kills(&self) -> bool {
-        self.kills > 0 && self.kills.is_multiple_of(3)
+        self.kills > 0 && self.kills.is_multiple_of(KILLS_PER_HEAL)
     }
 }
 
@@ -114,11 +116,11 @@ fn hero_selection_visual_system(
     mut hero_query: Query<(&Hero, &mut Sprite), (With<HeroSprite>, Changed<Hero>)>,
 ) {
     for (hero, mut sprite) in hero_query.iter_mut() {
-        if hero.is_selected {
-            sprite.color = Color::srgb(1.0, 1.0, 0.0); // Yellow when selected
+        sprite.color = if hero.is_selected {
+            HERO_COLOR_SELECTED
         } else {
-            sprite.color = Color::srgb(0.0, 0.0, 1.0); // Blue when not selected
-        }
+            HERO_COLOR_NORMAL
+        };
     }
 }
 
@@ -132,90 +134,115 @@ fn path_preview_visual_system(
         return;
     };
 
-    // Check if we need to show path preview
-    let mut should_show_preview = false;
-    let mut preview_path = Vec::new();
-    let mut reachable_steps = 0;
+    // Clear all existing preview markers first
+    clear_preview_markers(&mut commands, &preview_markers);
 
-    for (hero, path_preview) in hero_query.iter() {
-        if hero.is_selected && !path_preview.planned_path.is_empty() {
-            should_show_preview = true;
-            preview_path = path_preview.planned_path.clone();
-            reachable_steps = path_preview.reachable_steps;
-            break;
-        }
+    // Find path to preview from selected hero
+    if let Some((preview_path, reachable_steps)) = find_active_preview(&hero_query) {
+        draw_path_preview(
+            &mut commands,
+            &preview_path,
+            reachable_steps,
+            tilemap_size,
+            grid_size,
+            map_type,
+        );
     }
+}
 
-    // Clear existing markers if no preview should be shown
-    if !should_show_preview {
-        for entity in preview_markers.iter() {
-            commands.entity(entity).despawn();
-        }
-        return;
-    }
-
-    // Always clear and redraw to ensure we show the current path
-    // Clear existing markers
+/// Clear all path preview markers from the scene
+fn clear_preview_markers(
+    commands: &mut Commands,
+    preview_markers: &Query<Entity, With<PathPreviewMarker>>,
+) {
     for entity in preview_markers.iter() {
         commands.entity(entity).despawn();
     }
+}
 
-    // Draw new path preview with different colors for reachable/unreachable segments
-    for (i, &pos) in preview_path.iter().enumerate().skip(1) {
-        let is_reachable = i <= reachable_steps as usize;
-
-        if i == preview_path.len() - 1 {
-            // Last position - use target marker with color based on reachability
-            let world_pos = pos.center_in_world(
-                tilemap_size,
-                grid_size,
-                &TilemapTileSize { x: 16.0, y: 16.0 },
-                map_type,
-                &TilemapAnchor::Center,
-            );
-
-            let target_color = if is_reachable {
-                Color::srgba(0.0, 1.0, 0.0, 0.7) // Green for reachable target
-            } else {
-                Color::srgba(1.0, 0.5, 0.0, 0.7) // Orange for unreachable target
-            };
-
-            commands.spawn((
-                PathPreviewMarker,
-                Sprite {
-                    color: target_color,
-                    custom_size: Some(Vec2::new(8.0, 8.0)),
-                    ..default()
-                },
-                Transform::from_translation(world_pos.extend(2.0)),
-            ));
-        } else {
-            // Path waypoint with color based on reachability
-            let world_pos = pos.center_in_world(
-                tilemap_size,
-                grid_size,
-                &TilemapTileSize { x: 16.0, y: 16.0 },
-                map_type,
-                &TilemapAnchor::Center,
-            );
-
-            let waypoint_color = if is_reachable {
-                Color::srgba(1.0, 1.0, 0.0, 0.5) // Yellow for reachable path
-            } else {
-                Color::srgba(1.0, 0.0, 0.0, 0.5) // Red for unreachable path
-            };
-
-            commands.spawn((
-                PathPreviewMarker,
-                Sprite {
-                    color: waypoint_color,
-                    custom_size: Some(Vec2::new(4.0, 4.0)),
-                    ..default()
-                },
-                Transform::from_translation(world_pos.extend(2.0)),
+/// Find the active path preview from a selected hero
+fn find_active_preview(
+    hero_query: &Query<(&Hero, &HeroPathPreview), With<Hero>>,
+) -> Option<(Vec<TilePos>, u32)> {
+    for (hero, path_preview) in hero_query.iter() {
+        if hero.is_selected && !path_preview.planned_path.is_empty() {
+            return Some((
+                path_preview.planned_path.clone(),
+                path_preview.reachable_steps,
             ));
         }
     }
+    None
+}
+
+/// Draw the path preview markers on the tilemap
+fn draw_path_preview(
+    commands: &mut Commands,
+    preview_path: &[TilePos],
+    reachable_steps: u32,
+    tilemap_size: &TilemapSize,
+    grid_size: &TilemapGridSize,
+    map_type: &TilemapType,
+) {
+    for (i, &pos) in preview_path.iter().enumerate().skip(1) {
+        let is_reachable = i <= reachable_steps as usize;
+        let is_final = i == preview_path.len() - 1;
+
+        let world_pos =
+            pos.to_world_pos_standard(tilemap_size, grid_size, map_type, Z_LAYER_PATH_PREVIEW);
+
+        if is_final {
+            spawn_target_marker(commands, world_pos, is_reachable);
+        } else {
+            spawn_waypoint_marker(commands, world_pos, is_reachable);
+        }
+    }
+}
+
+/// Spawn a target marker at the end of the path
+fn spawn_target_marker(
+    commands: &mut Commands,
+    world_pos: bevy::prelude::Vec3,
+    is_reachable: bool,
+) {
+    let color = if is_reachable {
+        TARGET_MARKER_REACHABLE
+    } else {
+        TARGET_MARKER_UNREACHABLE
+    };
+
+    commands.spawn((
+        PathPreviewMarker,
+        Sprite {
+            color,
+            custom_size: Some(TARGET_MARKER_SIZE),
+            ..default()
+        },
+        Transform::from_translation(world_pos),
+    ));
+}
+
+/// Spawn a waypoint marker along the path
+fn spawn_waypoint_marker(
+    commands: &mut Commands,
+    world_pos: bevy::prelude::Vec3,
+    is_reachable: bool,
+) {
+    let color = if is_reachable {
+        PATH_PREVIEW_REACHABLE
+    } else {
+        PATH_PREVIEW_UNREACHABLE
+    };
+
+    commands.spawn((
+        PathPreviewMarker,
+        Sprite {
+            color,
+            custom_size: Some(PATH_WAYPOINT_SIZE),
+            ..default()
+        },
+        Transform::from_translation(world_pos),
+    ));
 }
 
 // Hero selection system
@@ -271,83 +298,114 @@ fn hero_movement_system(
             }
 
             if path_preview.has_path_to(event.target_pos) {
-                // Second click - execute planned path
-                if action_points.can_move(path_preview.path_cost) {
-                    // Send movement request to unified system
-                    move_requests.write(MoveEntityRequest {
-                        entity: hero_entity,
-                        target: event.target_pos,
-                    });
-
-                    log_writer.write(TerminalLogEvent {
-                        message: format!(
-                            "Executing path to {:?}, cost: {}, remaining AP: {}",
-                            event.target_pos,
-                            path_preview.path_cost,
-                            action_points.current.saturating_sub(path_preview.path_cost)
-                        ),
-                    });
-
-                    path_preview.clear();
-                } else {
-                    log_writer.write(TerminalLogEvent {
-                        message: format!(
-                            "Not enough action points! Need {}, have {}",
-                            path_preview.path_cost, action_points.current
-                        ),
-                    });
-                }
+                handle_path_execution(
+                    hero_entity,
+                    event.target_pos,
+                    action_points,
+                    &mut path_preview,
+                    &mut move_requests,
+                    &mut log_writer,
+                );
             } else {
-                // First click - show path preview
-                if let Some(path) =
-                    crate::pathfinding::PathfindingSystem::find_path_with_combined_query(
-                        *hero_pos,
-                        event.target_pos,
-                        tilemap_size,
-                        &tile_query,
-                        tile_storage,
-                    )
-                {
-                    let path_cost = crate::pathfinding::PathfindingSystem::calculate_path_cost_with_combined_query(
-                        &path,
-                        &tile_query,
-                        tile_storage,
-                    );
-
-                    // Calculate how many steps are reachable with current action points
-                    let reachable_steps = calculate_reachable_steps(
-                        &path,
-                        action_points.current,
-                        &tile_query,
-                        tile_storage,
-                    );
-
-                    path_preview.set_path(event.target_pos, path, path_cost, reachable_steps);
-
-                    if action_points.can_move(path_cost) {
-                        log_writer.write(TerminalLogEvent {
-                            message: format!(
-                                "Path to {:?} costs {} AP. Click again to execute.",
-                                event.target_pos, path_cost
-                            ),
-                        });
-                    } else {
-                        log_writer.write(TerminalLogEvent {
-                            message: format!(
-                                "Path to {:?} costs {} AP (not enough! have {})",
-                                event.target_pos, path_cost, action_points.current
-                            ),
-                        });
-                    }
-                } else {
-                    log_writer.write(TerminalLogEvent {
-                        message: format!("No path found to {:?}", event.target_pos),
-                    });
-                    path_preview.clear();
-                }
+                handle_path_preview(
+                    *hero_pos,
+                    event.target_pos,
+                    action_points,
+                    &mut path_preview,
+                    tilemap_size,
+                    &tile_query,
+                    tile_storage,
+                    &mut log_writer,
+                );
             }
             break;
         }
+    }
+}
+
+/// Handle second click - execute planned path
+fn handle_path_execution(
+    hero_entity: Entity,
+    target_pos: TilePos,
+    action_points: &ActionPoints,
+    path_preview: &mut HeroPathPreview,
+    move_requests: &mut EventWriter<MoveEntityRequest>,
+    log_writer: &mut EventWriter<TerminalLogEvent>,
+) {
+    if action_points.can_move(path_preview.path_cost) {
+        move_requests.write(MoveEntityRequest {
+            entity: hero_entity,
+            target: target_pos,
+        });
+
+        log_writer.write(TerminalLogEvent {
+            message: format!(
+                "Executing path to {:?}, cost: {}, remaining AP: {}",
+                target_pos,
+                path_preview.path_cost,
+                action_points.current.saturating_sub(path_preview.path_cost)
+            ),
+        });
+
+        path_preview.clear();
+    } else {
+        log_writer.write(TerminalLogEvent {
+            message: format!(
+                "Not enough action points! Need {}, have {}",
+                path_preview.path_cost, action_points.current
+            ),
+        });
+    }
+}
+
+/// Handle first click - show path preview
+fn handle_path_preview(
+    hero_pos: TilePos,
+    target_pos: TilePos,
+    action_points: &ActionPoints,
+    path_preview: &mut HeroPathPreview,
+    tilemap_size: &TilemapSize,
+    tile_query: &Query<(&crate::tiles::TileType, &TilePos)>,
+    tile_storage: &TileStorage,
+    log_writer: &mut EventWriter<TerminalLogEvent>,
+) {
+    if let Some(path) = crate::pathfinding::PathfindingSystem::find_path_with_combined_query(
+        hero_pos,
+        target_pos,
+        tilemap_size,
+        tile_query,
+        tile_storage,
+    ) {
+        let path_cost =
+            crate::pathfinding::PathfindingSystem::calculate_path_cost_with_combined_query(
+                &path,
+                tile_query,
+                tile_storage,
+            );
+
+        let reachable_steps =
+            calculate_reachable_steps(&path, action_points.current, tile_query, tile_storage);
+
+        path_preview.set_path(target_pos, path, path_cost, reachable_steps);
+
+        let message = if action_points.can_move(path_cost) {
+            format!(
+                "Path to {:?} costs {} AP. Click again to execute.",
+                target_pos, path_cost
+            )
+        } else {
+            format!(
+                "Path to {:?} costs {} AP (not enough! have {})",
+                target_pos, path_cost, action_points.current
+            )
+        };
+
+        log_writer.write(TerminalLogEvent { message });
+    } else {
+        log_writer.write(TerminalLogEvent {
+            message: format!("No path found to {:?}", target_pos),
+        });
+        path_preview.clear();
     }
 }
 

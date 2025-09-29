@@ -1,3 +1,4 @@
+use crate::constants::*;
 use crate::tile_pos::{HexExt, TilePosExt};
 use crate::tiles::TileType;
 use bevy::prelude::*;
@@ -62,21 +63,22 @@ impl PathfindingSystem {
 
         for pos in path.iter().skip(1) {
             // Skip starting position
-            if let Some(tile_entity) = tile_storage.get(pos) {
-                if let Ok((tile_type, _)) = tile_query.get(tile_entity) {
-                    if !tile_type.properties.is_passable {
-                        total_cost += 999.0; // High cost for impassable
-                    } else {
-                        total_cost += tile_type.properties.movement_cost;
-                    }
+            if let Some(tile_entity) = tile_storage.get(pos)
+                && let Ok((tile_type, _)) = tile_query.get(tile_entity)
+            {
+                if !tile_type.properties.is_passable {
+                    total_cost += IMPASSABLE_TILE_COST;
                 } else {
-                    total_cost += 1.0; // Default cost
+                    total_cost += tile_type.properties.movement_cost;
                 }
             } else {
-                total_cost += 1.0; // Default cost
+                total_cost += 1.0;
             }
         }
 
         total_cost.ceil() as u32
     }
 }
+
+#[cfg(test)]
+mod tests;

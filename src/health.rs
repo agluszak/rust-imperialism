@@ -1,3 +1,4 @@
+use crate::constants::*;
 use bevy::prelude::*;
 
 #[derive(Component, Debug, Clone)]
@@ -32,7 +33,19 @@ impl Health {
     }
 
     pub fn is_low_health(&self) -> bool {
-        self.current <= self.max / 3
+        self.current <= (self.max * LOW_HEALTH_THRESHOLD_PERCENT) / 100
+    }
+
+    pub fn heal(&mut self, amount: u32) {
+        self.current = (self.current + amount).min(self.max);
+    }
+
+    pub fn percentage(&self) -> u32 {
+        if self.max == 0 {
+            0
+        } else {
+            (self.current * 100) / self.max
+        }
     }
 }
 
@@ -50,6 +63,9 @@ impl Default for Health {
 
 impl Default for Combat {
     fn default() -> Self {
-        Self::new(1)
+        Self::new(10)
     }
 }
+
+#[cfg(test)]
+mod tests;

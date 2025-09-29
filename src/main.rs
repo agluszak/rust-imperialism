@@ -6,6 +6,7 @@ use bevy_ecs_tilemap::prelude::*;
 
 // Import all game modules
 mod combat;
+mod constants;
 mod health;
 mod helpers;
 mod hero;
@@ -20,6 +21,7 @@ mod turn_system;
 mod ui;
 
 use crate::combat::CombatPlugin;
+use crate::constants::*;
 use crate::health::{Combat, Health};
 use crate::helpers::{camera, picking::TilemapBackend};
 use crate::hero::{Hero, HeroPathPreview, HeroPlugin, HeroSprite};
@@ -34,14 +36,17 @@ use crate::ui::GameUIPlugin;
 fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Asset by Kenney
     let texture_handle: Handle<Image> = asset_server.load("colored_packed.png");
-    let map_size = TilemapSize { x: 32, y: 32 }; // Larger map for better noise patterns
+    let map_size = TilemapSize {
+        x: MAP_SIZE,
+        y: MAP_SIZE,
+    };
 
     let tilemap_entity = commands.spawn_empty().id();
 
     let mut tile_storage = TileStorage::empty(map_size);
 
     // Create terrain generator with a fixed seed for consistent worlds
-    let terrain_gen = TerrainGenerator::new(12345);
+    let terrain_gen = TerrainGenerator::new(TERRAIN_SEED);
 
     for x in 0..map_size.x {
         for y in 0..map_size.y {
@@ -67,7 +72,10 @@ fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
         }
     }
 
-    let tile_size = TilemapTileSize { x: 16., y: 16. };
+    let tile_size = TilemapTileSize {
+        x: TILE_SIZE,
+        y: TILE_SIZE,
+    };
     let grid_size = tile_size.into();
     let map_type = TilemapType::Hexagon(HexCoordSystem::Row);
 
@@ -139,8 +147,11 @@ fn spawn_hero(
         return;
     };
 
-    // Spawn hero at center position (16, 16) for 32x32 map
-    let hero_pos = TilePos { x: 16, y: 16 };
+    // Spawn hero at center position
+    let hero_pos = TilePos {
+        x: HERO_SPAWN_X,
+        y: HERO_SPAWN_Y,
+    };
     let hero_world_pos = hero_pos
         .center_in_world(
             tilemap_size,
@@ -149,25 +160,25 @@ fn spawn_hero(
             map_type,
             &TilemapAnchor::Center,
         )
-        .extend(2.0); // Place hero well above tiles
+        .extend(Z_LAYER_HEROES);
 
     commands.spawn((
         Hero {
-            _name: "Player Hero".to_string(),
+            name: "Player Hero".to_string(),
             is_selected: false,
             kills: 0,
         },
-        ActionPoints::new(6),          // 6 action points
-        MovementAnimation::new(200.0), // Hero movement speed
-        MovementType::Smart,           // Heroes use pathfinding
+        ActionPoints::new(HERO_MAX_ACTION_POINTS),
+        MovementAnimation::new(HERO_MOVEMENT_SPEED),
+        MovementType::Smart,
         HeroPathPreview::default(),
         hero_pos,
-        Health::new(100),
-        Combat::new(25),
+        Health::new(HERO_MAX_HEALTH),
+        Combat::new(HERO_DAMAGE),
         HeroSprite,
         Sprite {
-            color: Color::srgb(0.0, 0.0, 1.0), // Blue square
-            custom_size: Some(Vec2::new(16.0, 16.0)),
+            color: HERO_COLOR_NORMAL,
+            custom_size: Some(HERO_SPRITE_SIZE),
             ..default()
         },
         Transform::from_translation(hero_world_pos),

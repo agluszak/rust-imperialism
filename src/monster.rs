@@ -1,3 +1,4 @@
+use crate::constants::*;
 use crate::health::{Combat, Health};
 use crate::movement::{ActionPoints, MoveEntityRequest, MovementAnimation, MovementType};
 use crate::tile_pos::{HexExt, TilePosExt};
@@ -29,7 +30,7 @@ impl Default for Monster {
     fn default() -> Self {
         Self {
             name: "Goblin".to_string(),
-            sight_range: 5,
+            sight_range: MONSTER_SIGHT_RANGE,
             behavior: MonsterBehavior::Aggressive,
         }
     }
@@ -39,7 +40,7 @@ impl Monster {
     pub fn new(name: String) -> Self {
         Self {
             name,
-            sight_range: 5,
+            sight_range: MONSTER_SIGHT_RANGE,
             behavior: MonsterBehavior::Aggressive,
         }
     }
@@ -85,13 +86,17 @@ fn spawn_monsters_system(
     mut last_spawn_turn: Local<u32>,
     mut log_writer: EventWriter<TerminalLogEvent>,
 ) {
-    // Only spawn if we have less than 5 monsters
-    if monster_query.iter().count() >= 5 {
+    // Only spawn if we have less than max monsters
+    if monster_query.iter().count() >= MAX_MONSTERS {
         return;
     }
 
-    // Spawn every 3 turns
-    if turn_system.current_turn > *last_spawn_turn && turn_system.current_turn.is_multiple_of(3) {
+    // Spawn every N turns
+    if turn_system.current_turn > *last_spawn_turn
+        && turn_system
+            .current_turn
+            .is_multiple_of(MONSTER_SPAWN_INTERVAL)
+    {
         let Ok((tilemap_size, grid_size, map_type)) = tilemap_query.single() else {
             return;
         };
@@ -103,7 +108,10 @@ fn spawn_monsters_system(
         let monster_world_pos = monster_pos.center_in_world(
             tilemap_size,
             grid_size,
-            &TilemapTileSize { x: 16.0, y: 16.0 },
+            &TilemapTileSize {
+                x: TILE_SIZE,
+                y: TILE_SIZE,
+            },
             map_type,
             &TilemapAnchor::Center,
         );
@@ -113,19 +121,19 @@ fn spawn_monsters_system(
 
         commands.spawn((
             Monster::new(monster_name.to_string()),
-            Health::new(3),
-            Combat::new(2),
-            ActionPoints::new(4),          // Monsters have 4 action points
-            MovementAnimation::new(150.0), // Monster movement speed
-            MovementType::Simple,          // Monsters use simple movement
+            Health::new(MONSTER_MAX_HEALTH),
+            Combat::new(MONSTER_DAMAGE),
+            ActionPoints::new(MONSTER_MAX_ACTION_POINTS),
+            MovementAnimation::new(MONSTER_MOVEMENT_SPEED),
+            MovementType::Simple,
             monster_pos,
             MonsterSprite,
             Sprite {
-                color: Color::srgb(1.0, 0.0, 0.0), // Red color for monsters
-                custom_size: Some(Vec2::new(10.0, 10.0)),
+                color: MONSTER_COLOR,
+                custom_size: Some(MONSTER_SPRITE_SIZE),
                 ..default()
             },
-            Transform::from_translation(monster_world_pos.extend(1.0)),
+            Transform::from_translation(monster_world_pos.extend(Z_LAYER_MONSTERS)),
         ));
 
         *last_spawn_turn = turn_system.current_turn;
@@ -202,52 +210,113 @@ fn monster_ai_system(
         }
 
         if monster.can_see_hero(*monster_pos, hero_pos) {
-            let monster_hex = monster_pos.to_hex();
-            let hero_hex = hero_pos.to_hex();
-            let distance = monster_hex.distance_to(hero_hex) as u32;
-
-            if monster.should_flee() {
-                // Move away from hero
-                let target = get_flee_target(*monster_pos, hero_pos);
-                if let Some(target) = target {
-                    move_requests.write(MoveEntityRequest {
-                        entity: monster_entity,
-                        target,
-                    });
-                }
-            } else if distance > 1 {
-                // Move towards hero
-                move_requests.write(MoveEntityRequest {
-                    entity: monster_entity,
-                    target: hero_pos,
-                });
-            } else if distance == 1 {
-                // Monster is adjacent to hero - attack (costs 1 AP)
-                if action_points.can_move(1) {
-                    action_points.consume(1);
-                    combat_events.write(crate::combat::CombatEvent {
-                        _attacker: monster_entity,
-                        defender: hero_entity,
-                        damage: 2, // Default monster damage
-                    });
-                    log_writer.write(TerminalLogEvent {
-                        message: format!("{} attacks the hero!", monster.name),
-                    });
-                } else {
-                    log_writer.write(TerminalLogEvent {
-                        message: format!(
-                            "{} wants to attack but has no action points!",
-                            monster.name
-                        ),
-                    });
-                }
-            }
+            process_monster_action(
+                monster_entity,
+                &monster,
+                &mut action_points,
+                *monster_pos,
+                hero_entity,
+                hero_pos,
+                &mut move_requests,
+                &mut combat_events,
+                &mut log_writer,
+            );
         }
     }
 }
 
-/// Calculate a position to flee away from the hero
-fn get_flee_target(monster_pos: TilePos, hero_pos: TilePos) -> Option<TilePos> {
+/// Process a single monster's action during their turn
+fn process_monster_action(
+    monster_entity: Entity,
+    monster: &Monster,
+    action_points: &mut ActionPoints,
+    monster_pos: TilePos,
+    hero_entity: Entity,
+    hero_pos: TilePos,
+    move_requests: &mut EventWriter<MoveEntityRequest>,
+    combat_events: &mut EventWriter<crate::combat::CombatEvent>,
+    log_writer: &mut EventWriter<TerminalLogEvent>,
+) {
+    let distance = calculate_distance(monster_pos, hero_pos);
+
+    if monster.should_flee() {
+        handle_flee_action(monster_entity, monster_pos, hero_pos, move_requests);
+    } else if distance > MONSTER_ATTACK_RANGE {
+        handle_move_action(monster_entity, hero_pos, move_requests);
+    } else {
+        handle_attack_action(
+            monster_entity,
+            hero_entity,
+            &monster.name,
+            action_points,
+            combat_events,
+            log_writer,
+        );
+    }
+}
+
+/// Calculate the distance between two tile positions
+fn calculate_distance(from: TilePos, to: TilePos) -> u32 {
+    let from_hex = from.to_hex();
+    let to_hex = to.to_hex();
+    from_hex.distance_to(to_hex) as u32
+}
+
+/// Handle fleeing from the hero
+fn handle_flee_action(
+    monster_entity: Entity,
+    monster_pos: TilePos,
+    hero_pos: TilePos,
+    move_requests: &mut EventWriter<MoveEntityRequest>,
+) {
+    if let Some(target) = calculate_optimal_flee_position(monster_pos, hero_pos) {
+        move_requests.write(MoveEntityRequest {
+            entity: monster_entity,
+            target,
+        });
+    }
+}
+
+/// Handle moving towards the hero
+fn handle_move_action(
+    monster_entity: Entity,
+    hero_pos: TilePos,
+    move_requests: &mut EventWriter<MoveEntityRequest>,
+) {
+    move_requests.write(MoveEntityRequest {
+        entity: monster_entity,
+        target: hero_pos,
+    });
+}
+
+/// Handle attacking the hero
+fn handle_attack_action(
+    monster_entity: Entity,
+    hero_entity: Entity,
+    monster_name: &str,
+    action_points: &mut ActionPoints,
+    combat_events: &mut EventWriter<crate::combat::CombatEvent>,
+    log_writer: &mut EventWriter<TerminalLogEvent>,
+) {
+    if action_points.can_move(ATTACK_ACTION_COST) {
+        action_points.consume(ATTACK_ACTION_COST);
+        combat_events.write(crate::combat::CombatEvent {
+            attacker: monster_entity,
+            defender: hero_entity,
+            damage: MONSTER_DAMAGE,
+        });
+        log_writer.write(TerminalLogEvent {
+            message: format!("{} attacks the hero!", monster_name),
+        });
+    } else {
+        log_writer.write(TerminalLogEvent {
+            message: format!("{} wants to attack but has no action points!", monster_name),
+        });
+    }
+}
+
+/// Calculate the optimal position to flee away from the hero
+fn calculate_optimal_flee_position(monster_pos: TilePos, hero_pos: TilePos) -> Option<TilePos> {
     let monster_hex = monster_pos.to_hex();
     let hero_hex = hero_pos.to_hex();
 

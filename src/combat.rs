@@ -1,3 +1,4 @@
+use crate::constants::*;
 use crate::health::{Combat, Health};
 use crate::hero::Hero;
 use crate::monster::Monster;
@@ -9,7 +10,7 @@ use crate::ui::logging::TerminalLogEvent;
 
 #[derive(Event)]
 pub struct CombatEvent {
-    pub _attacker: Entity,
+    pub attacker: Entity,
     pub defender: Entity,
     pub damage: u32,
 }
@@ -163,12 +164,12 @@ fn hero_attack_system(
                 hero_query.iter_mut()
             {
                 if hero.is_selected {
-                    // Check if hero is adjacent to the monster (attack range = 1)
+                    // Check if hero is adjacent to the monster
                     let hero_hex = hero_pos.to_hex();
                     let monster_hex = event.target_pos.to_hex();
-                    let distance = hero_hex.distance_to(monster_hex);
+                    let distance = hero_hex.distance_to(monster_hex) as u32;
 
-                    if distance > 1 {
+                    if distance > MONSTER_ATTACK_RANGE {
                         log_writer.write(TerminalLogEvent { message: format!(
                             "Monster is too far away! Hero must be adjacent to attack (distance: {})",
                             distance
@@ -176,18 +177,18 @@ fn hero_attack_system(
                         break;
                     }
 
-                    if action_points.can_move(1) {
-                        action_points.consume(1); // Attack costs 1 AP
+                    if action_points.can_move(ATTACK_ACTION_COST) {
+                        action_points.consume(ATTACK_ACTION_COST);
                         path_preview.clear();
 
                         let damage = if let Ok(combat) = hero_combat_query.get(hero_entity) {
                             combat.attack_damage
                         } else {
-                            3 // Fallback damage
+                            DEFAULT_HERO_DAMAGE
                         };
 
                         combat_events.write(CombatEvent {
-                            _attacker: hero_entity,
+                            attacker: hero_entity,
                             defender: monster_entity,
                             damage,
                         });
@@ -206,3 +207,6 @@ fn hero_attack_system(
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
