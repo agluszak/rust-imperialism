@@ -84,7 +84,7 @@ fn spawn_monsters_system(
     tilemap_query: Query<(&TilemapSize, &TilemapGridSize, &TilemapType), With<TilemapGridSize>>,
     turn_system: Res<TurnSystem>,
     mut last_spawn_turn: Local<u32>,
-    mut log_writer: EventWriter<TerminalLogEvent>,
+    mut log_writer: MessageWriter<TerminalLogEvent>,
 ) {
     // Only spawn if we have less than max monsters
     if monster_query.iter().count() >= MAX_MONSTERS {
@@ -149,7 +149,7 @@ fn spawn_monsters_system(
 fn refresh_monster_action_points_system(
     mut monster_query: Query<&mut ActionPoints, With<Monster>>,
     turn_system: Res<TurnSystem>,
-    mut log_writer: EventWriter<TerminalLogEvent>,
+    mut log_writer: MessageWriter<TerminalLogEvent>,
 ) {
     // Refresh monster action points when the phase changes to EnemyTurn
     if turn_system.is_changed() && turn_system.phase == crate::turn_system::TurnPhase::EnemyTurn {
@@ -183,9 +183,9 @@ fn monster_ai_system(
     >,
     hero_query: Query<(Entity, &TilePos), (With<crate::hero::Hero>, Without<Monster>)>,
     turn_system: Res<TurnSystem>,
-    mut combat_events: EventWriter<crate::combat::CombatEvent>,
-    mut move_requests: EventWriter<MoveEntityRequest>,
-    mut log_writer: EventWriter<TerminalLogEvent>,
+    mut combat_events: MessageWriter<crate::combat::CombatEvent>,
+    mut move_requests: MessageWriter<MoveEntityRequest>,
+    mut log_writer: MessageWriter<TerminalLogEvent>,
 ) {
     // Only allow monster AI during EnemyTurn phase
     if turn_system.phase != crate::turn_system::TurnPhase::EnemyTurn {
@@ -233,9 +233,9 @@ fn process_monster_action(
     monster_pos: TilePos,
     hero_entity: Entity,
     hero_pos: TilePos,
-    move_requests: &mut EventWriter<MoveEntityRequest>,
-    combat_events: &mut EventWriter<crate::combat::CombatEvent>,
-    log_writer: &mut EventWriter<TerminalLogEvent>,
+    move_requests: &mut MessageWriter<MoveEntityRequest>,
+    combat_events: &mut MessageWriter<crate::combat::CombatEvent>,
+    log_writer: &mut MessageWriter<TerminalLogEvent>,
 ) {
     let distance = calculate_distance(monster_pos, hero_pos);
 
@@ -267,7 +267,7 @@ fn handle_flee_action(
     monster_entity: Entity,
     monster_pos: TilePos,
     hero_pos: TilePos,
-    move_requests: &mut EventWriter<MoveEntityRequest>,
+    move_requests: &mut MessageWriter<MoveEntityRequest>,
 ) {
     if let Some(target) = calculate_optimal_flee_position(monster_pos, hero_pos) {
         move_requests.write(MoveEntityRequest {
@@ -281,7 +281,7 @@ fn handle_flee_action(
 fn handle_move_action(
     monster_entity: Entity,
     hero_pos: TilePos,
-    move_requests: &mut EventWriter<MoveEntityRequest>,
+    move_requests: &mut MessageWriter<MoveEntityRequest>,
 ) {
     move_requests.write(MoveEntityRequest {
         entity: monster_entity,
@@ -295,8 +295,8 @@ fn handle_attack_action(
     hero_entity: Entity,
     monster_name: &str,
     action_points: &mut ActionPoints,
-    combat_events: &mut EventWriter<crate::combat::CombatEvent>,
-    log_writer: &mut EventWriter<TerminalLogEvent>,
+    combat_events: &mut MessageWriter<crate::combat::CombatEvent>,
+    log_writer: &mut MessageWriter<TerminalLogEvent>,
 ) {
     if action_points.can_move(ATTACK_ACTION_COST) {
         action_points.consume(ATTACK_ACTION_COST);

@@ -26,12 +26,12 @@ pub struct HeroPathPreview {
 pub struct HeroSprite;
 
 // Events for hero input
-#[derive(Event)]
+#[derive(Message)]
 pub struct HeroSelectionClicked {
     pub target_pos: TilePos,
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct HeroMovementClicked {
     pub target_pos: TilePos,
 }
@@ -97,8 +97,8 @@ pub struct HeroPlugin;
 
 impl Plugin for HeroPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<HeroSelectionClicked>()
-            .add_event::<HeroMovementClicked>()
+        app.add_message::<HeroSelectionClicked>()
+            .add_message::<HeroMovementClicked>()
             .add_systems(
                 Update,
                 (
@@ -247,7 +247,7 @@ fn spawn_waypoint_marker(
 
 // Hero selection system
 fn hero_selection_system(
-    mut hero_selection_events: EventReader<HeroSelectionClicked>,
+    mut hero_selection_events: MessageReader<HeroSelectionClicked>,
     mut hero_query: Query<(&mut Hero, &mut HeroPathPreview, &TilePos), With<Hero>>,
 ) {
     for event in hero_selection_events.read() {
@@ -267,7 +267,7 @@ fn hero_selection_system(
 
 // Hero movement system using the unified movement system
 fn hero_movement_system(
-    mut hero_movement_events: EventReader<HeroMovementClicked>,
+    mut hero_movement_events: MessageReader<HeroMovementClicked>,
     mut hero_query: Query<
         (
             Entity,
@@ -283,8 +283,8 @@ fn hero_movement_system(
         (&TilemapSize, &TileStorage, &TilemapGridSize, &TilemapType),
         With<TilemapGridSize>,
     >,
-    mut move_requests: EventWriter<MoveEntityRequest>,
-    mut log_writer: EventWriter<TerminalLogEvent>,
+    mut move_requests: MessageWriter<MoveEntityRequest>,
+    mut log_writer: MessageWriter<TerminalLogEvent>,
 ) {
     let Ok((tilemap_size, tile_storage, _grid_size, _map_type)) = tilemap_query.single() else {
         return;
@@ -329,8 +329,8 @@ fn handle_path_execution(
     target_pos: TilePos,
     action_points: &ActionPoints,
     path_preview: &mut HeroPathPreview,
-    move_requests: &mut EventWriter<MoveEntityRequest>,
-    log_writer: &mut EventWriter<TerminalLogEvent>,
+    move_requests: &mut MessageWriter<MoveEntityRequest>,
+    log_writer: &mut MessageWriter<TerminalLogEvent>,
 ) {
     if action_points.can_move(path_preview.path_cost) {
         move_requests.write(MoveEntityRequest {
@@ -367,7 +367,7 @@ fn handle_path_preview(
     tilemap_size: &TilemapSize,
     tile_query: &Query<(&crate::tiles::TileType, &TilePos)>,
     tile_storage: &TileStorage,
-    log_writer: &mut EventWriter<TerminalLogEvent>,
+    log_writer: &mut MessageWriter<TerminalLogEvent>,
 ) {
     if let Some(path) = crate::pathfinding::PathfindingSystem::find_path_with_combined_query(
         hero_pos,
@@ -440,7 +440,7 @@ fn calculate_reachable_steps(
 fn refresh_hero_action_points_system(
     mut hero_query: Query<&mut ActionPoints, With<Hero>>,
     turn_system: Res<TurnSystem>,
-    mut log_writer: EventWriter<TerminalLogEvent>,
+    mut log_writer: MessageWriter<TerminalLogEvent>,
 ) {
     // Only refresh on turn changes to PlayerTurn phase
     if turn_system.is_changed() && turn_system.phase == TurnPhase::PlayerTurn {

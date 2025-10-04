@@ -2,7 +2,6 @@ use bevy::{
     input::{ButtonInput, mouse::MouseWheel},
     math::Vec3,
     prelude::*,
-    render::camera::Camera,
     ui::RelativeCursorPosition,
 };
 
@@ -13,7 +12,7 @@ use crate::ui::{ScrollableTerminal, ScrollbarThumb, ScrollbarTrack};
 pub fn movement(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut scroll_evr: EventReader<MouseWheel>,
+    mut scroll_evr: MessageReader<MouseWheel>,
     mut query: Query<(&mut Transform, &mut Projection), With<Camera>>,
     terminal_area: Query<&RelativeCursorPosition, With<ScrollableTerminal>>,
     scrollbar_track: Query<&RelativeCursorPosition, With<ScrollbarTrack>>,

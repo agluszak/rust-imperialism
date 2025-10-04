@@ -77,7 +77,7 @@ impl Default for ActionPoints {
 }
 
 /// Events for movement requests
-#[derive(Event)]
+#[derive(Message)]
 pub struct MoveEntityRequest {
     pub entity: Entity,
     pub target: TilePos,
@@ -94,7 +94,7 @@ pub struct MovementPlugin;
 
 impl Plugin for MovementPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<MoveEntityRequest>().add_systems(
+        app.add_message::<MoveEntityRequest>().add_systems(
             Update,
             (
                 movement_animation_system,
@@ -206,7 +206,7 @@ fn movement_animation_system(
 
 /// System to handle movement requests with unified pathfinding logic
 fn movement_request_system(
-    mut move_requests: EventReader<MoveEntityRequest>,
+    mut move_requests: MessageReader<MoveEntityRequest>,
     mut entity_query: Query<(
         &mut ActionPoints,
         &mut MovementAnimation,

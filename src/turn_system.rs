@@ -61,7 +61,7 @@ impl Plugin for TurnSystemPlugin {
 fn handle_turn_input(
     keys: Res<ButtonInput<KeyCode>>,
     mut turn_system: ResMut<TurnSystem>,
-    mut log_writer: EventWriter<TerminalLogEvent>,
+    mut log_writer: MessageWriter<TerminalLogEvent>,
 ) {
     if keys.just_pressed(KeyCode::Space) && turn_system.is_player_turn() {
         turn_system.end_player_turn();
@@ -75,7 +75,7 @@ fn process_turn_phases(
     mut turn_system: ResMut<TurnSystem>,
     mut turn_timer: Local<Timer>,
     time: Res<Time>,
-    mut log_writer: EventWriter<TerminalLogEvent>,
+    mut log_writer: MessageWriter<TerminalLogEvent>,
 ) {
     // Handle turn phase transitions with timing
     match turn_system.phase {
@@ -117,7 +117,7 @@ fn process_turn_phases(
 
 fn update_turn_display(
     turn_system: Res<TurnSystem>,
-    mut log_writer: EventWriter<TerminalLogEvent>,
+    mut log_writer: MessageWriter<TerminalLogEvent>,
 ) {
     if turn_system.is_changed() {
         log_writer.write(TerminalLogEvent {

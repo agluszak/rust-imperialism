@@ -5,7 +5,7 @@ use crate::ui::components::TerminalOutput;
 use crate::ui::metrics::ScrollbarMetrics;
 
 pub fn handle_mouse_wheel_scroll(
-    mut scroll_events: EventReader<bevy::input::mouse::MouseWheel>,
+    mut scroll_events: MessageReader<bevy::input::mouse::MouseWheel>,
     mut scrollable_query: Query<
         (
             &mut ScrollPosition,
@@ -41,8 +41,8 @@ pub fn handle_mouse_wheel_scroll(
 
                 if metrics.can_scroll {
                     let scroll_amount = event.y * (font_size * 2.0); // Scroll by 2 lines at a time
-                    let new_scroll_y = scroll_position.offset_y - scroll_amount;
-                    scroll_position.offset_y = metrics.clamp_scroll_position(new_scroll_y);
+                    let new_scroll_y = scroll_position.y - scroll_amount;
+                    scroll_position.y = metrics.clamp_scroll_position(new_scroll_y);
                 }
                 return; // Terminal scrolled, don't process more events
             }

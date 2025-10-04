@@ -190,13 +190,13 @@ pub fn collect_ui_state(
 }
 
 /// Event to notify UI systems that state has been updated
-#[derive(Event)]
+#[derive(Message)]
 pub struct UIStateUpdated;
 
 /// System to send UI state update events when state changes
 pub fn notify_ui_state_changes(
     ui_state: Res<UIState>,
-    mut state_events: EventWriter<UIStateUpdated>,
+    mut state_events: MessageWriter<UIStateUpdated>,
 ) {
     if ui_state.is_changed() && !ui_state.is_added() {
         state_events.write(UIStateUpdated);

@@ -8,7 +8,7 @@ use bevy_ecs_tilemap::prelude::*;
 
 use crate::ui::logging::TerminalLogEvent;
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct CombatEvent {
     pub attacker: Entity,
     pub defender: Entity,
@@ -16,12 +16,12 @@ pub struct CombatEvent {
 }
 
 // Events for combat input
-#[derive(Event)]
+#[derive(Message)]
 pub struct HeroAttackClicked {
     pub target_pos: TilePos,
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct DeathEvent {
     pub entity: Entity,
     pub was_monster: bool,
@@ -31,9 +31,9 @@ pub struct CombatPlugin;
 
 impl Plugin for CombatPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<CombatEvent>()
-            .add_event::<HeroAttackClicked>()
-            .add_event::<DeathEvent>()
+        app.add_message::<CombatEvent>()
+            .add_message::<HeroAttackClicked>()
+            .add_message::<DeathEvent>()
             .add_systems(
                 Update,
                 (
@@ -48,12 +48,12 @@ impl Plugin for CombatPlugin {
 // Removed auto_combat_system - combat is now manual and costs AP
 
 fn process_combat_events(
-    mut combat_events: EventReader<CombatEvent>,
-    mut death_events: EventWriter<DeathEvent>,
+    mut combat_events: MessageReader<CombatEvent>,
+    mut death_events: MessageWriter<DeathEvent>,
     mut health_query: Query<&mut Health>,
     hero_query: Query<&Hero>,
     monster_query: Query<&Monster>,
-    mut log_writer: EventWriter<TerminalLogEvent>,
+    mut log_writer: MessageWriter<TerminalLogEvent>,
 ) {
     for event in combat_events.read() {
         // Apply damage to defender
@@ -95,11 +95,11 @@ fn process_combat_events(
 }
 
 fn process_death_events(
-    mut death_events: EventReader<DeathEvent>,
+    mut death_events: MessageReader<DeathEvent>,
     mut commands: Commands,
     mut hero_query: Query<(&mut Hero, &mut Health), With<Hero>>,
     monster_query: Query<&Monster>,
-    mut log_writer: EventWriter<TerminalLogEvent>,
+    mut log_writer: MessageWriter<TerminalLogEvent>,
 ) {
     for event in death_events.read() {
         if event.was_monster {
@@ -135,7 +135,7 @@ fn process_death_events(
 
 // Hero attack system
 fn hero_attack_system(
-    mut hero_attack_events: EventReader<HeroAttackClicked>,
+    mut hero_attack_events: MessageReader<HeroAttackClicked>,
     mut hero_query: Query<
         (
             Entity,
@@ -148,8 +148,8 @@ fn hero_attack_system(
     >,
     hero_combat_query: Query<&Combat, With<Hero>>,
     monster_query: Query<(Entity, &Monster, &TilePos), With<Monster>>,
-    mut combat_events: EventWriter<CombatEvent>,
-    mut log_writer: EventWriter<TerminalLogEvent>,
+    mut combat_events: MessageWriter<CombatEvent>,
+    mut log_writer: MessageWriter<TerminalLogEvent>,
 ) {
     for event in hero_attack_events.read() {
         // Find the monster at target position

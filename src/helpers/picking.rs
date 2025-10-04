@@ -2,19 +2,18 @@ use bevy::{
     app::{Plugin, PreUpdate},
     ecs::{
         entity::Entity,
-        event::EventWriter,
         query::With,
         system::{Query, Single},
     },
     math::{Vec2, Vec4},
     picking::{
-        PickSet, Pickable,
+        Pickable, PickingSystems,
         backend::{HitData, PointerHits},
         pointer::{PointerId, PointerLocation},
     },
-    prelude::{App, IntoScheduleConfigs, Vec4Swizzles},
-    render::camera::Projection,
-    render::{camera::Camera, view::ViewVisibility},
+    prelude::{
+        App, Camera, IntoScheduleConfigs, MessageWriter, Projection, Vec4Swizzles, ViewVisibility,
+    },
     transform::components::GlobalTransform,
     window::PrimaryWindow,
 };
@@ -31,7 +30,7 @@ pub struct TilemapBackend;
 
 impl Plugin for TilemapBackend {
     fn build(&self, app: &mut App) {
-        app.add_systems(PreUpdate, tile_picking.in_set(PickSet::Backend));
+        app.add_systems(PreUpdate, tile_picking.in_set(PickingSystems::Backend));
     }
 }
 
@@ -50,7 +49,7 @@ fn tile_picking(
         &ViewVisibility,
     )>,
     tile_q: Query<(&TileVisible, Option<&Pickable>)>,
-    mut output: EventWriter<PointerHits>,
+    mut output: MessageWriter<PointerHits>,
 ) {
     for (p_id, p_loc) in pointers
         .iter()
@@ -84,7 +83,7 @@ fn tile_picking(
                 }
                 let in_map_pos: Vec2 = {
                     let pos = Vec4::from((cursor_pos_world, 0., 1.));
-                    let in_map_pos = gt.compute_matrix().inverse() * pos;
+                    let in_map_pos = gt.to_matrix().inverse() * pos;
                     in_map_pos.xy()
                 };
                 let picked: Entity =

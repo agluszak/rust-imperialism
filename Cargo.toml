@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { version = "0.16.1", features = ["dynamic_linking", "bevy_dev_tools", "bevy_mesh_picking_backend"] }
+bevy = { version = "0.17", features = ["dynamic_linking", "bevy_dev_tools", "bevy_mesh_picking_backend"] }
 hexx = { version = "0.21", features = ["algorithms", "serde", "bevy"] }
-bevy_ecs_tilemap = "0.16"
+bevy_ecs_tilemap = "0.17.0-rc.1"
 rand = "0.9.0"
 noise = "0.9"
 

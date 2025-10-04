@@ -150,42 +150,7 @@ pub fn create_test_tile(
     tile_entity
 }
 
-/// Sets up a system for testing in isolation
-/// Returns a SystemState that can be used to run the system
-pub fn setup_test_system<T: System<In = (), Out = ()>>(
-    world: &mut World,
-    system: T,
-) -> SystemState<T::Param> {
-    let mut system_state = SystemState::<T::Param>::new(world);
-    let _params = system_state.get_mut(world);
-    system_state
-}
-
-/// Helper macro to create a test with a fresh world
-#[macro_export]
-macro_rules! test_with_world {
-    ($test_name:ident, $body:block) => {
-        #[test]
-        fn $test_name() {
-            let mut world = $crate::test_utils::create_test_world();
-            $body
-        }
-    };
-}
-
-/// Helper macro to create a test with a world and tilemap
-#[macro_export]
-macro_rules! test_with_tilemap {
-    ($test_name:ident, $width:expr, $height:expr, $body:block) => {
-        #[test]
-        fn $test_name() {
-            let mut world = $crate::test_utils::create_test_world();
-            let (_tilemap_entity, _tile_storage) =
-                $crate::test_utils::create_test_tilemap(&mut world, $width, $height);
-            $body
-        }
-    };
-}
+// Macros removed - use regular test functions with explicit setup instead
 
 /// Advances the turn system by the specified number of phases
 pub fn advance_turns(world: &mut World, phases: usize) {
@@ -231,11 +196,11 @@ pub fn assert_valid_path(path: &[TilePos]) {
 
 /// Mock event writer that collects events for inspection in tests
 #[derive(Default)]
-pub struct MockEventWriter<T: Event> {
+pub struct MockEventWriter<T: Message> {
     pub events: Vec<T>,
 }
 
-impl<T: Event> MockEventWriter<T> {
+impl<T: Message> MockEventWriter<T> {
     pub fn new() -> Self {
         Self { events: Vec::new() }
     }

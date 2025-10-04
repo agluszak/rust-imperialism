@@ -34,7 +34,7 @@ pub fn update_scrollbar(
             font_size,
             actual_content_size,
         );
-        let clamped_scroll_y = metrics.clamp_scroll_position(scroll_position.offset_y);
+        let clamped_scroll_y = metrics.clamp_scroll_position(scroll_position.y);
 
         for mut thumb_node in thumb_query.iter_mut() {
             // Update thumb size based on content/viewport ratio
@@ -74,7 +74,7 @@ pub fn update_scrollbar_during_drag(
             font_size,
             actual_content_size,
         );
-        let clamped_scroll_y = metrics.clamp_scroll_position(scroll_position.offset_y);
+        let clamped_scroll_y = metrics.clamp_scroll_position(scroll_position.y);
 
         for mut thumb_node in thumb_query.iter_mut() {
             // Update thumb position during drag - don't change size during drag
@@ -109,10 +109,7 @@ pub fn handle_scrollbar_drag(
                 if let Ok((scroll_position, _, _)) = scrollable_query.single() {
                     commands.entity(thumb_entity).insert(ScrollbarDragStart {
                         position: pos,
-                        _scroll_position: Vec2::new(
-                            scroll_position.offset_x,
-                            scroll_position.offset_y,
-                        ),
+                        _scroll_position: Vec2::new(scroll_position.x, scroll_position.y),
                     });
                 }
             }
@@ -147,7 +144,7 @@ pub fn handle_scrollbar_drag(
 
                     if metrics.can_scroll {
                         let new_scroll_y = pos.y * metrics.max_scroll;
-                        scroll_position.offset_y = metrics.clamp_scroll_position(new_scroll_y);
+                        scroll_position.y = metrics.clamp_scroll_position(new_scroll_y);
                     }
                 }
             }
@@ -189,9 +186,9 @@ pub fn handle_scrollbar_drag(
                         desired_top_percent = desired_top_percent.clamp(0.0, max_thumb_travel);
                         let scroll_ratio = desired_top_percent / max_thumb_travel;
                         let new_scroll_y = scroll_ratio * metrics.max_scroll;
-                        scroll_position.offset_y = metrics.clamp_scroll_position(new_scroll_y);
+                        scroll_position.y = metrics.clamp_scroll_position(new_scroll_y);
                     } else {
-                        scroll_position.offset_y = 0.0;
+                        scroll_position.y = 0.0;
                     }
                 }
             }
@@ -199,7 +196,7 @@ pub fn handle_scrollbar_drag(
 
         // End dragging
         if mouse_button_input.just_released(MouseButton::Left) {
-            Commands::entity(&mut commands, thumb_entity).remove::<ScrollbarDragStart>();
+            commands.entity(thumb_entity).remove::<ScrollbarDragStart>();
         }
     }
 }
@@ -224,6 +221,6 @@ pub fn clamp_scroll_position(
         );
 
         // Always clamp the scroll position to valid bounds
-        scroll_position.offset_y = metrics.clamp_scroll_position(scroll_position.offset_y);
+        scroll_position.y = metrics.clamp_scroll_position(scroll_position.y);
     }
 }

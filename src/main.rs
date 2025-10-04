@@ -20,6 +20,9 @@ mod tiles;
 mod turn_system;
 mod ui;
 
+#[cfg(test)]
+mod test_utils;
+
 use crate::combat::CombatPlugin;
 use crate::constants::*;
 use crate::health::{Combat, Health};

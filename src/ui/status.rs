@@ -6,7 +6,7 @@ use crate::ui::state::{UIState, UIStateUpdated};
 /// Update turn display using centralized UI state
 /// This system only runs when UI state has actually changed, reducing overhead
 pub fn update_turn_display(
-    mut state_events: EventReader<UIStateUpdated>,
+    mut state_events: MessageReader<UIStateUpdated>,
     ui_state: Res<UIState>,
     mut query: Query<&mut Text, With<TurnDisplay>>,
 ) {
@@ -23,7 +23,7 @@ pub fn update_turn_display(
 /// Update hero status display using centralized UI state
 /// This system only runs when UI state has actually changed, reducing overhead
 pub fn update_hero_status_display(
-    mut state_events: EventReader<UIStateUpdated>,
+    mut state_events: MessageReader<UIStateUpdated>,
     ui_state: Res<UIState>,
     mut text_query: Query<&mut Text, With<HeroStatusDisplay>>,
 ) {
@@ -40,7 +40,7 @@ pub fn update_hero_status_display(
 /// Update monster count display using centralized UI state
 /// This demonstrates how easy it is to add new UI elements with centralized state management
 pub fn update_monster_count_display(
-    mut state_events: EventReader<UIStateUpdated>,
+    mut state_events: MessageReader<UIStateUpdated>,
     ui_state: Res<UIState>,
     mut text_query: Query<&mut Text, With<MonsterCountDisplay>>,
 ) {

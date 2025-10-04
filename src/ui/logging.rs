@@ -24,12 +24,12 @@ impl TerminalLog {
     }
 }
 
-#[derive(Event, Clone, Debug)]
+#[derive(Message, Clone, Debug)]
 pub struct TerminalLogEvent {
     pub message: String,
 }
 
-pub fn setup_terminal_log(mut writer: EventWriter<TerminalLogEvent>) {
+pub fn setup_terminal_log(mut writer: MessageWriter<TerminalLogEvent>) {
     writer.write(TerminalLogEvent {
         message: "=== Game Controls ===".to_string(),
     });
@@ -73,7 +73,7 @@ pub fn setup_terminal_log(mut writer: EventWriter<TerminalLogEvent>) {
 }
 
 pub fn consume_log_events(
-    mut reader: EventReader<TerminalLogEvent>,
+    mut reader: MessageReader<TerminalLogEvent>,
     mut terminal_log: ResMut<TerminalLog>,
 ) {
     for ev in reader.read() {

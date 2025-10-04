@@ -20,8 +20,8 @@ impl Plugin for GameUIPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(logging::TerminalLog::new(100))
             .insert_resource(state::UIState::default())
-            .add_event::<logging::TerminalLogEvent>()
-            .add_event::<state::UIStateUpdated>()
+            .add_message::<logging::TerminalLogEvent>()
+            .add_message::<state::UIStateUpdated>()
             .add_systems(Startup, (setup::setup_ui, logging::setup_terminal_log))
             .add_systems(
                 Update,
