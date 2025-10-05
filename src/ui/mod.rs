@@ -1,16 +1,15 @@
 pub mod components;
 pub mod input;
 pub mod logging;
-pub mod metrics;
-pub mod scrollbar;
 pub mod setup;
 pub mod state;
 pub mod status;
 
 use bevy::prelude::*;
+use bevy::ui_widgets::ScrollbarPlugin;
 
-pub use components::{ScrollableTerminal, ScrollbarThumb, ScrollbarTrack};
-pub use input::handle_mouse_wheel_scroll;
+pub use components::ScrollableTerminal;
+pub use input::{clamp_scroll_position, handle_mouse_wheel_scroll};
 // Do not expose the logging resource outside the module; consumers should send events instead.
 // pub use logging::TerminalLog;
 
@@ -18,7 +17,8 @@ pub struct GameUIPlugin;
 
 impl Plugin for GameUIPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(logging::TerminalLog::new(100))
+        app.add_plugins(ScrollbarPlugin)
+            .insert_resource(logging::TerminalLog::new(100))
             .insert_resource(state::UIState::default())
             .add_message::<logging::TerminalLogEvent>()
             .add_message::<state::UIStateUpdated>()
@@ -36,14 +36,10 @@ impl Plugin for GameUIPlugin {
                     status::update_hero_status_display.after(state::notify_ui_state_changes),
                     status::update_monster_count_display.after(state::notify_ui_state_changes),
                     logging::update_terminal_output.after(logging::consume_log_events),
-                    // Scrollbar systems run independently
-                    scrollbar::handle_scrollbar_drag,
+                    // Mouse wheel scroll input handling
                     input::handle_mouse_wheel_scroll,
-                    scrollbar::update_scrollbar
-                        .after(scrollbar::handle_scrollbar_drag)
-                        .after(input::handle_mouse_wheel_scroll),
-                    scrollbar::update_scrollbar_during_drag.after(scrollbar::handle_scrollbar_drag),
-                    scrollbar::clamp_scroll_position,
+                    // Clamp scroll position after all scroll operations
+                    input::clamp_scroll_position.after(input::handle_mouse_wheel_scroll),
                 ),
             );
     }

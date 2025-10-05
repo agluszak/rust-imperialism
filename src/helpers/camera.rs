@@ -5,7 +5,7 @@ use bevy::{
     ui::RelativeCursorPosition,
 };
 
-use crate::ui::{ScrollableTerminal, ScrollbarThumb, ScrollbarTrack};
+use crate::ui::ScrollableTerminal;
 
 // A simple camera system for moving and zooming the camera.
 #[allow(dead_code)]
@@ -15,8 +15,6 @@ pub fn movement(
     mut scroll_evr: MessageReader<MouseWheel>,
     mut query: Query<(&mut Transform, &mut Projection), With<Camera>>,
     terminal_area: Query<&RelativeCursorPosition, With<ScrollableTerminal>>,
-    scrollbar_track: Query<&RelativeCursorPosition, With<ScrollbarTrack>>,
-    scrollbar_thumb: Query<&RelativeCursorPosition, With<ScrollbarThumb>>,
 ) {
     for (mut transform, mut projection) in query.iter_mut() {
         let mut direction = Vec3::ZERO;
@@ -41,7 +39,7 @@ pub fn movement(
             continue;
         };
 
-        // Determine if the cursor is over any UI that should capture scrolling (terminal or its scrollbar)
+        // Determine if the cursor is over the terminal (which includes the built-in scrollbar)
         let mut cursor_over_ui = false;
         for cursor in terminal_area.iter() {
             if let Some(pos) = cursor.normalized
@@ -52,32 +50,6 @@ pub fn movement(
             {
                 cursor_over_ui = true;
                 break;
-            }
-        }
-        if !cursor_over_ui {
-            for cursor in scrollbar_track.iter() {
-                if let Some(pos) = cursor.normalized
-                    && pos.x >= 0.0
-                    && pos.x <= 1.0
-                    && pos.y >= 0.0
-                    && pos.y <= 1.0
-                {
-                    cursor_over_ui = true;
-                    break;
-                }
-            }
-        }
-        if !cursor_over_ui {
-            for cursor in scrollbar_thumb.iter() {
-                if let Some(pos) = cursor.normalized
-                    && pos.x >= 0.0
-                    && pos.x <= 1.0
-                    && pos.y >= 0.0
-                    && pos.y <= 1.0
-                {
-                    cursor_over_ui = true;
-                    break;
-                }
             }
         }
 

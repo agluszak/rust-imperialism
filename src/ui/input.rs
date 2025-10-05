@@ -1,8 +1,24 @@
 use bevy::prelude::*;
 
-use crate::ui::components::ScrollableTerminal;
-use crate::ui::components::TerminalOutput;
-use crate::ui::metrics::ScrollbarMetrics;
+use crate::ui::components::{ScrollableTerminal, TerminalOutput};
+
+/// Clamps scroll position to prevent overscrolling
+pub fn clamp_scroll_position(
+    mut scrollable_query: Query<(&mut ScrollPosition, &ComputedNode), With<ScrollableTerminal>>,
+    terminal_text_query: Query<&ComputedNode, With<TerminalOutput>>,
+) {
+    for (mut scroll_position, computed) in scrollable_query.iter_mut() {
+        let visible_height = computed.size().y;
+        let content_height = terminal_text_query
+            .iter()
+            .next()
+            .map(|node| node.content_size().y)
+            .unwrap_or(visible_height);
+
+        let max_scroll = (content_height - visible_height).max(0.0);
+        scroll_position.y = scroll_position.y.clamp(0.0, max_scroll);
+    }
+}
 
 pub fn handle_mouse_wheel_scroll(
     mut scroll_events: MessageReader<bevy::input::mouse::MouseWheel>,
@@ -14,7 +30,7 @@ pub fn handle_mouse_wheel_scroll(
         ),
         With<ScrollableTerminal>,
     >,
-    terminal_text_query: Query<(&TextFont, &ComputedNode), With<TerminalOutput>>,
+    terminal_text_query: Query<&ComputedNode, With<TerminalOutput>>,
 ) {
     for event in scroll_events.read() {
         for (mut scroll_position, cursor_position, computed) in scrollable_query.iter_mut() {
@@ -25,25 +41,21 @@ pub fn handle_mouse_wheel_scroll(
                 && pos.y >= 0.0
                 && pos.y <= 1.0
             {
-                let visible_size = computed.size();
-                let (font_size, actual_content_size) =
-                    if let Ok((text_font, text_computed)) = terminal_text_query.single() {
-                        (text_font.font_size, Some(text_computed.content_size()))
-                    } else {
-                        (12.0, None)
-                    };
+                // Scroll by approximately 2 lines at a time (assuming 12px font size)
+                let scroll_amount = event.y * 24.0;
+                let new_scroll_y = scroll_position.y - scroll_amount;
 
-                let metrics = ScrollbarMetrics::calculate_with_content_size(
-                    visible_size,
-                    font_size,
-                    actual_content_size,
-                );
+                // Clamp scroll position to valid bounds
+                let visible_height = computed.size().y;
+                let content_height = terminal_text_query
+                    .iter()
+                    .next()
+                    .map(|node| node.content_size().y)
+                    .unwrap_or(visible_height);
 
-                if metrics.can_scroll {
-                    let scroll_amount = event.y * (font_size * 2.0); // Scroll by 2 lines at a time
-                    let new_scroll_y = scroll_position.y - scroll_amount;
-                    scroll_position.y = metrics.clamp_scroll_position(new_scroll_y);
-                }
+                let max_scroll = (content_height - visible_height).max(0.0);
+                scroll_position.y = new_scroll_y.clamp(0.0, max_scroll);
+
                 return; // Terminal scrolled, don't process more events
             }
         }
