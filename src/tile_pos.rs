@@ -13,6 +13,10 @@ pub trait TilePosExt {
         map_type: &TilemapType,
         z: f32,
     ) -> bevy::prelude::Vec3;
+
+    /// Simple conversion to world position using hex layout
+    /// Uses a fixed hex layout for the current map setup
+    fn to_world_pos(&self) -> bevy::prelude::Vec2;
 }
 
 impl TilePosExt for TilePos {
@@ -38,6 +42,25 @@ impl TilePosExt for TilePos {
             &TilemapAnchor::Center,
         )
         .extend(z)
+    }
+
+    fn to_world_pos(&self) -> bevy::prelude::Vec2 {
+        // Simple conversion that approximates the tilemap's centered positioning
+        // The tilemap uses TilemapAnchor::Center, so we need to offset by half the map size
+        // Note: This is an approximation for rendering purposes
+
+        // For now, just use a simple centered hex grid calculation
+        // Offset tile coordinates by half map size to center at (0, 0)
+        let map_half = crate::constants::MAP_SIZE as f32 / 2.0;
+        let centered_x = self.x as f32 - map_half;
+        let centered_y = self.y as f32 - map_half;
+
+        // Hex flat-top spacing (row-based)
+        let hex_spacing = TILE_SIZE;
+        let x = centered_x * hex_spacing * 0.75;
+        let y = centered_y * hex_spacing + (self.x % 2) as f32 * hex_spacing * 0.5;
+
+        bevy::prelude::Vec2::new(x, y)
     }
 }
 

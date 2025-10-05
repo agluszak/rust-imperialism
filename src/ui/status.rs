@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 
-use crate::ui::components::{HeroStatusDisplay, MonsterCountDisplay, TurnDisplay};
+use crate::ui::components::{TurnDisplay, CalendarDisplay, TreasuryDisplay};
 use crate::ui::state::{UIState, UIStateUpdated};
+use crate::economy::{Calendar, Treasury, PlayerNation};
 
 /// Update turn display using centralized UI state
 /// This system only runs when UI state has actually changed, reducing overhead
@@ -20,36 +21,45 @@ pub fn update_turn_display(
     }
 }
 
-/// Update hero status display using centralized UI state
-/// This system only runs when UI state has actually changed, reducing overhead
-pub fn update_hero_status_display(
-    mut state_events: MessageReader<UIStateUpdated>,
-    ui_state: Res<UIState>,
-    mut text_query: Query<&mut Text, With<HeroStatusDisplay>>,
-) {
-    // Only update when state has changed
-    if !state_events.is_empty() {
-        state_events.clear(); // Consume all events
-
-        for mut text in text_query.iter_mut() {
-            text.0 = ui_state.hero_status_text();
+/// Update calendar HUD text when calendar changes or on first frame
+pub fn update_calendar_display(calendar: Option<Res<Calendar>>, mut q: Query<&mut Text, With<CalendarDisplay>>) {
+    if let Some(calendar) = calendar {
+        if calendar.is_changed() || calendar.is_added() {
+            for mut text in q.iter_mut() {
+                text.0 = calendar.display();
+            }
         }
     }
 }
 
-/// Update monster count display using centralized UI state
-/// This demonstrates how easy it is to add new UI elements with centralized state management
-pub fn update_monster_count_display(
-    mut state_events: MessageReader<UIStateUpdated>,
-    ui_state: Res<UIState>,
-    mut text_query: Query<&mut Text, With<MonsterCountDisplay>>,
-) {
-    // Only update when state has changed
-    if !state_events.is_empty() {
-        state_events.clear(); // Consume all events
+fn format_currency(value: i64) -> String {
+    // naive thousands separator with commas
+    let mut s = value.abs().to_string();
+    let mut i = s.len() as isize - 3;
+    while i > 0 {
+        s.insert(i as usize, ',');
+        i -= 3;
+    }
+    if value < 0 {
+        format!("-${}", s)
+    } else {
+        format!("${}", s)
+    }
+}
 
-        for mut text in text_query.iter_mut() {
-            text.0 = ui_state.monster_count_text();
+/// Update treasury HUD text based on the active player's nation
+pub fn update_treasury_display(
+    player: Option<Res<PlayerNation>>,
+    treasuries: Query<&Treasury>,
+    mut q: Query<&mut Text, With<TreasuryDisplay>>,
+) {
+    if let Some(player) = player {
+        if let Ok(treasury) = treasuries.get(player.0) {
+            let s = format_currency(treasury.0);
+            for mut text in q.iter_mut() {
+                text.0 = s.clone();
+            }
         }
     }
 }
+

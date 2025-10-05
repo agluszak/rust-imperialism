@@ -1,19 +1,15 @@
+#![cfg(test)]
 //! Testing utilities for Rust Imperialism
 //!
 //! This module provides helper functions and fixtures for unit testing
 //! game systems in isolation. ECS makes testing particularly clean since
 //! we can easily mock entities and components.
 
-use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 
-use crate::health::{Combat, Health};
-use crate::hero::{Hero, HeroPathPreview};
-use crate::monster::{Monster, MonsterBehavior};
-use crate::movement::{ActionPoints, MovementAnimation, MovementType};
 use crate::tiles::{TerrainType, TileType};
-use crate::turn_system::{TurnPhase, TurnSystem};
+use crate::turn_system::TurnSystem;
 use crate::ui::state::UIState;
 
 /// Creates a minimal ECS world for testing with commonly needed resources
@@ -79,51 +75,7 @@ pub fn create_test_tilemap(world: &mut World, width: u32, height: u32) -> (Entit
     (tilemap_entity, tile_storage)
 }
 
-/// Creates a test hero entity with default stats
-pub fn create_test_hero(world: &mut World, position: TilePos) -> Entity {
-    world
-        .spawn((
-            Hero {
-                name: "Test Hero".to_string(),
-                is_selected: false,
-                kills: 0,
-            },
-            Health::new(100),
-            Combat::new(25),
-            ActionPoints::new(6),
-            MovementAnimation::new(200.0),
-            MovementType::Smart,
-            HeroPathPreview::default(),
-            position,
-            Transform::default(),
-        ))
-        .id()
-}
 
-/// Creates a test monster entity with specified behavior
-pub fn create_test_monster(
-    world: &mut World,
-    position: TilePos,
-    behavior: MonsterBehavior,
-    health: u32,
-) -> Entity {
-    world
-        .spawn((
-            Monster {
-                name: "Test Monster".to_string(),
-                sight_range: 5,
-                behavior,
-            },
-            Health::new(health),
-            Combat::new(10),
-            ActionPoints::new(4),
-            MovementAnimation::new(150.0),
-            MovementType::Simple,
-            position,
-            Transform::default(),
-        ))
-        .id()
-}
 
 /// Creates a test tile with the specified terrain type at the given position
 pub fn create_test_tile(
@@ -160,15 +112,6 @@ pub fn advance_turns(world: &mut World, phases: usize) {
 }
 
 /// Sets up a combat scenario with a hero and monster
-pub fn setup_combat_scenario(
-    world: &mut World,
-    hero_pos: TilePos,
-    monster_pos: TilePos,
-) -> (Entity, Entity) {
-    let hero = create_test_hero(world, hero_pos);
-    let monster = create_test_monster(world, monster_pos, MonsterBehavior::Aggressive, 50);
-    (hero, monster)
-}
 
 /// Asserts that two tile positions are adjacent (distance = 1)
 pub fn assert_adjacent(pos1: TilePos, pos2: TilePos) {
@@ -193,6 +136,7 @@ pub fn assert_valid_path(path: &[TilePos]) {
         assert_adjacent(window[0], window[1]);
     }
 }
+
 
 /// Mock event writer that collects events for inspection in tests
 #[derive(Default)]

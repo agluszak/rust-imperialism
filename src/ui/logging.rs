@@ -46,7 +46,7 @@ pub fn setup_terminal_log(mut writer: MessageWriter<TerminalLogEvent>) {
         message: "Mouse wheel: Zoom in/out".to_string(),
     });
     writer.write(TerminalLogEvent {
-        message: "Left click: Select hero or move hero".to_string(),
+        message: "Left click: Select tile (Map)".to_string(),
     });
     writer.write(TerminalLogEvent {
         message: "Right click: Cycle terrain types".to_string(),

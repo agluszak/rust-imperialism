@@ -1,39 +1,38 @@
 //! Rust Imperialism - A hexagonal tile-based strategy game
 
+use bevy::dev_tools::states::log_transitions;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::map::HexCoordSystem;
 use bevy_ecs_tilemap::prelude::*;
+use bevy_inspector_egui::bevy_egui::EguiPlugin;
+use bevy_inspector_egui::quick::{StateInspectorPlugin, WorldInspectorPlugin};
 
 // Import all game modules
-mod combat;
 mod constants;
-mod health;
 mod helpers;
-mod hero;
 mod input;
-mod monster;
-mod movement;
-mod pathfinding;
 mod terrain_gen;
 mod tile_pos;
 mod tiles;
 mod turn_system;
 mod ui;
+mod economy;
 
 #[cfg(test)]
 mod test_utils;
 
-use crate::combat::CombatPlugin;
 use crate::constants::*;
-use crate::health::{Combat, Health};
 use crate::helpers::{camera, picking::TilemapBackend};
-use crate::hero::{Hero, HeroPathPreview, HeroPlugin, HeroSprite};
 use crate::input::{InputPlugin, handle_tile_click};
-use crate::monster::MonsterPlugin;
-use crate::movement::{ActionPoints, MovementAnimation, MovementPlugin, MovementType};
 use crate::terrain_gen::TerrainGenerator;
 use crate::turn_system::TurnSystemPlugin;
 use crate::ui::GameUIPlugin;
+use crate::ui::mode::GameMode;
+use crate::ui::menu::AppState;
+use crate::ui::components::MapTilemap;
+use crate::economy::{Calendar, Good, Stockpile, Treasury, NationId, Name, PlayerNation, Capital, Roads, Rails, PlaceImprovement, Building};
+use rust_imperialism::transport_rendering::TransportRenderingPlugin;
+use rust_imperialism::civilians::{CivilianPlugin, Civilian, CivilianKind};
 
 /// Generate a realistic terrain map using noise functions
 fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -82,45 +81,76 @@ fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let grid_size = tile_size.into();
     let map_type = TilemapType::Hexagon(HexCoordSystem::Row);
 
-    commands.entity(tilemap_entity).insert(TilemapBundle {
-        grid_size,
-        map_type,
-        size: map_size,
-        storage: tile_storage,
-        texture: TilemapTexture::Single(texture_handle),
-        tile_size,
-        anchor: TilemapAnchor::Center,
-        ..Default::default()
-    });
+    commands.entity(tilemap_entity).insert((
+        TilemapBundle {
+            grid_size,
+            map_type,
+            size: map_size,
+            storage: tile_storage,
+            texture: TilemapTexture::Single(texture_handle),
+            tile_size,
+            anchor: TilemapAnchor::Center,
+            ..Default::default()
+        },
+        MapTilemap, // Marker to control visibility
+    ));
 }
 
 fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins.set(ImagePlugin::default_nearest()),
-            TilemapPlugin,
-            TilemapBackend,
-            // Game plugins
-            MovementPlugin,
-            HeroPlugin,
-            MonsterPlugin,
-            TurnSystemPlugin,
-            GameUIPlugin,
-            InputPlugin,
-            CombatPlugin,
-        ))
+                     ))
+        .insert_state(AppState::MainMenu)
+        .add_sub_state::<GameMode>()
+        .add_systems(Update, log_transitions::<AppState>)
+        .add_systems(Update, log_transitions::<GameMode>)
+
+        // Root app state: start in Main Menu; also set up in-game mode state (Map)
+
+        .insert_resource(Calendar::default())
+        .insert_resource(Roads::default())
+        .insert_resource(Rails::default())
+        .add_message::<PlaceImprovement>()
         .add_systems(
             Startup,
             (
-                tilemap_startup,
                 setup_camera,
-                spawn_hero.after(tilemap_startup),
             ),
+        )
+        // Bootstrap nations and spawn map when starting a new game
+        .add_systems(OnEnter(AppState::InGame), (setup_nations, tilemap_startup))
+        // Economy systems
+        .add_systems(
+            Update,
+            (
+                crate::economy::transport::apply_improvements,
+                crate::economy::transport::compute_rail_connectivity
+                    .after(crate::economy::transport::apply_improvements),
+                crate::economy::production::run_production,
+            ).run_if(in_state(AppState::InGame)),
         )
         .add_systems(
             Update,
-            camera::movement.after(ui::handle_mouse_wheel_scroll),
+            camera::movement
+                .after(ui::handle_mouse_wheel_scroll)
+                .run_if(in_state(GameMode::Map))
         )
+        .add_plugins((
+            TilemapPlugin,
+            TilemapBackend,
+            // Game plugins (strategy baseline)
+            TurnSystemPlugin,
+            GameUIPlugin,
+            InputPlugin,
+            TransportRenderingPlugin,
+            CivilianPlugin,
+        ))
+
+        .add_plugins(EguiPlugin::default())
+        .add_plugins(WorldInspectorPlugin::new())
+        .add_plugins(StateInspectorPlugin::<AppState>::new())
+        .add_plugins(StateInspectorPlugin::<GameMode>::new())
         .run();
 }
 
@@ -134,56 +164,69 @@ fn setup_camera(mut commands: Commands) {
     ));
 }
 
-fn spawn_hero(
-    mut commands: Commands,
-    tilemap_query: Query<
-        (
-            &TilemapSize,
-            &TilemapGridSize,
-            &TilemapTileSize,
-            &TilemapType,
-        ),
-        With<TilemapGridSize>,
-    >,
-) {
-    let Ok((tilemap_size, grid_size, tile_size, map_type)) = tilemap_query.single() else {
-        return;
-    };
 
-    // Spawn hero at center position
-    let hero_pos = TilePos {
-        x: HERO_SPAWN_X,
-        y: HERO_SPAWN_Y,
-    };
-    let hero_world_pos = hero_pos
-        .center_in_world(
-            tilemap_size,
-            grid_size,
-            tile_size,
-            map_type,
-            &TilemapAnchor::Center,
-        )
-        .extend(Z_LAYER_HEROES);
+fn despawn_map_and_units(
+    mut commands: Commands,
+    tilemaps: Query<Entity, With<TilemapGridSize>>,
+    tiles: Query<Entity, With<bevy_ecs_tilemap::prelude::TilePos>>,
+) {
+    // Despawn all tile entities first
+    for e in tiles.iter() {
+        commands.entity(e).despawn();
+    }
+    // Despawn the tilemap entities
+    for e in tilemaps.iter() {
+        commands.entity(e).despawn();
+    }
+}
+
+
+// Spawn initial nations when entering InGame
+fn setup_nations(
+    mut commands: Commands,
+) {
+    // Player nation (capital at center of map)
+    let mut player_stock = Stockpile::default();
+    player_stock.add(Good::Wool, 10);
+    player_stock.add(Good::Cotton, 10);
+
+    let player_capital = TilePos { x: MAP_SIZE / 2, y: MAP_SIZE / 2 };
+
+    let player_entity = commands
+        .spawn((
+            NationId(1),
+            Name("Player".to_string()),
+            Capital(player_capital),
+            Treasury::default(),
+            player_stock,
+            Building::textile_mill(4),
+        ))
+        .id();
+
+    // Spawn an Engineer unit for the player near their capital
+    let engineer_start = TilePos { x: MAP_SIZE / 2 + 2, y: MAP_SIZE / 2 + 1 };
+    info!("Spawning Engineer at tile position: ({}, {})", engineer_start.x, engineer_start.y);
+
+    let _engineer_entity = commands.spawn(Civilian {
+        kind: CivilianKind::Engineer,
+        position: engineer_start,
+        owner: player_entity,
+        selected: false,
+        has_moved: false,
+    }).id();
+
+
+    // Simple AI nation (capital in a different location)
+    let ai_capital = TilePos { x: 5, y: 5 };
 
     commands.spawn((
-        Hero {
-            name: "Player Hero".to_string(),
-            is_selected: false,
-            kills: 0,
-        },
-        ActionPoints::new(HERO_MAX_ACTION_POINTS),
-        MovementAnimation::new(HERO_MOVEMENT_SPEED),
-        MovementType::Smart,
-        HeroPathPreview::default(),
-        hero_pos,
-        Health::new(HERO_MAX_HEALTH),
-        Combat::new(HERO_DAMAGE),
-        HeroSprite,
-        Sprite {
-            color: HERO_COLOR_NORMAL,
-            custom_size: Some(HERO_SPRITE_SIZE),
-            ..default()
-        },
-        Transform::from_translation(hero_world_pos),
+        NationId(2),
+        Name("Rivalia".to_string()),
+        Capital(ai_capital),
+        Treasury(40_000),
+        Stockpile::default(),
     ));
+
+    // Set the player's nation reference for UI/controllers
+    commands.insert_resource(PlayerNation(player_entity));
 }

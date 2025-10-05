@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::ui::logging::TerminalLogEvent;
+use crate::economy::{Calendar, Season};
 
 #[derive(Resource, Debug, Clone)]
 pub struct TurnSystem {
@@ -76,6 +77,7 @@ fn process_turn_phases(
     mut turn_timer: Local<Timer>,
     time: Res<Time>,
     mut log_writer: MessageWriter<TerminalLogEvent>,
+    mut calendar: Option<ResMut<Calendar>>,
 ) {
     // Handle turn phase transitions with timing
     match turn_system.phase {
@@ -105,6 +107,18 @@ fn process_turn_phases(
 
             if turn_timer.just_finished() {
                 turn_system.advance_turn(); // EnemyTurn -> PlayerTurn with new turn number
+                // Advance calendar season/year
+                if let Some(mut cal) = calendar.as_mut() {
+                    cal.season = match cal.season {
+                        Season::Spring => Season::Summer,
+                        Season::Summer => Season::Autumn,
+                        Season::Autumn => Season::Winter,
+                        Season::Winter => {
+                            cal.year = cal.year.saturating_add(1);
+                            Season::Spring
+                        }
+                    };
+                }
                 log_writer.write(TerminalLogEvent {
                     message: format!("Starting turn {}", turn_system.current_turn),
                 });

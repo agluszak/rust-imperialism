@@ -3,8 +3,7 @@ use bevy::ui::RelativeCursorPosition;
 use bevy::ui_widgets::{ControlOrientation, CoreScrollbarThumb, Scrollbar};
 
 use crate::ui::components::{
-    HeroStatusDisplay, MonsterCountDisplay, ScrollableTerminal, TerminalOutput, TerminalWindow,
-    TurnDisplay,
+    ScrollableTerminal, TerminalOutput, TerminalWindow, TurnDisplay, GameplayUIRoot, CalendarDisplay, TreasuryDisplay, MapTilemap,
 };
 
 pub fn setup_ui(mut commands: Commands) {
@@ -23,6 +22,7 @@ pub fn setup_ui(mut commands: Commands) {
         },
         BackgroundColor(Color::srgba(0.1, 0.1, 0.15, 0.9)),
         BorderColor::all(Color::srgba(0.4, 0.4, 0.5, 0.8)),
+        GameplayUIRoot,
         children![
             // Turn info section
             (
@@ -40,69 +40,17 @@ pub fn setup_ui(mut commands: Commands) {
                     },
                     TextColor(Color::srgb(0.9, 0.9, 1.0)),
                     TurnDisplay,
+                ), (
+                    Text::new("Spring, 1815"),
+                    TextFont { font_size: 16.0, ..default() },
+                    TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                    CalendarDisplay,
+                ), (
+                    Text::new("$50,000"),
+                    TextFont { font_size: 16.0, ..default() },
+                    TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                    TreasuryDisplay,
                 )],
-            ),
-            // Hero status section
-            (
-                Node {
-                    flex_direction: FlexDirection::Column,
-                    padding: UiRect::all(Val::Px(8.0)),
-                    row_gap: Val::Px(4.0),
-                    ..default()
-                },
-                BackgroundColor(Color::srgba(0.15, 0.15, 0.2, 0.8)),
-                children![
-                    // Hero label
-                    (
-                        Text::new("HERO"),
-                        TextFont {
-                            font_size: 14.0,
-                            ..default()
-                        },
-                        TextColor(Color::srgb(0.7, 0.7, 0.8)),
-                    ),
-                    // Hero stats
-                    (
-                        Text::new("HP 10/10, AP 6/6, Kills: 0"),
-                        TextFont {
-                            font_size: 16.0,
-                            ..default()
-                        },
-                        TextColor(Color::srgb(1.0, 1.0, 0.7)),
-                        HeroStatusDisplay,
-                    ),
-                ],
-            ),
-            // Monsters section
-            (
-                Node {
-                    flex_direction: FlexDirection::Column,
-                    padding: UiRect::all(Val::Px(8.0)),
-                    row_gap: Val::Px(4.0),
-                    ..default()
-                },
-                BackgroundColor(Color::srgba(0.15, 0.15, 0.2, 0.8)),
-                children![
-                    // Monsters label
-                    (
-                        Text::new("ENEMIES"),
-                        TextFont {
-                            font_size: 14.0,
-                            ..default()
-                        },
-                        TextColor(Color::srgb(0.7, 0.7, 0.8)),
-                    ),
-                    // Monster count
-                    (
-                        Text::new("Monsters: 0"),
-                        TextFont {
-                            font_size: 16.0,
-                            ..default()
-                        },
-                        TextColor(Color::srgb(1.0, 0.6, 0.6)),
-                        MonsterCountDisplay,
-                    ),
-                ],
             ),
         ],
     ));
@@ -124,6 +72,7 @@ pub fn setup_ui(mut commands: Commands) {
             },
             BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.8)),
             TerminalWindow,
+            GameplayUIRoot,
         ))
         .with_children(|parent| {
             // Terminal header
@@ -162,7 +111,7 @@ pub fn setup_ui(mut commands: Commands) {
                             ScrollPosition::default(),
                             ScrollableTerminal,
                             RelativeCursorPosition::default(),
-                            children![(
+                            children![((
                                 Text::new(""),
                                 TextFont {
                                     font_size: 12.0,
@@ -174,7 +123,7 @@ pub fn setup_ui(mut commands: Commands) {
                                     align_self: AlignSelf::Stretch,
                                     ..default()
                                 },
-                            )],
+                            ))],
                         ))
                         .id();
 
@@ -188,7 +137,7 @@ pub fn setup_ui(mut commands: Commands) {
                         },
                         BackgroundColor(Color::srgba(0.2, 0.2, 0.2, 0.8)),
                         Scrollbar::new(scrollable_id, ControlOrientation::Vertical, 20.0),
-                        children![(
+                        children![((
                             Node {
                                 width: Val::Percent(100.0),
                                 height: Val::Percent(20.0),
@@ -196,8 +145,99 @@ pub fn setup_ui(mut commands: Commands) {
                             },
                             BackgroundColor(Color::srgba(0.6, 0.6, 0.6, 0.8)),
                             CoreScrollbarThumb,
-                        )],
+                        ))],
                     ));
                 });
         });
+
+    // Sidebar with mode buttons
+    commands.spawn((
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(10.0),
+            right: Val::Px(450.0),
+            width: Val::Px(140.0),
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(8.0),
+            padding: UiRect::all(Val::Px(8.0)),
+            border: UiRect::all(Val::Px(2.0)),
+            ..default()
+        },
+        BackgroundColor(Color::srgba(0.1, 0.1, 0.15, 0.9)),
+        BorderColor::all(Color::srgba(0.4, 0.4, 0.5, 0.8)),
+        GameplayUIRoot,
+    )).with_children(|sidebar| {
+        use crate::ui::mode::{CityModeButton, MapModeButton, TransportModeButton, MarketModeButton, DiplomacyModeButton};
+        // Map Mode button
+        sidebar.spawn((
+            Button,
+            Node { padding: UiRect::all(Val::Px(6.0)), ..default() },
+            BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+            MapModeButton,
+        )).with_children(|b| {
+            b.spawn((Text::new("Map"), TextFont { font_size: 16.0, ..default() }, TextColor(Color::srgb(0.9, 0.9, 1.0))));
+        });
+        // Transport Mode button
+        sidebar.spawn((
+            Button,
+            Node { padding: UiRect::all(Val::Px(6.0)), ..default() },
+            BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+            TransportModeButton,
+        )).with_children(|b| {
+            b.spawn((Text::new("Transport"), TextFont { font_size: 16.0, ..default() }, TextColor(Color::srgb(0.9, 0.9, 1.0))));
+        });
+        // City Mode button
+        sidebar.spawn((
+            Button,
+            Node { padding: UiRect::all(Val::Px(6.0)), ..default() },
+            BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+            CityModeButton,
+        )).with_children(|b| {
+            b.spawn((Text::new("City"), TextFont { font_size: 16.0, ..default() }, TextColor(Color::srgb(0.9, 0.9, 1.0))));
+        });
+        // Market Mode button
+        sidebar.spawn((
+            Button,
+            Node { padding: UiRect::all(Val::Px(6.0)), ..default() },
+            BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+            MarketModeButton,
+        )).with_children(|b| {
+            b.spawn((Text::new("Market"), TextFont { font_size: 16.0, ..default() }, TextColor(Color::srgb(0.9, 0.9, 1.0))));
+        });
+        // Diplomacy Mode button
+        sidebar.spawn((
+            Button,
+            Node { padding: UiRect::all(Val::Px(6.0)), ..default() },
+            BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+            DiplomacyModeButton,
+        )).with_children(|b| {
+            b.spawn((Text::new("Diplomacy"), TextFont { font_size: 16.0, ..default() }, TextColor(Color::srgb(0.9, 0.9, 1.0))));
+        });
+    });
+}
+
+/// Show all Map UI elements (HUD, terminal, sidebar) and tilemap when entering Map mode
+pub fn show_map_ui(
+    mut ui_roots: Query<&mut Visibility, With<GameplayUIRoot>>,
+    mut tilemaps: Query<&mut Visibility, (With<MapTilemap>, Without<GameplayUIRoot>)>,
+) {
+    for mut vis in ui_roots.iter_mut() {
+        *vis = Visibility::Visible;
+    }
+    for mut vis in tilemaps.iter_mut() {
+        *vis = Visibility::Visible;
+    }
+}
+
+/// Hide all Map UI elements and tilemap when leaving Map mode (entering other modes)
+pub fn hide_map_ui(
+    mut ui_roots: Query<&mut Visibility, With<GameplayUIRoot>>,
+    mut tilemaps: Query<&mut Visibility, (With<MapTilemap>, Without<GameplayUIRoot>)>,
+) {
+    for mut vis in ui_roots.iter_mut() {
+        *vis = Visibility::Hidden;
+    }
+    for mut vis in tilemaps.iter_mut() {
+        *vis = Visibility::Hidden;
+    }
 }
