@@ -8,10 +8,11 @@ This is a Rust-based hexagonal tile-based game called "rust-imperialism" built w
 
 ## Key Dependencies
 
-- **Bevy 0.16.1**: Main game engine with dynamic linking, dev tools, and mesh picking backend
+- **Bevy 0.17**: Main game engine with dynamic linking, dev tools, mesh picking backend, and experimental UI widgets
 - **hexx 0.21**: Hexagonal grid algorithms and utilities with Bevy integration
-- **bevy_ecs_tilemap 0.16**: Tilemap rendering system for Bevy
+- **bevy_ecs_tilemap 0.17.0-rc.1**: Tilemap rendering system for Bevy
 - **rand 0.9**: Random number generation
+- **noise 0.9**: Noise generation for terrain
 
 ## Common Commands
 
@@ -52,7 +53,7 @@ src/
 ├── input.rs          # Input handling system
 ├── tile_pos.rs       # Tile position utilities for hexagonal grid
 ├── pathfinding.rs    # A* pathfinding for hexagonal grids
-├── ui/               # Game UI module (terminal, components, status, scrollbar)
+├── ui/               # Game UI module (HUD, terminal, components, status, input)
 └── helpers/
     ├── mod.rs        # Module declarations
     ├── camera.rs     # Camera movement and zoom controls
@@ -114,12 +115,18 @@ src/
 - Returns optimal paths respecting tile properties
 
 ### UI System (`ui/`)
-- **Terminal Interface**: Scrollable terminal with game logs and status messages
-- **Turn Display**: Shows current turn number and phase
-- **Hero Status**: Displays hero action points and stats
-- **Advanced Scrollbar**: Custom scrollbar with proper drag, wheel, and click support
+- **HUD Panel**: Organized top-left panel with dark themed sections
+  - Turn info section with current turn and phase
+  - Hero status section with HP, AP, and kill count
+  - Enemies section with monster count
+  - All sections have distinct backgrounds and proper spacing
+- **Terminal Interface**: Bottom-right scrollable terminal with game logs
+  - Bevy headless scrollbar widget for scrolling
+  - Mouse wheel scroll support with proper bounds clamping
+  - Drag scrollbar thumb for smooth scrolling
+  - Click scrollbar track to jump to position
+- **UI Construction**: Uses `children!` macro for declarative UI building
 - **System Ordering**: Mouse wheel events prioritize terminal over camera when over terminal
-- **Dynamic Layout**: Adapts to font size changes and window resizing
 - **Event Logging**: Comprehensive game event logging with timestamps
 
 ### Camera System (`helpers/camera.rs`)
@@ -170,11 +177,14 @@ src/
 - **Pathfinding**: Click-to-move with automatic path calculation
 - **Terrain Effects**: Different terrain types affect movement cost
 - **Hero Selection**: Click on the hero to select/deselect; selection is reflected in the HUD
-- **Advanced Terminal UI**:
-  - Scrollable terminal with game logs and event history
-  - Custom scrollbar with drag, click, and mouse wheel support
-  - No overscroll - proper bounds enforcement
-  - Dynamic content sizing and layout adaptation
+- **HUD Interface**:
+  - Styled panel showing game state (turn, hero stats, enemy count)
+  - Dark themed with section backgrounds for visual organization
+  - Fixed position in top-left corner
+- **Terminal UI**:
+  - Scrollable terminal with game logs and event history in bottom-right
+  - Bevy headless scrollbar widget with drag, click, and mouse wheel support
+  - No overscroll - proper bounds enforcement via clamping system
   - Mouse wheel isolation - terminal scroll doesn't affect map
 
 ## Controls (Runtime)
@@ -196,20 +206,25 @@ src/
 
 ## Technical Implementation Notes
 
-### Scrollbar System Architecture
-- **ScrollbarMetrics**: Centralized calculation system for all scroll operations
-- **Dynamic font detection**: Uses actual font size from text components
-- **Robust content sizing**: Prefers computed layout size with intelligent fallback estimation
-- **System ordering**: Terminal scroll system runs before camera system to prevent interference
-- **Overscroll prevention**: Strict bounds checking prevents scrolling past content limits
-- **Real-time updates**: Scrollbar position and size update during drag operations without flickering
+### UI System Architecture
+- **Bevy Headless Widgets**: Uses experimental `bevy_ui_widgets` for scrollbar functionality
+  - `Scrollbar` component links scrollbar to scrollable content
+  - `CoreScrollbarThumb` marks the draggable thumb element
+  - `ScrollbarPlugin` handles all scrollbar interactions
+- **Declarative UI**: Uses `children!` macro for nested UI hierarchy
+- **Scroll Clamping**: Custom `clamp_scroll_position` system prevents overscroll
+  - Calculates max scroll based on content height vs visible height
+  - Runs after all scroll operations to enforce bounds
+  - Prevents scrolling beyond `[0, max_scroll]` range
 
 ### Event Handling Priority
 - Mouse wheel events are processed by terminal first when mouse is over terminal
 - Camera zoom only processes mouse wheel events when terminal doesn't handle them
 - Clean separation prevents both systems from processing the same scroll event
+- Scroll clamping system runs after mouse wheel handler to enforce bounds
 
 ### Performance Optimizations
 - Clippy lints configured to allow complex function signatures and type complexity
 - Efficient query systems with proper filtering to avoid unnecessary computations
 - Dynamic content height calculation only when needed
+- `children!` macro reduces runtime overhead compared to closure-based spawning
