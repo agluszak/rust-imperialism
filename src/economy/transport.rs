@@ -98,25 +98,25 @@ pub fn apply_improvements(
                     });
                 } else {
                     let cost: i64 = 10;
-                    if let Some(player) = &player {
-                        if let Ok(mut treasury) = treasuries.get_mut(player.0) {
-                            if treasury.0 >= cost {
-                                treasury.0 -= cost;
-                                roads.0.insert(edge);
-                                log_events.write(TerminalLogEvent {
-                                    message: format!(
-                                        "Built road between ({}, {}) and ({}, {}) for ${}",
-                                        edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost
-                                    ),
-                                });
-                            } else {
-                                log_events.write(TerminalLogEvent {
-                                    message: format!(
-                                        "Not enough money to build road (need ${}, have ${})",
-                                        cost, treasury.0
-                                    ),
-                                });
-                            }
+                    if let Some(player) = &player
+                        && let Ok(mut treasury) = treasuries.get_mut(player.0)
+                    {
+                        if treasury.0 >= cost {
+                            treasury.0 -= cost;
+                            roads.0.insert(edge);
+                            log_events.write(TerminalLogEvent {
+                                message: format!(
+                                    "Built road between ({}, {}) and ({}, {}) for ${}",
+                                    edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost
+                                ),
+                            });
+                        } else {
+                            log_events.write(TerminalLogEvent {
+                                message: format!(
+                                    "Not enough money to build road (need ${}, have ${})",
+                                    cost, treasury.0
+                                ),
+                            });
                         }
                     }
                 }
@@ -137,25 +137,25 @@ pub fn apply_improvements(
                     });
                 } else {
                     let cost: i64 = 50; // Rails cost more than roads
-                    if let Some(player) = &player {
-                        if let Ok(mut treasury) = treasuries.get_mut(player.0) {
-                            if treasury.0 >= cost {
-                                treasury.0 -= cost;
-                                rails.0.insert(edge);
-                                log_events.write(TerminalLogEvent {
-                                    message: format!(
-                                        "Built rail between ({}, {}) and ({}, {}) for ${}",
-                                        edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost
-                                    ),
-                                });
-                            } else {
-                                log_events.write(TerminalLogEvent {
-                                    message: format!(
-                                        "Not enough money to build rail (need ${}, have ${})",
-                                        cost, treasury.0
-                                    ),
-                                });
-                            }
+                    if let Some(player) = &player
+                        && let Ok(mut treasury) = treasuries.get_mut(player.0)
+                    {
+                        if treasury.0 >= cost {
+                            treasury.0 -= cost;
+                            rails.0.insert(edge);
+                            log_events.write(TerminalLogEvent {
+                                message: format!(
+                                    "Built rail between ({}, {}) and ({}, {}) for ${}",
+                                    edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost
+                                ),
+                            });
+                        } else {
+                            log_events.write(TerminalLogEvent {
+                                message: format!(
+                                    "Not enough money to build rail (need ${}, have ${})",
+                                    cost, treasury.0
+                                ),
+                            });
                         }
                     }
                 }
@@ -163,59 +163,53 @@ pub fn apply_improvements(
             ImprovementKind::Depot => {
                 // Depot is placed on a single tile (use position 'a', ignore 'b')
                 let cost: i64 = 100;
-                if let Some(player) = &player {
-                    if let Ok(mut treasury) = treasuries.get_mut(player.0) {
-                        if treasury.0 >= cost {
-                            treasury.0 -= cost;
-                            commands.spawn(Depot {
-                                position: e.a,
-                                owner: player.0,  // Set owner to player nation
-                                connected: false, // Will be computed by connectivity system
-                            });
-                            log_events.write(TerminalLogEvent {
-                                message: format!(
-                                    "Built depot at ({}, {}) for ${}",
-                                    e.a.x, e.a.y, cost
-                                ),
-                            });
-                        } else {
-                            log_events.write(TerminalLogEvent {
-                                message: format!(
-                                    "Not enough money to build depot (need ${}, have ${})",
-                                    cost, treasury.0
-                                ),
-                            });
-                        }
+                if let Some(player) = &player
+                    && let Ok(mut treasury) = treasuries.get_mut(player.0)
+                {
+                    if treasury.0 >= cost {
+                        treasury.0 -= cost;
+                        commands.spawn(Depot {
+                            position: e.a,
+                            owner: player.0,  // Set owner to player nation
+                            connected: false, // Will be computed by connectivity system
+                        });
+                        log_events.write(TerminalLogEvent {
+                            message: format!("Built depot at ({}, {}) for ${}", e.a.x, e.a.y, cost),
+                        });
+                    } else {
+                        log_events.write(TerminalLogEvent {
+                            message: format!(
+                                "Not enough money to build depot (need ${}, have ${})",
+                                cost, treasury.0
+                            ),
+                        });
                     }
                 }
             }
             ImprovementKind::Port => {
                 // Port is placed on a single tile
                 let cost: i64 = 150;
-                if let Some(player) = &player {
-                    if let Ok(mut treasury) = treasuries.get_mut(player.0) {
-                        if treasury.0 >= cost {
-                            treasury.0 -= cost;
-                            commands.spawn(Port {
-                                position: e.a,
-                                owner: player.0, // Set owner to player nation
-                                connected: false,
-                                is_river: false, // TODO: detect from terrain
-                            });
-                            log_events.write(TerminalLogEvent {
-                                message: format!(
-                                    "Built port at ({}, {}) for ${}",
-                                    e.a.x, e.a.y, cost
-                                ),
-                            });
-                        } else {
-                            log_events.write(TerminalLogEvent {
-                                message: format!(
-                                    "Not enough money to build port (need ${}, have ${})",
-                                    cost, treasury.0
-                                ),
-                            });
-                        }
+                if let Some(player) = &player
+                    && let Ok(mut treasury) = treasuries.get_mut(player.0)
+                {
+                    if treasury.0 >= cost {
+                        treasury.0 -= cost;
+                        commands.spawn(Port {
+                            position: e.a,
+                            owner: player.0, // Set owner to player nation
+                            connected: false,
+                            is_river: false, // TODO: detect from terrain
+                        });
+                        log_events.write(TerminalLogEvent {
+                            message: format!("Built port at ({}, {}) for ${}", e.a.x, e.a.y, cost),
+                        });
+                    } else {
+                        log_events.write(TerminalLogEvent {
+                            message: format!(
+                                "Not enough money to build port (need ${}, have ${})",
+                                cost, treasury.0
+                            ),
+                        });
                     }
                 }
             }

@@ -51,11 +51,9 @@ fn handle_market_buttons(
                         t.0 -= price;
                         s.add(Good::Cloth, 1);
                     }
-                } else if sell.is_some() {
-                    if s.get(Good::Cloth) >= 1 {
-                        let _ = s.take_up_to(Good::Cloth, 1);
-                        t.0 += price;
-                    }
+                } else if sell.is_some() && s.get(Good::Cloth) >= 1 {
+                    let _ = s.take_up_to(Good::Cloth, 1);
+                    t.0 += price;
                 }
             }
         }

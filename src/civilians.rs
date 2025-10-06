@@ -146,7 +146,7 @@ fn handle_civilian_selection(
     mut events: MessageReader<SelectCivilian>,
     mut civilians: Query<&mut Civilian>,
 ) {
-    let mut event_list: Vec<_> = events.read().collect();
+    let event_list: Vec<_> = events.read().collect();
 
     if !event_list.is_empty() {
         info!(
@@ -428,7 +428,7 @@ fn update_engineer_orders_ui(
 
 /// Handle button clicks in orders UI
 fn handle_order_button_clicks(
-    mut interactions: Query<&Interaction, (Changed<Interaction>, With<BuildDepotButton>)>,
+    interactions: Query<&Interaction, (Changed<Interaction>, With<BuildDepotButton>)>,
     selected_civilian: Query<(Entity, &Civilian), With<Civilian>>,
     mut order_writer: MessageWriter<GiveCivilianOrder>,
 ) {

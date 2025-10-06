@@ -108,7 +108,7 @@ fn process_turn_phases(
             if turn_timer.just_finished() {
                 turn_system.advance_turn(); // EnemyTurn -> PlayerTurn with new turn number
                 // Advance calendar season/year
-                if let Some(mut cal) = calendar.as_mut() {
+                if let Some(cal) = calendar.as_mut() {
                     cal.season = match cal.season {
                         Season::Spring => Season::Summer,
                         Season::Summer => Season::Autumn,

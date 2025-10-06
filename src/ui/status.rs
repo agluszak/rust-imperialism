@@ -26,11 +26,11 @@ pub fn update_calendar_display(
     calendar: Option<Res<Calendar>>,
     mut q: Query<&mut Text, With<CalendarDisplay>>,
 ) {
-    if let Some(calendar) = calendar {
-        if calendar.is_changed() || calendar.is_added() {
-            for mut text in q.iter_mut() {
-                text.0 = calendar.display();
-            }
+    if let Some(calendar) = calendar
+        && (calendar.is_changed() || calendar.is_added())
+    {
+        for mut text in q.iter_mut() {
+            text.0 = calendar.display();
         }
     }
 }
@@ -56,12 +56,12 @@ pub fn update_treasury_display(
     treasuries: Query<&Treasury>,
     mut q: Query<&mut Text, With<TreasuryDisplay>>,
 ) {
-    if let Some(player) = player {
-        if let Ok(treasury) = treasuries.get(player.0) {
-            let s = format_currency(treasury.0);
-            for mut text in q.iter_mut() {
-                text.0 = s.clone();
-            }
+    if let Some(player) = player
+        && let Ok(treasury) = treasuries.get(player.0)
+    {
+        let s = format_currency(treasury.0);
+        for mut text in q.iter_mut() {
+            text.0 = s.clone();
         }
     }
 }

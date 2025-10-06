@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy_ecs_tilemap::prelude::TilePos;
 
 use crate::economy::{Depot, Port, Rails, Roads};
 use crate::tile_pos::TilePosExt;
