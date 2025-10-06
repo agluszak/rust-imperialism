@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-use crate::ui::logging::TerminalLogEvent;
 use crate::economy::{Calendar, Season};
+use crate::ui::logging::TerminalLogEvent;
 
 #[derive(Resource, Debug, Clone)]
 pub struct TurnSystem {

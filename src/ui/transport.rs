@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
 
-use crate::ui::mode::GameMode;
-use crate::economy::{PlaceImprovement, ImprovementKind};
+use crate::economy::{ImprovementKind, PlaceImprovement};
 use crate::ui::logging::TerminalLogEvent;
+use crate::ui::mode::GameMode;
 
 #[derive(Component)]
 pub struct TransportScreen;
@@ -24,9 +24,15 @@ impl Plugin for TransportUIPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<TransportToolState>()
             .add_message::<TransportSelectTile>()
-            .add_systems(OnEnter(GameMode::Transport), ensure_transport_screen_visible)
+            .add_systems(
+                OnEnter(GameMode::Transport),
+                ensure_transport_screen_visible,
+            )
             .add_systems(OnExit(GameMode::Transport), hide_transport_screen)
-            .add_systems(Update, handle_transport_selection.run_if(in_state(GameMode::Transport)));
+            .add_systems(
+                Update,
+                handle_transport_selection.run_if(in_state(GameMode::Transport)),
+            );
     }
 }
 
@@ -40,10 +46,16 @@ pub fn handle_transport_selection(
         if let Some(a) = tool.first.take() {
             // second click
             let b = e.pos;
-            place_writer.write(PlaceImprovement { a, b, kind: ImprovementKind::Road });
+            place_writer.write(PlaceImprovement {
+                a,
+                b,
+                kind: ImprovementKind::Road,
+            });
         } else {
             tool.first = Some(e.pos);
-            log.write(TerminalLogEvent { message: format!("Selected tile ({}, {}) for road start", e.pos.x, e.pos.y) });
+            log.write(TerminalLogEvent {
+                message: format!("Selected tile ({}, {}) for road start", e.pos.x, e.pos.y),
+            });
         }
     }
 }
@@ -77,31 +89,39 @@ pub fn ensure_transport_screen_visible(
         .with_children(|parent| {
             parent.spawn((
                 Text::new("Transport Mode: Allocate transport capacity"),
-                TextFont { font_size: 20.0, ..default() },
+                TextFont {
+                    font_size: 20.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(0.9, 0.95, 1.0)),
             ));
 
             // TODO: Add capacity allocation sliders here
 
             // Back to Map
-            parent.spawn((
-                Button,
-                Node {
-                    position_type: PositionType::Absolute,
-                    top: Val::Px(16.0),
-                    right: Val::Px(16.0),
-                    padding: UiRect::all(Val::Px(6.0)),
-                    ..default()
-                },
-                BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
-                crate::ui::mode::MapModeButton,
-            )).with_children(|b| {
-                b.spawn((
-                    Text::new("Back to Map"),
-                    TextFont { font_size: 16.0, ..default() },
-                    TextColor(Color::srgb(0.9, 0.9, 1.0)),
-                ));
-            });
+            parent
+                .spawn((
+                    Button,
+                    Node {
+                        position_type: PositionType::Absolute,
+                        top: Val::Px(16.0),
+                        right: Val::Px(16.0),
+                        padding: UiRect::all(Val::Px(6.0)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+                    crate::ui::mode::MapModeButton,
+                ))
+                .with_children(|b| {
+                    b.spawn((
+                        Text::new("Back to Map"),
+                        TextFont {
+                            font_size: 16.0,
+                            ..default()
+                        },
+                        TextColor(Color::srgb(0.9, 0.9, 1.0)),
+                    ));
+                });
         });
 }
 

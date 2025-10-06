@@ -10,8 +10,6 @@ impl Plugin for InputPlugin {
 }
 
 // Main input dispatcher - converts clicks to strategy-friendly events
-pub fn handle_tile_click(
-    _trigger: On<Pointer<Click>>,
-) {
+pub fn handle_tile_click(_trigger: On<Pointer<Click>>) {
     // TODO: Add Engineer unit selection here when clicking on civilian units
 }

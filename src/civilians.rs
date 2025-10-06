@@ -1,22 +1,22 @@
-use bevy::prelude::*;
 use bevy::picking::prelude::*;
+use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
 
-use crate::economy::{PlaceImprovement, ImprovementKind};
+use crate::economy::{ImprovementKind, PlaceImprovement};
 use crate::tile_pos::TilePosExt;
 use crate::ui::menu::AppState;
 
 /// Type of civilian unit
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CivilianKind {
-    Prospector,  // Reveals minerals (coal/iron/gold/gems/oil)
-    Miner,       // Opens & upgrades mines
-    Farmer,      // Improves grain/fruit/cotton
-    Rancher,     // Improves wool/livestock
-    Forester,    // Improves timber
-    Driller,     // Improves oil
-    Engineer,    // Builds rails, depots, ports, fortifications
-    Developer,   // Works in Minor Nations
+    Prospector, // Reveals minerals (coal/iron/gold/gems/oil)
+    Miner,      // Opens & upgrades mines
+    Farmer,     // Improves grain/fruit/cotton
+    Rancher,    // Improves wool/livestock
+    Forester,   // Improves timber
+    Driller,    // Improves oil
+    Engineer,   // Builds rails, depots, ports, fortifications
+    Developer,  // Works in Minor Nations
 }
 
 /// Civilian unit component
@@ -24,9 +24,9 @@ pub enum CivilianKind {
 pub struct Civilian {
     pub kind: CivilianKind,
     pub position: TilePos,
-    pub owner: Entity,        // Nation entity that owns this unit
+    pub owner: Entity, // Nation entity that owns this unit
     pub selected: bool,
-    pub has_moved: bool,      // True if unit has used its action this turn
+    pub has_moved: bool, // True if unit has used its action this turn
 }
 
 /// Pending order for a civilian unit
@@ -49,13 +49,13 @@ pub struct BuildDepotButton;
 
 #[derive(Debug, Clone, Copy)]
 pub enum CivilianOrderKind {
-    BuildRail { to: TilePos },          // Build rail to adjacent tile
-    BuildDepot,                          // Build depot at current position
-    BuildPort,                           // Build port at current position
-    Move { to: TilePos },                // Move to target tile
-    Prospect,                            // Reveal minerals at current tile
-    Mine,                                // Upgrade mine at current tile
-    ImproveTile,                         // Improve resource at current tile
+    BuildRail { to: TilePos }, // Build rail to adjacent tile
+    BuildDepot,                // Build depot at current position
+    BuildPort,                 // Build port at current position
+    Move { to: TilePos },      // Move to target tile
+    Prospect,                  // Reveal minerals at current tile
+    Mine,                      // Upgrade mine at current tile
+    ImproveTile,               // Improve resource at current tile
 }
 
 /// Message: Player selects a civilian unit
@@ -70,9 +70,15 @@ pub fn handle_civilian_click(
     visuals: Query<&CivilianVisual>,
     mut writer: MessageWriter<SelectCivilian>,
 ) {
-    info!("handle_civilian_click triggered for entity {:?}", trigger.entity);
+    info!(
+        "handle_civilian_click triggered for entity {:?}",
+        trigger.entity
+    );
     if let Ok(civilian_visual) = visuals.get(trigger.entity) {
-        info!("Sending SelectCivilian message for entity {:?}", civilian_visual.0);
+        info!(
+            "Sending SelectCivilian message for entity {:?}",
+            civilian_visual.0
+        );
         writer.write(SelectCivilian {
             entity: civilian_visual.0,
         });
@@ -105,14 +111,13 @@ impl Plugin for CivilianPlugin {
                     update_civilian_visual_colors,
                 )
                     .run_if(in_state(crate::ui::mode::GameMode::Map)),
-
             )
             .add_systems(
                 FixedUpdate,
                 (
                     debug_civilian_state.run_if(in_state(AppState::InGame)),
-                                             debug
-                )
+                    debug,
+                ),
             );
     }
 }
@@ -128,8 +133,12 @@ fn debug_civilian_state(
     app_state: Res<State<crate::ui::menu::AppState>>,
     game_mode: Res<State<crate::ui::mode::GameMode>>,
 ) {
-        info!("Civilian debug: {} civilians exist, AppState={:?}, GameMode={:?}",
-              civilians.iter().count(), app_state.get(), game_mode.get());
+    info!(
+        "Civilian debug: {} civilians exist, AppState={:?}, GameMode={:?}",
+        civilians.iter().count(),
+        app_state.get(),
+        game_mode.get()
+    );
 }
 
 /// Handle civilian selection events
@@ -140,12 +149,18 @@ fn handle_civilian_selection(
     let mut event_list: Vec<_> = events.read().collect();
 
     if !event_list.is_empty() {
-        info!("handle_civilian_selection: received {} events", event_list.len());
+        info!(
+            "handle_civilian_selection: received {} events",
+            event_list.len()
+        );
     }
 
     // Only process if there are events
     for event in event_list {
-        info!("Processing SelectCivilian event for entity {:?}", event.entity);
+        info!(
+            "Processing SelectCivilian event for entity {:?}",
+            event.entity
+        );
 
         // Deselect all units first
         for mut civilian in civilians.iter_mut() {
@@ -155,7 +170,10 @@ fn handle_civilian_selection(
         // Select the requested unit
         if let Ok(mut civilian) = civilians.get_mut(event.entity) {
             civilian.selected = true;
-            info!("Successfully set civilian.selected = true for entity {:?}", event.entity);
+            info!(
+                "Successfully set civilian.selected = true for entity {:?}",
+                event.entity
+            );
         } else {
             warn!("Failed to get civilian entity {:?}", event.entity);
         }
@@ -243,7 +261,7 @@ pub fn reset_civilian_actions(mut civilians: Query<&mut Civilian>) {
 
 const ENGINEER_SIZE: f32 = 12.0;
 const ENGINEER_UNSELECTED_COLOR: Color = Color::srgb(0.9, 0.2, 0.2); // Red
-const ENGINEER_SELECTED_COLOR: Color = Color::srgb(1.0, 0.8, 0.0);   // Yellow/gold
+const ENGINEER_SELECTED_COLOR: Color = Color::srgb(1.0, 0.8, 0.0); // Yellow/gold
 
 /// Create/update visual sprites for civilian units
 fn render_civilian_visuals(
@@ -251,8 +269,11 @@ fn render_civilian_visuals(
     all_civilians: Query<(Entity, &Civilian)>,
     existing_visuals: Query<(Entity, &CivilianVisual)>,
 ) {
-    info!("render_civilian_visuals called: {} civilians, {} existing visuals",
-          all_civilians.iter().count(), existing_visuals.iter().count());
+    info!(
+        "render_civilian_visuals called: {} civilians, {} existing visuals",
+        all_civilians.iter().count(),
+        existing_visuals.iter().count()
+    );
 
     // Remove visuals for despawned civilians
     for (visual_entity, civilian_visual) in existing_visuals.iter() {
@@ -276,20 +297,23 @@ fn render_civilian_visuals(
                 ENGINEER_UNSELECTED_COLOR
             };
 
-            info!("Creating visual for Engineer at tile ({}, {}) -> world pos ({}, {})",
-                  civilian.position.x, civilian.position.y, pos.x, pos.y);
+            info!(
+                "Creating visual for Engineer at tile ({}, {}) -> world pos ({}, {})",
+                civilian.position.x, civilian.position.y, pos.x, pos.y
+            );
 
-            commands.spawn((
-                Sprite {
-                    color,
-                    custom_size: Some(Vec2::new(ENGINEER_SIZE, ENGINEER_SIZE)),
-                    ..default()
-                },
-                Transform::from_translation(pos.extend(3.0)), // Above other visuals
-                CivilianVisual(civilian_entity),
-                Pickable::default(),
-            ))
-            .observe(handle_civilian_click);
+            commands
+                .spawn((
+                    Sprite {
+                        color,
+                        custom_size: Some(Vec2::new(ENGINEER_SIZE, ENGINEER_SIZE)),
+                        ..default()
+                    },
+                    Transform::from_translation(pos.extend(3.0)), // Above other visuals
+                    CivilianVisual(civilian_entity),
+                    Pickable::default(),
+                ))
+                .observe(handle_civilian_click);
         }
     }
 }
@@ -327,10 +351,15 @@ fn update_engineer_orders_ui(
 ) {
     let selected_count = civilians.iter().filter(|c| c.selected).count();
     if selected_count > 0 {
-        info!("update_engineer_orders_ui: {} selected civilians", selected_count);
+        info!(
+            "update_engineer_orders_ui: {} selected civilians",
+            selected_count
+        );
     }
 
-    let selected_engineer = civilians.iter().find(|c| c.selected && c.kind == CivilianKind::Engineer);
+    let selected_engineer = civilians
+        .iter()
+        .find(|c| c.selected && c.kind == CivilianKind::Engineer);
 
     if let Some(_engineer) = selected_engineer {
         info!("Found selected Engineer!");
@@ -354,7 +383,10 @@ fn update_engineer_orders_ui(
                 .with_children(|parent| {
                     parent.spawn((
                         Text::new("Engineer Orders"),
-                        TextFont { font_size: 18.0, ..default() },
+                        TextFont {
+                            font_size: 18.0,
+                            ..default()
+                        },
                         TextColor(Color::srgb(1.0, 0.95, 0.8)),
                     ));
 
@@ -372,7 +404,10 @@ fn update_engineer_orders_ui(
                         .with_children(|b| {
                             b.spawn((
                                 Text::new("Build Depot"),
-                                TextFont { font_size: 14.0, ..default() },
+                                TextFont {
+                                    font_size: 14.0,
+                                    ..default()
+                                },
                                 TextColor(Color::srgb(0.9, 0.95, 1.0)),
                             ));
                         });

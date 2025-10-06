@@ -2,6 +2,12 @@
 name = "rust-imperialism"
 version = "0.1.0"
 edition = "2024"
+default-run = "main"
+
+# The main CLI executable
+[[bin]]
+name = "main"
+path = "src/bin/main.rs"
 
 [dependencies]
 bevy = { version = "0.17", features = ["bevy_dev_tools", "bevy_mesh_picking_backend", "bevy_sprite_picking_backend", "experimental_bevy_ui_widgets"] }

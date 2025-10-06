@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
-use crate::ui::components::{TurnDisplay, CalendarDisplay, TreasuryDisplay};
+use crate::economy::{Calendar, PlayerNation, Treasury};
+use crate::ui::components::{CalendarDisplay, TreasuryDisplay, TurnDisplay};
 use crate::ui::state::{UIState, UIStateUpdated};
-use crate::economy::{Calendar, Treasury, PlayerNation};
 
 /// Update turn display using centralized UI state
 /// This system only runs when UI state has actually changed, reducing overhead
@@ -22,7 +22,10 @@ pub fn update_turn_display(
 }
 
 /// Update calendar HUD text when calendar changes or on first frame
-pub fn update_calendar_display(calendar: Option<Res<Calendar>>, mut q: Query<&mut Text, With<CalendarDisplay>>) {
+pub fn update_calendar_display(
+    calendar: Option<Res<Calendar>>,
+    mut q: Query<&mut Text, With<CalendarDisplay>>,
+) {
     if let Some(calendar) = calendar {
         if calendar.is_changed() || calendar.is_added() {
             for mut text in q.iter_mut() {
@@ -62,4 +65,3 @@ pub fn update_treasury_display(
         }
     }
 }
-

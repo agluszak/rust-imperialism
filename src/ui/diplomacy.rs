@@ -9,8 +9,11 @@ pub struct DiplomacyUIPlugin;
 
 impl Plugin for DiplomacyUIPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameMode::Diplomacy), ensure_diplomacy_screen_visible)
-            .add_systems(OnExit(GameMode::Diplomacy), hide_diplomacy_screen);
+        app.add_systems(
+            OnEnter(GameMode::Diplomacy),
+            ensure_diplomacy_screen_visible,
+        )
+        .add_systems(OnExit(GameMode::Diplomacy), hide_diplomacy_screen);
     }
 }
 
@@ -43,29 +46,37 @@ pub fn ensure_diplomacy_screen_visible(
         .with_children(|parent| {
             parent.spawn((
                 Text::new("Diplomacy Mode (stub)"),
-                TextFont { font_size: 24.0, ..default() },
+                TextFont {
+                    font_size: 24.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(0.95, 0.9, 1.0)),
             ));
 
             // Back to Map
-            parent.spawn((
-                Button,
-                Node {
-                    position_type: PositionType::Absolute,
-                    top: Val::Px(16.0),
-                    right: Val::Px(16.0),
-                    padding: UiRect::all(Val::Px(6.0)),
-                    ..default()
-                },
-                BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
-                crate::ui::mode::MapModeButton,
-            )).with_children(|b| {
-                b.spawn((
-                    Text::new("Back to Map"),
-                    TextFont { font_size: 16.0, ..default() },
-                    TextColor(Color::srgb(0.9, 0.9, 1.0)),
-                ));
-            });
+            parent
+                .spawn((
+                    Button,
+                    Node {
+                        position_type: PositionType::Absolute,
+                        top: Val::Px(16.0),
+                        right: Val::Px(16.0),
+                        padding: UiRect::all(Val::Px(6.0)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+                    crate::ui::mode::MapModeButton,
+                ))
+                .with_children(|b| {
+                    b.spawn((
+                        Text::new("Back to Map"),
+                        TextFont {
+                            font_size: 16.0,
+                            ..default()
+                        },
+                        TextColor(Color::srgb(0.9, 0.9, 1.0)),
+                    ));
+                });
         });
 }
 

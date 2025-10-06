@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use crate::turn_system::{TurnPhase, TurnSystem};
+use bevy::prelude::*;
 
 /// Centralized UI state that consolidates all game state needed by UI systems
 /// This reduces the number of queries each UI system needs to perform
@@ -7,9 +7,6 @@ use crate::turn_system::{TurnPhase, TurnSystem};
 pub struct UIState {
     pub turn: TurnState,
 }
-
-
-
 
 #[derive(Debug, Clone)]
 pub struct TurnState {
@@ -26,7 +23,6 @@ impl Default for TurnState {
     }
 }
 
-
 impl From<&TurnSystem> for TurnState {
     fn from(turn_system: &TurnSystem) -> Self {
         Self {
@@ -38,20 +34,13 @@ impl From<&TurnSystem> for TurnState {
 
 impl UIState {
     /// Update UI state from world resources
-    pub fn update(
-        &mut self,
-        turn_system: &TurnSystem,
-    ) {
+    pub fn update(&mut self, turn_system: &TurnSystem) {
         self.turn = turn_system.into();
     }
 
     /// Check if any UI-relevant state has changed
-    pub fn needs_update(
-        &self,
-        turn_system: &TurnSystem,
-    ) -> bool {
-        self.turn.current_turn != turn_system.current_turn
-            || self.turn.phase != turn_system.phase
+    pub fn needs_update(&self, turn_system: &TurnSystem) -> bool {
+        self.turn.current_turn != turn_system.current_turn || self.turn.phase != turn_system.phase
     }
 
     /// Get formatted turn display text
@@ -63,14 +52,10 @@ impl UIState {
         };
         format!("Turn: {} - {}", self.turn.current_turn, phase_text)
     }
-
 }
 
 /// System to collect game state and update the centralized UIState resource
-pub fn collect_ui_state(
-    mut ui_state: ResMut<UIState>,
-    turn_system: Res<TurnSystem>,
-) {
+pub fn collect_ui_state(mut ui_state: ResMut<UIState>, turn_system: Res<TurnSystem>) {
     // Only update if something has changed to avoid unnecessary UI updates
     if ui_state.needs_update(&turn_system) {
         ui_state.update(&turn_system);

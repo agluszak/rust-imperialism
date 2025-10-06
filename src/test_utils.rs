@@ -75,8 +75,6 @@ pub fn create_test_tilemap(world: &mut World, width: u32, height: u32) -> (Entit
     (tilemap_entity, tile_storage)
 }
 
-
-
 /// Creates a test tile with the specified terrain type at the given position
 pub fn create_test_tile(
     world: &mut World,
@@ -136,7 +134,6 @@ pub fn assert_valid_path(path: &[TilePos]) {
         assert_adjacent(window[0], window[1]);
     }
 }
-
 
 /// Mock event writer that collects events for inspection in tests
 #[derive(Default)]

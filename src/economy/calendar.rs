@@ -27,7 +27,10 @@ pub struct Calendar {
 
 impl Default for Calendar {
     fn default() -> Self {
-        Calendar { season: Season::Spring, year: 1815 }
+        Calendar {
+            season: Season::Spring,
+            year: 1815,
+        }
     }
 }
 

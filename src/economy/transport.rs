@@ -1,17 +1,17 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
-use std::collections::{HashSet, HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
+use super::{nation::PlayerNation, treasury::Treasury};
 use crate::tile_pos::TilePosExt;
 use crate::ui::logging::TerminalLogEvent;
-use super::{treasury::Treasury, nation::PlayerNation};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImprovementKind {
-    Road,   // Early-game low-capacity transport
-    Rail,   // High-capacity transport network
-    Depot,  // Gathers resources from tile + 8 neighbors
-    Port,   // Coastal/river gathering point
+    Road,  // Early-game low-capacity transport
+    Rail,  // High-capacity transport network
+    Depot, // Gathers resources from tile + 8 neighbors
+    Port,  // Coastal/river gathering point
 }
 
 #[derive(Message, Debug, Clone, Copy)]
@@ -25,15 +25,15 @@ pub struct PlaceImprovement {
 #[derive(Component, Debug)]
 pub struct Depot {
     pub position: TilePos,
-    pub owner: Entity,    // Nation entity that owns this depot
-    pub connected: bool,  // Whether this depot has a rail path to owner's capital
+    pub owner: Entity,   // Nation entity that owns this depot
+    pub connected: bool, // Whether this depot has a rail path to owner's capital
 }
 
 /// Marker component for ports (coastal or river)
 #[derive(Component, Debug)]
 pub struct Port {
     pub position: TilePos,
-    pub owner: Entity,    // Nation entity that owns this port
+    pub owner: Entity, // Nation entity that owns this port
     pub connected: bool,
     pub is_river: bool,
 }
@@ -47,7 +47,11 @@ pub struct Roads(pub HashSet<(TilePos, TilePos)>);
 pub struct Rails(pub HashSet<(TilePos, TilePos)>);
 
 fn ordered_edge(a: TilePos, b: TilePos) -> (TilePos, TilePos) {
-    if (a.x, a.y) <= (b.x, b.y) { (a, b) } else { (b, a) }
+    if (a.x, a.y) <= (b.x, b.y) {
+        (a, b)
+    } else {
+        (b, a)
+    }
 }
 
 /// Build adjacency list for BFS from rail edges
@@ -79,12 +83,19 @@ pub fn apply_improvements(
     for e in ev.read() {
         match e.kind {
             ImprovementKind::Road => {
-                if !are_adjacent(e.a, e.b) { continue; }
+                if !are_adjacent(e.a, e.b) {
+                    continue;
+                }
                 let edge = ordered_edge(e.a, e.b);
                 // Toggle behavior: if road exists, remove for free; otherwise place with cost
                 if roads.0.contains(&edge) {
                     roads.0.remove(&edge);
-                    log_events.write(TerminalLogEvent { message: format!("Removed road between ({}, {}) and ({}, {})", edge.0.x, edge.0.y, edge.1.x, edge.1.y) });
+                    log_events.write(TerminalLogEvent {
+                        message: format!(
+                            "Removed road between ({}, {}) and ({}, {})",
+                            edge.0.x, edge.0.y, edge.1.x, edge.1.y
+                        ),
+                    });
                 } else {
                     let cost: i64 = 10;
                     if let Some(player) = &player {
@@ -92,21 +103,38 @@ pub fn apply_improvements(
                             if treasury.0 >= cost {
                                 treasury.0 -= cost;
                                 roads.0.insert(edge);
-                                log_events.write(TerminalLogEvent { message: format!("Built road between ({}, {}) and ({}, {}) for ${}", edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost) });
+                                log_events.write(TerminalLogEvent {
+                                    message: format!(
+                                        "Built road between ({}, {}) and ({}, {}) for ${}",
+                                        edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost
+                                    ),
+                                });
                             } else {
-                                log_events.write(TerminalLogEvent { message: format!("Not enough money to build road (need ${}, have ${})", cost, treasury.0) });
+                                log_events.write(TerminalLogEvent {
+                                    message: format!(
+                                        "Not enough money to build road (need ${}, have ${})",
+                                        cost, treasury.0
+                                    ),
+                                });
                             }
                         }
                     }
                 }
             }
             ImprovementKind::Rail => {
-                if !are_adjacent(e.a, e.b) { continue; }
+                if !are_adjacent(e.a, e.b) {
+                    continue;
+                }
                 let edge = ordered_edge(e.a, e.b);
                 // Toggle behavior for rails
                 if rails.0.contains(&edge) {
                     rails.0.remove(&edge);
-                    log_events.write(TerminalLogEvent { message: format!("Removed rail between ({}, {}) and ({}, {})", edge.0.x, edge.0.y, edge.1.x, edge.1.y) });
+                    log_events.write(TerminalLogEvent {
+                        message: format!(
+                            "Removed rail between ({}, {}) and ({}, {})",
+                            edge.0.x, edge.0.y, edge.1.x, edge.1.y
+                        ),
+                    });
                 } else {
                     let cost: i64 = 50; // Rails cost more than roads
                     if let Some(player) = &player {
@@ -114,9 +142,19 @@ pub fn apply_improvements(
                             if treasury.0 >= cost {
                                 treasury.0 -= cost;
                                 rails.0.insert(edge);
-                                log_events.write(TerminalLogEvent { message: format!("Built rail between ({}, {}) and ({}, {}) for ${}", edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost) });
+                                log_events.write(TerminalLogEvent {
+                                    message: format!(
+                                        "Built rail between ({}, {}) and ({}, {}) for ${}",
+                                        edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost
+                                    ),
+                                });
                             } else {
-                                log_events.write(TerminalLogEvent { message: format!("Not enough money to build rail (need ${}, have ${})", cost, treasury.0) });
+                                log_events.write(TerminalLogEvent {
+                                    message: format!(
+                                        "Not enough money to build rail (need ${}, have ${})",
+                                        cost, treasury.0
+                                    ),
+                                });
                             }
                         }
                     }
@@ -131,12 +169,22 @@ pub fn apply_improvements(
                             treasury.0 -= cost;
                             commands.spawn(Depot {
                                 position: e.a,
-                                owner: player.0, // Set owner to player nation
+                                owner: player.0,  // Set owner to player nation
                                 connected: false, // Will be computed by connectivity system
                             });
-                            log_events.write(TerminalLogEvent { message: format!("Built depot at ({}, {}) for ${}", e.a.x, e.a.y, cost) });
+                            log_events.write(TerminalLogEvent {
+                                message: format!(
+                                    "Built depot at ({}, {}) for ${}",
+                                    e.a.x, e.a.y, cost
+                                ),
+                            });
                         } else {
-                            log_events.write(TerminalLogEvent { message: format!("Not enough money to build depot (need ${}, have ${})", cost, treasury.0) });
+                            log_events.write(TerminalLogEvent {
+                                message: format!(
+                                    "Not enough money to build depot (need ${}, have ${})",
+                                    cost, treasury.0
+                                ),
+                            });
                         }
                     }
                 }
@@ -154,9 +202,19 @@ pub fn apply_improvements(
                                 connected: false,
                                 is_river: false, // TODO: detect from terrain
                             });
-                            log_events.write(TerminalLogEvent { message: format!("Built port at ({}, {}) for ${}", e.a.x, e.a.y, cost) });
+                            log_events.write(TerminalLogEvent {
+                                message: format!(
+                                    "Built port at ({}, {}) for ${}",
+                                    e.a.x, e.a.y, cost
+                                ),
+                            });
                         } else {
-                            log_events.write(TerminalLogEvent { message: format!("Not enough money to build port (need ${}, have ${})", cost, treasury.0) });
+                            log_events.write(TerminalLogEvent {
+                                message: format!(
+                                    "Not enough money to build port (need ${}, have ${})",
+                                    cost, treasury.0
+                                ),
+                            });
                         }
                     }
                 }

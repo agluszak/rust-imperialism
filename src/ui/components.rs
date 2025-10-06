@@ -17,7 +17,6 @@ pub struct ScrollableTerminal;
 #[derive(Component)]
 pub struct GameplayUIRoot;
 
-
 /// Marker for calendar text in HUD
 #[derive(Component)]
 pub struct CalendarDisplay;

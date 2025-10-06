@@ -47,29 +47,37 @@ pub fn ensure_city_screen_visible(
             // Header
             parent.spawn((
                 Text::new("City Overview"),
-                TextFont { font_size: 24.0, ..default() },
+                TextFont {
+                    font_size: 24.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(1.0, 0.95, 0.8)),
             ));
 
             // Return to Map button (top-right)
-            parent.spawn((
-                Button,
-                Node {
-                    position_type: PositionType::Absolute,
-                    top: Val::Px(16.0),
-                    right: Val::Px(16.0),
-                    padding: UiRect::all(Val::Px(6.0)),
-                    ..default()
-                },
-                BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
-                crate::ui::mode::MapModeButton,
-            )).with_children(|b| {
-                b.spawn((
-                    Text::new("Back to Map"),
-                    TextFont { font_size: 16.0, ..default() },
-                    TextColor(Color::srgb(0.9, 0.9, 1.0)),
-                ));
-            });
+            parent
+                .spawn((
+                    Button,
+                    Node {
+                        position_type: PositionType::Absolute,
+                        top: Val::Px(16.0),
+                        right: Val::Px(16.0),
+                        padding: UiRect::all(Val::Px(6.0)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+                    crate::ui::mode::MapModeButton,
+                ))
+                .with_children(|b| {
+                    b.spawn((
+                        Text::new("Back to Map"),
+                        TextFont {
+                            font_size: 16.0,
+                            ..default()
+                        },
+                        TextColor(Color::srgb(0.9, 0.9, 1.0)),
+                    ));
+                });
 
             // Buildings panel (inspired by the reference image)
             parent
@@ -97,35 +105,40 @@ pub fn ensure_city_screen_visible(
                         .with_children(|row| {
                             row.spawn((
                                 Text::new("Textile Mill  —  Capacity: 8"),
-                                TextFont { font_size: 18.0, ..default() },
+                                TextFont {
+                                    font_size: 18.0,
+                                    ..default()
+                                },
                                 TextColor(Color::srgb(0.95, 0.95, 1.0)),
                             ));
                             row.spawn((
                                 Text::new("Inputs: 1x Wool, 1x Cotton   →   Produces: Cloth"),
-                                TextFont { font_size: 14.0, ..default() },
+                                TextFont {
+                                    font_size: 14.0,
+                                    ..default()
+                                },
                                 TextColor(Color::srgb(0.9, 0.9, 0.9)),
                             ));
-                            row
-                                .spawn((
+                            row.spawn((
+                                Node {
+                                    width: Val::Px(260.0),
+                                    height: Val::Px(14.0),
+                                    border: UiRect::all(Val::Px(1.0)),
+                                    ..default()
+                                },
+                                BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 1.0)),
+                                BorderColor::all(Color::srgba(0.6, 0.6, 0.7, 1.0)),
+                            ))
+                            .with_children(|bar| {
+                                bar.spawn((
                                     Node {
-                                        width: Val::Px(260.0),
-                                        height: Val::Px(14.0),
-                                        border: UiRect::all(Val::Px(1.0)),
+                                        width: Val::Percent(75.0), // 6/8 ≈ 75%
+                                        height: Val::Percent(100.0),
                                         ..default()
                                     },
-                                    BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 1.0)),
-                                    BorderColor::all(Color::srgba(0.6, 0.6, 0.7, 1.0)),
-                                ))
-                                .with_children(|bar| {
-                                    bar.spawn((
-                                        Node {
-                                            width: Val::Percent(75.0), // 6/8 ≈ 75%
-                                            height: Val::Percent(100.0),
-                                            ..default()
-                                        },
-                                        BackgroundColor(Color::srgba(0.3, 0.7, 0.3, 1.0)),
-                                    ));
-                                });
+                                    BackgroundColor(Color::srgba(0.3, 0.7, 0.3, 1.0)),
+                                ));
+                            });
                         });
 
                     // Clothing Factory row
@@ -142,35 +155,40 @@ pub fn ensure_city_screen_visible(
                         .with_children(|row| {
                             row.spawn((
                                 Text::new("Clothing Factory  —  Capacity: 16"),
-                                TextFont { font_size: 18.0, ..default() },
+                                TextFont {
+                                    font_size: 18.0,
+                                    ..default()
+                                },
                                 TextColor(Color::srgb(0.95, 0.95, 1.0)),
                             ));
                             row.spawn((
                                 Text::new("Inputs: 1x Cloth   →   Produces: Clothes"),
-                                TextFont { font_size: 14.0, ..default() },
+                                TextFont {
+                                    font_size: 14.0,
+                                    ..default()
+                                },
                                 TextColor(Color::srgb(0.9, 0.9, 0.9)),
                             ));
-                            row
-                                .spawn((
+                            row.spawn((
+                                Node {
+                                    width: Val::Px(260.0),
+                                    height: Val::Px(14.0),
+                                    border: UiRect::all(Val::Px(1.0)),
+                                    ..default()
+                                },
+                                BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 1.0)),
+                                BorderColor::all(Color::srgba(0.6, 0.6, 0.7, 1.0)),
+                            ))
+                            .with_children(|bar| {
+                                bar.spawn((
                                     Node {
-                                        width: Val::Px(260.0),
-                                        height: Val::Px(14.0),
-                                        border: UiRect::all(Val::Px(1.0)),
+                                        width: Val::Percent(6.25), // 1/16 ≈ 6.25%
+                                        height: Val::Percent(100.0),
                                         ..default()
                                     },
-                                    BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 1.0)),
-                                    BorderColor::all(Color::srgba(0.6, 0.6, 0.7, 1.0)),
-                                ))
-                                .with_children(|bar| {
-                                    bar.spawn((
-                                        Node {
-                                            width: Val::Percent(6.25), // 1/16 ≈ 6.25%
-                                            height: Val::Percent(100.0),
-                                            ..default()
-                                        },
-                                        BackgroundColor(Color::srgba(0.3, 0.7, 0.3, 1.0)),
-                                    ));
-                                });
+                                    BackgroundColor(Color::srgba(0.3, 0.7, 0.3, 1.0)),
+                                ));
+                            });
                         });
                 });
         });

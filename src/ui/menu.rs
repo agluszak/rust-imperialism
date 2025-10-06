@@ -29,11 +29,17 @@ impl Plugin for MenuUIPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(AppState::MainMenu), ensure_main_menu_visible)
             .add_systems(OnExit(AppState::MainMenu), hide_main_menu)
-            .add_systems(Update, handle_menu_buttons.run_if(in_state(AppState::MainMenu)));
+            .add_systems(
+                Update,
+                handle_menu_buttons.run_if(in_state(AppState::MainMenu)),
+            );
     }
 }
 
-fn ensure_main_menu_visible(mut commands: Commands, mut existing: Query<&mut Visibility, With<MainMenuRoot>>) {
+fn ensure_main_menu_visible(
+    mut commands: Commands,
+    mut existing: Query<&mut Visibility, With<MainMenuRoot>>,
+) {
     if let Ok(mut vis) = existing.single_mut() {
         *vis = Visibility::Visible;
         return;
@@ -62,9 +68,15 @@ fn ensure_main_menu_visible(mut commands: Commands, mut existing: Query<&mut Vis
         .with_children(|parent| {
             parent.spawn((
                 Text::new("Rust Imperialism"),
-                TextFont { font_size: 36.0, ..default() },
+                TextFont {
+                    font_size: 36.0,
+                    ..default()
+                },
                 TextColor(Color::srgb(1.0, 0.95, 0.85)),
-                Node { margin: UiRect::bottom(Val::Px(16.0)), ..default() },
+                Node {
+                    margin: UiRect::bottom(Val::Px(16.0)),
+                    ..default()
+                },
             ));
 
             // New Game button
@@ -81,7 +93,10 @@ fn ensure_main_menu_visible(mut commands: Commands, mut existing: Query<&mut Vis
                 .with_children(|b| {
                     b.spawn((
                         Text::new("New Game"),
-                        TextFont { font_size: 20.0, ..default() },
+                        TextFont {
+                            font_size: 20.0,
+                            ..default()
+                        },
                         TextColor(Color::srgb(0.9, 0.9, 1.0)),
                     ));
                 });
@@ -100,7 +115,10 @@ fn ensure_main_menu_visible(mut commands: Commands, mut existing: Query<&mut Vis
                 .with_children(|b| {
                     b.spawn((
                         Text::new("Quit"),
-                        TextFont { font_size: 20.0, ..default() },
+                        TextFont {
+                            font_size: 20.0,
+                            ..default()
+                        },
                         TextColor(Color::srgb(0.9, 0.9, 1.0)),
                     ));
                 });
@@ -114,7 +132,10 @@ fn hide_main_menu(mut roots: Query<&mut Visibility, With<MainMenuRoot>>) {
 }
 
 fn handle_menu_buttons(
-    mut interactions: Query<(&Interaction, Option<&NewGameButton>, Option<&QuitButton>), Changed<Interaction>>,
+    mut interactions: Query<
+        (&Interaction, Option<&NewGameButton>, Option<&QuitButton>),
+        Changed<Interaction>,
+    >,
     mut next_app_state: ResMut<NextState<AppState>>,
     mut exit_writer: MessageWriter<AppExit>,
 ) {

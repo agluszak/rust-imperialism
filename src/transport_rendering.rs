@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
 
-use crate::economy::{Rails, Roads, Depot, Port};
+use crate::economy::{Depot, Port, Rails, Roads};
 use crate::tile_pos::TilePosExt;
 
 /// Marker for rail line visual entities
@@ -206,10 +206,7 @@ fn update_port_visuals(
         if !found {
             let pos = port.position.to_world_pos();
             commands.spawn((
-                Mesh2d(meshes.add(Rectangle::new(
-                    FACILITY_RADIUS * 2.0,
-                    FACILITY_RADIUS * 2.0,
-                ))),
+                Mesh2d(meshes.add(Rectangle::new(FACILITY_RADIUS * 2.0, FACILITY_RADIUS * 2.0))),
                 MeshMaterial2d(materials.add(ColorMaterial::from_color(color))),
                 Transform::from_translation(pos.extend(2.0)),
                 PortVisual(port_entity),

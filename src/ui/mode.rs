@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use crate::ui::menu::AppState;
+use bevy::prelude::*;
 
 /// Global game mode state: strategic views
 #[derive(SubStates, Debug, Clone, Eq, PartialEq, Hash, Default, Reflect)]
@@ -40,17 +40,22 @@ pub struct DiplomacyModeButton;
 
 /// Handle clicks on the mode buttons
 pub fn handle_mode_buttons(
-    mut interactions: Query<(
-        &Interaction,
-        Option<&CityModeButton>,
-        Option<&MapModeButton>,
-        Option<&TransportModeButton>,
-        Option<&MarketModeButton>,
-        Option<&DiplomacyModeButton>,
-    ), Changed<Interaction>>,
+    mut interactions: Query<
+        (
+            &Interaction,
+            Option<&CityModeButton>,
+            Option<&MapModeButton>,
+            Option<&TransportModeButton>,
+            Option<&MarketModeButton>,
+            Option<&DiplomacyModeButton>,
+        ),
+        Changed<Interaction>,
+    >,
     mut next_state: ResMut<NextState<GameMode>>,
 ) {
-    for (interaction, is_city_btn, is_map_btn, is_transport_btn, is_market_btn, is_diplomacy_btn) in interactions.iter_mut() {
+    for (interaction, is_city_btn, is_map_btn, is_transport_btn, is_market_btn, is_diplomacy_btn) in
+        interactions.iter_mut()
+    {
         if *interaction == Interaction::Pressed {
             if is_city_btn.is_some() {
                 next_state.set(GameMode::City);
