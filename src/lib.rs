@@ -43,6 +43,7 @@ pub mod input;
 pub mod province;
 pub mod province_gen;
 pub mod province_setup;
+pub mod resources;
 pub mod terrain_atlas;
 pub mod terrain_gen;
 pub mod tile_pos;
@@ -260,11 +261,11 @@ pub fn app() -> App {
         border_rendering::BorderRenderingPlugin,
         city_rendering::CityRenderingPlugin,
     ))
-    .add_plugins(DebugPlugins)
-    .add_plugins(EguiPlugin::default())
-    .add_plugins(WorldInspectorPlugin::new())
-    .add_plugins(StateInspectorPlugin::<AppState>::new())
-    .add_plugins(StateInspectorPlugin::<GameMode>::new());
+    .add_plugins(DebugPlugins);
+    // .add_plugins(EguiPlugin::default())
+    // .add_plugins(WorldInspectorPlugin::new())
+    // .add_plugins(StateInspectorPlugin::<AppState>::new())
+    // .add_plugins(StateInspectorPlugin::<GameMode>::new());
 
     app
 }

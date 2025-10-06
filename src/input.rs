@@ -12,7 +12,7 @@ impl Plugin for InputPlugin {
     }
 }
 
-/// Handle tile clicks when an Engineer is selected
+/// Handle tile clicks when any civilian is selected
 pub fn handle_tile_click(
     trigger: On<Pointer<Click>>,
     tile_positions: Query<&TilePos>,
@@ -24,39 +24,38 @@ pub fn handle_tile_click(
         return;
     };
 
-    // Find selected Engineer
-    let Some((engineer_entity, engineer)) = civilians
+    // Find any selected civilian
+    let Some((civilian_entity, civilian)) = civilians
         .iter()
-        .find(|(_, c)| c.selected && c.kind == CivilianKind::Engineer)
+        .find(|(_, c)| c.selected)
     else {
         return;
     };
 
-    // Check if clicked tile is adjacent to Engineer
-    let engineer_hex = engineer.position.to_hex();
+    let civilian_hex = civilian.position.to_hex();
     let clicked_hex = clicked_pos.to_hex();
-    let distance = engineer_hex.distance_to(clicked_hex);
+    let distance = civilian_hex.distance_to(clicked_hex);
 
-    if distance == 1 {
-        // Adjacent tile: build rail
+    // Special handling for Engineer: adjacent click = build rail
+    if civilian.kind == CivilianKind::Engineer && distance == 1 {
         info!(
-            "Clicked adjacent tile ({}, {}), sending BuildRail order",
+            "Clicked adjacent tile ({}, {}) with Engineer, sending BuildRail order",
             clicked_pos.x, clicked_pos.y
         );
 
         order_writer.write(GiveCivilianOrder {
-            entity: engineer_entity,
+            entity: civilian_entity,
             order: CivilianOrderKind::BuildRail { to: *clicked_pos },
         });
-    } else if distance > 1 {
-        // Non-adjacent tile: move to it
+    } else if distance >= 1 {
+        // For all civilians (including Engineer at distance > 1): move to tile
         info!(
-            "Clicked non-adjacent tile ({}, {}), sending Move order",
-            clicked_pos.x, clicked_pos.y
+            "Clicked tile ({}, {}) with {:?}, sending Move order",
+            clicked_pos.x, clicked_pos.y, civilian.kind
         );
 
         order_writer.write(GiveCivilianOrder {
-            entity: engineer_entity,
+            entity: civilian_entity,
             order: CivilianOrderKind::Move { to: *clicked_pos },
         });
     }

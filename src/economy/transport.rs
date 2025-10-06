@@ -130,6 +130,10 @@ fn can_build_rail_on_terrain(
     technologies: &Technologies,
 ) -> (bool, Option<&'static str>) {
         match terrain {
+            TerrainType::Water => {
+                // Cannot build rails on water
+                (false, Some("Cannot build rails on water"))
+            }
             TerrainType::Mountain => {
                 if technologies.has(Technology::MountainEngineering) {
                     (true, None)

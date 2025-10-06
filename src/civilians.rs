@@ -74,9 +74,11 @@ pub enum CivilianOrderKind {
     BuildDepot,                // Build depot at current position
     BuildPort,                 // Build port at current position
     Move { to: TilePos },      // Move to target tile
-    Prospect,                  // Reveal minerals at current tile
-    Mine,                      // Upgrade mine at current tile
-    ImproveTile,               // Improve resource at current tile
+    Prospect,                  // Reveal minerals at current tile (Prospector)
+    Mine,                      // Upgrade mine at current tile (Miner)
+    ImproveTile,               // Improve resource at current tile (Farmer/Rancher/Forester/Driller)
+    BuildFarm,                 // Build farm on grain/fruit/cotton tile (Farmer)
+    BuildOrchard,              // Build orchard on fruit tile (Farmer)
 }
 
 /// Message: Player selects a civilian unit
@@ -125,7 +127,10 @@ impl Plugin for CivilianPlugin {
                 Update,
                 (
                     handle_civilian_orders,
+                    execute_move_orders,
                     execute_engineer_orders,
+                    execute_prospector_orders,
+                    execute_civilian_improvement_orders,
                     update_engineer_orders_ui,
                     handle_order_button_clicks,
                     render_civilian_visuals,
@@ -227,11 +232,36 @@ fn handle_civilian_orders(
     }
 }
 
+/// Check if a tile belongs to a specific nation
+fn tile_owned_by_nation(
+    tile_pos: TilePos,
+    nation_entity: Entity,
+    tile_storage: &bevy_ecs_tilemap::prelude::TileStorage,
+    tile_provinces: &Query<&crate::province::TileProvince>,
+    provinces: &Query<&crate::province::Province>,
+) -> bool {
+    if let Some(tile_entity) = tile_storage.get(&tile_pos) {
+        if let Ok(tile_province) = tile_provinces.get(tile_entity) {
+            // Find the province entity with this ProvinceId
+            for province in provinces.iter() {
+                if province.id == tile_province.province_id {
+                    return province.owner == Some(nation_entity);
+                }
+            }
+        }
+    }
+    false
+}
+
 /// Execute Engineer orders (building infrastructure)
 fn execute_engineer_orders(
     mut commands: Commands,
     mut engineers: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
     mut improvement_writer: MessageWriter<PlaceImprovement>,
+    tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
+    tile_provinces: Query<&crate::province::TileProvince>,
+    provinces: Query<&crate::province::Province>,
+    mut log_events: MessageWriter<crate::ui::logging::TerminalLogEvent>,
 ) {
     for (entity, mut civilian, order) in engineers.iter_mut() {
         // Only process Engineer units
@@ -239,8 +269,40 @@ fn execute_engineer_orders(
             continue;
         }
 
+        // Check territory ownership for all operations
+        let has_territory_access = tile_storage_query.iter().next().map(|tile_storage| {
+            tile_owned_by_nation(civilian.position, civilian.owner, tile_storage, &tile_provinces, &provinces)
+        }).unwrap_or(false);
+
+        if !has_territory_access {
+            log_events.write(crate::ui::logging::TerminalLogEvent {
+                message: format!(
+                    "Engineer cannot act at ({}, {}): tile not owned by your nation",
+                    civilian.position.x, civilian.position.y
+                ),
+            });
+            commands.entity(entity).remove::<CivilianOrder>();
+            continue;
+        }
+
         match order.target {
             CivilianOrderKind::BuildRail { to } => {
+                // Also check target tile ownership
+                let target_owned = tile_storage_query.iter().next().map(|tile_storage| {
+                    tile_owned_by_nation(to, civilian.owner, tile_storage, &tile_provinces, &provinces)
+                }).unwrap_or(false);
+
+                if !target_owned {
+                    log_events.write(crate::ui::logging::TerminalLogEvent {
+                        message: format!(
+                            "Cannot build rail to ({}, {}): tile not owned by your nation",
+                            to.x, to.y
+                        ),
+                    });
+                    commands.entity(entity).remove::<CivilianOrder>();
+                    continue;
+                }
+
                 // Send PlaceImprovement message with engineer entity
                 improvement_writer.write(PlaceImprovement {
                     a: civilian.position,
@@ -285,17 +347,237 @@ fn execute_engineer_orders(
                     target: civilian.position,
                 });
             }
-            CivilianOrderKind::Move { to } => {
-                // TODO: Implement movement with pathfinding
-                civilian.position = to;
-                civilian.has_moved = true;
+            CivilianOrderKind::Move { .. } => {
+                // Move orders are handled by execute_move_orders for all civilians
             }
             _ => {
-                // Other civilian types (Prospector, Miner, etc.) not implemented yet
+                // Other order types handled by other systems
             }
         }
 
         // Remove order after execution
+        commands.entity(entity).remove::<CivilianOrder>();
+    }
+}
+
+/// Execute Move orders for all civilian types
+fn execute_move_orders(
+    mut commands: Commands,
+    mut civilians: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
+    tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
+    tile_provinces: Query<&crate::province::TileProvince>,
+    provinces: Query<&crate::province::Province>,
+    mut log_events: MessageWriter<crate::ui::logging::TerminalLogEvent>,
+) {
+    for (entity, mut civilian, order) in civilians.iter_mut() {
+        if let CivilianOrderKind::Move { to } = order.target {
+            // Check if target tile is owned by the civilian's nation
+            let target_owned = tile_storage_query.iter().next().map(|tile_storage| {
+                tile_owned_by_nation(to, civilian.owner, tile_storage, &tile_provinces, &provinces)
+            }).unwrap_or(false);
+
+            if !target_owned {
+                log_events.write(crate::ui::logging::TerminalLogEvent {
+                    message: format!(
+                        "{:?} cannot move to ({}, {}): tile not owned by your nation",
+                        civilian.kind, to.x, to.y
+                    ),
+                });
+                commands.entity(entity).remove::<CivilianOrder>();
+                continue;
+            }
+
+            // Simple movement: just set position (TODO: implement pathfinding)
+            civilian.position = to;
+            civilian.has_moved = true;
+
+            log_events.write(crate::ui::logging::TerminalLogEvent {
+                message: format!(
+                    "{:?} moved to ({}, {})",
+                    civilian.kind, to.x, to.y
+                ),
+            });
+
+            commands.entity(entity).remove::<CivilianOrder>();
+        }
+    }
+}
+
+/// Execute Prospector orders (mineral discovery)
+fn execute_prospector_orders(
+    mut commands: Commands,
+    mut prospectors: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
+    tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
+    tile_provinces: Query<&crate::province::TileProvince>,
+    provinces: Query<&crate::province::Province>,
+    mut tile_resources: Query<&mut crate::resources::TileResource>,
+    mut log_events: MessageWriter<crate::ui::logging::TerminalLogEvent>,
+) {
+    for (entity, mut civilian, order) in prospectors.iter_mut() {
+        // Only process Prospector units
+        if civilian.kind != CivilianKind::Prospector {
+            continue;
+        }
+
+        // Check territory ownership
+        let has_territory_access = tile_storage_query.iter().next().map(|tile_storage| {
+            tile_owned_by_nation(civilian.position, civilian.owner, tile_storage, &tile_provinces, &provinces)
+        }).unwrap_or(false);
+
+        if !has_territory_access {
+            log_events.write(crate::ui::logging::TerminalLogEvent {
+                message: format!(
+                    "Prospector cannot act at ({}, {}): tile not owned by your nation",
+                    civilian.position.x, civilian.position.y
+                ),
+            });
+            commands.entity(entity).remove::<CivilianOrder>();
+            continue;
+        }
+
+        match order.target {
+            CivilianOrderKind::Prospect => {
+                // Find tile entity and check for hidden mineral
+                if let Some(tile_storage) = tile_storage_query.iter().next() {
+                    if let Some(tile_entity) = tile_storage.get(&civilian.position) {
+                        if let Ok(mut resource) = tile_resources.get_mut(tile_entity) {
+                            if !resource.discovered {
+                                resource.discovered = true;
+                                log_events.write(crate::ui::logging::TerminalLogEvent {
+                                    message: format!(
+                                        "Prospector discovered {:?} at ({}, {})!",
+                                        resource.resource_type,
+                                        civilian.position.x,
+                                        civilian.position.y
+                                    ),
+                                });
+                                civilian.has_moved = true;
+                            } else {
+                                log_events.write(crate::ui::logging::TerminalLogEvent {
+                                    message: format!(
+                                        "No hidden minerals at ({}, {})",
+                                        civilian.position.x, civilian.position.y
+                                    ),
+                                });
+                            }
+                        } else {
+                            log_events.write(crate::ui::logging::TerminalLogEvent {
+                                message: format!(
+                                    "No mineral deposits at ({}, {})",
+                                    civilian.position.x, civilian.position.y
+                                ),
+                            });
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        commands.entity(entity).remove::<CivilianOrder>();
+    }
+}
+
+/// Execute Farmer/Rancher/Forester/Driller orders (resource improvement)
+fn execute_civilian_improvement_orders(
+    mut commands: Commands,
+    mut civilians: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
+    tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
+    tile_provinces: Query<&crate::province::TileProvince>,
+    provinces: Query<&crate::province::Province>,
+    mut tile_resources: Query<&mut crate::resources::TileResource>,
+    mut log_events: MessageWriter<crate::ui::logging::TerminalLogEvent>,
+) {
+    for (entity, mut civilian, order) in civilians.iter_mut() {
+        // Check if this is a resource-improving civilian
+        let is_improver = matches!(
+            civilian.kind,
+            CivilianKind::Farmer
+                | CivilianKind::Rancher
+                | CivilianKind::Forester
+                | CivilianKind::Driller
+                | CivilianKind::Miner
+        );
+
+        if !is_improver {
+            continue;
+        }
+
+        // Check territory ownership
+        let has_territory_access = tile_storage_query.iter().next().map(|tile_storage| {
+            tile_owned_by_nation(civilian.position, civilian.owner, tile_storage, &tile_provinces, &provinces)
+        }).unwrap_or(false);
+
+        if !has_territory_access {
+            log_events.write(crate::ui::logging::TerminalLogEvent {
+                message: format!(
+                    "{:?} cannot act at ({}, {}): tile not owned by your nation",
+                    civilian.kind, civilian.position.x, civilian.position.y
+                ),
+            });
+            commands.entity(entity).remove::<CivilianOrder>();
+            continue;
+        }
+
+        match order.target {
+            CivilianOrderKind::ImproveTile => {
+                // Find tile entity and improve resource
+                if let Some(tile_storage) = tile_storage_query.iter().next() {
+                    if let Some(tile_entity) = tile_storage.get(&civilian.position) {
+                        if let Ok(mut resource) = tile_resources.get_mut(tile_entity) {
+                            // Check if this civilian can improve this resource
+                            let can_improve = match civilian.kind {
+                                CivilianKind::Farmer => resource.improvable_by_farmer(),
+                                CivilianKind::Rancher => resource.improvable_by_rancher(),
+                                CivilianKind::Forester => resource.improvable_by_forester(),
+                                CivilianKind::Miner => resource.improvable_by_miner(),
+                                CivilianKind::Driller => resource.improvable_by_driller(),
+                                _ => false,
+                            };
+
+                            if can_improve {
+                                if resource.improve() {
+                                    log_events.write(crate::ui::logging::TerminalLogEvent {
+                                        message: format!(
+                                            "{:?} improved {:?} at ({}, {}) to level {:?}",
+                                            civilian.kind,
+                                            resource.resource_type,
+                                            civilian.position.x,
+                                            civilian.position.y,
+                                            resource.development
+                                        ),
+                                    });
+                                    civilian.has_moved = true;
+                                } else {
+                                    log_events.write(crate::ui::logging::TerminalLogEvent {
+                                        message: format!(
+                                            "Resource already at max development at ({}, {})",
+                                            civilian.position.x, civilian.position.y
+                                        ),
+                                    });
+                                }
+                            } else {
+                                log_events.write(crate::ui::logging::TerminalLogEvent {
+                                    message: format!(
+                                        "{:?} cannot improve {:?}",
+                                        civilian.kind, resource.resource_type
+                                    ),
+                                });
+                            }
+                        } else {
+                            log_events.write(crate::ui::logging::TerminalLogEvent {
+                                message: format!(
+                                    "No improvable resource at ({}, {})",
+                                    civilian.position.x, civilian.position.y
+                                ),
+                            });
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+
         commands.entity(entity).remove::<CivilianOrder>();
     }
 }
@@ -416,25 +698,23 @@ fn update_civilian_visual_colors(
 }
 
 /// Show/hide Engineer orders UI based on selection
+/// Only runs when Civilian selection state changes
 fn update_engineer_orders_ui(
     mut commands: Commands,
-    civilians: Query<&Civilian>,
+    civilians: Query<&Civilian, Changed<Civilian>>,
+    all_civilians: Query<&Civilian>,
     existing_panel: Query<(Entity, &Children), With<EngineerOrdersPanel>>,
 ) {
-    let selected_count = civilians.iter().filter(|c| c.selected).count();
-    if selected_count > 0 {
-        info!(
-            "update_engineer_orders_ui: {} selected civilians",
-            selected_count
-        );
+    // Only run if any Civilian changed (e.g., selection state)
+    if civilians.is_empty() {
+        return;
     }
 
-    let selected_engineer = civilians
+    let selected_engineer = all_civilians
         .iter()
         .find(|c| c.selected && c.kind == CivilianKind::Engineer);
 
     if let Some(_engineer) = selected_engineer {
-        info!("Found selected Engineer!");
         // Engineer is selected, ensure panel exists
         if existing_panel.is_empty() {
             info!("Creating Engineer orders panel");
