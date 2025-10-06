@@ -23,13 +23,15 @@ pub enum TileCategory {
 }
 
 /// Essential terrain types for gameplay
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TerrainType {
     Grass,    // Plains - basic terrain, good movement
     Water,    // Ocean/rivers - impassable without ships
     Mountain, // High ground - defensive bonus, slow movement
+    Hills,    // Rolling hills - moderate terrain
     Forest,   // Dense vegetation - cover bonus, moderate movement cost
     Desert,   // Harsh terrain - movement penalty, low resources
+    Swamp,    // Wetlands - difficult terrain
 }
 
 /// Military units and fortifications
@@ -161,6 +163,14 @@ impl TileType {
                 is_passable: true,
                 is_buildable: false,
             },
+            TerrainType::Hills => TileProperties {
+                movement_cost: 1.5,
+                defense_bonus: 1.0,  // Some elevation advantage
+                resource_yield: 1.5, // Moderate resources
+                population_capacity: 5,
+                is_passable: true,
+                is_buildable: true,
+            },
             TerrainType::Desert => TileProperties {
                 movement_cost: 2.0,
                 defense_bonus: 0.0,
@@ -177,6 +187,14 @@ impl TileType {
                 is_passable: true,
                 is_buildable: true,
             },
+            TerrainType::Swamp => TileProperties {
+                movement_cost: 2.5,
+                defense_bonus: -0.5, // Difficult ground
+                resource_yield: 0.5, // Limited resources
+                population_capacity: 1,
+                is_passable: true,
+                is_buildable: false,
+            },
         };
 
         Self {
@@ -192,8 +210,10 @@ impl TileType {
                 TerrainType::Grass => TileIndex::GRASS,
                 TerrainType::Water => TileIndex::WATER,
                 TerrainType::Mountain => TileIndex::MOUNTAIN,
+                TerrainType::Hills => TileIndex::MOUNTAIN, // Use mountain texture for hills (similar appearance)
                 TerrainType::Desert => TileIndex::DESERT,
                 TerrainType::Forest => TileIndex::FOREST,
+                TerrainType::Swamp => TileIndex::FOREST, // Use forest texture for swamp (similar appearance)
             },
             TileCategory::Military(military) => match military {
                 MilitaryType::Fortress => TileIndex::FORTRESS,

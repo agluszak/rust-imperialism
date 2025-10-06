@@ -4,7 +4,6 @@ use bevy_ecs_tilemap::prelude::TilePos;
 
 use crate::economy::{ImprovementKind, PlaceImprovement};
 use crate::tile_pos::TilePosExt;
-use crate::ui::menu::AppState;
 
 /// Type of civilian unit
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,6 +32,24 @@ pub struct Civilian {
 #[derive(Component, Debug)]
 pub struct CivilianOrder {
     pub target: CivilianOrderKind,
+}
+
+/// Ongoing multi-turn job for a civilian
+#[derive(Component, Debug, Clone)]
+pub struct CivilianJob {
+    pub job_type: JobType,
+    pub turns_remaining: u32,
+    pub target: TilePos, // Where the job is happening
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JobType {
+    BuildingRail,
+    BuildingDepot,
+    BuildingPort,
+    Mining,
+    Prospecting,
+    ImprovingTile,
 }
 
 /// Visual marker for civilian unit sprites
@@ -99,7 +116,7 @@ impl Plugin for CivilianPlugin {
         app.add_message::<SelectCivilian>()
             .add_message::<GiveCivilianOrder>()
             // Selection handler runs always to react to events immediately
-            .add_systems(Update, handle_civilian_selection)
+            .add_systems(Update, (handle_civilian_selection, handle_deselect_key))
             .add_systems(
                 Update,
                 (
@@ -111,34 +128,20 @@ impl Plugin for CivilianPlugin {
                     update_civilian_visual_colors,
                 )
                     .run_if(in_state(crate::ui::mode::GameMode::Map)),
-            )
-            .add_systems(
-                FixedUpdate,
-                (
-                    debug_civilian_state.run_if(in_state(AppState::InGame)),
-                    debug,
-                ),
             );
     }
 }
 
-fn debug(app_state: Option<Res<State<AppState>>>, mut g: Local<Option<AppState>>) {
-    let last = app_state.map(|s| s.get().clone());
-    *g = last.clone();
-    info!("hello from debug {:?}", last);
-}
-
-fn debug_civilian_state(
-    civilians: Query<&Civilian>,
-    app_state: Res<State<crate::ui::menu::AppState>>,
-    game_mode: Res<State<crate::ui::mode::GameMode>>,
-) {
-    info!(
-        "Civilian debug: {} civilians exist, AppState={:?}, GameMode={:?}",
-        civilians.iter().count(),
-        app_state.get(),
-        game_mode.get()
-    );
+/// Handle Escape key to deselect all civilians
+fn handle_deselect_key(keys: Res<ButtonInput<KeyCode>>, mut civilians: Query<&mut Civilian>) {
+    if keys.just_pressed(KeyCode::Escape) {
+        for mut civilian in civilians.iter_mut() {
+            if civilian.selected {
+                civilian.selected = false;
+                info!("Deselected civilian via Escape key");
+            }
+        }
+    }
 }
 
 /// Handle civilian selection events
@@ -162,20 +165,34 @@ fn handle_civilian_selection(
             event.entity
         );
 
-        // Deselect all units first
-        for mut civilian in civilians.iter_mut() {
-            civilian.selected = false;
-        }
+        // Check if clicking on already-selected unit (toggle deselect)
+        let is_already_selected = civilians
+            .get(event.entity)
+            .map(|c| c.selected)
+            .unwrap_or(false);
 
-        // Select the requested unit
-        if let Ok(mut civilian) = civilians.get_mut(event.entity) {
-            civilian.selected = true;
-            info!(
-                "Successfully set civilian.selected = true for entity {:?}",
-                event.entity
-            );
+        if is_already_selected {
+            // Deselect the unit (toggle off)
+            if let Ok(mut civilian) = civilians.get_mut(event.entity) {
+                civilian.selected = false;
+                info!("Toggled deselect for entity {:?}", event.entity);
+            }
         } else {
-            warn!("Failed to get civilian entity {:?}", event.entity);
+            // Deselect all units first
+            for mut civilian in civilians.iter_mut() {
+                civilian.selected = false;
+            }
+
+            // Select the requested unit
+            if let Ok(mut civilian) = civilians.get_mut(event.entity) {
+                civilian.selected = true;
+                info!(
+                    "Successfully set civilian.selected = true for entity {:?}",
+                    event.entity
+                );
+            } else {
+                warn!("Failed to get civilian entity {:?}", event.entity);
+            }
         }
     }
 }
@@ -185,9 +202,16 @@ fn handle_civilian_orders(
     mut commands: Commands,
     mut events: MessageReader<GiveCivilianOrder>,
     civilians: Query<&Civilian>,
+    active_jobs: Query<&CivilianJob>,
 ) {
     for event in events.read() {
         if let Ok(civilian) = civilians.get(event.entity) {
+            // Check if civilian has an active job
+            if active_jobs.get(event.entity).is_ok() {
+                info!("Civilian {:?} has active job, ignoring order", event.entity);
+                continue;
+            }
+
             // Only allow orders if unit hasn't moved this turn
             if !civilian.has_moved {
                 // Add order component
@@ -213,29 +237,49 @@ fn execute_engineer_orders(
 
         match order.target {
             CivilianOrderKind::BuildRail { to } => {
-                // Send PlaceImprovement message
+                // Send PlaceImprovement message with engineer entity
                 improvement_writer.write(PlaceImprovement {
                     a: civilian.position,
                     b: to,
                     kind: ImprovementKind::Rail,
+                    engineer: Some(entity),
                 });
-                civilian.has_moved = true;
+                // Move Engineer to the target tile after starting construction
+                civilian.position = to;
+                // Add job to lock Engineer for 3 turns
+                commands.entity(entity).insert(CivilianJob {
+                    job_type: JobType::BuildingRail,
+                    turns_remaining: 3,
+                    target: to,
+                });
             }
             CivilianOrderKind::BuildDepot => {
                 improvement_writer.write(PlaceImprovement {
                     a: civilian.position,
                     b: civilian.position, // Depot is single-tile
                     kind: ImprovementKind::Depot,
+                    engineer: Some(entity),
                 });
-                civilian.has_moved = true;
+                // Add job to lock Engineer for 2 turns
+                commands.entity(entity).insert(CivilianJob {
+                    job_type: JobType::BuildingDepot,
+                    turns_remaining: 2,
+                    target: civilian.position,
+                });
             }
             CivilianOrderKind::BuildPort => {
                 improvement_writer.write(PlaceImprovement {
                     a: civilian.position,
                     b: civilian.position,
                     kind: ImprovementKind::Port,
+                    engineer: Some(entity),
                 });
-                civilian.has_moved = true;
+                // Add job to lock Engineer for 2 turns
+                commands.entity(entity).insert(CivilianJob {
+                    job_type: JobType::BuildingPort,
+                    turns_remaining: 2,
+                    target: civilian.position,
+                });
             }
             CivilianOrderKind::Move { to } => {
                 // TODO: Implement movement with pathfinding
@@ -259,6 +303,27 @@ pub fn reset_civilian_actions(mut civilians: Query<&mut Civilian>) {
     }
 }
 
+/// Advance civilian jobs each turn
+pub fn advance_civilian_jobs(
+    mut commands: Commands,
+    mut civilians_with_jobs: Query<(Entity, &mut CivilianJob)>,
+) {
+    for (entity, mut job) in civilians_with_jobs.iter_mut() {
+        job.turns_remaining -= 1;
+
+        if job.turns_remaining == 0 {
+            info!("Job {:?} completed for civilian {:?}", job.job_type, entity);
+            // Remove the job component
+            commands.entity(entity).remove::<CivilianJob>();
+        } else {
+            info!(
+                "Job {:?} in progress for civilian {:?}: {} turns remaining",
+                job.job_type, entity, job.turns_remaining
+            );
+        }
+    }
+}
+
 const ENGINEER_SIZE: f32 = 12.0;
 const ENGINEER_UNSELECTED_COLOR: Color = Color::srgb(0.9, 0.2, 0.2); // Red
 const ENGINEER_SELECTED_COLOR: Color = Color::srgb(1.0, 0.8, 0.0); // Yellow/gold
@@ -269,12 +334,6 @@ fn render_civilian_visuals(
     all_civilians: Query<(Entity, &Civilian)>,
     existing_visuals: Query<(Entity, &CivilianVisual)>,
 ) {
-    info!(
-        "render_civilian_visuals called: {} civilians, {} existing visuals",
-        all_civilians.iter().count(),
-        existing_visuals.iter().count()
-    );
-
     // Remove visuals for despawned civilians
     for (visual_entity, civilian_visual) in existing_visuals.iter() {
         if all_civilians.get(civilian_visual.0).is_err() {

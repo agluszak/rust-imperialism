@@ -28,3 +28,7 @@ pub struct TreasuryDisplay;
 /// Marker for tilemap entities that should only be visible in Map mode
 #[derive(Component)]
 pub struct MapTilemap;
+
+/// Marker for tile info display showing hovered tile information
+#[derive(Component)]
+pub struct TileInfoDisplay;

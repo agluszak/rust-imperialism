@@ -4,7 +4,7 @@ use bevy::ui_widgets::{ControlOrientation, CoreScrollbarThumb, Scrollbar};
 
 use crate::ui::components::{
     CalendarDisplay, GameplayUIRoot, MapTilemap, ScrollableTerminal, TerminalOutput,
-    TerminalWindow, TreasuryDisplay, TurnDisplay,
+    TerminalWindow, TileInfoDisplay, TreasuryDisplay, TurnDisplay,
 };
 
 pub fn setup_ui(mut commands: Commands) {
@@ -122,21 +122,19 @@ pub fn setup_ui(mut commands: Commands) {
                             ScrollPosition::default(),
                             ScrollableTerminal,
                             RelativeCursorPosition::default(),
-                            children![
-                                ((
-                                    Text::new(""),
-                                    TextFont {
-                                        font_size: 12.0,
-                                        ..default()
-                                    },
-                                    TextColor(Color::srgb(0.0, 1.0, 0.0)),
-                                    TerminalOutput,
-                                    Node {
-                                        align_self: AlignSelf::Stretch,
-                                        ..default()
-                                    },
-                                ))
-                            ],
+                            children![(
+                                Text::new(""),
+                                TextFont {
+                                    font_size: 12.0,
+                                    ..default()
+                                },
+                                TextColor(Color::srgb(0.0, 1.0, 0.0)),
+                                TerminalOutput,
+                                Node {
+                                    align_self: AlignSelf::Stretch,
+                                    ..default()
+                                },
+                            )],
                         ))
                         .id();
 
@@ -150,20 +148,44 @@ pub fn setup_ui(mut commands: Commands) {
                         },
                         BackgroundColor(Color::srgba(0.2, 0.2, 0.2, 0.8)),
                         Scrollbar::new(scrollable_id, ControlOrientation::Vertical, 20.0),
-                        children![
-                            ((
-                                Node {
-                                    width: Val::Percent(100.0),
-                                    height: Val::Percent(20.0),
-                                    ..default()
-                                },
-                                BackgroundColor(Color::srgba(0.6, 0.6, 0.6, 0.8)),
-                                CoreScrollbarThumb,
-                            ))
-                        ],
+                        children![(
+                            Node {
+                                width: Val::Percent(100.0),
+                                height: Val::Percent(20.0),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgba(0.6, 0.6, 0.6, 0.8)),
+                            CoreScrollbarThumb,
+                        )],
                     ));
                 });
         });
+
+    // Tile info display (bottom-left)
+    commands.spawn((
+        Node {
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(10.0),
+            left: Val::Px(10.0),
+            width: Val::Px(280.0),
+            flex_direction: FlexDirection::Column,
+            padding: UiRect::all(Val::Px(10.0)),
+            border: UiRect::all(Val::Px(2.0)),
+            ..default()
+        },
+        BackgroundColor(Color::srgba(0.1, 0.1, 0.15, 0.9)),
+        BorderColor::all(Color::srgba(0.4, 0.4, 0.5, 0.8)),
+        GameplayUIRoot,
+        children![(
+            Text::new("Hover over a tile"),
+            TextFont {
+                font_size: 14.0,
+                ..default()
+            },
+            TextColor(Color::srgb(0.8, 0.8, 0.8)),
+            TileInfoDisplay,
+        ),],
+    ));
 
     // Sidebar with mode buttons
     commands

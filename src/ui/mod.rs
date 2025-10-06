@@ -55,6 +55,7 @@ impl Plugin for GameUIPlugin {
                 status::update_turn_display.after(state::notify_ui_state_changes),
                 status::update_calendar_display,
                 status::update_treasury_display,
+                status::update_tile_info_display,
                 logging::update_terminal_output.after(logging::consume_log_events),
                 // Mouse wheel scroll input handling
                 input::handle_mouse_wheel_scroll,

@@ -19,6 +19,7 @@ pub struct PlaceImprovement {
     pub a: TilePos,
     pub b: TilePos,
     pub kind: ImprovementKind,
+    pub engineer: Option<Entity>, // Engineer entity building this (for tracking construction)
 }
 
 /// Marker component for depots that gather resources
@@ -46,11 +47,60 @@ pub struct Roads(pub HashSet<(TilePos, TilePos)>);
 #[derive(Resource, Default, Debug)]
 pub struct Rails(pub HashSet<(TilePos, TilePos)>);
 
+/// Component tracking rail construction in progress (takes 3 turns to complete)
+#[derive(Component, Debug)]
+pub struct RailConstruction {
+    pub from: TilePos,
+    pub to: TilePos,
+    pub turns_remaining: u32,
+    pub owner: Entity,    // Nation that started construction
+    pub engineer: Entity, // Engineer entity that is building this
+}
+
 fn ordered_edge(a: TilePos, b: TilePos) -> (TilePos, TilePos) {
     if (a.x, a.y) <= (b.x, b.y) {
         (a, b)
     } else {
         (b, a)
+    }
+}
+
+/// Advance rail construction progress each turn
+pub fn advance_rail_construction(
+    mut commands: Commands,
+    mut constructions: Query<(Entity, &mut RailConstruction)>,
+    mut rails: ResMut<Rails>,
+    mut log_events: MessageWriter<TerminalLogEvent>,
+) {
+    for (entity, mut construction) in constructions.iter_mut() {
+        construction.turns_remaining -= 1;
+
+        if construction.turns_remaining == 0 {
+            // Construction complete!
+            let edge = ordered_edge(construction.from, construction.to);
+            rails.0.insert(edge);
+
+            log_events.write(TerminalLogEvent {
+                message: format!(
+                    "Rail construction complete: ({}, {}) to ({}, {})",
+                    edge.0.x, edge.0.y, edge.1.x, edge.1.y
+                ),
+            });
+
+            // Remove construction entity
+            commands.entity(entity).despawn();
+        } else {
+            log_events.write(TerminalLogEvent {
+                message: format!(
+                    "Rail construction: ({}, {}) to ({}, {}) - {} turns remaining",
+                    construction.from.x,
+                    construction.from.y,
+                    construction.to.x,
+                    construction.to.y,
+                    construction.turns_remaining
+                ),
+            });
+        }
     }
 }
 
@@ -70,14 +120,58 @@ fn are_adjacent(a: TilePos, b: TilePos) -> bool {
     ha.distance_to(hb) == 1
 }
 
+use super::technology::{Technologies, Technology};
+use crate::tiles::{TerrainType, TileCategory, TileType};
+use bevy_ecs_tilemap::prelude::TileStorage;
+
+/// Check if terrain is buildable for rails given technologies
+fn can_build_rail_on_terrain(
+    tile_type: &TileType,
+    technologies: &Technologies,
+) -> (bool, Option<&'static str>) {
+    // Extract terrain type from tile
+    if let TileCategory::Terrain(terrain) = &tile_type.category {
+        match terrain {
+            TerrainType::Mountain => {
+                if technologies.has(Technology::MountainEngineering) {
+                    (true, None)
+                } else {
+                    (false, Some("Mountain Engineering technology required"))
+                }
+            }
+            TerrainType::Hills => {
+                if technologies.has(Technology::HillGrading) {
+                    (true, None)
+                } else {
+                    (false, Some("Hill Grading technology required"))
+                }
+            }
+            TerrainType::Swamp => {
+                if technologies.has(Technology::SwampDrainage) {
+                    (true, None)
+                } else {
+                    (false, Some("Swamp Drainage technology required"))
+                }
+            }
+            _ => (true, None), // All other terrains are buildable by default
+        }
+    } else {
+        // Non-terrain tiles (shouldn't happen on the map)
+        (false, Some("Cannot build on non-terrain tile"))
+    }
+}
+
 /// Apply improvement placements (roads, rails, depots, ports) and charge the player treasury
 pub fn apply_improvements(
     mut commands: Commands,
     mut ev: MessageReader<PlaceImprovement>,
     mut roads: ResMut<Roads>,
-    mut rails: ResMut<Rails>,
+    rails: ResMut<Rails>,
     player: Option<Res<PlayerNation>>,
     mut treasuries: Query<&mut Treasury>,
+    nations: Query<&Technologies>,
+    tile_storage_query: Query<&TileStorage>,
+    tile_types: Query<&TileType>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for e in ev.read() {
@@ -126,37 +220,106 @@ pub fn apply_improvements(
                     continue;
                 }
                 let edge = ordered_edge(e.a, e.b);
-                // Toggle behavior for rails
+
+                // Check if rail already exists
                 if rails.0.contains(&edge) {
-                    rails.0.remove(&edge);
                     log_events.write(TerminalLogEvent {
                         message: format!(
-                            "Removed rail between ({}, {}) and ({}, {})",
+                            "Rail already exists between ({}, {}) and ({}, {})",
                             edge.0.x, edge.0.y, edge.1.x, edge.1.y
                         ),
                     });
-                } else {
-                    let cost: i64 = 50; // Rails cost more than roads
-                    if let Some(player) = &player
-                        && let Ok(mut treasury) = treasuries.get_mut(player.0)
-                    {
-                        if treasury.0 >= cost {
-                            treasury.0 -= cost;
-                            rails.0.insert(edge);
-                            log_events.write(TerminalLogEvent {
-                                message: format!(
-                                    "Built rail between ({}, {}) and ({}, {}) for ${}",
-                                    edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost
-                                ),
-                            });
-                        } else {
-                            log_events.write(TerminalLogEvent {
-                                message: format!(
-                                    "Not enough money to build rail (need ${}, have ${})",
-                                    cost, treasury.0
-                                ),
-                            });
+                    continue;
+                }
+
+                // Check terrain buildability for both endpoints
+                if let Some(player) = &player {
+                    // Get player nation's technologies
+                    let player_techs = nations.get(player.0).ok();
+
+                    // Check both tiles for terrain restrictions
+                    let mut can_build = true;
+                    let mut failure_reason: Option<String> = None;
+
+                    for tile_storage in tile_storage_query.iter() {
+                        // Check tile A
+                        if let Some(tile_entity_a) = tile_storage.get(&e.a)
+                            && let Ok(tile_type_a) = tile_types.get(tile_entity_a)
+                            && let Some(techs) = player_techs
+                        {
+                            let (buildable, reason) = can_build_rail_on_terrain(tile_type_a, techs);
+                            if !buildable {
+                                can_build = false;
+                                failure_reason = Some(format!(
+                                    "Cannot build at ({}, {}): {}",
+                                    e.a.x,
+                                    e.a.y,
+                                    reason.unwrap_or("terrain restriction")
+                                ));
+                                break;
+                            }
                         }
+
+                        // Check tile B
+                        if let Some(tile_entity_b) = tile_storage.get(&e.b)
+                            && let Ok(tile_type_b) = tile_types.get(tile_entity_b)
+                            && let Some(techs) = player_techs
+                        {
+                            let (buildable, reason) = can_build_rail_on_terrain(tile_type_b, techs);
+                            if !buildable {
+                                can_build = false;
+                                failure_reason = Some(format!(
+                                    "Cannot build at ({}, {}): {}",
+                                    e.b.x,
+                                    e.b.y,
+                                    reason.unwrap_or("terrain restriction")
+                                ));
+                                break;
+                            }
+                        }
+                    }
+
+                    if !can_build {
+                        log_events.write(TerminalLogEvent {
+                            message: failure_reason
+                                .unwrap_or_else(|| "Cannot build rail on this terrain".to_string()),
+                        });
+                        continue;
+                    }
+                }
+
+                // Start rail construction (takes 3 turns)
+                let cost: i64 = 50;
+                if let Some(player) = &player
+                    && let Ok(mut treasury) = treasuries.get_mut(player.0)
+                {
+                    if treasury.0 >= cost {
+                        treasury.0 -= cost;
+
+                        // Use the engineer from the message, or a dummy entity if not provided
+                        let engineer = e.engineer.unwrap_or(player.0);
+
+                        commands.spawn(RailConstruction {
+                            from: edge.0,
+                            to: edge.1,
+                            turns_remaining: 3,
+                            owner: player.0,
+                            engineer,
+                        });
+
+                        log_events.write(TerminalLogEvent {
+                            message: format!(
+                                "Started rail construction from ({}, {}) to ({}, {}) for ${} (3 turns)",
+                                edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost
+                            ),
+                        });
+                    } else {
+                        log_events.write(TerminalLogEvent {
+                            message: format!(
+                                "Not enough money to build rail (need ${}, have ${})",
+                                cost, treasury.0
+                            ),
+                        });
                     }
                 }
             }

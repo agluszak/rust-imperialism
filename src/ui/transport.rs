@@ -50,6 +50,7 @@ pub fn handle_transport_selection(
                 a,
                 b,
                 kind: ImprovementKind::Road,
+                engineer: None, // Roads don't require an engineer
             });
         } else {
             tool.first = Some(e.pos);

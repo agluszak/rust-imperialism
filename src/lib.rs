@@ -4,15 +4,18 @@
 
 use crate::civilians::{Civilian, CivilianKind, CivilianPlugin};
 use crate::constants::{MAP_SIZE, TERRAIN_SEED, TILE_SIZE};
+use crate::debug::DebugPlugins;
 use crate::economy::{
     Building, Calendar, Capital, Good, Name, NationId, PlaceImprovement, PlayerNation, Rails,
-    Roads, Stockpile, Treasury,
+    Roads, Stockpile, Technologies, Treasury,
 };
 use crate::helpers::camera;
 use crate::helpers::picking::TilemapBackend;
 use crate::input::{InputPlugin, handle_tile_click};
 use crate::terrain_gen::TerrainGenerator;
+use crate::transport_rendering::HoveredTile;
 use crate::transport_rendering::TransportRenderingPlugin;
+use crate::turn_system::TurnSystem;
 use crate::turn_system::TurnSystemPlugin;
 use crate::ui::GameUIPlugin;
 use crate::ui::components::MapTilemap;
@@ -21,6 +24,7 @@ use crate::ui::mode::GameMode;
 use bevy::DefaultPlugins;
 use bevy::dev_tools::states::log_transitions;
 use bevy::image::ImagePlugin;
+use bevy::picking::prelude::*;
 use bevy::prelude::*;
 use bevy::prelude::{AppExtStates, Commands, IntoScheduleConfigs, OnEnter, in_state, info};
 use bevy_ecs_tilemap::TilemapPlugin;
@@ -30,6 +34,7 @@ use bevy_inspector_egui::quick::{StateInspectorPlugin, WorldInspectorPlugin};
 
 pub mod civilians;
 pub mod constants;
+pub mod debug;
 pub mod economy;
 pub mod helpers;
 pub mod input;
@@ -74,6 +79,8 @@ fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     tile_type, // Add the tile type component
                 ))
                 .observe(handle_tile_click)
+                .observe(handle_tile_hover)
+                .observe(handle_tile_out)
                 .id();
             tile_storage.set(&tile_pos, tile_entity);
         }
@@ -111,19 +118,20 @@ fn setup_camera(mut commands: Commands) {
     ));
 }
 
-fn despawn_map_and_units(
-    mut commands: Commands,
-    tilemaps: Query<Entity, With<TilemapGridSize>>,
-    tiles: Query<Entity, With<bevy_ecs_tilemap::prelude::TilePos>>,
+/// Track when mouse enters a tile
+fn handle_tile_hover(
+    trigger: On<Pointer<Over>>,
+    tile_positions: Query<&TilePos>,
+    mut hovered_tile: ResMut<HoveredTile>,
 ) {
-    // Despawn all tile entities first
-    for e in tiles.iter() {
-        commands.entity(e).despawn();
+    if let Ok(tile_pos) = tile_positions.get(trigger.entity) {
+        hovered_tile.0 = Some(*tile_pos);
     }
-    // Despawn the tilemap entities
-    for e in tilemaps.iter() {
-        commands.entity(e).despawn();
-    }
+}
+
+/// Track when mouse leaves a tile
+fn handle_tile_out(_trigger: On<Pointer<Out>>, mut hovered_tile: ResMut<HoveredTile>) {
+    hovered_tile.0 = None;
 }
 
 // Spawn initial nations when entering InGame
@@ -146,6 +154,7 @@ fn setup_nations(mut commands: Commands) {
             Treasury::default(),
             player_stock,
             Building::textile_mill(4),
+            Technologies::default(), // Start with no technologies
         ))
         .id();
 
@@ -178,6 +187,7 @@ fn setup_nations(mut commands: Commands) {
         Capital(ai_capital),
         Treasury(40_000),
         Stockpile::default(),
+        Technologies::default(),
     ));
 
     // Set the player's nation reference for UI/controllers
@@ -204,10 +214,28 @@ pub fn app() -> App {
         .add_systems(
             Update,
             (
-                crate::economy::transport::apply_improvements,
+                economy::transport::apply_improvements,
                 crate::economy::transport::compute_rail_connectivity
                     .after(crate::economy::transport::apply_improvements),
                 crate::economy::production::run_production,
+                // Advance rail construction at the start of each player turn
+                crate::economy::transport::advance_rail_construction
+                    .run_if(resource_changed::<TurnSystem>)
+                    .run_if(|turn_system: Res<TurnSystem>| {
+                        turn_system.phase == crate::turn_system::TurnPhase::PlayerTurn
+                    }),
+                // Reset civilian actions at the start of each player turn
+                crate::civilians::reset_civilian_actions
+                    .run_if(resource_changed::<TurnSystem>)
+                    .run_if(|turn_system: Res<TurnSystem>| {
+                        turn_system.phase == crate::turn_system::TurnPhase::PlayerTurn
+                    }),
+                // Advance civilian jobs at the start of each player turn
+                crate::civilians::advance_civilian_jobs
+                    .run_if(resource_changed::<TurnSystem>)
+                    .run_if(|turn_system: Res<TurnSystem>| {
+                        turn_system.phase == crate::turn_system::TurnPhase::PlayerTurn
+                    }),
             )
                 .run_if(in_state(AppState::InGame)),
         )
@@ -227,6 +255,7 @@ pub fn app() -> App {
             TransportRenderingPlugin,
             CivilianPlugin,
         ))
+        .add_plugins(DebugPlugins)
         .add_plugins(EguiPlugin::default())
         .add_plugins(WorldInspectorPlugin::new())
         .add_plugins(StateInspectorPlugin::<AppState>::new())
