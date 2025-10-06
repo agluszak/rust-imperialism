@@ -26,23 +26,6 @@ fn test_turn_system() {
     assert_eq!(turn_system.current_turn, 2); // New turn
 }
 
-/// Test tile system properties
-#[test]
-fn test_tile_properties() {
-    use rust_imperialism::tiles::{TerrainType, TileType};
-
-    let grass = TileType::terrain(TerrainType::Grass);
-    assert_eq!(grass.properties.movement_cost, 1.0);
-    assert!(grass.properties.is_passable);
-
-    let water = TileType::terrain(TerrainType::Water);
-    assert_eq!(water.properties.movement_cost, 2.0);
-    assert!(!water.properties.is_passable); // Water is impassable without ships
-
-    let mountain = TileType::terrain(TerrainType::Mountain);
-    assert_eq!(mountain.properties.movement_cost, 3.0);
-    assert_eq!(mountain.properties.defense_bonus, 2.0);
-}
 
 /// Test UI state management (simplified)
 #[test]

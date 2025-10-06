@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
 
+use crate::assets;
 use crate::civilians::{Civilian, CivilianKind};
 use crate::economy::{Depot, Port, Rails, Roads};
 use crate::tile_pos::TilePosExt;
@@ -38,7 +39,6 @@ const PORT_CONNECTED_COLOR: Color = Color::srgb(0.2, 0.6, 0.9);
 const PORT_DISCONNECTED_COLOR: Color = Color::srgb(0.6, 0.2, 0.2);
 
 const LINE_WIDTH: f32 = 2.0;
-const FACILITY_RADIUS: f32 = 6.0;
 
 pub struct TransportRenderingPlugin;
 
@@ -134,11 +134,10 @@ fn render_roads(
 /// Update depot visual colors based on connectivity
 fn update_depot_visuals(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     all_depots: Query<(Entity, &Depot)>,
     changed_depots: Query<(Entity, &Depot), Changed<Depot>>,
-    mut existing_visuals: Query<(Entity, &DepotVisual, &mut MeshMaterial2d<ColorMaterial>)>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut existing_visuals: Query<(Entity, &DepotVisual, &mut Sprite)>,
 ) {
     // Remove visuals for despawned depots
     for (visual_entity, depot_visual, _) in existing_visuals.iter() {
@@ -157,20 +156,25 @@ fn update_depot_visuals(
 
         // Find and update existing visual
         let mut found = false;
-        for (_, depot_visual, mut material_handle) in existing_visuals.iter_mut() {
+        for (_, depot_visual, mut sprite) in existing_visuals.iter_mut() {
             if depot_visual.0 == depot_entity {
-                *material_handle = MeshMaterial2d(materials.add(ColorMaterial::from_color(color)));
+                sprite.color = color;
                 found = true;
                 break;
             }
         }
 
-        // If no visual exists, create one
+        // If no visual exists, create one with sprite
         if !found {
             let pos = depot.position.to_world_pos();
+            let texture: Handle<Image> = asset_server.load(assets::depot_asset_path());
             commands.spawn((
-                Mesh2d(meshes.add(Circle::new(FACILITY_RADIUS))),
-                MeshMaterial2d(materials.add(ColorMaterial::from_color(color))),
+                Sprite {
+                    image: texture,
+                    color,
+                    custom_size: Some(Vec2::new(64.0, 64.0)),
+                    ..default()
+                },
                 Transform::from_translation(pos.extend(2.0)),
                 DepotVisual(depot_entity),
             ));
@@ -181,11 +185,10 @@ fn update_depot_visuals(
 /// Update port visual colors based on connectivity
 fn update_port_visuals(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     all_ports: Query<(Entity, &Port)>,
     changed_ports: Query<(Entity, &Port), Changed<Port>>,
-    mut existing_visuals: Query<(Entity, &PortVisual, &mut MeshMaterial2d<ColorMaterial>)>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut existing_visuals: Query<(Entity, &PortVisual, &mut Sprite)>,
 ) {
     // Remove visuals for despawned ports
     for (visual_entity, port_visual, _) in existing_visuals.iter() {
@@ -204,20 +207,25 @@ fn update_port_visuals(
 
         // Find and update existing visual
         let mut found = false;
-        for (_, port_visual, mut material_handle) in existing_visuals.iter_mut() {
+        for (_, port_visual, mut sprite) in existing_visuals.iter_mut() {
             if port_visual.0 == port_entity {
-                *material_handle = MeshMaterial2d(materials.add(ColorMaterial::from_color(color)));
+                sprite.color = color;
                 found = true;
                 break;
             }
         }
 
-        // If no visual exists, create one (square for ports, circle for depots)
+        // If no visual exists, create one with sprite
         if !found {
             let pos = port.position.to_world_pos();
+            let texture: Handle<Image> = asset_server.load(assets::port_asset_path());
             commands.spawn((
-                Mesh2d(meshes.add(Rectangle::new(FACILITY_RADIUS * 2.0, FACILITY_RADIUS * 2.0))),
-                MeshMaterial2d(materials.add(ColorMaterial::from_color(color))),
+                Sprite {
+                    image: texture,
+                    color,
+                    custom_size: Some(Vec2::new(64.0, 64.0)),
+                    ..default()
+                },
                 Transform::from_translation(pos.extend(2.0)),
                 PortVisual(port_entity),
             ));

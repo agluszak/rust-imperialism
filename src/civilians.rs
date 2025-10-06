@@ -64,6 +64,10 @@ pub struct EngineerOrdersPanel;
 #[derive(Component)]
 pub struct BuildDepotButton;
 
+/// Marker for Build Port button
+#[derive(Component)]
+pub struct BuildPortButton;
+
 #[derive(Debug, Clone, Copy)]
 pub enum CivilianOrderKind {
     BuildRail { to: TilePos }, // Build rail to adjacent tile
@@ -324,13 +328,13 @@ pub fn advance_civilian_jobs(
     }
 }
 
-const ENGINEER_SIZE: f32 = 12.0;
-const ENGINEER_UNSELECTED_COLOR: Color = Color::srgb(0.9, 0.2, 0.2); // Red
-const ENGINEER_SELECTED_COLOR: Color = Color::srgb(1.0, 0.8, 0.0); // Yellow/gold
+const ENGINEER_SIZE: f32 = 64.0; // Match tile size
+const ENGINEER_SELECTED_COLOR: Color = Color::srgb(1.0, 0.8, 0.0); // Yellow/gold tint for selected units
 
 /// Create/update visual sprites for civilian units
 fn render_civilian_visuals(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     all_civilians: Query<(Entity, &Civilian)>,
     existing_visuals: Query<(Entity, &CivilianVisual)>,
 ) {
@@ -350,20 +354,27 @@ fn render_civilian_visuals(
 
         if !visual_exists {
             let pos = civilian.position.to_world_pos();
+
+            // Load the appropriate sprite for this civilian type
+            let texture: Handle<Image> =
+                asset_server.load(crate::assets::civilian_asset_path(civilian.kind));
+
+            // Tint sprite based on selection (white = normal, yellow = selected)
             let color = if civilian.selected {
                 ENGINEER_SELECTED_COLOR
             } else {
-                ENGINEER_UNSELECTED_COLOR
+                Color::WHITE // No tint for unselected
             };
 
             info!(
-                "Creating visual for Engineer at tile ({}, {}) -> world pos ({}, {})",
-                civilian.position.x, civilian.position.y, pos.x, pos.y
+                "Creating visual for {:?} at tile ({}, {}) -> world pos ({}, {})",
+                civilian.kind, civilian.position.x, civilian.position.y, pos.x, pos.y
             );
 
             commands
                 .spawn((
                     Sprite {
+                        image: texture,
                         color,
                         custom_size: Some(Vec2::new(ENGINEER_SIZE, ENGINEER_SIZE)),
                         ..default()
@@ -373,6 +384,8 @@ fn render_civilian_visuals(
                     Pickable::default(),
                 ))
                 .observe(handle_civilian_click);
+
+            info!("Spawned civilian visual with transparency-enabled sprite");
         }
     }
 }
@@ -386,11 +399,11 @@ fn update_civilian_visual_colors(
     for (civilian_entity, civilian) in civilians.iter() {
         for (civilian_visual, mut sprite, mut transform) in visuals.iter_mut() {
             if civilian_visual.0 == civilian_entity {
-                // Update color based on selection
+                // Update color based on selection (tint yellow when selected, white when not)
                 let color = if civilian.selected {
                     ENGINEER_SELECTED_COLOR
                 } else {
-                    ENGINEER_UNSELECTED_COLOR
+                    Color::WHITE // No tint for unselected
                 };
                 sprite.color = color;
 
@@ -470,6 +483,28 @@ fn update_engineer_orders_ui(
                                 TextColor(Color::srgb(0.9, 0.95, 1.0)),
                             ));
                         });
+
+                    // Build Port button
+                    parent
+                        .spawn((
+                            Button,
+                            Node {
+                                padding: UiRect::all(Val::Px(8.0)),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgba(0.2, 0.25, 0.35, 1.0)),
+                            BuildPortButton,
+                        ))
+                        .with_children(|b| {
+                            b.spawn((
+                                Text::new("Build Port"),
+                                TextFont {
+                                    font_size: 14.0,
+                                    ..default()
+                                },
+                                TextColor(Color::srgb(0.9, 0.95, 1.0)),
+                            ));
+                        });
                 });
         }
     } else {
@@ -487,19 +522,34 @@ fn update_engineer_orders_ui(
 
 /// Handle button clicks in orders UI
 fn handle_order_button_clicks(
-    interactions: Query<&Interaction, (Changed<Interaction>, With<BuildDepotButton>)>,
+    interactions: Query<
+        (
+            &Interaction,
+            Option<&BuildDepotButton>,
+            Option<&BuildPortButton>,
+        ),
+        Changed<Interaction>,
+    >,
     selected_civilian: Query<(Entity, &Civilian), With<Civilian>>,
     mut order_writer: MessageWriter<GiveCivilianOrder>,
 ) {
-    for interaction in interactions.iter() {
+    for (interaction, depot_button, port_button) in interactions.iter() {
         if *interaction == Interaction::Pressed {
             // Find selected civilian
             if let Some((entity, _civilian)) = selected_civilian.iter().find(|(_, c)| c.selected) {
-                info!("Build Depot button clicked for civilian {:?}", entity);
-                order_writer.write(GiveCivilianOrder {
-                    entity,
-                    order: CivilianOrderKind::BuildDepot,
-                });
+                if depot_button.is_some() {
+                    info!("Build Depot button clicked for civilian {:?}", entity);
+                    order_writer.write(GiveCivilianOrder {
+                        entity,
+                        order: CivilianOrderKind::BuildDepot,
+                    });
+                } else if port_button.is_some() {
+                    info!("Build Port button clicked for civilian {:?}", entity);
+                    order_writer.write(GiveCivilianOrder {
+                        entity,
+                        order: CivilianOrderKind::BuildPort,
+                    });
+                }
             }
         }
     }

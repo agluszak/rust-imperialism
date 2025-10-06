@@ -1,4 +1,4 @@
-use crate::tiles::{TerrainType, TileType};
+use crate::tiles::TerrainType;
 use noise::{NoiseFn, Perlin};
 
 pub struct TerrainGenerator {
@@ -18,8 +18,8 @@ impl TerrainGenerator {
     }
 
     /// Generate terrain for a given tile position
-    /// Returns a TileType based on multiple noise layers
-    pub fn generate_terrain(&self, x: u32, y: u32, map_size_x: u32, map_size_y: u32) -> TileType {
+    /// Returns a TerrainType based on multiple noise layers
+    pub fn generate_terrain(&self, x: u32, y: u32, map_size_x: u32, map_size_y: u32) -> TerrainType {
         // Normalize coordinates to [0, 1] range
         let norm_x = x as f64 / map_size_x as f64;
         let norm_y = y as f64 / map_size_y as f64;
@@ -49,7 +49,7 @@ impl TerrainGenerator {
         // Combine noise layers to determine terrain type
         let terrain_type = self.classify_terrain(elevation, moisture, temperature);
 
-        TileType::terrain(terrain_type)
+        terrain_type
     }
 
     /// Classify terrain based on elevation, moisture, and temperature

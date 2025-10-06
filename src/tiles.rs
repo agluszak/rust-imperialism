@@ -1,29 +1,7 @@
 use bevy::prelude::*;
 
-/// Component to identify the type and properties of a tile
-#[derive(Component, Debug, Clone, PartialEq)]
-pub struct TileType {
-    pub category: TileCategory,
-    pub properties: TileProperties,
-}
-
-/// Main categories of tiles based on Kenney's colored_packed.png
-#[derive(Debug, Clone, PartialEq)]
-pub enum TileCategory {
-    // Terrain types - most important for imperialism game
-    Terrain(TerrainType),
-    // Military units and structures
-    Military(MilitaryType),
-    // Resource tiles
-    Resource(ResourceType),
-    // Buildings and infrastructure
-    Building(BuildingType),
-    // UI and interface elements
-    UI(UIType),
-}
-
 /// Essential terrain types for gameplay
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub enum TerrainType {
     Grass,    // Plains - basic terrain, good movement
     Water,    // Ocean/rivers - impassable without ships
@@ -34,206 +12,39 @@ pub enum TerrainType {
     Swamp,    // Wetlands - difficult terrain
 }
 
-/// Military units and fortifications
-#[derive(Debug, Clone, PartialEq)]
-pub enum MilitaryType {
-    Infantry,  // Basic ground troops
-    Cavalry,   // Fast moving units
-    Artillery, // Long range siege weapons
-    Navy,      // Naval vessels
-    Fortress,  // Heavy fortification
-    Barracks,  // Unit production
-    Arsenal,   // Weapon storage
-    Wall,      // Defensive structure
-}
-
-/// Resources for empire building
-#[derive(Debug, Clone, PartialEq)]
-pub enum ResourceType {
-    Gold,  // Currency
-    Food,  // Population support
-    Iron,  // Military production
-    Wood,  // Construction material
-    Stone, // Fortification material
-    Gems,  // Luxury goods
-    Trade, // Commerce routes
-}
-
-/// Buildings and infrastructure
-#[derive(Debug, Clone, PartialEq)]
-pub enum BuildingType {
-    City,    // Population center
-    Capital, // Empire capital
-    Farm,    // Food production
-    Mine,    // Resource extraction
-    Market,  // Trade center
-    Road,    // Transportation
-    Bridge,  // River crossing
-    Port,    // Naval base
-}
-
-/// UI and interface elements
-#[derive(Debug, Clone, PartialEq)]
-pub enum UIType {
-    Button,
-    Arrow,
-    Number,
-    Letter,
-    Icon,
-    Border,
-    Panel,
-}
-
-/// Properties that affect gameplay
-#[derive(Debug, Clone, PartialEq)]
-pub struct TileProperties {
-    pub movement_cost: f32,       // Cost to move through this tile
-    pub defense_bonus: f32,       // Defensive advantage
-    pub resource_yield: f32,      // Resource production
-    pub population_capacity: u32, // How many people can live here
-    pub is_passable: bool,        // Can units move through
-    pub is_buildable: bool,       // Can structures be built
-}
-
-impl Default for TileProperties {
-    fn default() -> Self {
-        Self {
-            movement_cost: 1.0,
-            defense_bonus: 0.0,
-            resource_yield: 0.0,
-            population_capacity: 0,
-            is_passable: true,
-            is_buildable: true,
-        }
-    }
-}
-
-/// Predefined tile types with their indices in the colored_packed.png
+/// Predefined tile types with their indices in the terrain_atlas.png
+/// These indices correspond to the order in mapping.csv for terrain types
 pub struct TileIndex;
 
 impl TileIndex {
-    // Essential terrain tile indices
-    pub const GRASS: u32 = 0; // Green grass tile
-    pub const WATER: u32 = 100; // Blue water tile
-    pub const MOUNTAIN: u32 = 200; // Brown mountain tile
-    pub const FOREST: u32 = 400; // Dark green forest
-    pub const DESERT: u32 = 300; // Tan desert tile
-
-    // Military structures (keeping for future use)
-    pub const FORTRESS: u32 = 600;
-    pub const BARRACKS: u32 = 650;
-    pub const WALL: u32 = 700;
-
-    // Resources (keeping for future use)
-    pub const GOLD: u32 = 800;
-    pub const IRON: u32 = 850;
-    pub const WOOD: u32 = 900;
-
-    // Buildings (keeping for future use)
-    pub const CITY: u32 = 950;
-    pub const FARM: u32 = 1000;
-    pub const MARKET: u32 = 1050;
+    // Terrain tile indices in the atlas (4x4 grid, 64x64 tiles)
+    pub const GRASS: u32 = 0; // pictuniv.gob_2_10000
+    pub const FOREST: u32 = 1; // pictuniv.gob_2_10001 (woods)
+    pub const HILLS: u32 = 2; // pictuniv.gob_2_10002
+    pub const MOUNTAIN: u32 = 3; // pictuniv.gob_2_10003
+    pub const SWAMP: u32 = 4; // pictuniv.gob_2_10004
+    pub const WATER: u32 = 5; // pictuniv.gob_2_10005
+    pub const DESERT: u32 = 6; // pictuniv.gob_2_10006
+    // Additional terrain types in atlas (not currently used in game):
+    // Index 7: farmland (pictuniv.gob_2_10007)
+    // Index 8: cotton (pictuniv.gob_2_10008)
+    // Index 9: cattle (pictuniv.gob_2_10009)
+    // Index 10: horses (pictuniv.gob_2_10012)
+    // Index 11: orchard (pictuniv.gob_2_10015)
+    // Index 12: sheep (pictuniv.gob_2_10028)
 }
 
-impl TileType {
-    /// Create a new terrain tile
-    pub fn terrain(terrain_type: TerrainType) -> Self {
-        let properties = match terrain_type {
-            TerrainType::Grass => TileProperties {
-                movement_cost: 1.0,
-                defense_bonus: 0.0,
-                resource_yield: 2.0, // Good for farming
-                population_capacity: 10,
-                is_passable: true,
-                is_buildable: true,
-            },
-            TerrainType::Water => TileProperties {
-                movement_cost: 2.0, // Naval movement
-                defense_bonus: -1.0,
-                resource_yield: 1.0, // Fishing
-                population_capacity: 0,
-                is_passable: false, // Need ships
-                is_buildable: false,
-            },
-            TerrainType::Mountain => TileProperties {
-                movement_cost: 3.0,
-                defense_bonus: 2.0,  // High ground advantage
-                resource_yield: 1.0, // Mining
-                population_capacity: 2,
-                is_passable: true,
-                is_buildable: false,
-            },
-            TerrainType::Hills => TileProperties {
-                movement_cost: 1.5,
-                defense_bonus: 1.0,  // Some elevation advantage
-                resource_yield: 1.5, // Moderate resources
-                population_capacity: 5,
-                is_passable: true,
-                is_buildable: true,
-            },
-            TerrainType::Desert => TileProperties {
-                movement_cost: 2.0,
-                defense_bonus: 0.0,
-                resource_yield: 0.5, // Harsh conditions
-                population_capacity: 1,
-                is_passable: true,
-                is_buildable: true,
-            },
-            TerrainType::Forest => TileProperties {
-                movement_cost: 2.0,
-                defense_bonus: 1.0,  // Cover advantage
-                resource_yield: 1.5, // Wood production
-                population_capacity: 5,
-                is_passable: true,
-                is_buildable: true,
-            },
-            TerrainType::Swamp => TileProperties {
-                movement_cost: 2.5,
-                defense_bonus: -0.5, // Difficult ground
-                resource_yield: 0.5, // Limited resources
-                population_capacity: 1,
-                is_passable: true,
-                is_buildable: false,
-            },
-        };
-
-        Self {
-            category: TileCategory::Terrain(terrain_type),
-            properties,
-        }
-    }
-
-    /// Get the recommended texture index for this tile type
+impl TerrainType {
+    /// Get the texture index for this terrain type
     pub fn get_texture_index(&self) -> u32 {
-        match &self.category {
-            TileCategory::Terrain(terrain) => match terrain {
-                TerrainType::Grass => TileIndex::GRASS,
-                TerrainType::Water => TileIndex::WATER,
-                TerrainType::Mountain => TileIndex::MOUNTAIN,
-                TerrainType::Hills => TileIndex::MOUNTAIN, // Use mountain texture for hills (similar appearance)
-                TerrainType::Desert => TileIndex::DESERT,
-                TerrainType::Forest => TileIndex::FOREST,
-                TerrainType::Swamp => TileIndex::FOREST, // Use forest texture for swamp (similar appearance)
-            },
-            TileCategory::Military(military) => match military {
-                MilitaryType::Fortress => TileIndex::FORTRESS,
-                MilitaryType::Barracks => TileIndex::BARRACKS,
-                MilitaryType::Wall => TileIndex::WALL,
-                _ => TileIndex::FORTRESS,
-            },
-            TileCategory::Resource(resource) => match resource {
-                ResourceType::Gold => TileIndex::GOLD,
-                ResourceType::Iron => TileIndex::IRON,
-                ResourceType::Wood => TileIndex::WOOD,
-                _ => TileIndex::GOLD,
-            },
-            TileCategory::Building(building) => match building {
-                BuildingType::City => TileIndex::CITY,
-                BuildingType::Farm => TileIndex::FARM,
-                BuildingType::Market => TileIndex::MARKET,
-                _ => TileIndex::CITY,
-            },
-            TileCategory::UI(_) => 0, // UI elements use dynamic indices
+        match self {
+            TerrainType::Grass => TileIndex::GRASS,
+            TerrainType::Water => TileIndex::WATER,
+            TerrainType::Mountain => TileIndex::MOUNTAIN,
+            TerrainType::Hills => TileIndex::HILLS,
+            TerrainType::Desert => TileIndex::DESERT,
+            TerrainType::Forest => TileIndex::FOREST,
+            TerrainType::Swamp => TileIndex::SWAMP,
         }
     }
 }

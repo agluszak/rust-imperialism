@@ -3,7 +3,7 @@ use bevy_ecs_tilemap::prelude::TileStorage;
 
 use crate::civilians::{Civilian, CivilianKind};
 use crate::economy::{Calendar, PlayerNation, Technologies, Treasury};
-use crate::tiles::{TerrainType, TileCategory, TileType};
+use crate::tiles::TerrainType;
 use crate::transport_rendering::HoveredTile;
 use crate::ui::components::{CalendarDisplay, TileInfoDisplay, TreasuryDisplay, TurnDisplay};
 use crate::ui::state::{UIState, UIStateUpdated};
@@ -74,7 +74,7 @@ pub fn update_treasury_display(
 pub fn update_tile_info_display(
     hovered_tile: Res<HoveredTile>,
     tile_storage_query: Query<&TileStorage>,
-    tile_types: Query<&TileType>,
+    tile_types: Query<&TerrainType>,
     civilians: Query<&Civilian>,
     player: Option<Res<PlayerNation>>,
     nations: Query<&Technologies>,
@@ -91,21 +91,19 @@ pub fn update_tile_info_display(
 
             for tile_storage in tile_storage_query.iter() {
                 if let Some(tile_entity) = tile_storage.get(&tile_pos)
-                    && let Ok(tile_type) = tile_types.get(tile_entity)
+                    && let Ok(terrain) = tile_types.get(tile_entity)
                 {
                     // Add terrain type
-                    if let TileCategory::Terrain(terrain) = &tile_type.category {
-                        let terrain_name = match terrain {
-                            TerrainType::Grass => "Grass",
-                            TerrainType::Water => "Water",
-                            TerrainType::Mountain => "Mountain",
-                            TerrainType::Hills => "Hills",
-                            TerrainType::Forest => "Forest",
-                            TerrainType::Desert => "Desert",
-                            TerrainType::Swamp => "Swamp",
-                        };
-                        tile_info.push_str(&format!("\nTerrain: {}", terrain_name));
-                    }
+                    let terrain_name = match terrain {
+                        TerrainType::Grass => "Grass",
+                        TerrainType::Water => "Water",
+                        TerrainType::Mountain => "Mountain",
+                        TerrainType::Hills => "Hills",
+                        TerrainType::Forest => "Forest",
+                        TerrainType::Desert => "Desert",
+                        TerrainType::Swamp => "Swamp",
+                    };
+                    tile_info.push_str(&format!("\nTerrain: {}", terrain_name));
 
                     // If an engineer is selected, show buildability
                     let selected_engineer = civilians
@@ -116,7 +114,7 @@ pub fn update_tile_info_display(
                         && let Some(player) = &player
                         && let Ok(techs) = nations.get(player.0)
                     {
-                        let buildable = check_buildability(tile_type, techs);
+                        let buildable = check_buildability(terrain, techs);
                         tile_info.push_str(&format!("\n{}", buildable));
                     }
                 }
@@ -130,33 +128,29 @@ pub fn update_tile_info_display(
 }
 
 /// Check if a tile is buildable for rails with current technologies
-fn check_buildability(tile_type: &TileType, technologies: &Technologies) -> String {
-    if let TileCategory::Terrain(terrain) = &tile_type.category {
-        match terrain {
-            TerrainType::Mountain => {
-                if technologies.has(crate::economy::Technology::MountainEngineering) {
-                    "Can build rails".to_string()
-                } else {
-                    "⚠ Need Mountain Engineering".to_string()
-                }
+fn check_buildability(terrain: &TerrainType, technologies: &Technologies) -> String {
+    match terrain {
+        TerrainType::Mountain => {
+            if technologies.has(crate::economy::Technology::MountainEngineering) {
+                "Can build rails".to_string()
+            } else {
+                "⚠ Need Mountain Engineering".to_string()
             }
-            TerrainType::Hills => {
-                if technologies.has(crate::economy::Technology::HillGrading) {
-                    "Can build rails".to_string()
-                } else {
-                    "⚠ Need Hill Grading".to_string()
-                }
-            }
-            TerrainType::Swamp => {
-                if technologies.has(crate::economy::Technology::SwampDrainage) {
-                    "Can build rails".to_string()
-                } else {
-                    "⚠ Need Swamp Drainage".to_string()
-                }
-            }
-            _ => "Can build rails".to_string(),
         }
-    } else {
-        "Cannot build on this tile".to_string()
+        TerrainType::Hills => {
+            if technologies.has(crate::economy::Technology::HillGrading) {
+                "Can build rails".to_string()
+            } else {
+                "⚠ Need Hill Grading".to_string()
+            }
+        }
+        TerrainType::Swamp => {
+            if technologies.has(crate::economy::Technology::SwampDrainage) {
+                "Can build rails".to_string()
+            } else {
+                "⚠ Need Swamp Drainage".to_string()
+            }
+        }
+        _ => "Can build rails".to_string(),
     }
 }

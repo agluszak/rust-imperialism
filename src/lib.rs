@@ -13,6 +13,7 @@ use crate::helpers::camera;
 use crate::helpers::picking::TilemapBackend;
 use crate::input::{InputPlugin, handle_tile_click};
 use crate::terrain_gen::TerrainGenerator;
+use crate::tile_pos::TilePosExt;
 use crate::transport_rendering::HoveredTile;
 use crate::transport_rendering::TransportRenderingPlugin;
 use crate::turn_system::TurnSystem;
@@ -32,12 +33,15 @@ use bevy_ecs_tilemap::prelude::*;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::{StateInspectorPlugin, WorldInspectorPlugin};
 
+pub mod assets;
+pub mod bmp_loader;
 pub mod civilians;
 pub mod constants;
 pub mod debug;
 pub mod economy;
 pub mod helpers;
 pub mod input;
+pub mod terrain_atlas;
 pub mod terrain_gen;
 pub mod tile_pos;
 pub mod tiles;
@@ -45,9 +49,32 @@ pub mod transport_rendering;
 pub mod turn_system;
 pub mod ui;
 
-fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // Asset by Kenney
-    let texture_handle: Handle<Image> = asset_server.load("colored_packed.png");
+/// Marker resource to track if tilemap has been created
+#[derive(Resource)]
+struct TilemapCreated;
+
+/// System that creates the tilemap once the terrain atlas is ready
+fn tilemap_startup(
+    mut commands: Commands,
+    terrain_atlas: Option<Res<terrain_atlas::TerrainAtlas>>,
+    tilemap_created: Option<Res<TilemapCreated>>,
+) {
+    // Skip if tilemap already created
+    if tilemap_created.is_some() {
+        return;
+    }
+
+    // Wait for the terrain atlas to be built
+    let Some(atlas) = terrain_atlas else {
+        return;
+    };
+
+    if !atlas.ready {
+        return;
+    }
+
+    info!("Terrain atlas ready, creating tilemap...");
+
     let map_size = TilemapSize {
         x: MAP_SIZE,
         y: MAP_SIZE,
@@ -65,8 +92,8 @@ fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
             let tile_pos = TilePos { x, y };
 
             // Generate terrain using noise functions
-            let tile_type = terrain_gen.generate_terrain(x, y, map_size.x, map_size.y);
-            let texture_index = tile_type.get_texture_index();
+            let terrain_type = terrain_gen.generate_terrain(x, y, map_size.x, map_size.y);
+            let texture_index = terrain_type.get_texture_index();
 
             let tile_entity = commands
                 .spawn((
@@ -76,7 +103,7 @@ fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
                         texture_index: TileTextureIndex(texture_index),
                         ..default()
                     },
-                    tile_type, // Add the tile type component
+                    terrain_type, // Add the terrain type component
                 ))
                 .observe(handle_tile_click)
                 .observe(handle_tile_hover)
@@ -86,11 +113,25 @@ fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
         }
     }
 
+    // Log some sample tile positions to debug rendering
+    let sample_tiles = vec![
+        TilePos { x: 0, y: 0 },
+        TilePos { x: 15, y: 15 },
+        TilePos { x: 31, y: 31 },
+    ];
+    for tile in sample_tiles {
+        let world_pos = tile.to_world_pos();
+        info!(
+            "Tile ({}, {}) world pos: ({:.1}, {:.1})",
+            tile.x, tile.y, world_pos.x, world_pos.y
+        );
+    }
+
     let tile_size = TilemapTileSize {
         x: TILE_SIZE,
         y: TILE_SIZE,
     };
-    let grid_size = tile_size.into();
+    let grid_size = constants::get_hex_grid_size();
     let map_type = TilemapType::Hexagon(HexCoordSystem::Row);
 
     commands.entity(tilemap_entity).insert((
@@ -99,13 +140,18 @@ fn tilemap_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
             map_type,
             size: map_size,
             storage: tile_storage,
-            texture: TilemapTexture::Single(texture_handle),
+            texture: TilemapTexture::Single(atlas.texture.clone()),
             tile_size,
             anchor: TilemapAnchor::Center,
             ..Default::default()
         },
         MapTilemap, // Marker to control visibility
     ));
+
+    // Mark tilemap as created
+    commands.insert_resource(TilemapCreated);
+
+    info!("Tilemap created successfully!");
 }
 
 fn setup_camera(mut commands: Commands) {
@@ -197,69 +243,78 @@ fn setup_nations(mut commands: Commands) {
 pub fn app() -> App {
     let mut app = App::new();
 
-    app.add_plugins((DefaultPlugins.set(ImagePlugin::default_nearest()),))
-        .insert_state(AppState::MainMenu)
-        .add_sub_state::<GameMode>()
-        .add_systems(Update, log_transitions::<AppState>)
-        .add_systems(Update, log_transitions::<GameMode>)
-        // Root app state: start in Main Menu; also set up in-game mode state (Map)
-        .insert_resource(Calendar::default())
-        .insert_resource(Roads::default())
-        .insert_resource(Rails::default())
-        .add_message::<PlaceImprovement>()
-        .add_systems(Startup, (setup_camera,))
-        // Bootstrap nations and spawn map when starting a new game
-        .add_systems(OnEnter(AppState::InGame), (setup_nations, tilemap_startup))
-        // Economy systems
-        .add_systems(
-            Update,
-            (
-                economy::transport::apply_improvements,
-                crate::economy::transport::compute_rail_connectivity
-                    .after(crate::economy::transport::apply_improvements),
-                crate::economy::production::run_production,
-                // Advance rail construction at the start of each player turn
-                crate::economy::transport::advance_rail_construction
-                    .run_if(resource_changed::<TurnSystem>)
-                    .run_if(|turn_system: Res<TurnSystem>| {
-                        turn_system.phase == crate::turn_system::TurnPhase::PlayerTurn
-                    }),
-                // Reset civilian actions at the start of each player turn
-                crate::civilians::reset_civilian_actions
-                    .run_if(resource_changed::<TurnSystem>)
-                    .run_if(|turn_system: Res<TurnSystem>| {
-                        turn_system.phase == crate::turn_system::TurnPhase::PlayerTurn
-                    }),
-                // Advance civilian jobs at the start of each player turn
-                crate::civilians::advance_civilian_jobs
-                    .run_if(resource_changed::<TurnSystem>)
-                    .run_if(|turn_system: Res<TurnSystem>| {
-                        turn_system.phase == crate::turn_system::TurnPhase::PlayerTurn
-                    }),
-            )
-                .run_if(in_state(AppState::InGame)),
+    app.add_plugins((
+        DefaultPlugins.set(ImagePlugin::default_nearest()),
+        bmp_loader::ImperialismBmpLoaderPlugin,
+    ))
+    .insert_state(AppState::MainMenu)
+    .add_sub_state::<GameMode>()
+    .add_systems(Update, log_transitions::<AppState>)
+    .add_systems(Update, log_transitions::<GameMode>)
+    // Root app state: start in Main Menu; also set up in-game mode state (Map)
+    .insert_resource(Calendar::default())
+    .insert_resource(Roads::default())
+    .insert_resource(Rails::default())
+    .add_message::<PlaceImprovement>()
+    .add_systems(Startup, (setup_camera,))
+    // Start loading terrain atlas at startup
+    .add_systems(Startup, terrain_atlas::start_terrain_atlas_loading)
+    // Build atlas when tiles are loaded
+    .add_systems(Update, terrain_atlas::build_terrain_atlas_when_ready)
+    // Bootstrap nations and spawn map when starting a new game
+    .add_systems(OnEnter(AppState::InGame), setup_nations)
+    // Tilemap startup runs in Update and waits for atlas to be ready
+    .add_systems(Update, tilemap_startup.run_if(in_state(AppState::InGame)))
+    // Economy systems
+    .add_systems(
+        Update,
+        (
+            economy::transport::apply_improvements,
+            economy::transport::compute_rail_connectivity
+                .after(economy::transport::apply_improvements),
+            economy::production::run_production,
+            // Advance rail construction at the start of each player turn
+            economy::transport::advance_rail_construction
+                .run_if(resource_changed::<TurnSystem>)
+                .run_if(|turn_system: Res<TurnSystem>| {
+                    turn_system.phase == turn_system::TurnPhase::PlayerTurn
+                }),
+            // Reset civilian actions at the start of each player turn
+            civilians::reset_civilian_actions
+                .run_if(resource_changed::<TurnSystem>)
+                .run_if(|turn_system: Res<TurnSystem>| {
+                    turn_system.phase == turn_system::TurnPhase::PlayerTurn
+                }),
+            // Advance civilian jobs at the start of each player turn
+            civilians::advance_civilian_jobs
+                .run_if(resource_changed::<TurnSystem>)
+                .run_if(|turn_system: Res<TurnSystem>| {
+                    turn_system.phase == turn_system::TurnPhase::PlayerTurn
+                }),
         )
-        .add_systems(
-            Update,
-            camera::movement
-                .after(ui::handle_mouse_wheel_scroll)
-                .run_if(in_state(GameMode::Map)),
-        )
-        .add_plugins((
-            TilemapPlugin,
-            TilemapBackend,
-            // Game plugins (strategy baseline)
-            TurnSystemPlugin,
-            GameUIPlugin,
-            InputPlugin,
-            TransportRenderingPlugin,
-            CivilianPlugin,
-        ))
-        .add_plugins(DebugPlugins)
-        .add_plugins(EguiPlugin::default())
-        .add_plugins(WorldInspectorPlugin::new())
-        .add_plugins(StateInspectorPlugin::<AppState>::new())
-        .add_plugins(StateInspectorPlugin::<GameMode>::new());
+            .run_if(in_state(AppState::InGame)),
+    )
+    .add_systems(
+        Update,
+        camera::movement
+            .after(ui::handle_mouse_wheel_scroll)
+            .run_if(in_state(GameMode::Map)),
+    )
+    .add_plugins((
+        TilemapPlugin,
+        TilemapBackend,
+        // Game plugins (strategy baseline)
+        TurnSystemPlugin,
+        GameUIPlugin,
+        InputPlugin,
+        TransportRenderingPlugin,
+        CivilianPlugin,
+    ))
+    .add_plugins(DebugPlugins)
+    .add_plugins(EguiPlugin::default())
+    .add_plugins(WorldInspectorPlugin::new())
+    .add_plugins(StateInspectorPlugin::<AppState>::new())
+    .add_plugins(StateInspectorPlugin::<GameMode>::new());
 
     app
 }

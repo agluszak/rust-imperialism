@@ -3,7 +3,7 @@ use bevy_ecs_tilemap::prelude::TilePos;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::{nation::PlayerNation, treasury::Treasury};
-use crate::tile_pos::TilePosExt;
+use crate::tile_pos::{HexExt, TilePosExt};
 use crate::ui::logging::TerminalLogEvent;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -121,16 +121,14 @@ fn are_adjacent(a: TilePos, b: TilePos) -> bool {
 }
 
 use super::technology::{Technologies, Technology};
-use crate::tiles::{TerrainType, TileCategory, TileType};
+use crate::tiles::TerrainType;
 use bevy_ecs_tilemap::prelude::TileStorage;
 
 /// Check if terrain is buildable for rails given technologies
 fn can_build_rail_on_terrain(
-    tile_type: &TileType,
+    terrain: &TerrainType,
     technologies: &Technologies,
 ) -> (bool, Option<&'static str>) {
-    // Extract terrain type from tile
-    if let TileCategory::Terrain(terrain) = &tile_type.category {
         match terrain {
             TerrainType::Mountain => {
                 if technologies.has(Technology::MountainEngineering) {
@@ -155,10 +153,6 @@ fn can_build_rail_on_terrain(
             }
             _ => (true, None), // All other terrains are buildable by default
         }
-    } else {
-        // Non-terrain tiles (shouldn't happen on the map)
-        (false, Some("Cannot build on non-terrain tile"))
-    }
 }
 
 /// Apply improvement placements (roads, rails, depots, ports) and charge the player treasury
@@ -171,7 +165,7 @@ pub fn apply_improvements(
     mut treasuries: Query<&mut Treasury>,
     nations: Query<&Technologies>,
     tile_storage_query: Query<&TileStorage>,
-    tile_types: Query<&TileType>,
+    tile_types: Query<&TerrainType>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for e in ev.read() {
@@ -242,38 +236,60 @@ pub fn apply_improvements(
                     let mut failure_reason: Option<String> = None;
 
                     for tile_storage in tile_storage_query.iter() {
-                        // Check tile A
-                        if let Some(tile_entity_a) = tile_storage.get(&e.a)
-                            && let Ok(tile_type_a) = tile_types.get(tile_entity_a)
-                            && let Some(techs) = player_techs
-                        {
-                            let (buildable, reason) = can_build_rail_on_terrain(tile_type_a, techs);
-                            if !buildable {
+                        // Check tile A - if we can't find it, fail the build
+                        match tile_storage.get(&e.a) {
+                            Some(tile_entity_a) => {
+                                if let Ok(terrain_a) = tile_types.get(tile_entity_a)
+                                    && let Some(techs) = player_techs
+                                {
+                                    let (buildable, reason) =
+                                        can_build_rail_on_terrain(terrain_a, techs);
+                                    if !buildable {
+                                        can_build = false;
+                                        failure_reason = Some(format!(
+                                            "Cannot build at ({}, {}): {}",
+                                            e.a.x,
+                                            e.a.y,
+                                            reason.unwrap_or("terrain restriction")
+                                        ));
+                                        break;
+                                    }
+                                }
+                            }
+                            None => {
+                                // Tile not found in storage - treat as unbuildable
                                 can_build = false;
-                                failure_reason = Some(format!(
-                                    "Cannot build at ({}, {}): {}",
-                                    e.a.x,
-                                    e.a.y,
-                                    reason.unwrap_or("terrain restriction")
-                                ));
+                                failure_reason =
+                                    Some(format!("Tile ({}, {}) not found", e.a.x, e.a.y));
                                 break;
                             }
                         }
 
-                        // Check tile B
-                        if let Some(tile_entity_b) = tile_storage.get(&e.b)
-                            && let Ok(tile_type_b) = tile_types.get(tile_entity_b)
-                            && let Some(techs) = player_techs
-                        {
-                            let (buildable, reason) = can_build_rail_on_terrain(tile_type_b, techs);
-                            if !buildable {
+                        // Check tile B - if we can't find it, fail the build
+                        match tile_storage.get(&e.b) {
+                            Some(tile_entity_b) => {
+                                if let Ok(terrain_b) = tile_types.get(tile_entity_b)
+                                    && let Some(techs) = player_techs
+                                {
+                                    let (buildable, reason) =
+                                        can_build_rail_on_terrain(terrain_b, techs);
+                                    if !buildable {
+                                        can_build = false;
+                                        failure_reason = Some(format!(
+                                            "Cannot build at ({}, {}): {}",
+                                            e.b.x,
+                                            e.b.y,
+                                            reason.unwrap_or("terrain restriction")
+                                        ));
+                                        break;
+                                    }
+                                }
+                            }
+                            None => {
+                                // Tile not found in storage - treat as unbuildable
                                 can_build = false;
-                                failure_reason = Some(format!(
-                                    "Cannot build at ({}, {}): {}",
-                                    e.b.x,
-                                    e.b.y,
-                                    reason.unwrap_or("terrain restriction")
-                                ));
+                                failure_reason =
+                                    Some(format!("Tile ({}, {}) not found", e.b.x, e.b.y));
                                 break;
                             }
                         }
@@ -350,6 +366,38 @@ pub fn apply_improvements(
                 }
             }
             ImprovementKind::Port => {
+                // Port must be adjacent to water
+                let port_pos = e.a;
+                let hex = port_pos.to_hex();
+
+                // Check if any adjacent tile is water
+                let mut adjacent_to_water = false;
+                for tile_storage in tile_storage_query.iter() {
+                    for neighbor_hex in hex.all_neighbors() {
+                        if let Some(neighbor_pos) = neighbor_hex.to_tile_pos()
+                            && let Some(neighbor_entity) = tile_storage.get(&neighbor_pos)
+                            && let Ok(terrain) = tile_types.get(neighbor_entity)
+                            && *terrain == TerrainType::Water
+                        {
+                            adjacent_to_water = true;
+                            break;
+                        }
+                    }
+                    if adjacent_to_water {
+                        break;
+                    }
+                }
+
+                if !adjacent_to_water {
+                    log_events.write(TerminalLogEvent {
+                        message: format!(
+                            "Cannot build port at ({}, {}): must be adjacent to water",
+                            port_pos.x, port_pos.y
+                        ),
+                    });
+                    continue;
+                }
+
                 // Port is placed on a single tile
                 let cost: i64 = 150;
                 if let Some(player) = &player

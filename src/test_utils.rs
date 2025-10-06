@@ -8,7 +8,7 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 
-use crate::tiles::{TerrainType, TileType};
+use crate::tiles::TerrainType;
 use crate::turn_system::TurnSystem;
 use crate::ui::state::UIState;
 
@@ -38,7 +38,6 @@ pub fn create_test_tilemap(world: &mut World, width: u32, height: u32) -> (Entit
     for x in 0..width {
         for y in 0..height {
             let tile_pos = TilePos { x, y };
-            let tile_type = TileType::terrain(TerrainType::Grass);
 
             let tile_entity = world
                 .spawn((
@@ -48,7 +47,6 @@ pub fn create_test_tilemap(world: &mut World, width: u32, height: u32) -> (Entit
                         texture_index: TileTextureIndex(0),
                         ..default()
                     },
-                    tile_type,
                 ))
                 .id();
 
@@ -83,16 +81,15 @@ pub fn create_test_tile(
     tilemap_entity: Entity,
     tile_storage: &mut TileStorage,
 ) -> Entity {
-    let tile_type = TileType::terrain(terrain);
     let tile_entity = world
         .spawn((
             TileBundle {
                 position,
                 tilemap_id: TilemapId(tilemap_entity),
-                texture_index: TileTextureIndex(tile_type.get_texture_index()),
+                texture_index: TileTextureIndex(terrain.get_texture_index()),
                 ..default()
             },
-            tile_type,
+            terrain,
         ))
         .id();
 
