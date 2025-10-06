@@ -2,7 +2,8 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TileStorage;
 
 use crate::civilians::{Civilian, CivilianKind};
-use crate::economy::{Calendar, PlayerNation, Technologies, Treasury};
+use crate::economy::{Calendar, Name, PlayerNation, Technologies, Treasury};
+use crate::province::{City, Province, TileProvince};
 use crate::tiles::TerrainType;
 use crate::transport_rendering::HoveredTile;
 use crate::ui::components::{CalendarDisplay, TileInfoDisplay, TreasuryDisplay, TurnDisplay};
@@ -75,9 +76,12 @@ pub fn update_tile_info_display(
     hovered_tile: Res<HoveredTile>,
     tile_storage_query: Query<&TileStorage>,
     tile_types: Query<&TerrainType>,
+    tile_provinces: Query<&TileProvince>,
+    provinces: Query<&Province>,
+    cities: Query<&City>,
+    nations_query: Query<(Entity, &Name, &Technologies)>,
     civilians: Query<&Civilian>,
     player: Option<Res<PlayerNation>>,
-    nations: Query<&Technologies>,
     mut display: Query<&mut Text, With<TileInfoDisplay>>,
 ) {
     if !hovered_tile.is_changed() {
@@ -105,6 +109,38 @@ pub fn update_tile_info_display(
                     };
                     tile_info.push_str(&format!("\nTerrain: {}", terrain_name));
 
+                    // Add province and owner info
+                    if let Ok(tile_prov) = tile_provinces.get(tile_entity) {
+                        tile_info.push_str(&format!("\nProvince: {}", tile_prov.province_id.0));
+
+                        // Find the province entity and its owner
+                        for province in provinces.iter() {
+                            if province.id == tile_prov.province_id {
+                                if let Some(owner_entity) = province.owner {
+                                    // Find the owner name
+                                    for (nation_entity, name, _) in nations_query.iter() {
+                                        if nation_entity == owner_entity {
+                                            tile_info.push_str(&format!("\nOwner: {}", name.0));
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                // Check if this tile has a city
+                                if province.city_tile == tile_pos {
+                                    for city in cities.iter() {
+                                        if city.province == tile_prov.province_id {
+                                            let city_type = if city.is_capital { "Capital" } else { "City" };
+                                            tile_info.push_str(&format!("\n{}", city_type));
+                                            break;
+                                        }
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+
                     // If an engineer is selected, show buildability
                     let selected_engineer = civilians
                         .iter()
@@ -112,10 +148,15 @@ pub fn update_tile_info_display(
 
                     if selected_engineer.is_some()
                         && let Some(player) = &player
-                        && let Ok(techs) = nations.get(player.0)
                     {
-                        let buildable = check_buildability(terrain, techs);
-                        tile_info.push_str(&format!("\n{}", buildable));
+                        // Find player's tech
+                        for (nation_entity, _, techs) in nations_query.iter() {
+                            if nation_entity == player.0 {
+                                let buildable = check_buildability(terrain, techs);
+                                tile_info.push_str(&format!("\n{}", buildable));
+                                break;
+                            }
+                        }
                     }
                 }
             }

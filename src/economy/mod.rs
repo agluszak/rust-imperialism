@@ -9,7 +9,7 @@ pub mod treasury;
 
 pub use calendar::{Calendar, Season};
 pub use goods::Good;
-pub use nation::{Capital, Name, NationId, PlayerNation};
+pub use nation::{Capital, Name, NationColor, NationId, PlayerNation};
 pub use production::{Building, BuildingKind};
 pub use stockpile::Stockpile;
 pub use technology::{Technologies, Technology};

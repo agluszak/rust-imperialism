@@ -16,3 +16,7 @@ pub struct Capital(pub TilePos);
 /// Resource pointing to the player's active nation entity
 #[derive(Resource, Clone, Copy, Debug)]
 pub struct PlayerNation(pub Entity);
+
+/// Nation display color (for borders and UI)
+#[derive(Component, Clone, Copy, Debug)]
+pub struct NationColor(pub Color);

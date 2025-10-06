@@ -2,13 +2,10 @@
 //!
 //! This library exposes the core game components for testing and potential reuse.
 
-use crate::civilians::{Civilian, CivilianKind, CivilianPlugin};
+use crate::civilians::CivilianPlugin;
 use crate::constants::{MAP_SIZE, TERRAIN_SEED, TILE_SIZE};
 use crate::debug::DebugPlugins;
-use crate::economy::{
-    Building, Calendar, Capital, Good, Name, NationId, PlaceImprovement, PlayerNation, Rails,
-    Roads, Stockpile, Technologies, Treasury,
-};
+use crate::economy::{Calendar, PlaceImprovement, Rails, Roads};
 use crate::helpers::camera;
 use crate::helpers::picking::TilemapBackend;
 use crate::input::{InputPlugin, handle_tile_click};
@@ -27,7 +24,7 @@ use bevy::dev_tools::states::log_transitions;
 use bevy::image::ImagePlugin;
 use bevy::picking::prelude::*;
 use bevy::prelude::*;
-use bevy::prelude::{AppExtStates, Commands, IntoScheduleConfigs, OnEnter, in_state, info};
+use bevy::prelude::{AppExtStates, Commands, IntoScheduleConfigs, in_state, info};
 use bevy_ecs_tilemap::TilemapPlugin;
 use bevy_ecs_tilemap::prelude::*;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
@@ -35,12 +32,17 @@ use bevy_inspector_egui::quick::{StateInspectorPlugin, WorldInspectorPlugin};
 
 pub mod assets;
 pub mod bmp_loader;
+pub mod border_rendering;
+pub mod city_rendering;
 pub mod civilians;
 pub mod constants;
 pub mod debug;
 pub mod economy;
 pub mod helpers;
 pub mod input;
+pub mod province;
+pub mod province_gen;
+pub mod province_setup;
 pub mod terrain_atlas;
 pub mod terrain_gen;
 pub mod tile_pos;
@@ -180,65 +182,6 @@ fn handle_tile_out(_trigger: On<Pointer<Out>>, mut hovered_tile: ResMut<HoveredT
     hovered_tile.0 = None;
 }
 
-// Spawn initial nations when entering InGame
-fn setup_nations(mut commands: Commands) {
-    // Player nation (capital at center of map)
-    let mut player_stock = Stockpile::default();
-    player_stock.add(Good::Wool, 10);
-    player_stock.add(Good::Cotton, 10);
-
-    let player_capital = TilePos {
-        x: MAP_SIZE / 2,
-        y: MAP_SIZE / 2,
-    };
-
-    let player_entity = commands
-        .spawn((
-            NationId(1),
-            Name("Player".to_string()),
-            Capital(player_capital),
-            Treasury::default(),
-            player_stock,
-            Building::textile_mill(4),
-            Technologies::default(), // Start with no technologies
-        ))
-        .id();
-
-    // Spawn an Engineer unit for the player near their capital
-    let engineer_start = TilePos {
-        x: MAP_SIZE / 2 + 2,
-        y: MAP_SIZE / 2 + 1,
-    };
-    info!(
-        "Spawning Engineer at tile position: ({}, {})",
-        engineer_start.x, engineer_start.y
-    );
-
-    let _engineer_entity = commands
-        .spawn(Civilian {
-            kind: CivilianKind::Engineer,
-            position: engineer_start,
-            owner: player_entity,
-            selected: false,
-            has_moved: false,
-        })
-        .id();
-
-    // Simple AI nation (capital in a different location)
-    let ai_capital = TilePos { x: 5, y: 5 };
-
-    commands.spawn((
-        NationId(2),
-        Name("Rivalia".to_string()),
-        Capital(ai_capital),
-        Treasury(40_000),
-        Stockpile::default(),
-        Technologies::default(),
-    ));
-
-    // Set the player's nation reference for UI/controllers
-    commands.insert_resource(PlayerNation(player_entity));
-}
 
 pub fn app() -> App {
     let mut app = App::new();
@@ -261,10 +204,15 @@ pub fn app() -> App {
     .add_systems(Startup, terrain_atlas::start_terrain_atlas_loading)
     // Build atlas when tiles are loaded
     .add_systems(Update, terrain_atlas::build_terrain_atlas_when_ready)
-    // Bootstrap nations and spawn map when starting a new game
-    .add_systems(OnEnter(AppState::InGame), setup_nations)
+    // Nations are now created during province assignment (see province_setup.rs)
     // Tilemap startup runs in Update and waits for atlas to be ready
     .add_systems(Update, tilemap_startup.run_if(in_state(AppState::InGame)))
+    // Province generation runs after tilemap is created
+    .add_systems(Update, (
+        province_setup::generate_provinces_system,
+        province_setup::assign_provinces_to_countries
+            .after(province_setup::generate_provinces_system),
+    ).run_if(in_state(AppState::InGame)))
     // Economy systems
     .add_systems(
         Update,
@@ -309,6 +257,8 @@ pub fn app() -> App {
         InputPlugin,
         TransportRenderingPlugin,
         CivilianPlugin,
+        border_rendering::BorderRenderingPlugin,
+        city_rendering::CityRenderingPlugin,
     ))
     .add_plugins(DebugPlugins)
     .add_plugins(EguiPlugin::default())

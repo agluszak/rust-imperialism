@@ -47,3 +47,9 @@ pub fn port_asset_path() -> &'static str {
 pub fn capital_asset_path() -> &'static str {
     "glop/pictuniv.gob_2_550.BMP.bmp"
 }
+
+/// Get the asset path for a town/city (loads BMP directly)
+/// Uses town_small for now - could be enhanced to show different sizes
+pub fn town_asset_path() -> &'static str {
+    "glop/pictuniv.gob_2_551.BMP.bmp"
+}
