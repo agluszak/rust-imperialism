@@ -36,8 +36,8 @@ pub fn calculate_connected_production(
 
     let mut process_improvement = |owner: Entity, position: TilePos| {
         let center_hex = position.to_hex();
-        let mut tiles_to_check = center_hex.all_neighbors().to_vec();
-        tiles_to_check.push(center_hex);
+        let tiles_to_check =
+            center_hex.all_neighbors().iter().copied().chain(std::iter::once(center_hex));
 
         for hex in tiles_to_check {
             if let Some(tile_pos) = hex.to_tile_pos() {
