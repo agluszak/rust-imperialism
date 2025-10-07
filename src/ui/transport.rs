@@ -11,10 +11,6 @@ use crate::ui::mode::GameMode;
 #[derive(Component)]
 pub struct TransportScreen;
 
-/// Marker for a text element that displays info for a specific resource
-#[derive(Component)]
-pub struct ResourceDisplay(pub ResourceType);
-
 #[derive(Resource, Default)]
 pub struct TransportToolState {
     pub first: Option<TilePos>,
@@ -35,36 +31,8 @@ impl Plugin for TransportUIPlugin {
             .add_systems(OnExit(GameMode::Transport), despawn_transport_screen)
             .add_systems(
                 Update,
-                (
-                    handle_transport_selection,
-                    update_transport_list, // Keep the list updated
-                )
-                    .run_if(in_state(GameMode::Transport)),
+                handle_transport_selection.run_if(in_state(GameMode::Transport)),
             );
-    }
-}
-
-/// Update the text for each resource with the latest production data
-fn update_transport_list(
-    production: Res<ConnectedProduction>,
-    player: Option<Res<PlayerNation>>,
-    mut query: Query<(&mut Text, &ResourceDisplay)>,
-) {
-    let Some(player) = player else { return };
-
-    for (mut text, display) in query.iter_mut() {
-        let (count, total) = production
-            .0
-            .get(&player.0)
-            .and_then(|p| p.get(&display.0))
-            .copied()
-            .unwrap_or((0, 0));
-
-        // In this Bevy version, Text is a tuple struct: Text(String)
-        text.0 = format!(
-            "{:?}: {} improvements (producing {} units)",
-            display.0, count, total
-        );
     }
 }
 
@@ -93,7 +61,13 @@ pub fn handle_transport_selection(
 }
 
 /// Create the transport screen UI when entering the transport game mode
-fn setup_transport_screen(mut commands: Commands) {
+fn setup_transport_screen(
+    mut commands: Commands,
+    production: Res<ConnectedProduction>,
+    player: Option<Res<PlayerNation>>,
+) {
+    let player_production = player.and_then(|p| production.0.get(&p.0));
+
     commands
         .spawn((
             Node {
@@ -130,14 +104,23 @@ fn setup_transport_screen(mut commands: Commands) {
                 })
                 .with_children(|list| {
                     for &res_type in ALL_RESOURCES {
+                        let (count, total) = player_production
+                            .and_then(|p| p.get(&res_type))
+                            .copied()
+                            .unwrap_or((0, 0));
+
+                        let text_content = format!(
+                            "{:?}: {} improvements (producing {} units)",
+                            res_type, count, total
+                        );
+
                         list.spawn((
-                            Text::new(format!("{:?}:", res_type)),
+                            Text::new(text_content),
                             TextFont {
                                 font_size: 14.0,
                                 ..default()
                             },
                             TextColor(Color::srgb(0.8, 0.8, 0.9)),
-                            ResourceDisplay(res_type),
                         ));
                     }
                 });
