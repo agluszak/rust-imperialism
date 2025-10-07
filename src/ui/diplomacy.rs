@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use super::button_style::*;
 use crate::ui::mode::GameMode;
 
 #[derive(Component)]
@@ -64,7 +65,7 @@ pub fn ensure_diplomacy_screen_visible(
                         padding: UiRect::all(Val::Px(6.0)),
                         ..default()
                     },
-                    BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+                    BackgroundColor(NORMAL_BUTTON),
                     crate::ui::mode::MapModeButton,
                 ))
                 .with_children(|b| {

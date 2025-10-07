@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
 
+use super::button_style::*;
 use crate::economy::nation::PlayerNation;
 use crate::economy::production::ConnectedProduction;
 use crate::economy::{ImprovementKind, PlaceImprovement};
@@ -135,7 +136,7 @@ fn setup_transport_screen(
                         padding: UiRect::all(Val::Px(6.0)),
                         ..default()
                     },
-                    BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+                    BackgroundColor(NORMAL_BUTTON),
                     crate::ui::mode::MapModeButton,
                 ))
                 .with_children(|b| {

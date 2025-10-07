@@ -1,6 +1,8 @@
 use bevy::app::AppExit;
 use bevy::prelude::*;
 
+use super::button_style::*;
+
 /// Root application state controlling whether we're in the Main Menu or the actual game
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default, Reflect)]
 pub enum AppState {
@@ -87,7 +89,8 @@ fn ensure_main_menu_visible(
                         padding: UiRect::axes(Val::Px(20.0), Val::Px(10.0)),
                         ..default()
                     },
-                    BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+                    BackgroundColor(NORMAL_ACCENT),
+                    AccentButton,
                     NewGameButton,
                 ))
                 .with_children(|b| {
@@ -109,7 +112,7 @@ fn ensure_main_menu_visible(
                         padding: UiRect::axes(Val::Px(20.0), Val::Px(10.0)),
                         ..default()
                     },
-                    BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+                    BackgroundColor(NORMAL_BUTTON),
                     QuitButton,
                 ))
                 .with_children(|b| {

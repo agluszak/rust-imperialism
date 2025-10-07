@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 use bevy::ui_widgets::{ControlOrientation, CoreScrollbarThumb, Scrollbar};
 
+use crate::ui::button_style::*;
 use crate::ui::components::{
     CalendarDisplay, GameplayUIRoot, MapTilemap, ScrollableTerminal, TerminalOutput,
     TerminalWindow, TileInfoDisplay, TreasuryDisplay, TurnDisplay,
@@ -218,7 +219,7 @@ pub fn setup_ui(mut commands: Commands) {
                         padding: UiRect::all(Val::Px(6.0)),
                         ..default()
                     },
-                    BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+                    BackgroundColor(NORMAL_BUTTON),
                     MapModeButton,
                 ))
                 .with_children(|b| {
@@ -239,7 +240,7 @@ pub fn setup_ui(mut commands: Commands) {
                         padding: UiRect::all(Val::Px(6.0)),
                         ..default()
                     },
-                    BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+                    BackgroundColor(NORMAL_BUTTON),
                     TransportModeButton,
                 ))
                 .with_children(|b| {
@@ -260,7 +261,7 @@ pub fn setup_ui(mut commands: Commands) {
                         padding: UiRect::all(Val::Px(6.0)),
                         ..default()
                     },
-                    BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+                    BackgroundColor(NORMAL_BUTTON),
                     CityModeButton,
                 ))
                 .with_children(|b| {
@@ -281,7 +282,7 @@ pub fn setup_ui(mut commands: Commands) {
                         padding: UiRect::all(Val::Px(6.0)),
                         ..default()
                     },
-                    BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+                    BackgroundColor(NORMAL_BUTTON),
                     MarketModeButton,
                 ))
                 .with_children(|b| {
@@ -302,7 +303,7 @@ pub fn setup_ui(mut commands: Commands) {
                         padding: UiRect::all(Val::Px(6.0)),
                         ..default()
                     },
-                    BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+                    BackgroundColor(NORMAL_BUTTON),
                     DiplomacyModeButton,
                 ))
                 .with_children(|b| {

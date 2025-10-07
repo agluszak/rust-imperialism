@@ -4,6 +4,7 @@ use bevy_ecs_tilemap::prelude::TilePos;
 
 use crate::economy::{ImprovementKind, PlaceImprovement};
 use crate::tile_pos::TilePosExt;
+use crate::ui::button_style::*;
 
 /// Type of civilian unit
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -137,14 +138,34 @@ pub struct GiveCivilianOrder {
     pub order: CivilianOrderKind,
 }
 
+/// Message: Deselect a specific civilian
+#[derive(Message, Debug, Clone, Copy)]
+pub struct DeselectCivilian {
+    pub entity: Entity,
+}
+
+/// Message: Deselect all civilians
+#[derive(Message, Debug)]
+pub struct DeselectAllCivilians;
+
 pub struct CivilianPlugin;
 
 impl Plugin for CivilianPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<SelectCivilian>()
             .add_message::<GiveCivilianOrder>()
+            .add_message::<DeselectCivilian>()
+            .add_message::<DeselectAllCivilians>()
             // Selection handler runs always to react to events immediately
-            .add_systems(Update, (handle_civilian_selection, handle_deselect_key))
+            .add_systems(
+                Update,
+                (
+                    handle_civilian_selection,
+                    handle_deselect_key,
+                    handle_deselection,
+                    handle_deselect_all,
+                ),
+            )
             .add_systems(
                 Update,
                 (
@@ -166,14 +187,41 @@ impl Plugin for CivilianPlugin {
 }
 
 /// Handle Escape key to deselect all civilians
-fn handle_deselect_key(keys: Res<ButtonInput<KeyCode>>, mut civilians: Query<&mut Civilian>) {
+fn handle_deselect_key(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut writer: MessageWriter<DeselectAllCivilians>,
+) {
     if keys.just_pressed(KeyCode::Escape) {
+        writer.write(DeselectAllCivilians);
+    }
+}
+
+/// Handle deselection of specific civilians
+fn handle_deselection(
+    mut events: MessageReader<DeselectCivilian>,
+    mut civilians: Query<&mut Civilian>,
+) {
+    for event in events.read() {
+        if let Ok(mut civilian) = civilians.get_mut(event.entity) {
+            civilian.selected = false;
+            info!("Deselected civilian {:?}", event.entity);
+        }
+    }
+}
+
+/// Handle deselect-all events
+fn handle_deselect_all(
+    mut events: MessageReader<DeselectAllCivilians>,
+    mut civilians: Query<&mut Civilian>,
+) {
+    if !events.is_empty() {
+        events.clear();
         for mut civilian in civilians.iter_mut() {
             if civilian.selected {
                 civilian.selected = false;
-                info!("Deselected civilian via Escape key");
             }
         }
+        info!("Deselected all civilians via Escape key");
     }
 }
 
@@ -282,6 +330,7 @@ fn execute_engineer_orders(
     mut commands: Commands,
     mut engineers: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
     mut improvement_writer: MessageWriter<PlaceImprovement>,
+    mut deselect_writer: MessageWriter<DeselectCivilian>,
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
     tile_provinces: Query<&crate::province::TileProvince>,
     provinces: Query<&crate::province::Province>,
@@ -357,7 +406,7 @@ fn execute_engineer_orders(
                 // Move Engineer to the target tile after starting construction
                 civilian.position = to;
                 civilian.has_moved = true;
-                civilian.selected = false; // Auto-deselect after action
+                deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
                 // Add job to lock Engineer
                 let job_type = JobType::BuildingRail;
                 commands.entity(entity).insert(CivilianJob {
@@ -374,7 +423,7 @@ fn execute_engineer_orders(
                     engineer: Some(entity),
                 });
                 civilian.has_moved = true;
-                civilian.selected = false; // Auto-deselect after action
+                deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
                 // Add job to lock Engineer
                 let job_type = JobType::BuildingDepot;
                 commands.entity(entity).insert(CivilianJob {
@@ -391,7 +440,7 @@ fn execute_engineer_orders(
                     engineer: Some(entity),
                 });
                 civilian.has_moved = true;
-                civilian.selected = false; // Auto-deselect after action
+                deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
                 // Add job to lock Engineer
                 let job_type = JobType::BuildingPort;
                 commands.entity(entity).insert(CivilianJob {
@@ -417,6 +466,7 @@ fn execute_engineer_orders(
 fn execute_move_orders(
     mut commands: Commands,
     mut civilians: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
+    mut deselect_writer: MessageWriter<DeselectCivilian>,
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
     tile_provinces: Query<&crate::province::TileProvince>,
     provinces: Query<&crate::province::Province>,
@@ -453,7 +503,7 @@ fn execute_move_orders(
             // Simple movement: just set position (TODO: implement pathfinding)
             civilian.position = to;
             civilian.has_moved = true;
-            civilian.selected = false; // Auto-deselect after moving
+            deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after moving
 
             log_events.write(crate::ui::logging::TerminalLogEvent {
                 message: format!("{:?} moved to ({}, {})", civilian.kind, to.x, to.y),
@@ -468,6 +518,7 @@ fn execute_move_orders(
 fn execute_prospector_orders(
     mut commands: Commands,
     mut prospectors: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
+    mut deselect_writer: MessageWriter<DeselectCivilian>,
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
     tile_provinces: Query<&crate::province::TileProvince>,
     provinces: Query<&crate::province::Province>,
@@ -521,7 +572,7 @@ fn execute_prospector_orders(
                             ),
                         });
                         civilian.has_moved = true;
-                        civilian.selected = false; // Auto-deselect after action
+                        deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
                     } else {
                         log_events.write(crate::ui::logging::TerminalLogEvent {
                             message: format!(
@@ -549,6 +600,7 @@ fn execute_prospector_orders(
 fn execute_civilian_improvement_orders(
     mut commands: Commands,
     mut civilians: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
+    mut deselect_writer: MessageWriter<DeselectCivilian>,
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
     tile_provinces: Query<&crate::province::TileProvince>,
     provinces: Query<&crate::province::Province>,
@@ -633,7 +685,7 @@ fn execute_civilian_improvement_orders(
                             ),
                         });
                         civilian.has_moved = true;
-                        civilian.selected = false; // Auto-deselect after action
+                        deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
                     } else if resource.development >= crate::resources::DevelopmentLevel::Lv3 {
                         log_events.write(crate::ui::logging::TerminalLogEvent {
                             message: format!(
@@ -884,7 +936,7 @@ fn update_engineer_orders_ui(
                                 padding: UiRect::all(Val::Px(8.0)),
                                 ..default()
                             },
-                            BackgroundColor(Color::srgba(0.2, 0.3, 0.25, 1.0)),
+                            BackgroundColor(NORMAL_BUTTON),
                             BuildDepotButton,
                         ))
                         .with_children(|b| {
@@ -906,7 +958,7 @@ fn update_engineer_orders_ui(
                                 padding: UiRect::all(Val::Px(8.0)),
                                 ..default()
                             },
-                            BackgroundColor(Color::srgba(0.2, 0.25, 0.35, 1.0)),
+                            BackgroundColor(NORMAL_BUTTON),
                             BuildPortButton,
                         ))
                         .with_children(|b| {
@@ -1031,7 +1083,7 @@ fn update_improver_orders_ui(
                                 padding: UiRect::all(Val::Px(8.0)),
                                 ..default()
                             },
-                            BackgroundColor(Color::srgba(0.2, 0.35, 0.2, 1.0)),
+                            BackgroundColor(NORMAL_BUTTON),
                             ImproveTileButton,
                         ))
                         .with_children(|b| {
@@ -1041,7 +1093,7 @@ fn update_improver_orders_ui(
                                     font_size: 14.0,
                                     ..default()
                                 },
-                                TextColor(Color::srgb(0.9, 0.95, 1.0)),
+                                TextColor(Color::srgb(0.9, 0.9, 1.0)),
                             ));
                         });
                 });

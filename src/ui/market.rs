@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use super::button_style::*;
 use crate::economy::{Good, PlayerNation, Treasury};
 use crate::ui::mode::GameMode;
 
@@ -113,7 +114,7 @@ pub fn ensure_market_screen_visible(
                             padding: UiRect::all(Val::Px(6.0)),
                             ..default()
                         },
-                        BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+                        BackgroundColor(NORMAL_BUTTON),
                         BuyClothButton,
                     ))
                     .with_children(|b| {
@@ -132,7 +133,7 @@ pub fn ensure_market_screen_visible(
                             padding: UiRect::all(Val::Px(6.0)),
                             ..default()
                         },
-                        BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+                        BackgroundColor(NORMAL_BUTTON),
                         SellClothButton,
                     ))
                     .with_children(|b| {
@@ -158,7 +159,7 @@ pub fn ensure_market_screen_visible(
                         padding: UiRect::all(Val::Px(6.0)),
                         ..default()
                     },
-                    BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+                    BackgroundColor(NORMAL_BUTTON),
                     crate::ui::mode::MapModeButton,
                 ))
                 .with_children(|b| {

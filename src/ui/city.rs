@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use super::button_style::*;
 use crate::civilians::CivilianKind;
 use crate::ui::mode::GameMode;
 
@@ -81,7 +82,7 @@ pub fn ensure_city_screen_visible(
                         padding: UiRect::all(Val::Px(6.0)),
                         ..default()
                     },
-                    BackgroundColor(Color::srgba(0.2, 0.2, 0.25, 1.0)),
+                    BackgroundColor(NORMAL_BUTTON),
                     crate::ui::mode::MapModeButton,
                 ))
                 .with_children(|b| {
@@ -260,7 +261,8 @@ pub fn ensure_city_screen_visible(
                                         align_items: AlignItems::Center,
                                         ..default()
                                     },
-                                    BackgroundColor(Color::srgba(0.2, 0.25, 0.2, 1.0)),
+                                    BackgroundColor(NORMAL_ACCENT),
+                                    AccentButton,
                                     HireCivilianButton(kind),
                                 ))
                                 .with_children(|b| {
