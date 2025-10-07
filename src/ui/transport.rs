@@ -1,7 +1,10 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
 
+use crate::economy::nation::PlayerNation;
+use crate::economy::production::ConnectedProduction;
 use crate::economy::{ImprovementKind, PlaceImprovement};
+use crate::resources::{ALL_RESOURCES, ResourceType};
 use crate::ui::logging::TerminalLogEvent;
 use crate::ui::mode::GameMode;
 
@@ -24,11 +27,8 @@ impl Plugin for TransportUIPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<TransportToolState>()
             .add_message::<TransportSelectTile>()
-            .add_systems(
-                OnEnter(GameMode::Transport),
-                ensure_transport_screen_visible,
-            )
-            .add_systems(OnExit(GameMode::Transport), hide_transport_screen)
+            .add_systems(OnEnter(GameMode::Transport), setup_transport_screen)
+            .add_systems(OnExit(GameMode::Transport), despawn_transport_screen)
             .add_systems(
                 Update,
                 handle_transport_selection.run_if(in_state(GameMode::Transport)),
@@ -44,13 +44,12 @@ pub fn handle_transport_selection(
 ) {
     for e in ev.read() {
         if let Some(a) = tool.first.take() {
-            // second click
             let b = e.pos;
             place_writer.write(PlaceImprovement {
                 a,
                 b,
                 kind: ImprovementKind::Road,
-                engineer: None, // Roads don't require an engineer
+                engineer: None,
             });
         } else {
             tool.first = Some(e.pos);
@@ -61,23 +60,20 @@ pub fn handle_transport_selection(
     }
 }
 
-pub fn ensure_transport_screen_visible(
+/// Create the transport screen UI when entering the transport game mode
+fn setup_transport_screen(
     mut commands: Commands,
-    mut roots: Query<&mut Visibility, With<TransportScreen>>,
+    production: Res<ConnectedProduction>,
+    player: Option<Res<PlayerNation>>,
 ) {
-    if let Ok(mut vis) = roots.single_mut() {
-        *vis = Visibility::Visible;
-        return;
-    }
+    let player_production = player.and_then(|p| production.0.get(&p.0));
 
     commands
         .spawn((
             Node {
                 position_type: PositionType::Absolute,
-                left: Val::Px(0.0),
-                right: Val::Px(0.0),
-                top: Val::Px(0.0),
-                bottom: Val::Px(0.0),
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
                 padding: UiRect::all(Val::Px(16.0)),
                 flex_direction: FlexDirection::Column,
                 row_gap: Val::Px(12.0),
@@ -85,11 +81,10 @@ pub fn ensure_transport_screen_visible(
             },
             BackgroundColor(Color::srgba(0.05, 0.06, 0.08, 0.92)),
             TransportScreen,
-            Visibility::Visible,
         ))
         .with_children(|parent| {
             parent.spawn((
-                Text::new("Transport Mode: Allocate transport capacity"),
+                Text::new("Transport Mode: Connected Production"),
                 TextFont {
                     font_size: 20.0,
                     ..default()
@@ -97,9 +92,39 @@ pub fn ensure_transport_screen_visible(
                 TextColor(Color::srgb(0.9, 0.95, 1.0)),
             ));
 
-            // TODO: Add capacity allocation sliders here
+            parent
+                .spawn(Node {
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(4.0),
+                    margin: UiRect {
+                        top: Val::Px(20.0),
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|list| {
+                    for &res_type in ALL_RESOURCES {
+                        let (count, total) = player_production
+                            .and_then(|p| p.get(&res_type))
+                            .copied()
+                            .unwrap_or((0, 0));
 
-            // Back to Map
+                        let text_content = format!(
+                            "{:?}: {} improvements (producing {} units)",
+                            res_type, count, total
+                        );
+
+                        list.spawn((
+                            Text::new(text_content),
+                            TextFont {
+                                font_size: 14.0,
+                                ..default()
+                            },
+                            TextColor(Color::srgb(0.8, 0.8, 0.9)),
+                        ));
+                    }
+                });
+
             parent
                 .spawn((
                     Button,
@@ -126,8 +151,12 @@ pub fn ensure_transport_screen_visible(
         });
 }
 
-pub fn hide_transport_screen(mut roots: Query<&mut Visibility, With<TransportScreen>>) {
-    for mut vis in roots.iter_mut() {
-        *vis = Visibility::Hidden;
+/// Despawn the transport screen UI when exiting the transport game mode
+fn despawn_transport_screen(
+    mut commands: Commands,
+    query: Query<Entity, With<TransportScreen>>,
+) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn();
     }
 }

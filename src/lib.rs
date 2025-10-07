@@ -199,6 +199,7 @@ pub fn app() -> App {
     .insert_resource(Calendar::default())
     .insert_resource(Roads::default())
     .insert_resource(Rails::default())
+    .insert_resource(economy::production::ConnectedProduction::default())
     .add_message::<PlaceImprovement>()
     .add_systems(Startup, (setup_camera,))
     // Start loading terrain atlas at startup
@@ -221,6 +222,8 @@ pub fn app() -> App {
             economy::transport::apply_improvements,
             economy::transport::compute_rail_connectivity
                 .after(economy::transport::apply_improvements),
+            economy::production::calculate_connected_production
+                .after(economy::transport::compute_rail_connectivity),
             economy::production::run_production,
             // Advance rail construction at the start of each player turn
             economy::transport::advance_rail_construction

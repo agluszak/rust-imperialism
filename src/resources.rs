@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 /// Types of resources that can be found/developed on tiles
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ResourceType {
     // Agriculture
     Grain,
@@ -20,6 +20,21 @@ pub enum ResourceType {
     // Oil (requires Oil Drilling tech to prospect)
     Oil,
 }
+
+/// Static list of all resource types for easy iteration.
+pub const ALL_RESOURCES: &[ResourceType] = &[
+    ResourceType::Grain,
+    ResourceType::Fruit,
+    ResourceType::Cotton,
+    ResourceType::Wool,
+    ResourceType::Livestock,
+    ResourceType::Timber,
+    ResourceType::Coal,
+    ResourceType::Iron,
+    ResourceType::Gold,
+    ResourceType::Gems,
+    ResourceType::Oil,
+];
 
 /// Development level of a resource (0-3)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
