@@ -19,7 +19,13 @@ impl TerrainGenerator {
 
     /// Generate terrain for a given tile position
     /// Returns a TerrainType based on multiple noise layers
-    pub fn generate_terrain(&self, x: u32, y: u32, map_size_x: u32, map_size_y: u32) -> TerrainType {
+    pub fn generate_terrain(
+        &self,
+        x: u32,
+        y: u32,
+        map_size_x: u32,
+        map_size_y: u32,
+    ) -> TerrainType {
         // Normalize coordinates to [0, 1] range
         let norm_x = x as f64 / map_size_x as f64;
         let norm_y = y as f64 / map_size_y as f64;
@@ -47,9 +53,8 @@ impl TerrainGenerator {
             / 2.0;
 
         // Combine noise layers to determine terrain type
-        let terrain_type = self.classify_terrain(elevation, moisture, temperature);
 
-        terrain_type
+        self.classify_terrain(elevation, moisture, temperature)
     }
 
     /// Classify terrain based on elevation, moisture, and temperature
@@ -64,13 +69,23 @@ impl TerrainGenerator {
             return TerrainType::Mountain;
         }
 
+        // Hills: moderate-high elevation
+        if elevation > 0.6 && elevation <= 0.7 {
+            return TerrainType::Hills;
+        }
+
         // For mid-elevation areas, use moisture and temperature with more nuanced classification
         if moisture > 0.6 && temperature > 0.4 {
             TerrainType::Forest // High moisture = forests
         } else if moisture < 0.35 && temperature > 0.6 {
             TerrainType::Desert // Low moisture + high temp = desert
         } else if moisture < 0.4 && elevation > 0.55 {
-            TerrainType::Mountain // Dry high areas = rocky mountains
+            TerrainType::Hills // Dry high areas = hills
+        } else if moisture > 0.35 && moisture < 0.55 && temperature > 0.3 && temperature < 0.7 {
+            // Moderate moisture and temperature = ideal farmland
+            TerrainType::Farmland
+        } else if moisture < 0.25 && temperature < 0.3 {
+            TerrainType::Swamp // Low temp + low moisture in lowlands
         } else {
             TerrainType::Grass // Default grassland
         }

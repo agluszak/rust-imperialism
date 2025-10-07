@@ -4,7 +4,7 @@ use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
 use crate::constants::MAP_SIZE;
 use crate::province::{City, Province, ProvinceId};
 use crate::province_gen::generate_provinces;
-use crate::tile_pos::{HexExt, TilePosExt};
+use crate::tile_pos::TilePosExt; // HexExt used for trait methods: to_hex(), distance_to()
 use crate::tiles::TerrainType;
 
 /// Resource to track if provinces have been generated
@@ -30,13 +30,8 @@ pub fn generate_provinces_system(
 
     info!("Generating provinces...");
 
-    let _province_entities = generate_provinces(
-        &mut commands,
-        tile_storage,
-        &tile_types,
-        MAP_SIZE,
-        MAP_SIZE,
-    );
+    let _province_entities =
+        generate_provinces(&mut commands, tile_storage, &tile_types, MAP_SIZE, MAP_SIZE);
 
     // Cities will be spawned when provinces are assigned to countries
 
@@ -69,18 +64,21 @@ pub fn assign_provinces_to_countries(
         return;
     }
 
-    info!("Assigning {} provinces to countries...", province_list.len());
+    info!(
+        "Assigning {} provinces to countries...",
+        province_list.len()
+    );
 
     // Define number of countries (for now, let's say 3-5 based on province count)
     let num_countries = ((province_list.len() / 8).max(3)).min(5);
 
     // Define distinct nation colors
     let nation_colors = [
-        Color::srgb(0.2, 0.4, 0.8),  // Blue
-        Color::srgb(0.8, 0.2, 0.2),  // Red
-        Color::srgb(0.2, 0.7, 0.3),  // Green
-        Color::srgb(0.9, 0.7, 0.1),  // Yellow
-        Color::srgb(0.7, 0.2, 0.7),  // Purple
+        Color::srgb(0.2, 0.4, 0.8), // Blue
+        Color::srgb(0.8, 0.2, 0.2), // Red
+        Color::srgb(0.2, 0.7, 0.3), // Green
+        Color::srgb(0.9, 0.7, 0.1), // Yellow
+        Color::srgb(0.7, 0.2, 0.7), // Purple
     ];
 
     // Create countries
@@ -152,7 +150,9 @@ pub fn assign_provinces_to_countries(
             assigned.insert(prov_id);
 
             // Find the province entity and city tile
-            if let Some(&(prov_entity, _, prov_city)) = province_list.iter().find(|(_, id, _)| *id == prov_id) {
+            if let Some(&(prov_entity, _, prov_city)) =
+                province_list.iter().find(|(_, id, _)| *id == prov_id)
+            {
                 assign_province_to_country(
                     &mut commands,
                     &mut provinces,
@@ -171,7 +171,7 @@ pub fn assign_provinces_to_countries(
 
     // Handle any remaining unassigned provinces
     for (province_entity, province_id, city_tile) in province_list.iter() {
-        if !assigned.contains(&province_id) {
+        if !assigned.contains(province_id) {
             let country_entity = country_entities[country_idx % num_countries];
             assign_province_to_country(
                 &mut commands,
@@ -189,18 +189,21 @@ pub fn assign_provinces_to_countries(
     }
 
     // Spawn an Engineer for the player near their capital
-    if let Some(player_entity) = country_entities.first() {
-        if let Some(player_capital) = province_list.first() {
-            let engineer_pos = player_capital.2; // Use capital tile for now
-            commands.spawn(crate::civilians::Civilian {
-                kind: crate::civilians::CivilianKind::Engineer,
-                position: engineer_pos,
-                owner: *player_entity,
-                selected: false,
-                has_moved: false,
-            });
-            info!("Spawned Engineer for player at ({}, {})", engineer_pos.x, engineer_pos.y);
-        }
+    if let Some(player_entity) = country_entities.first()
+        && let Some(player_capital) = province_list.first()
+    {
+        let engineer_pos = player_capital.2; // Use capital tile for now
+        commands.spawn(crate::civilians::Civilian {
+            kind: crate::civilians::CivilianKind::Engineer,
+            position: engineer_pos,
+            owner: *player_entity,
+            selected: false,
+            has_moved: false,
+        });
+        info!(
+            "Spawned Engineer for player at ({}, {})",
+            engineer_pos.x, engineer_pos.y
+        );
     }
 
     info!("Province assignment complete!");
@@ -242,7 +245,9 @@ fn assign_province_to_country(
 }
 
 /// Build adjacency map for provinces based on shared tiles
-fn build_province_adjacency(provinces: &Query<(Entity, &mut Province)>) -> std::collections::HashMap<ProvinceId, Vec<ProvinceId>> {
+fn build_province_adjacency(
+    provinces: &Query<(Entity, &mut Province)>,
+) -> std::collections::HashMap<ProvinceId, Vec<ProvinceId>> {
     use std::collections::{HashMap, HashSet};
 
     let mut adjacency: HashMap<ProvinceId, HashSet<ProvinceId>> = HashMap::new();
@@ -277,7 +282,10 @@ fn build_province_adjacency(provinces: &Query<(Entity, &mut Province)>) -> std::
     }
 
     // Convert to Vec for easier iteration
-    adjacency.into_iter().map(|(k, v)| (k, v.into_iter().collect())).collect()
+    adjacency
+        .into_iter()
+        .map(|(k, v)| (k, v.into_iter().collect()))
+        .collect()
 }
 
 /// Get connected provinces using flood-fill
@@ -321,4 +329,3 @@ fn get_connected_provinces(
 
     connected
 }
-

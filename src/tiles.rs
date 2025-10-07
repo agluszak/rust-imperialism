@@ -10,6 +10,7 @@ pub enum TerrainType {
     Forest,   // Dense vegetation - cover bonus, moderate movement cost
     Desert,   // Harsh terrain - movement penalty, low resources
     Swamp,    // Wetlands - difficult terrain
+    Farmland, // Cultivated agricultural land
 }
 
 /// Predefined tile types with their indices in the terrain_atlas.png
@@ -25,8 +26,8 @@ impl TileIndex {
     pub const SWAMP: u32 = 4; // pictuniv.gob_2_10004
     pub const WATER: u32 = 5; // pictuniv.gob_2_10005
     pub const DESERT: u32 = 6; // pictuniv.gob_2_10006
+    pub const FARMLAND: u32 = 7; // pictuniv.gob_2_10007
     // Additional terrain types in atlas (not currently used in game):
-    // Index 7: farmland (pictuniv.gob_2_10007)
     // Index 8: cotton (pictuniv.gob_2_10008)
     // Index 9: cattle (pictuniv.gob_2_10009)
     // Index 10: horses (pictuniv.gob_2_10012)
@@ -45,6 +46,7 @@ impl TerrainType {
             TerrainType::Desert => TileIndex::DESERT,
             TerrainType::Forest => TileIndex::FOREST,
             TerrainType::Swamp => TileIndex::SWAMP,
+            TerrainType::Farmland => TileIndex::FARMLAND,
         }
     }
 }

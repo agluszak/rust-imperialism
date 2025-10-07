@@ -106,6 +106,7 @@ pub fn update_tile_info_display(
                         TerrainType::Forest => "Forest",
                         TerrainType::Desert => "Desert",
                         TerrainType::Swamp => "Swamp",
+                        TerrainType::Farmland => "Farmland",
                     };
                     tile_info.push_str(&format!("\nTerrain: {}", terrain_name));
 
@@ -130,7 +131,8 @@ pub fn update_tile_info_display(
                                 if province.city_tile == tile_pos {
                                     for city in cities.iter() {
                                         if city.province == tile_prov.province_id {
-                                            let city_type = if city.is_capital { "Capital" } else { "City" };
+                                            let city_type =
+                                                if city.is_capital { "Capital" } else { "City" };
                                             tile_info.push_str(&format!("\n{}", city_type));
                                             break;
                                         }

@@ -52,6 +52,20 @@ pub enum JobType {
     ImprovingTile,
 }
 
+impl JobType {
+    /// Get the number of turns required for this job type
+    pub fn duration(&self) -> u32 {
+        match self {
+            JobType::BuildingRail => 3,
+            JobType::BuildingDepot => 2,
+            JobType::BuildingPort => 2,
+            JobType::Mining => 2,
+            JobType::Prospecting => 1,
+            JobType::ImprovingTile => 2,
+        }
+    }
+}
+
 /// Visual marker for civilian unit sprites
 #[derive(Component)]
 pub struct CivilianVisual(pub Entity); // Points to the Civilian entity
@@ -67,6 +81,14 @@ pub struct BuildDepotButton;
 /// Marker for Build Port button
 #[derive(Component)]
 pub struct BuildPortButton;
+
+/// Marker for resource improver orders UI panel (Farmer, Rancher, etc.)
+#[derive(Component)]
+pub struct ImproverOrdersPanel;
+
+/// Marker for Improve Tile button
+#[derive(Component)]
+pub struct ImproveTileButton;
 
 #[derive(Debug, Clone, Copy)]
 pub enum CivilianOrderKind {
@@ -132,7 +154,9 @@ impl Plugin for CivilianPlugin {
                     execute_prospector_orders,
                     execute_civilian_improvement_orders,
                     update_engineer_orders_ui,
+                    update_improver_orders_ui,
                     handle_order_button_clicks,
+                    handle_improver_button_clicks,
                     render_civilian_visuals,
                     update_civilian_visual_colors,
                 )
@@ -240,13 +264,13 @@ fn tile_owned_by_nation(
     tile_provinces: &Query<&crate::province::TileProvince>,
     provinces: &Query<&crate::province::Province>,
 ) -> bool {
-    if let Some(tile_entity) = tile_storage.get(&tile_pos) {
-        if let Ok(tile_province) = tile_provinces.get(tile_entity) {
-            // Find the province entity with this ProvinceId
-            for province in provinces.iter() {
-                if province.id == tile_province.province_id {
-                    return province.owner == Some(nation_entity);
-                }
+    if let Some(tile_entity) = tile_storage.get(&tile_pos)
+        && let Ok(tile_province) = tile_provinces.get(tile_entity)
+    {
+        // Find the province entity with this ProvinceId
+        for province in provinces.iter() {
+            if province.id == tile_province.province_id {
+                return province.owner == Some(nation_entity);
             }
         }
     }
@@ -270,9 +294,19 @@ fn execute_engineer_orders(
         }
 
         // Check territory ownership for all operations
-        let has_territory_access = tile_storage_query.iter().next().map(|tile_storage| {
-            tile_owned_by_nation(civilian.position, civilian.owner, tile_storage, &tile_provinces, &provinces)
-        }).unwrap_or(false);
+        let has_territory_access = tile_storage_query
+            .iter()
+            .next()
+            .map(|tile_storage| {
+                tile_owned_by_nation(
+                    civilian.position,
+                    civilian.owner,
+                    tile_storage,
+                    &tile_provinces,
+                    &provinces,
+                )
+            })
+            .unwrap_or(false);
 
         if !has_territory_access {
             log_events.write(crate::ui::logging::TerminalLogEvent {
@@ -288,9 +322,19 @@ fn execute_engineer_orders(
         match order.target {
             CivilianOrderKind::BuildRail { to } => {
                 // Also check target tile ownership
-                let target_owned = tile_storage_query.iter().next().map(|tile_storage| {
-                    tile_owned_by_nation(to, civilian.owner, tile_storage, &tile_provinces, &provinces)
-                }).unwrap_or(false);
+                let target_owned = tile_storage_query
+                    .iter()
+                    .next()
+                    .map(|tile_storage| {
+                        tile_owned_by_nation(
+                            to,
+                            civilian.owner,
+                            tile_storage,
+                            &tile_provinces,
+                            &provinces,
+                        )
+                    })
+                    .unwrap_or(false);
 
                 if !target_owned {
                     log_events.write(crate::ui::logging::TerminalLogEvent {
@@ -312,10 +356,13 @@ fn execute_engineer_orders(
                 });
                 // Move Engineer to the target tile after starting construction
                 civilian.position = to;
-                // Add job to lock Engineer for 3 turns
+                civilian.has_moved = true;
+                civilian.selected = false; // Auto-deselect after action
+                // Add job to lock Engineer
+                let job_type = JobType::BuildingRail;
                 commands.entity(entity).insert(CivilianJob {
-                    job_type: JobType::BuildingRail,
-                    turns_remaining: 3,
+                    job_type,
+                    turns_remaining: job_type.duration(),
                     target: to,
                 });
             }
@@ -326,10 +373,13 @@ fn execute_engineer_orders(
                     kind: ImprovementKind::Depot,
                     engineer: Some(entity),
                 });
-                // Add job to lock Engineer for 2 turns
+                civilian.has_moved = true;
+                civilian.selected = false; // Auto-deselect after action
+                // Add job to lock Engineer
+                let job_type = JobType::BuildingDepot;
                 commands.entity(entity).insert(CivilianJob {
-                    job_type: JobType::BuildingDepot,
-                    turns_remaining: 2,
+                    job_type,
+                    turns_remaining: job_type.duration(),
                     target: civilian.position,
                 });
             }
@@ -340,10 +390,13 @@ fn execute_engineer_orders(
                     kind: ImprovementKind::Port,
                     engineer: Some(entity),
                 });
-                // Add job to lock Engineer for 2 turns
+                civilian.has_moved = true;
+                civilian.selected = false; // Auto-deselect after action
+                // Add job to lock Engineer
+                let job_type = JobType::BuildingPort;
                 commands.entity(entity).insert(CivilianJob {
-                    job_type: JobType::BuildingPort,
-                    turns_remaining: 2,
+                    job_type,
+                    turns_remaining: job_type.duration(),
                     target: civilian.position,
                 });
             }
@@ -372,9 +425,19 @@ fn execute_move_orders(
     for (entity, mut civilian, order) in civilians.iter_mut() {
         if let CivilianOrderKind::Move { to } = order.target {
             // Check if target tile is owned by the civilian's nation
-            let target_owned = tile_storage_query.iter().next().map(|tile_storage| {
-                tile_owned_by_nation(to, civilian.owner, tile_storage, &tile_provinces, &provinces)
-            }).unwrap_or(false);
+            let target_owned = tile_storage_query
+                .iter()
+                .next()
+                .map(|tile_storage| {
+                    tile_owned_by_nation(
+                        to,
+                        civilian.owner,
+                        tile_storage,
+                        &tile_provinces,
+                        &provinces,
+                    )
+                })
+                .unwrap_or(false);
 
             if !target_owned {
                 log_events.write(crate::ui::logging::TerminalLogEvent {
@@ -390,12 +453,10 @@ fn execute_move_orders(
             // Simple movement: just set position (TODO: implement pathfinding)
             civilian.position = to;
             civilian.has_moved = true;
+            civilian.selected = false; // Auto-deselect after moving
 
             log_events.write(crate::ui::logging::TerminalLogEvent {
-                message: format!(
-                    "{:?} moved to ({}, {})",
-                    civilian.kind, to.x, to.y
-                ),
+                message: format!("{:?} moved to ({}, {})", civilian.kind, to.x, to.y),
             });
 
             commands.entity(entity).remove::<CivilianOrder>();
@@ -420,9 +481,19 @@ fn execute_prospector_orders(
         }
 
         // Check territory ownership
-        let has_territory_access = tile_storage_query.iter().next().map(|tile_storage| {
-            tile_owned_by_nation(civilian.position, civilian.owner, tile_storage, &tile_provinces, &provinces)
-        }).unwrap_or(false);
+        let has_territory_access = tile_storage_query
+            .iter()
+            .next()
+            .map(|tile_storage| {
+                tile_owned_by_nation(
+                    civilian.position,
+                    civilian.owner,
+                    tile_storage,
+                    &tile_provinces,
+                    &provinces,
+                )
+            })
+            .unwrap_or(false);
 
         if !has_territory_access {
             log_events.write(crate::ui::logging::TerminalLogEvent {
@@ -435,43 +506,39 @@ fn execute_prospector_orders(
             continue;
         }
 
-        match order.target {
-            CivilianOrderKind::Prospect => {
-                // Find tile entity and check for hidden mineral
-                if let Some(tile_storage) = tile_storage_query.iter().next() {
-                    if let Some(tile_entity) = tile_storage.get(&civilian.position) {
-                        if let Ok(mut resource) = tile_resources.get_mut(tile_entity) {
-                            if !resource.discovered {
-                                resource.discovered = true;
-                                log_events.write(crate::ui::logging::TerminalLogEvent {
-                                    message: format!(
-                                        "Prospector discovered {:?} at ({}, {})!",
-                                        resource.resource_type,
-                                        civilian.position.x,
-                                        civilian.position.y
-                                    ),
-                                });
-                                civilian.has_moved = true;
-                            } else {
-                                log_events.write(crate::ui::logging::TerminalLogEvent {
-                                    message: format!(
-                                        "No hidden minerals at ({}, {})",
-                                        civilian.position.x, civilian.position.y
-                                    ),
-                                });
-                            }
-                        } else {
-                            log_events.write(crate::ui::logging::TerminalLogEvent {
-                                message: format!(
-                                    "No mineral deposits at ({}, {})",
-                                    civilian.position.x, civilian.position.y
-                                ),
-                            });
-                        }
+        if let CivilianOrderKind::Prospect = order.target {
+            // Find tile entity and check for hidden mineral
+            if let Some(tile_storage) = tile_storage_query.iter().next()
+                && let Some(tile_entity) = tile_storage.get(&civilian.position)
+            {
+                if let Ok(mut resource) = tile_resources.get_mut(tile_entity) {
+                    if !resource.discovered {
+                        resource.discovered = true;
+                        log_events.write(crate::ui::logging::TerminalLogEvent {
+                            message: format!(
+                                "Prospector discovered {:?} at ({}, {})!",
+                                resource.resource_type, civilian.position.x, civilian.position.y
+                            ),
+                        });
+                        civilian.has_moved = true;
+                        civilian.selected = false; // Auto-deselect after action
+                    } else {
+                        log_events.write(crate::ui::logging::TerminalLogEvent {
+                            message: format!(
+                                "No hidden minerals at ({}, {})",
+                                civilian.position.x, civilian.position.y
+                            ),
+                        });
                     }
+                } else {
+                    log_events.write(crate::ui::logging::TerminalLogEvent {
+                        message: format!(
+                            "No mineral deposits at ({}, {})",
+                            civilian.position.x, civilian.position.y
+                        ),
+                    });
                 }
             }
-            _ => {}
         }
 
         commands.entity(entity).remove::<CivilianOrder>();
@@ -485,7 +552,7 @@ fn execute_civilian_improvement_orders(
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
     tile_provinces: Query<&crate::province::TileProvince>,
     provinces: Query<&crate::province::Province>,
-    mut tile_resources: Query<&mut crate::resources::TileResource>,
+    tile_resources: Query<&mut crate::resources::TileResource>,
     mut log_events: MessageWriter<crate::ui::logging::TerminalLogEvent>,
 ) {
     for (entity, mut civilian, order) in civilians.iter_mut() {
@@ -504,9 +571,19 @@ fn execute_civilian_improvement_orders(
         }
 
         // Check territory ownership
-        let has_territory_access = tile_storage_query.iter().next().map(|tile_storage| {
-            tile_owned_by_nation(civilian.position, civilian.owner, tile_storage, &tile_provinces, &provinces)
-        }).unwrap_or(false);
+        let has_territory_access = tile_storage_query
+            .iter()
+            .next()
+            .map(|tile_storage| {
+                tile_owned_by_nation(
+                    civilian.position,
+                    civilian.owner,
+                    tile_storage,
+                    &tile_provinces,
+                    &provinces,
+                )
+            })
+            .unwrap_or(false);
 
         if !has_territory_access {
             log_events.write(crate::ui::logging::TerminalLogEvent {
@@ -519,63 +596,68 @@ fn execute_civilian_improvement_orders(
             continue;
         }
 
-        match order.target {
-            CivilianOrderKind::ImproveTile => {
-                // Find tile entity and improve resource
-                if let Some(tile_storage) = tile_storage_query.iter().next() {
-                    if let Some(tile_entity) = tile_storage.get(&civilian.position) {
-                        if let Ok(mut resource) = tile_resources.get_mut(tile_entity) {
-                            // Check if this civilian can improve this resource
-                            let can_improve = match civilian.kind {
-                                CivilianKind::Farmer => resource.improvable_by_farmer(),
-                                CivilianKind::Rancher => resource.improvable_by_rancher(),
-                                CivilianKind::Forester => resource.improvable_by_forester(),
-                                CivilianKind::Miner => resource.improvable_by_miner(),
-                                CivilianKind::Driller => resource.improvable_by_driller(),
-                                _ => false,
-                            };
+        if let CivilianOrderKind::ImproveTile = order.target {
+            // Find tile entity and validate resource
+            if let Some(tile_storage) = tile_storage_query.iter().next()
+                && let Some(tile_entity) = tile_storage.get(&civilian.position)
+            {
+                if let Ok(resource) = tile_resources.get(tile_entity) {
+                    // Check if this civilian can improve this resource
+                    let can_improve = match civilian.kind {
+                        CivilianKind::Farmer => resource.improvable_by_farmer(),
+                        CivilianKind::Rancher => resource.improvable_by_rancher(),
+                        CivilianKind::Forester => resource.improvable_by_forester(),
+                        CivilianKind::Miner => resource.improvable_by_miner(),
+                        CivilianKind::Driller => resource.improvable_by_driller(),
+                        _ => false,
+                    };
 
-                            if can_improve {
-                                if resource.improve() {
-                                    log_events.write(crate::ui::logging::TerminalLogEvent {
-                                        message: format!(
-                                            "{:?} improved {:?} at ({}, {}) to level {:?}",
-                                            civilian.kind,
-                                            resource.resource_type,
-                                            civilian.position.x,
-                                            civilian.position.y,
-                                            resource.development
-                                        ),
-                                    });
-                                    civilian.has_moved = true;
-                                } else {
-                                    log_events.write(crate::ui::logging::TerminalLogEvent {
-                                        message: format!(
-                                            "Resource already at max development at ({}, {})",
-                                            civilian.position.x, civilian.position.y
-                                        ),
-                                    });
-                                }
-                            } else {
-                                log_events.write(crate::ui::logging::TerminalLogEvent {
-                                    message: format!(
-                                        "{:?} cannot improve {:?}",
-                                        civilian.kind, resource.resource_type
-                                    ),
-                                });
-                            }
-                        } else {
-                            log_events.write(crate::ui::logging::TerminalLogEvent {
-                                message: format!(
-                                    "No improvable resource at ({}, {})",
-                                    civilian.position.x, civilian.position.y
-                                ),
-                            });
-                        }
+                    if can_improve && resource.development < crate::resources::DevelopmentLevel::Lv3
+                    {
+                        // Start improvement job
+                        let job_type = JobType::ImprovingTile;
+                        commands.entity(entity).insert(CivilianJob {
+                            job_type,
+                            turns_remaining: job_type.duration(),
+                            target: civilian.position,
+                        });
+
+                        log_events.write(crate::ui::logging::TerminalLogEvent {
+                            message: format!(
+                                "{:?} started improving {:?} at ({}, {}) - {} turns remaining",
+                                civilian.kind,
+                                resource.resource_type,
+                                civilian.position.x,
+                                civilian.position.y,
+                                job_type.duration()
+                            ),
+                        });
+                        civilian.has_moved = true;
+                        civilian.selected = false; // Auto-deselect after action
+                    } else if resource.development >= crate::resources::DevelopmentLevel::Lv3 {
+                        log_events.write(crate::ui::logging::TerminalLogEvent {
+                            message: format!(
+                                "Resource already at max development at ({}, {})",
+                                civilian.position.x, civilian.position.y
+                            ),
+                        });
+                    } else {
+                        log_events.write(crate::ui::logging::TerminalLogEvent {
+                            message: format!(
+                                "{:?} cannot improve {:?}",
+                                civilian.kind, resource.resource_type
+                            ),
+                        });
                     }
+                } else {
+                    log_events.write(crate::ui::logging::TerminalLogEvent {
+                        message: format!(
+                            "No improvable resource at ({}, {})",
+                            civilian.position.x, civilian.position.y
+                        ),
+                    });
                 }
             }
-            _ => {}
         }
 
         commands.entity(entity).remove::<CivilianOrder>();
@@ -606,6 +688,44 @@ pub fn advance_civilian_jobs(
                 "Job {:?} in progress for civilian {:?}: {} turns remaining",
                 job.job_type, entity, job.turns_remaining
             );
+        }
+    }
+}
+
+/// Complete improvement jobs when they finish
+pub fn complete_improvement_jobs(
+    civilians_with_jobs: Query<(&Civilian, &CivilianJob)>,
+    tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
+    mut tile_resources: Query<&mut crate::resources::TileResource>,
+    mut log_events: MessageWriter<crate::ui::logging::TerminalLogEvent>,
+) {
+    for (civilian, job) in civilians_with_jobs.iter() {
+        // Only process jobs that just completed (turns_remaining == 0)
+        if job.turns_remaining != 0 {
+            continue;
+        }
+
+        // Only process improvement jobs
+        if job.job_type != JobType::ImprovingTile {
+            continue;
+        }
+
+        // Find tile entity and complete improvement
+        if let Some(tile_storage) = tile_storage_query.iter().next()
+            && let Some(tile_entity) = tile_storage.get(&job.target)
+            && let Ok(mut resource) = tile_resources.get_mut(tile_entity)
+            && resource.improve()
+        {
+            log_events.write(crate::ui::logging::TerminalLogEvent {
+                message: format!(
+                    "{:?} completed improving {:?} at ({}, {}) to level {:?}",
+                    civilian.kind,
+                    resource.resource_type,
+                    job.target.x,
+                    job.target.y,
+                    resource.development
+                ),
+            });
         }
     }
 }
@@ -672,20 +792,34 @@ fn render_civilian_visuals(
     }
 }
 
-/// Update civilian visual colors based on selection and position changes
+/// Update civilian visual colors based on selection, job status, and movement
 fn update_civilian_visual_colors(
-    civilians: Query<(Entity, &Civilian)>,
+    civilians: Query<(Entity, &Civilian, Option<&CivilianJob>)>,
     mut visuals: Query<(&CivilianVisual, &mut Sprite, &mut Transform)>,
+    time: Res<Time>,
 ) {
+    // Calculate blink factor for working civilians (oscillates between 0.5 and 1.0)
+    let blink_factor = (time.elapsed_secs() * 2.0).sin() * 0.25 + 0.75;
+
     // Don't use Changed - just update every frame based on current state
-    for (civilian_entity, civilian) in civilians.iter() {
+    for (civilian_entity, civilian, job) in civilians.iter() {
         for (civilian_visual, mut sprite, mut transform) in visuals.iter_mut() {
             if civilian_visual.0 == civilian_entity {
-                // Update color based on selection (tint yellow when selected, white when not)
+                // Determine color based on state priority:
+                // 1. Selected (yellow)
+                // 2. Working on job (green blink)
+                // 3. Moved this turn (desaturated)
+                // 4. Default (white)
                 let color = if civilian.selected {
                     ENGINEER_SELECTED_COLOR
+                } else if job.is_some() {
+                    // Working: blink green
+                    Color::srgb(0.3 * blink_factor, 1.0 * blink_factor, 0.3 * blink_factor)
+                } else if civilian.has_moved {
+                    // Moved: desaturated (gray)
+                    Color::srgb(0.6, 0.6, 0.6)
                 } else {
-                    Color::WHITE // No tint for unselected
+                    Color::WHITE // Default: no tint
                 };
                 sprite.color = color;
 
@@ -800,7 +934,7 @@ fn update_engineer_orders_ui(
     }
 }
 
-/// Handle button clicks in orders UI
+/// Handle button clicks in Engineer orders UI
 fn handle_order_button_clicks(
     interactions: Query<
         (
@@ -830,6 +964,116 @@ fn handle_order_button_clicks(
                         order: CivilianOrderKind::BuildPort,
                     });
                 }
+            }
+        }
+    }
+}
+
+/// Show/hide resource improver orders UI based on selection
+/// Only runs when Civilian selection state changes
+fn update_improver_orders_ui(
+    mut commands: Commands,
+    civilians: Query<&Civilian, Changed<Civilian>>,
+    all_civilians: Query<&Civilian>,
+    existing_panel: Query<(Entity, &Children), With<ImproverOrdersPanel>>,
+) {
+    // Only run if any Civilian changed (e.g., selection state)
+    if civilians.is_empty() {
+        return;
+    }
+
+    let selected_improver = all_civilians.iter().find(|c| {
+        c.selected
+            && matches!(
+                c.kind,
+                CivilianKind::Farmer
+                    | CivilianKind::Rancher
+                    | CivilianKind::Forester
+                    | CivilianKind::Miner
+                    | CivilianKind::Driller
+            )
+    });
+
+    if let Some(improver) = selected_improver {
+        // Resource improver is selected, ensure panel exists
+        if existing_panel.is_empty() {
+            let panel_title = format!("{:?} Orders", improver.kind);
+            info!("Creating {} orders panel", panel_title);
+            commands
+                .spawn((
+                    Node {
+                        position_type: PositionType::Absolute,
+                        right: Val::Px(16.0),
+                        top: Val::Px(100.0),
+                        padding: UiRect::all(Val::Px(12.0)),
+                        flex_direction: FlexDirection::Column,
+                        row_gap: Val::Px(8.0),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgba(0.1, 0.15, 0.1, 0.95)),
+                    ImproverOrdersPanel,
+                ))
+                .with_children(|parent| {
+                    parent.spawn((
+                        Text::new(panel_title),
+                        TextFont {
+                            font_size: 18.0,
+                            ..default()
+                        },
+                        TextColor(Color::srgb(1.0, 0.95, 0.8)),
+                    ));
+
+                    // Improve Tile button
+                    parent
+                        .spawn((
+                            Button,
+                            Node {
+                                padding: UiRect::all(Val::Px(8.0)),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgba(0.2, 0.35, 0.2, 1.0)),
+                            ImproveTileButton,
+                        ))
+                        .with_children(|b| {
+                            b.spawn((
+                                Text::new("Improve Tile"),
+                                TextFont {
+                                    font_size: 14.0,
+                                    ..default()
+                                },
+                                TextColor(Color::srgb(0.9, 0.95, 1.0)),
+                            ));
+                        });
+                });
+        }
+    } else {
+        // No improver selected, remove panel and its children
+        for (entity, children) in existing_panel.iter() {
+            // Despawn all children first
+            for child in children.iter() {
+                commands.entity(child).despawn();
+            }
+            // Then despawn the panel itself
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+/// Handle button clicks in resource improver orders UI
+fn handle_improver_button_clicks(
+    interactions: Query<(&Interaction, &ImproveTileButton), Changed<Interaction>>,
+    selected_civilian: Query<(Entity, &Civilian), With<Civilian>>,
+    mut order_writer: MessageWriter<GiveCivilianOrder>,
+) {
+    for (interaction, _button) in interactions.iter() {
+        if *interaction == Interaction::Pressed {
+            // Find selected civilian
+            if let Some((entity, civilian)) = selected_civilian.iter().find(|(_, c)| c.selected) {
+                info!("Improve Tile button clicked for {:?}", civilian.kind);
+                order_writer.write(GiveCivilianOrder {
+                    entity,
+                    order: CivilianOrderKind::ImproveTile,
+                });
             }
         }
     }

@@ -11,6 +11,7 @@ use crate::helpers::picking::TilemapBackend;
 use crate::input::{InputPlugin, handle_tile_click};
 use crate::terrain_gen::TerrainGenerator;
 use crate::tile_pos::TilePosExt;
+use crate::tiles::TerrainType;
 use crate::transport_rendering::HoveredTile;
 use crate::transport_rendering::TransportRenderingPlugin;
 use crate::turn_system::TurnSystem;
@@ -27,8 +28,9 @@ use bevy::prelude::*;
 use bevy::prelude::{AppExtStates, Commands, IntoScheduleConfigs, in_state, info};
 use bevy_ecs_tilemap::TilemapPlugin;
 use bevy_ecs_tilemap::prelude::*;
-use bevy_inspector_egui::bevy_egui::EguiPlugin;
-use bevy_inspector_egui::quick::{StateInspectorPlugin, WorldInspectorPlugin};
+// Debug plugins (commented out but imports kept for easy re-enable)
+// use bevy_inspector_egui::bevy_egui::EguiPlugin;
+// use bevy_inspector_egui::quick::{StateInspectorPlugin, WorldInspectorPlugin};
 
 pub mod assets;
 pub mod bmp_loader;
@@ -98,16 +100,24 @@ fn tilemap_startup(
             let terrain_type = terrain_gen.generate_terrain(x, y, map_size.x, map_size.y);
             let texture_index = terrain_type.get_texture_index();
 
-            let tile_entity = commands
-                .spawn((
-                    TileBundle {
-                        position: tile_pos,
-                        tilemap_id: TilemapId(tilemap_entity),
-                        texture_index: TileTextureIndex(texture_index),
-                        ..default()
-                    },
-                    terrain_type, // Add the terrain type component
-                ))
+            let mut tile_entity_commands = commands.spawn((
+                TileBundle {
+                    position: tile_pos,
+                    tilemap_id: TilemapId(tilemap_entity),
+                    texture_index: TileTextureIndex(texture_index),
+                    ..default()
+                },
+                terrain_type, // Add the terrain type component
+            ));
+
+            // Add resources to farmland tiles
+            if terrain_type == TerrainType::Farmland {
+                tile_entity_commands.insert(resources::TileResource::visible(
+                    resources::ResourceType::Grain,
+                ));
+            }
+
+            let tile_entity = tile_entity_commands
                 .observe(handle_tile_click)
                 .observe(handle_tile_hover)
                 .observe(handle_tile_out)
@@ -167,6 +177,35 @@ fn setup_camera(mut commands: Commands) {
     ));
 }
 
+/// Center camera on player's capital when the game starts
+fn center_camera_on_capital(
+    mut camera: Query<&mut Transform, With<Camera2d>>,
+    player_nation: Option<Res<economy::PlayerNation>>,
+    capitals: Query<(&economy::Capital, &economy::NationId)>,
+) {
+    // Only run once when player nation is available
+    let Some(player) = player_nation else {
+        return;
+    };
+
+    // Find player's capital
+    for (capital, _nation_id) in capitals.iter() {
+        // Check if this capital belongs to the player's nation by checking the entity
+        // Since we can't directly query the entity's nation, we'll use the first capital we find
+        // (which should be the player's based on setup order)
+        if let Ok(mut transform) = camera.single_mut() {
+            let capital_world_pos = capital.0.to_world_pos();
+            transform.translation.x = capital_world_pos.x;
+            transform.translation.y = capital_world_pos.y;
+            info!(
+                "Camera centered on capital at ({:.1}, {:.1})",
+                capital_world_pos.x, capital_world_pos.y
+            );
+            return;
+        }
+    }
+}
+
 /// Track when mouse enters a tile
 fn handle_tile_hover(
     trigger: On<Pointer<Over>>,
@@ -182,7 +221,6 @@ fn handle_tile_hover(
 fn handle_tile_out(_trigger: On<Pointer<Out>>, mut hovered_tile: ResMut<HoveredTile>) {
     hovered_tile.0 = None;
 }
-
 
 pub fn app() -> App {
     let mut app = App::new();
@@ -210,11 +248,15 @@ pub fn app() -> App {
     // Tilemap startup runs in Update and waits for atlas to be ready
     .add_systems(Update, tilemap_startup.run_if(in_state(AppState::InGame)))
     // Province generation runs after tilemap is created
-    .add_systems(Update, (
-        province_setup::generate_provinces_system,
-        province_setup::assign_provinces_to_countries
-            .after(province_setup::generate_provinces_system),
-    ).run_if(in_state(AppState::InGame)))
+    .add_systems(
+        Update,
+        (
+            province_setup::generate_provinces_system,
+            province_setup::assign_provinces_to_countries
+                .after(province_setup::generate_provinces_system),
+        )
+            .run_if(in_state(AppState::InGame)),
+    )
     // Economy systems
     .add_systems(
         Update,
@@ -237,6 +279,12 @@ pub fn app() -> App {
                 .run_if(|turn_system: Res<TurnSystem>| {
                     turn_system.phase == turn_system::TurnPhase::PlayerTurn
                 }),
+            // Complete improvement jobs before advancing (so we can log completion)
+            civilians::complete_improvement_jobs
+                .run_if(resource_changed::<TurnSystem>)
+                .run_if(|turn_system: Res<TurnSystem>| {
+                    turn_system.phase == turn_system::TurnPhase::PlayerTurn
+                }),
             // Advance civilian jobs at the start of each player turn
             civilians::advance_civilian_jobs
                 .run_if(resource_changed::<TurnSystem>)
@@ -248,9 +296,12 @@ pub fn app() -> App {
     )
     .add_systems(
         Update,
-        camera::movement
-            .after(ui::handle_mouse_wheel_scroll)
-            .run_if(in_state(GameMode::Map)),
+        (
+            center_camera_on_capital.run_if(resource_added::<economy::PlayerNation>),
+            camera::movement
+                .after(ui::handle_mouse_wheel_scroll)
+                .run_if(in_state(GameMode::Map)),
+        ),
     )
     .add_plugins((
         TilemapPlugin,

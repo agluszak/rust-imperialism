@@ -36,27 +36,24 @@ pub fn calculate_connected_production(
 
     let mut process_improvement = |owner: Entity, position: TilePos| {
         let center_hex = position.to_hex();
-        let tiles_to_check =
-            center_hex.all_neighbors().iter().copied().chain(std::iter::once(center_hex));
+        let neighbors = center_hex.all_neighbors();
+        let tiles_to_check = neighbors.iter().copied().chain(std::iter::once(center_hex));
 
         for hex in tiles_to_check {
             if let Some(tile_pos) = hex.to_tile_pos() {
                 if processed_tiles.contains(&tile_pos) {
                     continue; // Avoid double-counting
                 }
-                if let Some(tile_entity) = tile_storage.get(&tile_pos) {
-                    if let Ok(resource) = tile_resources.get(tile_entity) {
-                        if resource.discovered && resource.get_output() > 0 {
-                            let nation_production =
-                                production.0.entry(owner).or_default();
-                            let entry = nation_production
-                                .entry(resource.resource_type)
-                                .or_default();
-                            entry.0 += 1; // Increment improvement count
-                            entry.1 += resource.get_output(); // Add production output
-                            processed_tiles.insert(tile_pos);
-                        }
-                    }
+                if let Some(tile_entity) = tile_storage.get(&tile_pos)
+                    && let Ok(resource) = tile_resources.get(tile_entity)
+                    && resource.discovered
+                    && resource.get_output() > 0
+                {
+                    let nation_production = production.0.entry(owner).or_default();
+                    let entry = nation_production.entry(resource.resource_type).or_default();
+                    entry.0 += 1; // Increment improvement count
+                    entry.1 += resource.get_output(); // Add production output
+                    processed_tiles.insert(tile_pos);
                 }
             }
         }

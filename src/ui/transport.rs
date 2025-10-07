@@ -4,7 +4,7 @@ use bevy_ecs_tilemap::prelude::TilePos;
 use crate::economy::nation::PlayerNation;
 use crate::economy::production::ConnectedProduction;
 use crate::economy::{ImprovementKind, PlaceImprovement};
-use crate::resources::{ALL_RESOURCES, ResourceType};
+use crate::resources::ALL_RESOURCES;
 use crate::ui::logging::TerminalLogEvent;
 use crate::ui::mode::GameMode;
 
@@ -152,10 +152,7 @@ fn setup_transport_screen(
 }
 
 /// Despawn the transport screen UI when exiting the transport game mode
-fn despawn_transport_screen(
-    mut commands: Commands,
-    query: Query<Entity, With<TransportScreen>>,
-) {
+fn despawn_transport_screen(mut commands: Commands, query: Query<Entity, With<TransportScreen>>) {
     for entity in query.iter() {
         commands.entity(entity).despawn();
     }

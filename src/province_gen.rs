@@ -26,12 +26,11 @@ pub fn generate_provinces(
     for y in 0..map_height {
         for x in 0..map_width {
             let pos = TilePos { x, y };
-            if let Some(tile_entity) = tile_storage.get(&pos) {
-                if let Ok(terrain) = tile_types.get(tile_entity) {
-                    if *terrain != TerrainType::Water {
-                        available_tiles.push(pos);
-                    }
-                }
+            if let Some(tile_entity) = tile_storage.get(&pos)
+                && let Ok(terrain) = tile_types.get(tile_entity)
+                && *terrain != TerrainType::Water
+            {
+                available_tiles.push(pos);
             }
         }
     }
@@ -82,9 +81,9 @@ pub fn generate_provinces(
         // Tag all tiles with their province
         for tile_pos in &province_tiles {
             if let Some(tile_entity) = tile_storage.get(tile_pos) {
-                commands.entity(tile_entity).insert(TileProvince {
-                    province_id: id,
-                });
+                commands
+                    .entity(tile_entity)
+                    .insert(TileProvince { province_id: id });
             }
         }
 
@@ -123,31 +122,32 @@ fn flood_fill_province(
             continue;
         }
 
-        if let Some(tile_entity) = tile_storage.get(&current) {
-            if let Ok(terrain) = tile_types.get(tile_entity) {
-                if *terrain == TerrainType::Water {
-                    continue;
-                }
+        if let Some(tile_entity) = tile_storage.get(&current)
+            && let Ok(terrain) = tile_types.get(tile_entity)
+        {
+            if *terrain == TerrainType::Water {
+                continue;
+            }
 
-                // Add to province
-                province_tiles.push(current);
+            // Add to province
+            province_tiles.push(current);
 
-                // Stop if we've reached target size
-                if province_tiles.len() >= MAX_PROVINCE_SIZE {
-                    break;
-                }
+            // Stop if we've reached target size
+            if province_tiles.len() >= MAX_PROVINCE_SIZE {
+                break;
+            }
 
-                // Add neighbors to queue
-                let hex = current.to_hex();
-                for neighbor_hex in hex.all_neighbors() {
-                    if let Some(neighbor_pos) = neighbor_hex.to_tile_pos() {
-                        // Check bounds
-                        if neighbor_pos.x < map_width && neighbor_pos.y < map_height {
-                            if !visited.contains(&neighbor_pos) {
-                                visited.insert(neighbor_pos);
-                                queue.push_back(neighbor_pos);
-                            }
-                        }
+            // Add neighbors to queue
+            let hex = current.to_hex();
+            for neighbor_hex in hex.all_neighbors() {
+                if let Some(neighbor_pos) = neighbor_hex.to_tile_pos() {
+                    // Check bounds
+                    if neighbor_pos.x < map_width
+                        && neighbor_pos.y < map_height
+                        && !visited.contains(&neighbor_pos)
+                    {
+                        visited.insert(neighbor_pos);
+                        queue.push_back(neighbor_pos);
                     }
                 }
             }

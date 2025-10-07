@@ -26,7 +26,6 @@ fn test_turn_system() {
     assert_eq!(turn_system.current_turn, 2); // New turn
 }
 
-
 /// Test UI state management (simplified)
 #[test]
 fn test_ui_state() {

@@ -129,34 +129,34 @@ fn can_build_rail_on_terrain(
     terrain: &TerrainType,
     technologies: &Technologies,
 ) -> (bool, Option<&'static str>) {
-        match terrain {
-            TerrainType::Water => {
-                // Cannot build rails on water
-                (false, Some("Cannot build rails on water"))
-            }
-            TerrainType::Mountain => {
-                if technologies.has(Technology::MountainEngineering) {
-                    (true, None)
-                } else {
-                    (false, Some("Mountain Engineering technology required"))
-                }
-            }
-            TerrainType::Hills => {
-                if technologies.has(Technology::HillGrading) {
-                    (true, None)
-                } else {
-                    (false, Some("Hill Grading technology required"))
-                }
-            }
-            TerrainType::Swamp => {
-                if technologies.has(Technology::SwampDrainage) {
-                    (true, None)
-                } else {
-                    (false, Some("Swamp Drainage technology required"))
-                }
-            }
-            _ => (true, None), // All other terrains are buildable by default
+    match terrain {
+        TerrainType::Water => {
+            // Cannot build rails on water
+            (false, Some("Cannot build rails on water"))
         }
+        TerrainType::Mountain => {
+            if technologies.has(Technology::MountainEngineering) {
+                (true, None)
+            } else {
+                (false, Some("Mountain Engineering technology required"))
+            }
+        }
+        TerrainType::Hills => {
+            if technologies.has(Technology::HillGrading) {
+                (true, None)
+            } else {
+                (false, Some("Hill Grading technology required"))
+            }
+        }
+        TerrainType::Swamp => {
+            if technologies.has(Technology::SwampDrainage) {
+                (true, None)
+            } else {
+                (false, Some("Swamp Drainage technology required"))
+            }
+        }
+        _ => (true, None), // All other terrains are buildable by default
+    }
 }
 
 /// Apply improvement placements (roads, rails, depots, ports) and charge the player treasury

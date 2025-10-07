@@ -40,14 +40,12 @@ pub fn create_test_tilemap(world: &mut World, width: u32, height: u32) -> (Entit
             let tile_pos = TilePos { x, y };
 
             let tile_entity = world
-                .spawn((
-                    TileBundle {
-                        position: tile_pos,
-                        tilemap_id: TilemapId(tilemap_entity),
-                        texture_index: TileTextureIndex(0),
-                        ..default()
-                    },
-                ))
+                .spawn((TileBundle {
+                    position: tile_pos,
+                    tilemap_id: TilemapId(tilemap_entity),
+                    texture_index: TileTextureIndex(0),
+                    ..default()
+                },))
                 .id();
 
             tile_storage.set(&tile_pos, tile_entity);

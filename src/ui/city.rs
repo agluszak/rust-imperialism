@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-use crate::ui::mode::GameMode;
 use crate::civilians::CivilianKind;
+use crate::ui::mode::GameMode;
 
 /// Marker for the root of the City UI screen
 #[derive(Component)]
@@ -234,9 +234,7 @@ pub fn ensure_city_screen_visible(
                     hiring
                         .spawn(Node {
                             display: Display::Grid,
-                            grid_template_columns: vec![
-                                RepeatedGridTrack::auto(3),
-                            ],
+                            grid_template_columns: vec![RepeatedGridTrack::auto(3)],
                             column_gap: Val::Px(8.0),
                             row_gap: Val::Px(8.0),
                             ..default()
@@ -348,17 +346,16 @@ fn spawn_hired_civilian(
 
         if treasury.0 < cost {
             log_events.write(crate::ui::logging::TerminalLogEvent {
-                message: format!("Not enough money to hire {:?} (need ${}, have ${})", event.kind, cost, treasury.0),
+                message: format!(
+                    "Not enough money to hire {:?} (need ${}, have ${})",
+                    event.kind, cost, treasury.0
+                ),
             });
             continue;
         }
 
         // Find unoccupied tile near capital
-        let spawn_pos = find_unoccupied_tile_near(
-            capital.0,
-            &tile_storage_query,
-            &civilians,
-        );
+        let spawn_pos = find_unoccupied_tile_near(capital.0, &tile_storage_query, &civilians);
 
         let Some(spawn_pos) = spawn_pos else {
             log_events.write(crate::ui::logging::TerminalLogEvent {
@@ -406,16 +403,15 @@ fn find_unoccupied_tile_near(
     // Check neighbors in expanding rings
     for radius in 1..=3 {
         for neighbor_hex in center_hex.ring(radius) {
-            if let Some(neighbor_pos) = neighbor_hex.to_tile_pos() {
-                if tile_storage_query
+            if let Some(neighbor_pos) = neighbor_hex.to_tile_pos()
+                && tile_storage_query
                     .iter()
                     .next()
                     .and_then(|storage| storage.get(&neighbor_pos))
                     .is_some()
-                    && !is_tile_occupied(neighbor_pos, civilians)
-                {
-                    return Some(neighbor_pos);
-                }
+                && !is_tile_occupied(neighbor_pos, civilians)
+            {
+                return Some(neighbor_pos);
             }
         }
     }

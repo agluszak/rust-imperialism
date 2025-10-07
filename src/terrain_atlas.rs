@@ -23,7 +23,7 @@ pub struct TerrainAtlasBuilder {
 
 const TILE_SIZE: u32 = 64;
 const ATLAS_TILES_WIDE: u32 = 4;
-const ATLAS_TILES_HIGH: u32 = 2; // We have 7 terrain types, so 4x2 = 8 slots
+const ATLAS_TILES_HIGH: u32 = 2; // We have 8 terrain types, so 4x2 = 8 slots
 
 /// Load all terrain tiles at startup
 pub fn start_terrain_atlas_loading(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -35,6 +35,7 @@ pub fn start_terrain_atlas_loading(mut commands: Commands, asset_server: Res<Ass
         ("glop/pictuniv.gob_2_10004.BMP.bmp", 4), // Swamp
         ("glop/pictuniv.gob_2_10005.BMP.bmp", 5), // Water
         ("glop/pictuniv.gob_2_10006.BMP.bmp", 6), // Desert
+        ("glop/pictuniv.gob_2_10007.BMP.bmp", 7), // Farmland
     ];
 
     let mut builder = TerrainAtlasBuilder::default();

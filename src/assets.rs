@@ -16,6 +16,7 @@ pub fn terrain_asset_path(terrain: TerrainType) -> &'static str {
         TerrainType::Forest => "glop/pictuniv.gob_2_10001.BMP.bmp",
         TerrainType::Desert => "glop/pictuniv.gob_2_10006.BMP.bmp",
         TerrainType::Swamp => "glop/pictuniv.gob_2_10004.BMP.bmp",
+        TerrainType::Farmland => "glop/pictuniv.gob_2_10007.BMP.bmp",
     }
 }
 

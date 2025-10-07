@@ -25,10 +25,7 @@ pub fn handle_tile_click(
     };
 
     // Find any selected civilian
-    let Some((civilian_entity, civilian)) = civilians
-        .iter()
-        .find(|(_, c)| c.selected)
-    else {
+    let Some((civilian_entity, civilian)) = civilians.iter().find(|(_, c)| c.selected) else {
         return;
     };
 
