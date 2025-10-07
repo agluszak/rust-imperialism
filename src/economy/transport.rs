@@ -57,7 +57,7 @@ pub struct RailConstruction {
     pub engineer: Entity, // Engineer entity that is building this
 }
 
-fn ordered_edge(a: TilePos, b: TilePos) -> (TilePos, TilePos) {
+pub fn ordered_edge(a: TilePos, b: TilePos) -> (TilePos, TilePos) {
     if (a.x, a.y) <= (b.x, b.y) {
         (a, b)
     } else {

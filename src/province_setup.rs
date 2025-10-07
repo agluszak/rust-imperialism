@@ -108,9 +108,12 @@ pub fn assign_provinces_to_countries(
             crate::economy::Technologies::default(),
         ));
 
-        // Player gets a textile mill
+        // Player gets a textile mill with default production settings
         if i == 0 {
-            country_builder.insert(crate::economy::Building::textile_mill(4));
+            country_builder.insert((
+                crate::economy::Building::textile_mill(8), // Capacity of 8
+                crate::economy::production::ProductionSettings::default(),
+            ));
         }
 
         let country_entity = country_builder.id();

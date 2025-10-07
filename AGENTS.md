@@ -30,12 +30,19 @@ Read @OVERVIEW.md to get a high-level overview of the Imperialism game.
   - **Borders**: Wide dual-color borders mark international boundaries; thin black borders separate provinces within a country
   - **Cities & Capitals**: Visual sprites show cities (town_small) and capitals (capital) at province centers
 
-- City (Production) Mode (MVP)
-  - UI overlay stub shows a City Overview with demo rows
-  - Production logic exists in the world:
-    - `Building::textile_mill(workers)` runs during Processing
-    - Recipe: `1x Wool + 1x Cotton → 1x Cloth` per worker, limited by inputs
-    - Attached to the Player nation at game start (workers = 4)
+- City (Production) Mode
+  - Full production UI with warehouse stockpile display (Wool, Cotton, Cloth)
+  - Dynamic building panels showing real Building + ProductionSettings data
+  - Production controls per building:
+    - Input choice buttons (Use Cotton / Use Wool for textile mill)
+    - +/- buttons to adjust target output (capped by capacity)
+    - Shows available inputs vs needed inputs
+  - Production logic (runs during Processing):
+    - `Building` with `capacity` (max output per turn)
+    - `ProductionSettings` with `choice` and `target_output` (persists turn-to-turn)
+    - Recipe: `2× Cotton OR 2× Wool → 1× Cloth` (strict 2:1 ratio)
+    - Auto-reduces target when inputs insufficient
+    - Player nation starts with Textile Mill (capacity 8)
 
 - Market Mode (MVP)
   - Two buttons: “Buy 1 Cloth ($50)”, “Sell 1 Cloth ($50)” (fixed price)
@@ -118,7 +125,7 @@ src/
   - `Treasury` (Component, per nation)
   - `Calendar` (Resource) — world time; `display()` returns e.g., "Spring, 1815"
   - `NationId`, `Name`, `NationColor`, `Capital` (Components); `PlayerNation(Entity)` (Resource)
-  - Production: `Building`, `BuildingKind::TextileMill(u8 workers)`; system: `run_production`
+  - Production: `Building` (with `capacity`), `BuildingKind::TextileMill`, `ProductionSettings` (choice + target_output); systems: `run_production`, `apply_production_settings_changes`
   - Transport: `ImprovementKind::Road|Rail|Depot|Port`, `PlaceImprovement { a, b, kind }`; `Roads`, `Rails` (Resources); system: `apply_improvements`
 
 - Civilians
@@ -172,6 +179,91 @@ src/
   - Example: economy systems run in `Update` while `in_state(AppState::InGame)`
   - Mode-specific UI logic can run with `run_if(in_state(GameMode::Transport))`, etc.
 
+## Architecture & Separation of Concerns
+
+The codebase maintains **strict separation** between Input, Logic, and Rendering layers:
+
+### Input Layer
+Input handlers only read interaction events and emit messages. They do not mutate game state or render anything.
+
+**Examples:**
+```rust
+fn handle_production_choice_buttons(
+    interactions: Query<(&Interaction, &ProductionChoiceButton), Changed<Interaction>>,
+    mut change_writer: MessageWriter<ChangeProductionSettings>,
+) {
+    // Only reads interaction, writes message - no state mutation
+    for (interaction, button) in interactions.iter() {
+        if *interaction == Interaction::Pressed {
+            change_writer.write(ChangeProductionSettings { ... });
+        }
+    }
+}
+```
+
+- `handle_civilian_click` → writes `SelectCivilian`
+- `handle_hire_button_clicks` → writes `HireCivilian`
+- `handle_tile_click` → routes to different messages based on `GameMode`
+- `handle_rescind_button_clicks` → writes `RescindOrders`
+
+### Logic Layer
+Logic systems process messages and update game state. They do not handle input or render anything.
+
+**Examples:**
+```rust
+pub fn run_production(
+    turn: Res<TurnSystem>,
+    mut q: Query<(&mut Stockpile, &Building, &mut ProductionSettings)>,
+) {
+    // Pure game logic - no input, no rendering
+    // Implements 2:1 production ratios
+    // Auto-reduces targets when inputs insufficient
+}
+```
+
+- `apply_production_settings_changes` - reads messages, mutates `ProductionSettings`
+- `execute_engineer_orders` - reads messages, validates ownership, spawns jobs
+- `handle_rescind_orders` - reads messages, restores state, handles refunds
+- `compute_rail_connectivity` - BFS over Rails, updates Depot/Port connectivity
+- `advance_civilian_jobs` - decrements job turns, removes completed jobs
+
+### Rendering Layer
+Rendering systems read game state and update visuals. They do not mutate game logic.
+
+**Examples:**
+```rust
+fn render_civilian_visuals(
+    mut commands: Commands,
+    all_civilians: Query<(Entity, &Civilian)>,
+    existing_visuals: Query<(Entity, &CivilianVisual)>,
+) {
+    // Reads game state, spawns/despawns sprites
+    // Does not mutate game logic
+}
+```
+
+- `update_civilian_visual_colors` - reads `Civilian` + `CivilianJob` state, updates sprite colors
+- `ensure_city_screen_visible` - reads buildings/stockpile, creates UI panels
+- `update_engineer_orders_ui` - reads selection state, shows/hides panels
+- `render_borders()` - reads province data, draws border lines
+- `render_transport_improvements()` - reads Roads/Rails, draws lines
+
+### Data Flow
+```
+User Input → Input Handler → Message
+                               ↓
+                          Logic System → Game State (Components/Resources)
+                                             ↓
+                                        Rendering System → Visuals (Sprites/UI)
+```
+
+**Key Principles:**
+- Input systems never mutate game state directly
+- Logic systems never query `Interaction` or spawn visual entities
+- Rendering systems never mutate gameplay components
+- Messages (`MessageWriter`/`MessageReader`) decouple input from logic
+- All three layers can coexist in the same file but remain conceptually separate
+
 ## Roadmap (short)
 
 1) **Province & City Interaction** ✅ DONE
@@ -185,9 +277,10 @@ src/
 - ✅ Render railway overlay (lines between hex centers)
 - 🔲 Reset selection on mode exit; adjacency validation with user feedback
 
-3) **City data-binding**
-- 🔲 Populate City screen from real `Building`s and `Stockpile`
-- 🔲 Add worker +/- controls (event-driven) and utilization bars
+3) **City data-binding** ✅ DONE
+- ✅ Populate City screen from real `Building`s and `Stockpile`
+- ✅ Add production +/- controls (event-driven) with input choice buttons
+- ✅ Show warehouse stockpile and available inputs vs needed
 - 🔲 Link cities to provinces and show province resources
 
 4) **Market v2**

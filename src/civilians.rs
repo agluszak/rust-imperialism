@@ -91,6 +91,24 @@ pub struct ImproverOrdersPanel;
 #[derive(Component)]
 pub struct ImproveTileButton;
 
+/// Marker for Rescind Orders button
+#[derive(Component)]
+pub struct RescindOrdersButton;
+
+/// Marker for rescind orders panel
+#[derive(Component)]
+pub struct RescindOrdersPanel;
+
+/// Stores the previous position of a civilian before they moved/acted
+/// Used to allow "undo" of moves at any time before the job completes
+#[derive(Component, Debug, Clone, Copy)]
+pub struct PreviousPosition(pub TilePos);
+
+/// Tracks which turn an action was taken on
+/// Used to determine if resources should be refunded when rescinding
+#[derive(Component, Debug, Clone, Copy)]
+pub struct ActionTurn(pub u32);
+
 #[derive(Debug, Clone, Copy)]
 pub enum CivilianOrderKind {
     BuildRail { to: TilePos }, // Build rail to adjacent tile
@@ -148,6 +166,12 @@ pub struct DeselectCivilian {
 #[derive(Message, Debug)]
 pub struct DeselectAllCivilians;
 
+/// Message: Rescind orders for a civilian (undo their action this turn)
+#[derive(Message, Debug, Clone, Copy)]
+pub struct RescindOrders {
+    pub entity: Entity,
+}
+
 pub struct CivilianPlugin;
 
 impl Plugin for CivilianPlugin {
@@ -156,6 +180,7 @@ impl Plugin for CivilianPlugin {
             .add_message::<GiveCivilianOrder>()
             .add_message::<DeselectCivilian>()
             .add_message::<DeselectAllCivilians>()
+            .add_message::<RescindOrders>()
             // Selection handler runs always to react to events immediately
             .add_systems(
                 Update,
@@ -174,10 +199,13 @@ impl Plugin for CivilianPlugin {
                     execute_engineer_orders,
                     execute_prospector_orders,
                     execute_civilian_improvement_orders,
+                    handle_rescind_orders,
                     update_engineer_orders_ui,
                     update_improver_orders_ui,
+                    update_rescind_orders_ui,
                     handle_order_button_clicks,
                     handle_improver_button_clicks,
+                    handle_rescind_button_clicks,
                     render_civilian_visuals,
                     update_civilian_visual_colors,
                 )
@@ -331,6 +359,8 @@ fn execute_engineer_orders(
     mut engineers: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
     mut improvement_writer: MessageWriter<PlaceImprovement>,
     mut deselect_writer: MessageWriter<DeselectCivilian>,
+    rails: Res<crate::economy::transport::Rails>,
+    turn: Res<crate::turn_system::TurnSystem>,
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
     tile_provinces: Query<&crate::province::TileProvince>,
     provinces: Query<&crate::province::Province>,
@@ -396,26 +426,58 @@ fn execute_engineer_orders(
                     continue;
                 }
 
-                // Send PlaceImprovement message with engineer entity
-                improvement_writer.write(PlaceImprovement {
-                    a: civilian.position,
-                    b: to,
-                    kind: ImprovementKind::Rail,
-                    engineer: Some(entity),
-                });
-                // Move Engineer to the target tile after starting construction
-                civilian.position = to;
-                civilian.has_moved = true;
-                deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
-                // Add job to lock Engineer
-                let job_type = JobType::BuildingRail;
-                commands.entity(entity).insert(CivilianJob {
-                    job_type,
-                    turns_remaining: job_type.duration(),
-                    target: to,
-                });
+                // Check if rail already exists
+                let edge = crate::economy::transport::ordered_edge(civilian.position, to);
+                let rail_exists = rails.0.contains(&edge);
+
+                // Store previous position for potential undo
+                let previous_pos = civilian.position;
+
+                if rail_exists {
+                    // Rail already exists - just move the engineer without starting a job
+                    log_events.write(crate::ui::logging::TerminalLogEvent {
+                        message: format!(
+                            "Rail already exists between ({}, {}) and ({}, {}). Engineer moved.",
+                            edge.0.x, edge.0.y, edge.1.x, edge.1.y
+                        ),
+                    });
+                    civilian.position = to;
+                    civilian.has_moved = true;
+                    deselect_writer.write(DeselectCivilian { entity });
+                    commands.entity(entity).insert((
+                        PreviousPosition(previous_pos),
+                        ActionTurn(turn.current_turn),
+                    ));
+                } else {
+                    // Rail doesn't exist - start construction
+                    // Send PlaceImprovement message with engineer entity
+                    improvement_writer.write(PlaceImprovement {
+                        a: civilian.position,
+                        b: to,
+                        kind: ImprovementKind::Rail,
+                        engineer: Some(entity),
+                    });
+                    // Move Engineer to the target tile after starting construction
+                    civilian.position = to;
+                    civilian.has_moved = true;
+                    deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
+                    // Add job to lock Engineer and previous position for rescinding
+                    let job_type = JobType::BuildingRail;
+                    commands.entity(entity).insert((
+                        CivilianJob {
+                            job_type,
+                            turns_remaining: job_type.duration(),
+                            target: to,
+                        },
+                        PreviousPosition(previous_pos),
+                        ActionTurn(turn.current_turn),
+                    ));
+                }
             }
             CivilianOrderKind::BuildDepot => {
+                // Store previous position for potential undo
+                let previous_pos = civilian.position;
+
                 improvement_writer.write(PlaceImprovement {
                     a: civilian.position,
                     b: civilian.position, // Depot is single-tile
@@ -424,15 +486,22 @@ fn execute_engineer_orders(
                 });
                 civilian.has_moved = true;
                 deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
-                // Add job to lock Engineer
+                // Add job to lock Engineer and previous position for rescinding
                 let job_type = JobType::BuildingDepot;
-                commands.entity(entity).insert(CivilianJob {
-                    job_type,
-                    turns_remaining: job_type.duration(),
-                    target: civilian.position,
-                });
+                commands.entity(entity).insert((
+                    CivilianJob {
+                        job_type,
+                        turns_remaining: job_type.duration(),
+                        target: civilian.position,
+                    },
+                    PreviousPosition(previous_pos),
+                    ActionTurn(turn.current_turn),
+                ));
             }
             CivilianOrderKind::BuildPort => {
+                // Store previous position for potential undo
+                let previous_pos = civilian.position;
+
                 improvement_writer.write(PlaceImprovement {
                     a: civilian.position,
                     b: civilian.position,
@@ -441,13 +510,17 @@ fn execute_engineer_orders(
                 });
                 civilian.has_moved = true;
                 deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
-                // Add job to lock Engineer
+                // Add job to lock Engineer and previous position for rescinding
                 let job_type = JobType::BuildingPort;
-                commands.entity(entity).insert(CivilianJob {
-                    job_type,
-                    turns_remaining: job_type.duration(),
-                    target: civilian.position,
-                });
+                commands.entity(entity).insert((
+                    CivilianJob {
+                        job_type,
+                        turns_remaining: job_type.duration(),
+                        target: civilian.position,
+                    },
+                    PreviousPosition(previous_pos),
+                    ActionTurn(turn.current_turn),
+                ));
             }
             CivilianOrderKind::Move { .. } => {
                 // Move orders are handled by execute_move_orders for all civilians
@@ -467,6 +540,7 @@ fn execute_move_orders(
     mut commands: Commands,
     mut civilians: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
     mut deselect_writer: MessageWriter<DeselectCivilian>,
+    turn: Res<crate::turn_system::TurnSystem>,
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
     tile_provinces: Query<&crate::province::TileProvince>,
     provinces: Query<&crate::province::Province>,
@@ -500,10 +574,19 @@ fn execute_move_orders(
                 continue;
             }
 
+            // Store previous position for potential undo
+            let previous_pos = civilian.position;
+
             // Simple movement: just set position (TODO: implement pathfinding)
             civilian.position = to;
             civilian.has_moved = true;
             deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after moving
+
+            // Add PreviousPosition and ActionTurn to allow rescinding
+            commands.entity(entity).insert((
+                PreviousPosition(previous_pos),
+                ActionTurn(turn.current_turn),
+            ));
 
             log_events.write(crate::ui::logging::TerminalLogEvent {
                 message: format!("{:?} moved to ({}, {})", civilian.kind, to.x, to.y),
@@ -519,6 +602,7 @@ fn execute_prospector_orders(
     mut commands: Commands,
     mut prospectors: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
     mut deselect_writer: MessageWriter<DeselectCivilian>,
+    turn: Res<crate::turn_system::TurnSystem>,
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
     tile_provinces: Query<&crate::province::TileProvince>,
     provinces: Query<&crate::province::Province>,
@@ -564,6 +648,9 @@ fn execute_prospector_orders(
             {
                 if let Ok(mut resource) = tile_resources.get_mut(tile_entity) {
                     if !resource.discovered {
+                        // Store previous position for potential undo
+                        let previous_pos = civilian.position;
+
                         resource.discovered = true;
                         log_events.write(crate::ui::logging::TerminalLogEvent {
                             message: format!(
@@ -573,6 +660,10 @@ fn execute_prospector_orders(
                         });
                         civilian.has_moved = true;
                         deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
+                        commands.entity(entity).insert((
+                            PreviousPosition(previous_pos),
+                            ActionTurn(turn.current_turn),
+                        ));
                     } else {
                         log_events.write(crate::ui::logging::TerminalLogEvent {
                             message: format!(
@@ -601,6 +692,7 @@ fn execute_civilian_improvement_orders(
     mut commands: Commands,
     mut civilians: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
     mut deselect_writer: MessageWriter<DeselectCivilian>,
+    turn: Res<crate::turn_system::TurnSystem>,
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
     tile_provinces: Query<&crate::province::TileProvince>,
     provinces: Query<&crate::province::Province>,
@@ -666,13 +758,20 @@ fn execute_civilian_improvement_orders(
 
                     if can_improve && resource.development < crate::resources::DevelopmentLevel::Lv3
                     {
+                        // Store previous position for potential undo
+                        let previous_pos = civilian.position;
+
                         // Start improvement job
                         let job_type = JobType::ImprovingTile;
-                        commands.entity(entity).insert(CivilianJob {
-                            job_type,
-                            turns_remaining: job_type.duration(),
-                            target: civilian.position,
-                        });
+                        commands.entity(entity).insert((
+                            CivilianJob {
+                                job_type,
+                                turns_remaining: job_type.duration(),
+                                target: civilian.position,
+                            },
+                            PreviousPosition(previous_pos),
+                            ActionTurn(turn.current_turn),
+                        ));
 
                         log_events.write(crate::ui::logging::TerminalLogEvent {
                             message: format!(
@@ -733,8 +832,11 @@ pub fn advance_civilian_jobs(
 
         if job.turns_remaining == 0 {
             info!("Job {:?} completed for civilian {:?}", job.job_type, entity);
-            // Remove the job component
-            commands.entity(entity).remove::<CivilianJob>();
+            // Remove the job component and action tracking (job can no longer be rescinded)
+            commands.entity(entity)
+                .remove::<CivilianJob>()
+                .remove::<PreviousPosition>()
+                .remove::<ActionTurn>();
         } else {
             info!(
                 "Job {:?} in progress for civilian {:?}: {} turns remaining",
@@ -1111,6 +1213,169 @@ fn update_improver_orders_ui(
     }
 }
 
+/// Update UI for rescind orders panel (shown for any civilian with PreviousPosition)
+fn update_rescind_orders_ui(
+    mut commands: Commands,
+    selected_civilians: Query<(Entity, &Civilian, &PreviousPosition), With<Civilian>>,
+    existing_panel: Query<(Entity, &Children), With<RescindOrdersPanel>>,
+) {
+    // Check if there's a selected civilian with PreviousPosition
+    let selected_with_prev = selected_civilians.iter().find(|(_, c, _)| c.selected);
+
+    if let Some((_entity, _civilian, prev_pos)) = selected_with_prev {
+        // Civilian is selected and has a previous position - show panel
+        if existing_panel.is_empty() {
+            // Create panel if it doesn't exist
+            commands
+                .spawn((
+                    Node {
+                        position_type: PositionType::Absolute,
+                        left: Val::Px(16.0),
+                        bottom: Val::Px(200.0),
+                        padding: UiRect::all(Val::Px(12.0)),
+                        flex_direction: FlexDirection::Column,
+                        row_gap: Val::Px(8.0),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgba(0.15, 0.12, 0.1, 0.95)),
+                    BorderColor::all(Color::srgba(0.6, 0.5, 0.4, 0.9)),
+                    RescindOrdersPanel,
+                ))
+                .with_children(|parent| {
+                    // Title showing previous position
+                    parent.spawn((
+                        Text::new(format!(
+                            "Undo Action\nWas at: ({}, {})",
+                            prev_pos.0.x, prev_pos.0.y
+                        )),
+                        TextFont {
+                            font_size: 13.0,
+                            ..default()
+                        },
+                        TextColor(Color::srgb(1.0, 0.9, 0.7)),
+                    ));
+
+                    // Rescind Orders button
+                    parent
+                        .spawn((
+                            Button,
+                            Node {
+                                padding: UiRect::all(Val::Px(8.0)),
+                                ..default()
+                            },
+                            BackgroundColor(NORMAL_DANGER.into()),
+                            crate::ui::button_style::DangerButton,
+                            RescindOrdersButton,
+                        ))
+                        .with_children(|b| {
+                            b.spawn((
+                                Text::new("Rescind Orders"),
+                                TextFont {
+                                    font_size: 14.0,
+                                    ..default()
+                                },
+                                TextColor(Color::srgb(1.0, 0.9, 0.9)),
+                            ));
+                        });
+
+                    // Warning text about refund policy
+                    parent.spawn((
+                        Text::new("(Refund if same turn)"),
+                        TextFont {
+                            font_size: 11.0,
+                            ..default()
+                        },
+                        TextColor(Color::srgb(0.7, 0.9, 0.7)),
+                    ));
+                });
+        }
+    } else {
+        // No selected civilian with previous position, remove panel and its children
+        for (entity, children) in existing_panel.iter() {
+            // Despawn all children first
+            for child in children.iter() {
+                commands.entity(child).despawn();
+            }
+            // Then despawn the panel itself
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+/// Handle rescind orders - undo a civilian's action this turn
+fn handle_rescind_orders(
+    mut commands: Commands,
+    mut rescind_events: MessageReader<RescindOrders>,
+    mut civilians: Query<(&mut Civilian, &PreviousPosition, Option<&ActionTurn>, Option<&CivilianJob>)>,
+    turn: Res<crate::turn_system::TurnSystem>,
+    mut treasuries: Query<&mut crate::economy::treasury::Treasury>,
+    mut log_events: MessageWriter<crate::ui::logging::TerminalLogEvent>,
+) {
+    for event in rescind_events.read() {
+        if let Ok((mut civilian, prev_pos, action_turn_opt, job_opt)) = civilians.get_mut(event.entity) {
+            let old_pos = civilian.position;
+
+            // Restore previous position
+            civilian.position = prev_pos.0;
+            civilian.has_moved = false;
+
+            // Determine if refund should be given (only if rescinding on the same turn)
+            let should_refund = action_turn_opt
+                .map(|at| at.0 == turn.current_turn)
+                .unwrap_or(false);
+
+            // Calculate refund amount based on job type
+            let refund_amount = if should_refund {
+                job_opt.and_then(|job| match job.job_type {
+                    JobType::BuildingRail => Some(50),
+                    JobType::BuildingDepot => Some(100),
+                    JobType::BuildingPort => Some(150),
+                    _ => None, // Other job types don't have direct costs
+                })
+            } else {
+                None
+            };
+
+            // Apply refund if applicable
+            if let Some(amount) = refund_amount {
+                if let Ok(mut treasury) = treasuries.get_mut(civilian.owner) {
+                    treasury.0 += amount;
+                    log_events.write(crate::ui::logging::TerminalLogEvent {
+                        message: format!(
+                            "{:?} orders rescinded - returned to ({}, {}) from ({}, {}). ${} refunded (same turn).",
+                            civilian.kind,
+                            prev_pos.0.x, prev_pos.0.y,
+                            old_pos.x, old_pos.y,
+                            amount
+                        ),
+                    });
+                }
+            } else {
+                let refund_msg = if should_refund {
+                    "(no cost to refund)"
+                } else {
+                    "(no refund - action was on a previous turn)"
+                };
+                log_events.write(crate::ui::logging::TerminalLogEvent {
+                    message: format!(
+                        "{:?} orders rescinded - returned to ({}, {}) from ({}, {}) {}",
+                        civilian.kind,
+                        prev_pos.0.x, prev_pos.0.y,
+                        old_pos.x, old_pos.y,
+                        refund_msg
+                    ),
+                });
+            }
+
+            // Remove job and action tracking components
+            commands.entity(event.entity)
+                .remove::<CivilianJob>()
+                .remove::<PreviousPosition>()
+                .remove::<ActionTurn>();
+        }
+    }
+}
+
 /// Handle button clicks in resource improver orders UI
 fn handle_improver_button_clicks(
     interactions: Query<(&Interaction, &ImproveTileButton), Changed<Interaction>>,
@@ -1128,5 +1393,183 @@ fn handle_improver_button_clicks(
                 });
             }
         }
+    }
+}
+
+/// Handle button clicks in rescind orders UI
+fn handle_rescind_button_clicks(
+    interactions: Query<(&Interaction, &RescindOrdersButton), Changed<Interaction>>,
+    selected_civilians: Query<(Entity, &Civilian, &PreviousPosition), With<Civilian>>,
+    mut rescind_writer: MessageWriter<RescindOrders>,
+) {
+    for (interaction, _button) in interactions.iter() {
+        if *interaction == Interaction::Pressed {
+            // Find selected civilian with previous position
+            if let Some((entity, civilian, _prev)) = selected_civilians.iter().find(|(_, c, _)| c.selected) {
+                info!("Rescind Orders button clicked for {:?} at ({}, {})",
+                    civilian.kind, civilian.position.x, civilian.position.y);
+                rescind_writer.write(RescindOrders { entity });
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::ecs::system::RunSystemOnce;
+    use bevy_ecs_tilemap::prelude::TilePos;
+    use crate::economy::transport::{Rails, ordered_edge};
+
+    #[test]
+    fn test_engineer_does_not_start_job_on_existing_rail() {
+        use bevy_ecs_tilemap::prelude::TileStorage;
+        use crate::province::{Province, TileProvince, ProvinceId};
+
+        let mut world = World::new();
+        world.init_resource::<Rails>();
+        world.init_resource::<crate::turn_system::TurnSystem>();
+
+        // Initialize event resources that the system uses
+        world.init_resource::<bevy::ecs::event::Events<crate::ui::logging::TerminalLogEvent>>();
+        world.init_resource::<bevy::ecs::event::Events<PlaceImprovement>>();
+        world.init_resource::<bevy::ecs::event::Events<DeselectCivilian>>();
+
+        // Create a nation entity
+        let nation = world.spawn_empty().id();
+
+        // Create a province owned by the nation
+        let province_id = ProvinceId(1);
+        world.spawn(Province {
+            id: province_id,
+            owner: Some(nation),
+            tiles: vec![TilePos { x: 0, y: 0 }, TilePos { x: 1, y: 0 }],
+            city_tile: TilePos { x: 0, y: 0 },
+        });
+
+        // Create tile storage with tiles for the two positions
+        let mut tile_storage = TileStorage::empty(bevy_ecs_tilemap::prelude::TilemapSize { x: 10, y: 10 });
+        let start_pos = TilePos { x: 0, y: 0 };
+        let target_pos = TilePos { x: 1, y: 0 };
+
+        let tile1 = world.spawn(TileProvince { province_id }).id();
+        let tile2 = world.spawn(TileProvince { province_id }).id();
+        tile_storage.set(&start_pos, tile1);
+        tile_storage.set(&target_pos, tile2);
+        world.spawn(tile_storage);
+
+        // Create engineer at (0, 0)
+        let engineer = world.spawn((
+            Civilian {
+                kind: CivilianKind::Engineer,
+                position: start_pos,
+                owner: nation,
+                selected: false,
+                has_moved: false,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::BuildRail { to: target_pos },
+            },
+        )).id();
+
+        // Add existing rail between the two positions
+        let edge = ordered_edge(start_pos, target_pos);
+        world.resource_mut::<Rails>().0.insert(edge);
+
+        // Run the execute_engineer_orders system
+        world.run_system_once(execute_engineer_orders);
+        world.flush(); // Apply deferred commands
+
+        // Verify engineer moved to target position
+        let civilian = world.get::<Civilian>(engineer).unwrap();
+        assert_eq!(civilian.position, target_pos, "Engineer should have moved to target position");
+        assert!(civilian.has_moved, "Engineer should be marked as has_moved");
+
+        // Verify engineer does NOT have a CivilianJob component (no job started)
+        assert!(
+            world.get::<CivilianJob>(engineer).is_none(),
+            "Engineer should NOT have a CivilianJob when rail already exists"
+        );
+
+        // Verify order was removed
+        assert!(
+            world.get::<CivilianOrder>(engineer).is_none(),
+            "CivilianOrder should be removed after execution"
+        );
+    }
+
+    #[test]
+    fn test_engineer_starts_job_on_new_rail() {
+        use bevy_ecs_tilemap::prelude::TileStorage;
+        use crate::province::{Province, TileProvince, ProvinceId};
+
+        let mut world = World::new();
+        world.init_resource::<Rails>();
+        world.init_resource::<crate::turn_system::TurnSystem>();
+
+        // Initialize event resources that the system uses
+        world.init_resource::<bevy::ecs::event::Events<crate::ui::logging::TerminalLogEvent>>();
+        world.init_resource::<bevy::ecs::event::Events<PlaceImprovement>>();
+        world.init_resource::<bevy::ecs::event::Events<DeselectCivilian>>();
+
+        // Create a nation entity
+        let nation = world.spawn_empty().id();
+
+        // Create a province owned by the nation
+        let province_id = ProvinceId(1);
+        world.spawn(Province {
+            id: province_id,
+            owner: Some(nation),
+            tiles: vec![TilePos { x: 0, y: 0 }, TilePos { x: 1, y: 0 }],
+            city_tile: TilePos { x: 0, y: 0 },
+        });
+
+        // Create tile storage with tiles for the two positions
+        let mut tile_storage = TileStorage::empty(bevy_ecs_tilemap::prelude::TilemapSize { x: 10, y: 10 });
+        let start_pos = TilePos { x: 0, y: 0 };
+        let target_pos = TilePos { x: 1, y: 0 };
+
+        let tile1 = world.spawn(TileProvince { province_id }).id();
+        let tile2 = world.spawn(TileProvince { province_id }).id();
+        tile_storage.set(&start_pos, tile1);
+        tile_storage.set(&target_pos, tile2);
+        world.spawn(tile_storage);
+
+        // Create engineer at (0, 0)
+        let engineer = world.spawn((
+            Civilian {
+                kind: CivilianKind::Engineer,
+                position: start_pos,
+                owner: nation,
+                selected: false,
+                has_moved: false,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::BuildRail { to: target_pos },
+            },
+        )).id();
+
+        // DO NOT add existing rail (rail doesn't exist)
+
+        // Run the execute_engineer_orders system
+        world.run_system_once(execute_engineer_orders);
+        world.flush(); // Apply deferred commands
+
+        // Verify engineer moved to target position
+        let civilian = world.get::<Civilian>(engineer).unwrap();
+        assert_eq!(civilian.position, target_pos, "Engineer should have moved to target position");
+        assert!(civilian.has_moved, "Engineer should be marked as has_moved");
+
+        // Verify engineer DOES have a CivilianJob component (job started)
+        let job = world.get::<CivilianJob>(engineer);
+        assert!(
+            job.is_some(),
+            "Engineer SHOULD have a CivilianJob when building new rail"
+        );
+
+        let job = job.unwrap();
+        assert_eq!(job.job_type, JobType::BuildingRail, "Job type should be BuildingRail");
+        assert_eq!(job.turns_remaining, 3, "Rail construction should take 3 turns");
+        assert_eq!(job.target, target_pos, "Job target should be the target position");
     }
 }

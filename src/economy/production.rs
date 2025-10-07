@@ -70,53 +70,98 @@ pub fn calculate_connected_production(
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BuildingKind {
-    TextileMill,
+    TextileMill,    // 2×Cotton OR 2×Wool → 1×Cloth
+}
+
+/// What input material a building should use for production
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProductionChoice {
+    // For TextileMill: choose between Cotton or Wool
+    UseCotton,
+    UseWool,
+}
+
+/// Production settings for a building (persists turn-to-turn)
+#[derive(Component, Debug, Clone)]
+pub struct ProductionSettings {
+    /// What input material to use (e.g., Cotton vs Wool for textile mill)
+    pub choice: ProductionChoice,
+    /// How many units to produce this turn (capped by capacity and inputs)
+    pub target_output: u32,
+}
+
+impl Default for ProductionSettings {
+    fn default() -> Self {
+        Self {
+            choice: ProductionChoice::UseCotton,
+            target_output: 0,
+        }
+    }
 }
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct Building {
     pub kind: BuildingKind,
-    pub workers: u8,
+    pub capacity: u32, // Maximum output per turn
 }
 
 impl Building {
-    pub fn textile_mill(workers: u8) -> Self {
+    pub fn textile_mill(capacity: u32) -> Self {
         Self {
             kind: BuildingKind::TextileMill,
-            workers,
+            capacity,
         }
     }
 }
 
 /// Runs production across all entities that have both a Stockpile and a Building.
-/// For MVP, we treat buildings attached directly to nation entities and use that nation's Stockpile.
+/// Automatically reduces production settings if inputs are unavailable.
+/// Production rules follow 2:1 ratios (2 inputs → 1 output).
 pub fn run_production(
     turn: Res<crate::turn_system::TurnSystem>,
-    mut q: Query<(&mut Stockpile, &Building)>,
+    mut q: Query<(&mut Stockpile, &Building, &mut ProductionSettings)>,
 ) {
     if turn.phase != TurnPhase::Processing {
         return;
     }
 
-    for (mut stock, building) in q.iter_mut() {
+    for (mut stock, building, mut settings) in q.iter_mut() {
         match building.kind {
             BuildingKind::TextileMill => {
-                let workers = building.workers as u32;
-                if workers == 0 {
-                    continue;
-                }
-                let can = stock
-                    .get(Good::Wool)
-                    .min(stock.get(Good::Cotton))
-                    .min(workers);
-                if can > 0 {
-                    // consume inputs
-                    let _ = stock.take_up_to(Good::Wool, can);
-                    let _ = stock.take_up_to(Good::Cotton, can);
-                    // produce outputs
-                    stock.add(Good::Cloth, can);
+                // 2:1 ratio: 2×Cotton OR 2×Wool → 1×Cloth
+
+                // Determine available input based on choice
+                let input_good = match settings.choice {
+                    ProductionChoice::UseCotton => Good::Cotton,
+                    ProductionChoice::UseWool => Good::Wool,
+                };
+
+                let available_input = stock.get(input_good);
+
+                // Calculate how much we can produce:
+                // - Limited by target_output (what user requested)
+                // - Limited by capacity (building max)
+                // - Limited by inputs available (need 2 inputs per 1 output)
+                let max_from_inputs = available_input / 2; // 2:1 ratio
+                let actual_output = settings.target_output
+                    .min(building.capacity)
+                    .min(max_from_inputs);
+
+                if actual_output > 0 {
+                    // Consume 2 inputs per output
+                    let inputs_needed = actual_output * 2;
+                    let consumed = stock.take_up_to(input_good, inputs_needed);
+
+                    // Produce outputs (should be actual_output)
+                    let produced = consumed / 2;
+                    stock.add(Good::Cloth, produced);
+
+                    // Auto-reduce target if we couldn't meet it (inputs ran out)
+                    if produced < settings.target_output {
+                        settings.target_output = produced;
+                    }
                 }
             }
         }
