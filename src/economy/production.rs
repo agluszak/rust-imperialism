@@ -176,7 +176,7 @@ impl Building {
 }
 
 /// Runs production across all entities that have both a Stockpile and a Building.
-/// Automatically reduces production settings if inputs are unavailable.
+/// Consumes reserved resources and produces outputs.
 /// Production rules follow 2:1 ratios (2 inputs → 1 output).
 /// Production now requires labor points from workers.
 pub fn run_production(
@@ -209,21 +209,22 @@ pub fn run_production(
                     _ => continue, // Invalid choice for this building
                 };
 
-                let available_input = stock.get(input_good);
-                let max_from_inputs = available_input / 2; // 2:1 ratio
-                let actual_output = settings
-                    .target_output
-                    .min(building.capacity)
-                    .min(max_from_inputs)
-                    .min(max_from_labor); // Also limited by labor
+                // Apply labor constraint
+                let actual_output = settings.target_output.min(max_from_labor);
 
                 if actual_output > 0 {
                     let inputs_needed = actual_output * 2;
-                    let consumed = stock.take_up_to(input_good, inputs_needed);
+                    // Consume reserved inputs (should already be reserved by UI)
+                    let consumed = stock.consume_reserved(input_good, inputs_needed);
                     let produced = consumed / 2;
                     stock.add(Good::Fabric, produced);
 
-                    if produced < settings.target_output {
+                    if produced < actual_output {
+                        // This shouldn't happen if reservations work correctly
+                        info!(
+                            "TextileMill: expected {} but only consumed {} inputs",
+                            inputs_needed, consumed
+                        );
                         settings.target_output = produced;
                     }
                 }
@@ -238,21 +239,20 @@ pub fn run_production(
                     _ => continue,
                 };
 
-                let available_timber = stock.get(Good::Timber);
-                let max_from_inputs = available_timber / 2;
-                let actual_output = settings
-                    .target_output
-                    .min(building.capacity)
-                    .min(max_from_inputs)
-                    .min(max_from_labor);
+                // Apply labor constraint
+                let actual_output = settings.target_output.min(max_from_labor);
 
                 if actual_output > 0 {
                     let inputs_needed = actual_output * 2;
-                    let consumed = stock.take_up_to(Good::Timber, inputs_needed);
+                    let consumed = stock.consume_reserved(Good::Timber, inputs_needed);
                     let produced = consumed / 2;
                     stock.add(output_good, produced);
 
-                    if produced < settings.target_output {
+                    if produced < actual_output {
+                        info!(
+                            "LumberMill: expected {} but only consumed {} inputs",
+                            inputs_needed, consumed
+                        );
                         settings.target_output = produced;
                     }
                 }
@@ -261,22 +261,21 @@ pub fn run_production(
             BuildingKind::SteelMill => {
                 // 1:1 ratio: 1×Iron + 1×Coal → 1×Steel
 
-                let available_iron = stock.get(Good::Iron);
-                let available_coal = stock.get(Good::Coal);
-                let max_from_inputs = available_iron.min(available_coal);
-                let actual_output = settings
-                    .target_output
-                    .min(building.capacity)
-                    .min(max_from_inputs)
-                    .min(max_from_labor);
+                // Apply labor constraint
+                let actual_output = settings.target_output.min(max_from_labor);
 
                 if actual_output > 0 {
-                    stock.take_up_to(Good::Iron, actual_output);
-                    stock.take_up_to(Good::Coal, actual_output);
-                    stock.add(Good::Steel, actual_output);
+                    let iron_consumed = stock.consume_reserved(Good::Iron, actual_output);
+                    let coal_consumed = stock.consume_reserved(Good::Coal, actual_output);
+                    let produced = iron_consumed.min(coal_consumed);
+                    stock.add(Good::Steel, produced);
 
-                    if actual_output < settings.target_output {
-                        settings.target_output = actual_output;
+                    if produced < actual_output {
+                        info!(
+                            "SteelMill: expected {} but only consumed {} iron and {} coal",
+                            actual_output, iron_consumed, coal_consumed
+                        );
+                        settings.target_output = produced;
                     }
                 }
             }
@@ -290,37 +289,32 @@ pub fn run_production(
                     _ => continue,
                 };
 
-                let available_grain = stock.get(Good::Grain);
-                let available_fruit = stock.get(Good::Fruit);
-                let available_meat = stock.get(meat_good);
+                // target_output is in canned food units (comes in pairs)
+                // Apply labor constraint (1 labor per output unit)
+                let actual_output = settings.target_output.min(max_from_labor);
+                let target_batches = actual_output.div_ceil(2); // Round up to batches
 
-                // Each batch needs: 2 grain, 1 fruit, 1 meat → produces 2 canned food
-                let max_batches_from_grain = available_grain / 2;
-                let max_batches_from_fruit = available_fruit;
-                let max_batches_from_meat = available_meat;
-                let max_batches = max_batches_from_grain
-                    .min(max_batches_from_fruit)
-                    .min(max_batches_from_meat);
+                if target_batches > 0 {
+                    // Each batch: 2 grain, 1 fruit, 1 meat → 2 canned food
+                    let grain_consumed = stock.consume_reserved(Good::Grain, target_batches * 2);
+                    let fruit_consumed = stock.consume_reserved(Good::Fruit, target_batches);
+                    let meat_consumed = stock.consume_reserved(meat_good, target_batches);
 
-                // target_output is in canned food units, so divide by 2 to get batches
-                let target_batches = settings.target_output.div_ceil(2); // Round up
+                    // Calculate actual batches we can produce from what was consumed
+                    let actual_batches =
+                        (grain_consumed / 2).min(fruit_consumed).min(meat_consumed);
 
-                // Labor constraint: 2 canned food needs 2 labor (1 labor per output)
-                let max_batches_from_labor = max_from_labor / 2;
-
-                let actual_batches = target_batches
-                    .min(building.capacity / 2)
-                    .min(max_batches)
-                    .min(max_batches_from_labor);
-
-                if actual_batches > 0 {
-                    stock.take_up_to(Good::Grain, actual_batches * 2);
-                    stock.take_up_to(Good::Fruit, actual_batches);
-                    stock.take_up_to(meat_good, actual_batches);
                     let produced = actual_batches * 2;
                     stock.add(Good::CannedFood, produced);
 
-                    if produced < settings.target_output {
+                    if produced < actual_output {
+                        info!(
+                            "FoodProcessingCenter: expected {} but only consumed {} grain, {} fruit, {} meat",
+                            target_batches * 2,
+                            grain_consumed,
+                            fruit_consumed,
+                            meat_consumed
+                        );
                         settings.target_output = produced;
                     }
                 }

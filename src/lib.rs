@@ -266,6 +266,8 @@ pub fn app() -> App {
             economy::production::calculate_connected_production
                 .after(economy::transport::compute_rail_connectivity),
             economy::production::run_production,
+            // Initialize reservations for new production settings
+            ui::city::production::initialize_production_reservations,
             // Execute recruitment and training orders during Processing phase
             economy::workforce::execute_recruitment_orders,
             economy::workforce::execute_training_orders,

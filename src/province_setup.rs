@@ -112,7 +112,7 @@ pub fn assign_provinces_to_countries(
 
         let color = nation_colors[i % nation_colors.len()];
 
-        let mut country_builder = commands.spawn((
+        let country_builder = commands.spawn((
             crate::economy::NationId(i as u16 + 1),
             crate::economy::Name(name),
             crate::economy::NationColor(color),
@@ -121,13 +121,16 @@ pub fn assign_provinces_to_countries(
             crate::economy::Technologies::default(),
         ));
 
-        // Player gets a textile mill with default production settings and starting workforce
+        let country_entity = country_builder.id();
+
+        // Player gets starting buildings and workforce
         if i == 0 {
             let mut workforce = crate::economy::Workforce::new();
             // Start with 5 untrained workers
             workforce.add_untrained(5);
 
-            country_builder.insert((
+            // Textile mill is the main production building on the nation entity
+            commands.entity(country_entity).insert((
                 crate::economy::Building::textile_mill(8), // Capacity of 8
                 crate::economy::production::ProductionSettings::default(),
                 workforce,
@@ -135,9 +138,10 @@ pub fn assign_provinces_to_countries(
                 crate::economy::RecruitmentQueue::default(),
                 crate::economy::TrainingQueue::default(),
             ));
-        }
 
-        let country_entity = country_builder.id();
+            // Note: Capitol and TradeSchool don't need separate Building entities
+            // They're always available and use the nation's Stockpile/Workforce directly
+        }
         country_entities.push(country_entity);
         info!("Created Nation {} with color", i + 1);
     }
