@@ -833,7 +833,8 @@ pub fn advance_civilian_jobs(
         if job.turns_remaining == 0 {
             info!("Job {:?} completed for civilian {:?}", job.job_type, entity);
             // Remove the job component and action tracking (job can no longer be rescinded)
-            commands.entity(entity)
+            commands
+                .entity(entity)
                 .remove::<CivilianJob>()
                 .remove::<PreviousPosition>()
                 .remove::<ActionTurn>();
@@ -1263,7 +1264,7 @@ fn update_rescind_orders_ui(
                                 padding: UiRect::all(Val::Px(8.0)),
                                 ..default()
                             },
-                            BackgroundColor(NORMAL_DANGER.into()),
+                            BackgroundColor(NORMAL_DANGER),
                             crate::ui::button_style::DangerButton,
                             RescindOrdersButton,
                         ))
@@ -1306,13 +1307,20 @@ fn update_rescind_orders_ui(
 fn handle_rescind_orders(
     mut commands: Commands,
     mut rescind_events: MessageReader<RescindOrders>,
-    mut civilians: Query<(&mut Civilian, &PreviousPosition, Option<&ActionTurn>, Option<&CivilianJob>)>,
+    mut civilians: Query<(
+        &mut Civilian,
+        &PreviousPosition,
+        Option<&ActionTurn>,
+        Option<&CivilianJob>,
+    )>,
     turn: Res<crate::turn_system::TurnSystem>,
     mut treasuries: Query<&mut crate::economy::treasury::Treasury>,
     mut log_events: MessageWriter<crate::ui::logging::TerminalLogEvent>,
 ) {
     for event in rescind_events.read() {
-        if let Ok((mut civilian, prev_pos, action_turn_opt, job_opt)) = civilians.get_mut(event.entity) {
+        if let Ok((mut civilian, prev_pos, action_turn_opt, job_opt)) =
+            civilians.get_mut(event.entity)
+        {
             let old_pos = civilian.position;
 
             // Restore previous position
@@ -1359,16 +1367,14 @@ fn handle_rescind_orders(
                 log_events.write(crate::ui::logging::TerminalLogEvent {
                     message: format!(
                         "{:?} orders rescinded - returned to ({}, {}) from ({}, {}) {}",
-                        civilian.kind,
-                        prev_pos.0.x, prev_pos.0.y,
-                        old_pos.x, old_pos.y,
-                        refund_msg
+                        civilian.kind, prev_pos.0.x, prev_pos.0.y, old_pos.x, old_pos.y, refund_msg
                     ),
                 });
             }
 
             // Remove job and action tracking components
-            commands.entity(event.entity)
+            commands
+                .entity(event.entity)
                 .remove::<CivilianJob>()
                 .remove::<PreviousPosition>()
                 .remove::<ActionTurn>();
@@ -1405,9 +1411,13 @@ fn handle_rescind_button_clicks(
     for (interaction, _button) in interactions.iter() {
         if *interaction == Interaction::Pressed {
             // Find selected civilian with previous position
-            if let Some((entity, civilian, _prev)) = selected_civilians.iter().find(|(_, c, _)| c.selected) {
-                info!("Rescind Orders button clicked for {:?} at ({}, {})",
-                    civilian.kind, civilian.position.x, civilian.position.y);
+            if let Some((entity, civilian, _prev)) =
+                selected_civilians.iter().find(|(_, c, _)| c.selected)
+            {
+                info!(
+                    "Rescind Orders button clicked for {:?} at ({}, {})",
+                    civilian.kind, civilian.position.x, civilian.position.y
+                );
                 rescind_writer.write(RescindOrders { entity });
             }
         }
@@ -1417,14 +1427,14 @@ fn handle_rescind_button_clicks(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::economy::transport::{Rails, ordered_edge};
     use bevy::ecs::system::RunSystemOnce;
     use bevy_ecs_tilemap::prelude::TilePos;
-    use crate::economy::transport::{Rails, ordered_edge};
 
     #[test]
     fn test_engineer_does_not_start_job_on_existing_rail() {
+        use crate::province::{Province, ProvinceId, TileProvince};
         use bevy_ecs_tilemap::prelude::TileStorage;
-        use crate::province::{Province, TileProvince, ProvinceId};
 
         let mut world = World::new();
         world.init_resource::<Rails>();
@@ -1448,7 +1458,8 @@ mod tests {
         });
 
         // Create tile storage with tiles for the two positions
-        let mut tile_storage = TileStorage::empty(bevy_ecs_tilemap::prelude::TilemapSize { x: 10, y: 10 });
+        let mut tile_storage =
+            TileStorage::empty(bevy_ecs_tilemap::prelude::TilemapSize { x: 10, y: 10 });
         let start_pos = TilePos { x: 0, y: 0 };
         let target_pos = TilePos { x: 1, y: 0 };
 
@@ -1459,18 +1470,20 @@ mod tests {
         world.spawn(tile_storage);
 
         // Create engineer at (0, 0)
-        let engineer = world.spawn((
-            Civilian {
-                kind: CivilianKind::Engineer,
-                position: start_pos,
-                owner: nation,
-                selected: false,
-                has_moved: false,
-            },
-            CivilianOrder {
-                target: CivilianOrderKind::BuildRail { to: target_pos },
-            },
-        )).id();
+        let engineer = world
+            .spawn((
+                Civilian {
+                    kind: CivilianKind::Engineer,
+                    position: start_pos,
+                    owner: nation,
+                    selected: false,
+                    has_moved: false,
+                },
+                CivilianOrder {
+                    target: CivilianOrderKind::BuildRail { to: target_pos },
+                },
+            ))
+            .id();
 
         // Add existing rail between the two positions
         let edge = ordered_edge(start_pos, target_pos);
@@ -1482,7 +1495,10 @@ mod tests {
 
         // Verify engineer moved to target position
         let civilian = world.get::<Civilian>(engineer).unwrap();
-        assert_eq!(civilian.position, target_pos, "Engineer should have moved to target position");
+        assert_eq!(
+            civilian.position, target_pos,
+            "Engineer should have moved to target position"
+        );
         assert!(civilian.has_moved, "Engineer should be marked as has_moved");
 
         // Verify engineer does NOT have a CivilianJob component (no job started)
@@ -1500,8 +1516,8 @@ mod tests {
 
     #[test]
     fn test_engineer_starts_job_on_new_rail() {
+        use crate::province::{Province, ProvinceId, TileProvince};
         use bevy_ecs_tilemap::prelude::TileStorage;
-        use crate::province::{Province, TileProvince, ProvinceId};
 
         let mut world = World::new();
         world.init_resource::<Rails>();
@@ -1525,7 +1541,8 @@ mod tests {
         });
 
         // Create tile storage with tiles for the two positions
-        let mut tile_storage = TileStorage::empty(bevy_ecs_tilemap::prelude::TilemapSize { x: 10, y: 10 });
+        let mut tile_storage =
+            TileStorage::empty(bevy_ecs_tilemap::prelude::TilemapSize { x: 10, y: 10 });
         let start_pos = TilePos { x: 0, y: 0 };
         let target_pos = TilePos { x: 1, y: 0 };
 
@@ -1536,18 +1553,20 @@ mod tests {
         world.spawn(tile_storage);
 
         // Create engineer at (0, 0)
-        let engineer = world.spawn((
-            Civilian {
-                kind: CivilianKind::Engineer,
-                position: start_pos,
-                owner: nation,
-                selected: false,
-                has_moved: false,
-            },
-            CivilianOrder {
-                target: CivilianOrderKind::BuildRail { to: target_pos },
-            },
-        )).id();
+        let engineer = world
+            .spawn((
+                Civilian {
+                    kind: CivilianKind::Engineer,
+                    position: start_pos,
+                    owner: nation,
+                    selected: false,
+                    has_moved: false,
+                },
+                CivilianOrder {
+                    target: CivilianOrderKind::BuildRail { to: target_pos },
+                },
+            ))
+            .id();
 
         // DO NOT add existing rail (rail doesn't exist)
 
@@ -1557,7 +1576,10 @@ mod tests {
 
         // Verify engineer moved to target position
         let civilian = world.get::<Civilian>(engineer).unwrap();
-        assert_eq!(civilian.position, target_pos, "Engineer should have moved to target position");
+        assert_eq!(
+            civilian.position, target_pos,
+            "Engineer should have moved to target position"
+        );
         assert!(civilian.has_moved, "Engineer should be marked as has_moved");
 
         // Verify engineer DOES have a CivilianJob component (job started)
@@ -1568,8 +1590,18 @@ mod tests {
         );
 
         let job = job.unwrap();
-        assert_eq!(job.job_type, JobType::BuildingRail, "Job type should be BuildingRail");
-        assert_eq!(job.turns_remaining, 3, "Rail construction should take 3 turns");
-        assert_eq!(job.target, target_pos, "Job target should be the target position");
+        assert_eq!(
+            job.job_type,
+            JobType::BuildingRail,
+            "Job type should be BuildingRail"
+        );
+        assert_eq!(
+            job.turns_remaining, 3,
+            "Rail construction should take 3 turns"
+        );
+        assert_eq!(
+            job.target, target_pos,
+            "Job target should be the target position"
+        );
     }
 }

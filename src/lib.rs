@@ -4,7 +4,6 @@
 
 use crate::civilians::CivilianPlugin;
 use crate::constants::{MAP_SIZE, TERRAIN_SEED, TILE_SIZE};
-use crate::debug::DebugPlugins;
 use crate::economy::{Calendar, PlaceImprovement, Rails, Roads};
 use crate::helpers::camera;
 use crate::helpers::picking::TilemapBackend;
@@ -267,6 +266,9 @@ pub fn app() -> App {
             economy::production::calculate_connected_production
                 .after(economy::transport::compute_rail_connectivity),
             economy::production::run_production,
+            // Execute recruitment and training orders during Processing phase
+            economy::workforce::execute_recruitment_orders,
+            economy::workforce::execute_training_orders,
             // Advance rail construction at the start of each player turn
             economy::transport::advance_rail_construction
                 .run_if(resource_changed::<TurnSystem>)
@@ -291,6 +293,15 @@ pub fn app() -> App {
                 .run_if(|turn_system: Res<TurnSystem>| {
                     turn_system.phase == turn_system::TurnPhase::PlayerTurn
                 }),
+            // Feed workers at the start of each player turn
+            economy::workforce::feed_workers
+                .run_if(resource_changed::<TurnSystem>)
+                .run_if(|turn_system: Res<TurnSystem>| {
+                    turn_system.phase == turn_system::TurnPhase::PlayerTurn
+                }),
+            // Worker recruitment and training (run anytime during player turn)
+            economy::workforce::handle_recruitment,
+            economy::workforce::handle_training,
         )
             .run_if(in_state(AppState::InGame)),
     )
@@ -314,8 +325,8 @@ pub fn app() -> App {
         CivilianPlugin,
         border_rendering::BorderRenderingPlugin,
         city_rendering::CityRenderingPlugin,
-    ))
-    .add_plugins(DebugPlugins);
+    ));
+    // .add_plugins(DebugPlugins);
     // .add_plugins(EguiPlugin::default())
     // .add_plugins(WorldInspectorPlugin::new())
     // .add_plugins(StateInspectorPlugin::<AppState>::new())

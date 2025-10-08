@@ -95,6 +95,19 @@ pub fn assign_provinces_to_countries(
             // Player starts with some resources
             stockpile.add(crate::economy::Good::Wool, 10);
             stockpile.add(crate::economy::Good::Cotton, 10);
+
+            // Raw food for feeding workers
+            stockpile.add(crate::economy::Good::Grain, 20);
+            stockpile.add(crate::economy::Good::Fruit, 20);
+            stockpile.add(crate::economy::Good::Livestock, 20);
+
+            // Finished goods for recruiting workers
+            stockpile.add(crate::economy::Good::CannedFood, 10);
+            stockpile.add(crate::economy::Good::Clothing, 10);
+            stockpile.add(crate::economy::Good::Furniture, 10);
+
+            // Paper for training workers
+            stockpile.add(crate::economy::Good::Paper, 5);
         }
 
         let color = nation_colors[i % nation_colors.len()];
@@ -108,11 +121,19 @@ pub fn assign_provinces_to_countries(
             crate::economy::Technologies::default(),
         ));
 
-        // Player gets a textile mill with default production settings
+        // Player gets a textile mill with default production settings and starting workforce
         if i == 0 {
+            let mut workforce = crate::economy::Workforce::new();
+            // Start with 5 untrained workers
+            workforce.add_untrained(5);
+
             country_builder.insert((
                 crate::economy::Building::textile_mill(8), // Capacity of 8
                 crate::economy::production::ProductionSettings::default(),
+                workforce,
+                crate::economy::RecruitmentCapacity::default(),
+                crate::economy::RecruitmentQueue::default(),
+                crate::economy::TrainingQueue::default(),
             ));
         }
 
