@@ -1,6 +1,8 @@
 # AGENTS.md
 
-This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. It reflects the repository as of 2025-10-07.
+This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. It reflects the repository as of 2025-10-08.
+
+**Recent refactoring (2025-10-08)**: `civilians.rs` and `ui/city.rs` have been split into modular subdirectories for better organization and maintainability. See MIGRATION_STATUS.md for details.
 
 If you remember older arcade/RPG features (hero, monsters, combat, health, pathfinding) — those were removed. This is now an economy-first, turn-based strategy prototype inspired by Imperialism (1997).
 
@@ -79,7 +81,16 @@ src/
 ├── province_setup.rs     # Province assignment to countries (connected groups)
 ├── border_rendering.rs   # Renders international (dual-color) and provincial borders
 ├── city_rendering.rs     # Renders city and capital sprites
-├── civilians.rs          # Civilian units (Engineer, Prospector, etc.) with visual rendering
+├── civilians/            # Civilian units module (modular structure)
+│   ├── mod.rs           # Plugin and public API
+│   ├── types.rs         # Civilian types and components
+│   ├── commands.rs      # Message types for civilian orders
+│   ├── jobs.rs          # Multi-turn job system
+│   ├── systems.rs       # Core civilian systems (selection, orders, movement)
+│   ├── engineering.rs   # Engineer and Prospector-specific logic
+│   ├── rendering.rs     # Visual rendering for civilians
+│   ├── ui_components.rs # UI panels (order buttons, rescind UI)
+│   └── tests.rs         # Unit tests
 ├── transport_rendering.rs # Visual rendering for roads, rails, depots, ports
 ├── economy/
 │   ├── goods.rs          # `Good` enum (Wool, Cotton, Cloth)
@@ -99,7 +110,13 @@ src/
     ├── state/            # Centralized `UIState` + tests
     ├── mode.rs           # `GameMode` SubState + button handlers
     ├── menu.rs           # `AppState` (MainMenu/InGame) + main menu UI
-    ├── city.rs           # City overlay (Back to Map button)
+    ├── city/             # City Mode UI module (modular structure)
+    │   ├── mod.rs        # Plugin and public API
+    │   ├── components.rs # UI marker components and messages
+    │   ├── layout.rs     # Main city screen layout (~800 lines)
+    │   ├── production.rs # Production choice and adjustment handlers
+    │   ├── workforce.rs  # Worker hiring, recruitment, training
+    │   └── warehouse.rs  # Stockpile display updates
     ├── transport.rs      # Transport overlay + click-to-edge tool
     ├── market.rs         # Market overlay + fixed buy/sell
     └── diplomacy.rs      # Diplomacy overlay (stub)

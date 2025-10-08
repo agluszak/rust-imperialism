@@ -183,7 +183,7 @@ fn center_camera_on_capital(
     capitals: Query<(&economy::Capital, &economy::NationId)>,
 ) {
     // Only run once when player nation is available
-    let Some(player) = player_nation else {
+    let Some(_player) = player_nation else {
         return;
     };
 
