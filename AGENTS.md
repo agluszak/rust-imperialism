@@ -1,8 +1,14 @@
 # AGENTS.md
 
-This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. It reflects the repository as of 2025-10-08.
+This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. It reflects the repository as of 2025-10-09.
 
-**Recent refactoring (2025-10-08)**: `civilians.rs` and `ui/city.rs` have been split into modular subdirectories for better organization and maintainability. See MIGRATION_STATUS.md for details.
+**Recent refactorings**:
+- **2025-10-09**:
+  - `economy/transport.rs` split into modular subdirectory (types, messages, validation, construction, connectivity, input)
+  - `economy/workforce.rs` split into modular subdirectory (types, systems, recruitment, training, consumption)
+- **2025-10-08**: `civilians.rs` and `ui/city.rs` split into modular subdirectories
+
+See MIGRATION_STATUS.md for details on the ui/city migration.
 
 If you remember older arcade/RPG features (hero, monsters, combat, health, pathfinding) — those were removed. This is now an economy-first, turn-based strategy prototype inspired by Imperialism (1997).
 
@@ -98,8 +104,23 @@ src/
 │   ├── treasury.rs       # `Treasury` (Component)
 │   ├── calendar.rs       # Global `Calendar` (Resource)
 │   ├── nation.rs         # `NationId`, `Name`, `NationColor`, `Capital` (Components), `PlayerNation` (Resource)
-│   ├── transport.rs      # `ImprovementKind`, `PlaceImprovement`, `Roads`, `Rails`, `apply_improvements`
-│   └── production.rs     # `Building`, `BuildingKind`, `run_production`
+│   ├── production.rs     # `Building`, `BuildingKind`, `run_production`
+│   ├── technology.rs     # Technology system
+│   ├── transport/        # Transport module (modular structure)
+│   │   ├── mod.rs        # Public API
+│   │   ├── types.rs      # ImprovementKind, Depot, Port, Roads, Rails, RailConstruction
+│   │   ├── messages.rs   # PlaceImprovement message
+│   │   ├── validation.rs # Terrain checks, adjacency validation
+│   │   ├── construction.rs # Rail construction advancement (logic)
+│   │   ├── connectivity.rs # Network connectivity BFS (logic)
+│   │   └── input.rs      # apply_improvements (input handler)
+│   └── workforce/        # Workforce module (modular structure)
+│       ├── mod.rs        # Public API
+│       ├── types.rs      # WorkerSkill, Workforce, Worker, WorkerHealth
+│       ├── systems.rs    # General workforce logic
+│       ├── recruitment.rs # Recruitment queue and processing
+│       ├── training.rs   # Training queue and processing
+│       └── consumption.rs # Food consumption and health
 └── ui/
     ├── mod.rs            # UI plugin (messages, state collection, scheduling)
     ├── components.rs     # UI marker components (HUD/terminal/roots)
