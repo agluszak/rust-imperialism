@@ -5,6 +5,9 @@ pub use components::*;
 pub use layout::{ensure_city_screen_visible, hide_city_screen};
 
 // Module declarations
+pub mod allocation_ui; // OLD: Per-type handlers (will be deprecated)
+pub mod allocation_ui_unified; // NEW: Unified allocation UI systems
+pub mod allocation_widgets; // NEW: Reusable allocation widgets
 pub mod buildings; // NEW: Building grid
 pub mod components;
 pub mod dialogs; // NEW: Dialog system
@@ -28,6 +31,10 @@ impl Plugin for CityUIPlugin {
             .add_message::<crate::economy::TrainWorker>()
             .add_message::<dialogs::OpenBuildingDialog>()
             .add_message::<dialogs::CloseBuildingDialog>()
+            // NEW: Allocation messages
+            .add_message::<crate::economy::AdjustRecruitment>()
+            .add_message::<crate::economy::AdjustTraining>()
+            .add_message::<crate::economy::AdjustProduction>()
             .add_systems(
                 OnEnter(crate::ui::mode::GameMode::City),
                 layout::ensure_city_screen_visible,
@@ -63,7 +70,6 @@ impl Plugin for CityUIPlugin {
                     dialogs::populate_production_dialog,
                     dialogs::populate_special_dialog,
                     // Dialog content updates
-                    dialogs::update_production_target_display,
                     dialogs::update_production_labor_display,
                     dialogs::update_capitol_requirement_displays,
                     dialogs::update_capitol_capacity_display,
@@ -79,20 +85,24 @@ impl Plugin for CityUIPlugin {
                     workforce::handle_hire_button_clicks,
                     workforce::spawn_hired_civilian,
                     production::handle_production_choice_buttons,
-                    production::handle_adjust_production_buttons,
-                    production::apply_production_settings_changes,
                     workforce::handle_recruit_workers_buttons,
                     workforce::handle_train_worker_buttons,
+                    // NEW: Unified allocation UI input handler
+                    allocation_ui_unified::handle_all_stepper_buttons,
                 )
                     .run_if(in_state(crate::ui::mode::GameMode::City)),
             )
             .add_systems(
                 Update,
                 (
-                    // Old panel update systems (will be removed later)
+                    // OLD panel update systems (will be removed later)
                     production::update_building_panels,
                     workforce::update_workforce_panel,
                     warehouse::update_stockpile_display,
+                    // NEW: Unified allocation UI rendering systems
+                    allocation_ui_unified::update_all_stepper_displays,
+                    allocation_ui_unified::update_all_allocation_bars,
+                    allocation_ui_unified::update_all_allocation_summaries,
                 )
                     .run_if(in_state(crate::ui::mode::GameMode::City)),
             );

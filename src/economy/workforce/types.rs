@@ -128,7 +128,7 @@ pub struct Worker {
 }
 
 /// Worker skill level determines labor points
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WorkerSkill {
     Untrained, // 1 labor point
     Trained,   // 2 labor points

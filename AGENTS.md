@@ -302,6 +302,87 @@ User Input → Input Handler → Message
 - Messages (`MessageWriter`/`MessageReader`) decouple input from logic
 - All three layers can coexist in the same file but remain conceptually separate
 
+## Resource Allocation System
+
+Following Imperialism's design, the game uses a **pre-allocation model** for all resource consumption:
+
+### Core Concept
+
+Resources are **allocated** (not spent) during PlayerTurn. Allocations are adjustable until turn end, when they convert to **reservations** and execute during Processing.
+
+```
+PlayerTurn:  Player adjusts sliders → Allocations update → UI shows bars
+              ↓
+Turn End:    Allocations → Reservations (locks resources)
+              ↓
+Processing:  Reserved resources consumed → Outputs produced
+              ↓
+Next Turn:   Allocations reset to zero, player starts fresh
+```
+
+### Components
+
+**`ResourceAllocations`** (Component on Nation entities):
+- `recruitment: RecruitmentAllocation` - Capitol worker recruitment
+- `training: Vec<TrainingAllocation>` - Trade School worker training
+- `production: HashMap<Entity, ProductionAllocation>` - Per-building production plans
+
+Each allocation type tracks:
+- `requested` - what player wants
+- `allocated` - what's actually possible given constraints (capacity, resources, labor)
+
+### Messages (Input Layer)
+
+```rust
+AdjustRecruitment { nation, requested }
+AdjustTraining { nation, from_skill, requested }
+AdjustProduction { nation, building, choice, target_output }
+```
+
+### Systems (Logic Layer)
+
+**During PlayerTurn** (`Update` schedule):
+- `apply_recruitment_adjustments` - reads `AdjustRecruitment`, updates allocations, computes caps
+- `apply_training_adjustments` - reads `AdjustTraining`, updates allocations
+- `apply_production_adjustments` - reads `AdjustProduction`, updates allocations
+
+**At Turn End** (triggered by phase change to Processing):
+- `finalize_allocations` - converts allocations → stockpile reservations, sets queue values
+
+**At Turn Start** (triggered by phase change to PlayerTurn):
+- `reset_allocations` - clears all allocations for fresh turn
+
+### UI Pattern (Rendering Layer)
+
+Instead of instant-action buttons, use:
+- **Sliders** or **+/- steppers** to adjust `requested` values
+- **Allocation bars** showing `allocated / total_available` for each resource
+- **Color coding**: green (can allocate more), yellow (at limit), red (insufficient)
+
+Example (pseudocode):
+```
+┌─ Capitol Building ──────────────────┐
+│ Recruit Workers: [-] 5 [+]          │
+│ Canned Food:  [████░░] 5/10  ✓     │
+│ Clothing:     [████░░] 5/8   ✓     │
+│ Furniture:    [█████░] 5/5   ⚠️    │
+│ → Will recruit 5 workers next turn  │
+└──────────────────────────────────────┘
+```
+
+### Implementation Files
+
+- [src/economy/allocation.rs](src/economy/allocation.rs) - Types, messages, helper methods
+- [src/economy/allocation_systems.rs](src/economy/allocation_systems.rs) - Logic systems
+- [ALLOCATION_DESIGN.md](ALLOCATION_DESIGN.md) - Full design doc
+
+### Benefits
+
+1. **Matches source material**: Imperialism (1997) used this exact model
+2. **Flexibility**: Change your mind freely during turn
+3. **Clarity**: See exactly what will happen next turn via bars
+4. **Prevents errors**: Can't over-commit resources accidentally
+
 ## Roadmap (short)
 
 1) **Province & City Interaction** ✅ DONE

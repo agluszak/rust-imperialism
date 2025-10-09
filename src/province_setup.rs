@@ -119,6 +119,7 @@ pub fn assign_provinces_to_countries(
             crate::economy::Treasury(10_000),
             stockpile,
             crate::economy::Technologies::default(),
+            crate::economy::ResourceAllocations::default(), // NEW: Allocation tracking
         ));
 
         let country_entity = country_builder.id();

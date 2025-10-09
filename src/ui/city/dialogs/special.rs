@@ -3,10 +3,9 @@ use bevy::prelude::*;
 use crate::economy::production::BuildingKind;
 use crate::economy::workforce::calculate_recruitment_cap;
 use crate::economy::{Good, PlayerNation, Stockpile, Workforce};
-use crate::ui::button_style::*;
 use crate::ui::city::components::{
-    CapitolCapacityDisplay, CapitolRequirementDisplay, RecruitWorkersButton,
-    TradeSchoolPaperDisplay, TradeSchoolWorkforceDisplay, TrainWorkerButton,
+    CapitolCapacityDisplay, CapitolRequirementDisplay, TradeSchoolPaperDisplay,
+    TradeSchoolWorkforceDisplay,
 };
 
 use super::types::BuildingDialog;
@@ -78,13 +77,12 @@ fn spawn_capitol_content(
     let upgraded = recruitment_cap.map(|c| c.upgraded).unwrap_or(false);
     let cap = calculate_recruitment_cap(province_count, upgraded);
     let queued = recruitment_queue.map(|q| q.queued).unwrap_or(0);
-    let remaining = cap.saturating_sub(queued);
+    let _remaining = cap.saturating_sub(queued);
 
     // Check requirements: canned food, clothing, furniture
     let has_food = stockpile.get_available(Good::CannedFood) >= 1;
     let has_clothing = stockpile.get_available(Good::Clothing) >= 1;
     let has_furniture = stockpile.get_available(Good::Furniture) >= 1;
-    let can_recruit = has_food && has_clothing && has_furniture && remaining > 0;
 
     commands.entity(content_entity).with_children(|content| {
         // Title
@@ -181,68 +179,59 @@ fn spawn_capitol_content(
         // Capacity display
         content.spawn((
             Text::new(format!(
-                "Recruitment capacity: {} / {} used this turn",
-                queued, cap
+                "Capacity: {} per turn (based on {} provinces{})",
+                cap,
+                province_count,
+                if upgraded { ", upgraded" } else { "" }
             )),
             TextFont {
                 font_size: 14.0,
                 ..default()
             },
-            TextColor(if remaining > 0 {
-                Color::srgb(0.9, 0.9, 0.9)
-            } else {
-                Color::srgb(0.9, 0.6, 0.6)
-            }),
+            TextColor(Color::srgb(0.9, 0.9, 0.9)),
             CapitolCapacityDisplay,
         ));
 
-        // Recruit buttons
-        content
-            .spawn(Node {
-                width: Val::Percent(100.0),
-                justify_content: JustifyContent::Center,
-                column_gap: Val::Px(8.0),
-                margin: UiRect::top(Val::Px(12.0)),
+        // NEW: Allocation stepper (using macro)
+        crate::spawn_allocation_stepper!(
+            content,
+            "Allocate Workers",
+            crate::ui::city::allocation_widgets::AllocationType::Recruitment
+        );
+
+        // Resource allocation section header
+        content.spawn((
+            Text::new("Resource Allocation:"),
+            TextFont {
+                font_size: 14.0,
                 ..default()
-            })
-            .with_children(|row| {
-                for count in [1, 5, 10] {
-                    let enabled = can_recruit && count <= remaining;
-                    row.spawn((
-                        Button,
-                        Node {
-                            padding: UiRect::all(Val::Px(12.0)),
-                            border: UiRect::all(Val::Px(2.0)),
-                            ..default()
-                        },
-                        BackgroundColor(if enabled {
-                            NORMAL_BUTTON
-                        } else {
-                            Color::srgba(0.2, 0.2, 0.2, 1.0)
-                        }),
-                        BorderColor::all(if enabled {
-                            Color::srgba(0.5, 0.5, 0.6, 0.8)
-                        } else {
-                            Color::srgba(0.3, 0.3, 0.3, 0.8)
-                        }),
-                        RecruitWorkersButton { count },
-                    ))
-                    .with_children(|btn| {
-                        btn.spawn((
-                            Text::new(format!("Recruit {}", count)),
-                            TextFont {
-                                font_size: 14.0,
-                                ..default()
-                            },
-                            TextColor(if enabled {
-                                Color::srgb(0.9, 0.9, 1.0)
-                            } else {
-                                Color::srgb(0.5, 0.5, 0.5)
-                            }),
-                        ));
-                    });
-                }
-            });
+            },
+            TextColor(Color::srgb(0.9, 0.9, 0.9)),
+            Node {
+                margin: UiRect::top(Val::Px(16.0)),
+                ..default()
+            },
+        ));
+
+        // Allocation bars (using macro)
+        for (good, name) in [
+            (Good::CannedFood, "Canned Food"),
+            (Good::Clothing, "Clothing"),
+            (Good::Furniture, "Furniture"),
+        ] {
+            crate::spawn_allocation_bar!(
+                content,
+                good,
+                name,
+                crate::ui::city::allocation_widgets::AllocationType::Recruitment
+            );
+        }
+
+        // Summary (using macro)
+        crate::spawn_allocation_summary!(
+            content,
+            crate::ui::city::allocation_widgets::AllocationType::Recruitment
+        );
     });
 }
 
@@ -340,128 +329,83 @@ fn spawn_trade_school_content(
             TradeSchoolPaperDisplay,
         ));
 
-        // Training options
-        content
-            .spawn(Node {
-                width: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(8.0),
-                margin: UiRect::top(Val::Px(12.0)),
+        // Training options (NEW: using allocation macros)
+
+        // Section 1: Train Untrained → Trained
+        content.spawn((
+            Text::new("Train Untrained → Trained"),
+            TextFont {
+                font_size: 16.0,
                 ..default()
-            })
-            .with_children(|section| {
-                // Untrained → Trained
-                section
-                    .spawn(Node {
-                        width: Val::Percent(100.0),
-                        justify_content: JustifyContent::SpaceBetween,
-                        align_items: AlignItems::Center,
-                        ..default()
-                    })
-                    .with_children(|row| {
-                        row.spawn((
-                            Text::new("Untrained → Trained (1 paper)"),
-                            TextFont {
-                                font_size: 14.0,
-                                ..default()
-                            },
-                            TextColor(Color::srgb(0.9, 0.9, 0.9)),
-                        ));
+            },
+            TextColor(Color::srgb(1.0, 0.95, 0.8)),
+            Node {
+                margin: UiRect::top(Val::Px(16.0)),
+                ..default()
+            },
+        ));
 
-                        let can_train = paper_available > 0 && untrained_count > 0;
-                        row.spawn((
-                            Button,
-                            Node {
-                                padding: UiRect::all(Val::Px(8.0)),
-                                border: UiRect::all(Val::Px(2.0)),
-                                ..default()
-                            },
-                            BackgroundColor(if can_train {
-                                NORMAL_BUTTON
-                            } else {
-                                Color::srgba(0.2, 0.2, 0.2, 1.0)
-                            }),
-                            BorderColor::all(if can_train {
-                                Color::srgba(0.5, 0.5, 0.6, 0.8)
-                            } else {
-                                Color::srgba(0.3, 0.3, 0.3, 0.8)
-                            }),
-                            TrainWorkerButton {
-                                from_skill: crate::economy::WorkerSkill::Untrained,
-                            },
-                        ))
-                        .with_children(|btn| {
-                            btn.spawn((
-                                Text::new("Train"),
-                                TextFont {
-                                    font_size: 14.0,
-                                    ..default()
-                                },
-                                TextColor(if can_train {
-                                    Color::srgb(0.9, 0.9, 1.0)
-                                } else {
-                                    Color::srgb(0.5, 0.5, 0.5)
-                                }),
-                            ));
-                        });
-                    });
+        crate::spawn_allocation_stepper!(
+            content,
+            "Allocate Workers",
+            crate::ui::city::allocation_widgets::AllocationType::Training(
+                crate::economy::WorkerSkill::Untrained
+            )
+        );
 
-                // Trained → Expert
-                section
-                    .spawn(Node {
-                        width: Val::Percent(100.0),
-                        justify_content: JustifyContent::SpaceBetween,
-                        align_items: AlignItems::Center,
-                        ..default()
-                    })
-                    .with_children(|row| {
-                        row.spawn((
-                            Text::new("Trained → Expert (1 paper)"),
-                            TextFont {
-                                font_size: 14.0,
-                                ..default()
-                            },
-                            TextColor(Color::srgb(0.9, 0.9, 0.9)),
-                        ));
+        crate::spawn_allocation_bar!(
+            content,
+            Good::Paper,
+            "Paper",
+            crate::ui::city::allocation_widgets::AllocationType::Training(
+                crate::economy::WorkerSkill::Untrained
+            )
+        );
 
-                        let can_train = paper_available > 0 && trained_count > 0;
-                        row.spawn((
-                            Button,
-                            Node {
-                                padding: UiRect::all(Val::Px(8.0)),
-                                border: UiRect::all(Val::Px(2.0)),
-                                ..default()
-                            },
-                            BackgroundColor(if can_train {
-                                NORMAL_BUTTON
-                            } else {
-                                Color::srgba(0.2, 0.2, 0.2, 1.0)
-                            }),
-                            BorderColor::all(if can_train {
-                                Color::srgba(0.5, 0.5, 0.6, 0.8)
-                            } else {
-                                Color::srgba(0.3, 0.3, 0.3, 0.8)
-                            }),
-                            TrainWorkerButton {
-                                from_skill: crate::economy::WorkerSkill::Trained,
-                            },
-                        ))
-                        .with_children(|btn| {
-                            btn.spawn((
-                                Text::new("Train"),
-                                TextFont {
-                                    font_size: 14.0,
-                                    ..default()
-                                },
-                                TextColor(if can_train {
-                                    Color::srgb(0.9, 0.9, 1.0)
-                                } else {
-                                    Color::srgb(0.5, 0.5, 0.5)
-                                }),
-                            ));
-                        });
-                    });
-            });
+        crate::spawn_allocation_summary!(
+            content,
+            crate::ui::city::allocation_widgets::AllocationType::Training(
+                crate::economy::WorkerSkill::Untrained
+            )
+        );
+
+        // Section 2: Train Trained → Expert
+        content.spawn((
+            Text::new("Train Trained → Expert"),
+            TextFont {
+                font_size: 16.0,
+                ..default()
+            },
+            TextColor(Color::srgb(1.0, 0.95, 0.8)),
+            Node {
+                margin: UiRect::top(Val::Px(24.0)),
+                ..default()
+            },
+        ));
+
+        crate::spawn_allocation_stepper!(
+            content,
+            "Allocate Workers",
+            crate::ui::city::allocation_widgets::AllocationType::Training(
+                crate::economy::WorkerSkill::Trained
+            )
+        );
+
+        crate::spawn_allocation_bar!(
+            content,
+            Good::Paper,
+            "Paper",
+            crate::ui::city::allocation_widgets::AllocationType::Training(
+                crate::economy::WorkerSkill::Trained
+            )
+        );
+
+        crate::spawn_allocation_summary!(
+            content,
+            crate::ui::city::allocation_widgets::AllocationType::Training(
+                crate::economy::WorkerSkill::Trained
+            )
+        );
     });
 }
 

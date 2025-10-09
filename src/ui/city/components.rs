@@ -153,3 +153,44 @@ pub struct StockpileMaterialsText;
 /// Marker for stockpile goods text
 #[derive(Component)]
 pub struct StockpileGoodsText;
+
+// ============ NEW: Allocation UI Components ============
+
+/// Marker for recruitment allocation slider/stepper
+#[derive(Component)]
+pub struct RecruitmentAllocationStepper;
+
+/// Button to adjust recruitment allocation
+#[derive(Component)]
+pub struct AdjustRecruitmentButton {
+    pub delta: i32, // +1, +5, -1, -5
+}
+
+/// Display for recruitment allocation value
+#[derive(Component)]
+pub struct RecruitmentAllocationDisplay;
+
+/// Allocation bar for a specific good in recruitment
+#[derive(Component)]
+pub struct RecruitmentAllocationBar {
+    pub good: crate::economy::Good,
+}
+
+/// Button to adjust training allocation
+#[derive(Component)]
+pub struct AdjustTrainingButton {
+    pub from_skill: crate::economy::WorkerSkill,
+    pub delta: i32, // +1, -1
+}
+
+/// Display for training allocation value
+#[derive(Component)]
+pub struct TrainingAllocationDisplay {
+    pub from_skill: crate::economy::WorkerSkill,
+}
+
+/// Allocation bar for training (paper)
+#[derive(Component)]
+pub struct TrainingAllocationBar {
+    pub from_skill: crate::economy::WorkerSkill,
+}

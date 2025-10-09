@@ -266,8 +266,6 @@ pub fn app() -> App {
             economy::production::calculate_connected_production
                 .after(economy::transport::compute_rail_connectivity),
             economy::production::run_production,
-            // Initialize reservations for new production settings
-            ui::city::production::initialize_production_reservations,
             // Execute recruitment and training orders during Processing phase
             economy::workforce::execute_recruitment_orders,
             economy::workforce::execute_training_orders,
@@ -304,6 +302,22 @@ pub fn app() -> App {
             // Worker recruitment and training (run anytime during player turn)
             economy::workforce::handle_recruitment,
             economy::workforce::handle_training,
+            // Allocation adjustment systems (run during PlayerTurn)
+            economy::allocation_systems::apply_recruitment_adjustments,
+            economy::allocation_systems::apply_training_adjustments,
+            economy::allocation_systems::apply_production_adjustments,
+            // Finalize allocations at turn end (before Processing)
+            economy::allocation_systems::finalize_allocations
+                .run_if(resource_changed::<TurnSystem>)
+                .run_if(|turn_system: Res<TurnSystem>| {
+                    turn_system.phase == turn_system::TurnPhase::Processing
+                }),
+            // Reset allocations at start of PlayerTurn
+            economy::allocation_systems::reset_allocations
+                .run_if(resource_changed::<TurnSystem>)
+                .run_if(|turn_system: Res<TurnSystem>| {
+                    turn_system.phase == turn_system::TurnPhase::PlayerTurn
+                }),
         )
             .run_if(in_state(AppState::InGame)),
     )

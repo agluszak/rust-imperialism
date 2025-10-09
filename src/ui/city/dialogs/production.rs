@@ -2,10 +2,8 @@ use bevy::prelude::*;
 
 use crate::economy::production::{BuildingKind, ProductionChoice, ProductionSettings};
 use crate::economy::{Building, Good, PlayerNation, Stockpile, Workforce};
-use crate::ui::button_style::*;
-use crate::ui::city::components::{
-    AdjustProductionButton, ProductionChoiceButton, ProductionLaborDisplay, ProductionTargetDisplay,
-};
+use crate::ui::button_style::NORMAL_BUTTON;
+use crate::ui::city::components::{ProductionChoiceButton, ProductionLaborDisplay};
 
 use super::types::BuildingDialog;
 
@@ -262,165 +260,97 @@ fn spawn_production_content(
                     });
             }
 
-            // Capacity and output section
+            // Capacity display
+            content.spawn((
+                Text::new(format!("Capacity: {} units/turn", building.capacity)),
+                TextFont {
+                    font_size: 16.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.9, 0.9, 0.9)),
+            ));
+
+            // Allocation UI using widget macros
+            // Determine the output good for this building and choice
+            let output_good = match building_kind {
+                BuildingKind::TextileMill => Good::Fabric,
+                BuildingKind::LumberMill => match choice {
+                    ProductionChoice::MakeLumber => Good::Lumber,
+                    ProductionChoice::MakePaper => Good::Paper,
+                    _ => Good::Lumber, // Default
+                },
+                BuildingKind::SteelMill => Good::Steel,
+                BuildingKind::FoodProcessingCenter => Good::CannedFood,
+                _ => Good::Fabric, // Fallback
+            };
+
+            let allocation_type = crate::ui::city::allocation_widgets::AllocationType::Production(
+                building_entity,
+                output_good,
+            );
+
+            // Stepper for target output
+            crate::spawn_allocation_stepper!(content, "Target Production", allocation_type);
+
+            // Resource allocation bars - show inputs required
+            let (inputs, _output) = get_recipe(building_kind, choice);
+            for (good, _amount) in inputs.iter() {
+                let good_name = format!("{:?}", good);
+                crate::spawn_allocation_bar!(content, *good, &good_name, allocation_type);
+            }
+
+            // Labor allocation bar (showing labor as a resource)
+            // Note: We'll need to add labor display support in the unified update systems
             content
                 .spawn(Node {
                     width: Val::Percent(100.0),
                     flex_direction: FlexDirection::Column,
-                    row_gap: Val::Px(8.0),
-                    padding: UiRect::all(Val::Px(12.0)),
+                    row_gap: Val::Px(4.0),
+                    padding: UiRect::all(Val::Px(8.0)),
                     border: UiRect::all(Val::Px(1.0)),
                     ..default()
                 })
-                .with_children(|section| {
-                    // Capacity display
-                    section.spawn((
-                        Text::new(format!("Capacity: {} units/turn", building.capacity)),
+                .with_children(|bar_container| {
+                    bar_container.spawn((
+                        Text::new("Labor"),
                         TextFont {
-                            font_size: 16.0,
+                            font_size: 14.0,
                             ..default()
                         },
-                        TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                        TextColor(Color::srgb(0.8, 0.8, 0.8)),
                     ));
 
-                    // Output control row
-                    section
-                        .spawn(Node {
-                            width: Val::Percent(100.0),
-                            justify_content: JustifyContent::SpaceBetween,
-                            align_items: AlignItems::Center,
+                    bar_container.spawn((
+                        Text::new(format!(
+                            "Required: {} (Available: {})",
+                            settings.target_output,
+                            workforce.available_labor()
+                        )),
+                        TextFont {
+                            font_size: 12.0,
                             ..default()
-                        })
-                        .with_children(|row| {
-                            row.spawn((
-                                Text::new("Target Output:"),
-                                TextFont {
-                                    font_size: 16.0,
-                                    ..default()
-                                },
-                                TextColor(Color::srgb(0.9, 0.9, 0.9)),
-                            ));
-
-                            // +/- buttons
-                            row.spawn(Node {
-                                column_gap: Val::Px(8.0),
-                                align_items: AlignItems::Center,
-                                ..default()
-                            })
-                            .with_children(|controls| {
-                                // Decrease button
-                                controls
-                                    .spawn((
-                                        Button,
-                                        Node {
-                                            width: Val::Px(40.0),
-                                            height: Val::Px(40.0),
-                                            justify_content: JustifyContent::Center,
-                                            align_items: AlignItems::Center,
-                                            border: UiRect::all(Val::Px(2.0)),
-                                            ..default()
-                                        },
-                                        BackgroundColor(NORMAL_BUTTON),
-                                        BorderColor::all(Color::srgba(0.5, 0.5, 0.6, 0.8)),
-                                        AdjustProductionButton {
-                                            building_entity,
-                                            delta: -1,
-                                        },
-                                    ))
-                                    .with_children(|btn| {
-                                        btn.spawn((
-                                            Text::new("−"),
-                                            TextFont {
-                                                font_size: 24.0,
-                                                ..default()
-                                            },
-                                            TextColor(Color::srgb(0.9, 0.9, 1.0)),
-                                        ));
-                                    });
-
-                                // Current output display
-                                controls.spawn((
-                                    Text::new(format!("{}", settings.target_output)),
-                                    TextFont {
-                                        font_size: 20.0,
-                                        ..default()
-                                    },
-                                    TextColor(Color::srgb(1.0, 1.0, 0.6)),
-                                    ProductionTargetDisplay { building_entity },
-                                ));
-
-                                // Increase button
-                                controls
-                                    .spawn((
-                                        Button,
-                                        Node {
-                                            width: Val::Px(40.0),
-                                            height: Val::Px(40.0),
-                                            justify_content: JustifyContent::Center,
-                                            align_items: AlignItems::Center,
-                                            border: UiRect::all(Val::Px(2.0)),
-                                            ..default()
-                                        },
-                                        BackgroundColor(NORMAL_BUTTON),
-                                        BorderColor::all(Color::srgba(0.5, 0.5, 0.6, 0.8)),
-                                        AdjustProductionButton {
-                                            building_entity,
-                                            delta: 1,
-                                        },
-                                    ))
-                                    .with_children(|btn| {
-                                        btn.spawn((
-                                            Text::new("+"),
-                                            TextFont {
-                                                font_size: 24.0,
-                                                ..default()
-                                            },
-                                            TextColor(Color::srgb(0.9, 0.9, 1.0)),
-                                        ));
-                                    });
-                            });
-                        });
+                        },
+                        TextColor(if settings.target_output <= workforce.available_labor() {
+                            Color::srgb(0.7, 0.9, 0.7)
+                        } else {
+                            Color::srgb(0.9, 0.6, 0.6)
+                        }),
+                        ProductionLaborDisplay { building_entity },
+                    ));
                 });
 
-            // Labor cost section
-            let available_labor = workforce.available_labor();
-            content.spawn((
-                Text::new(format!(
-                    "Labor: {} units required (available: {})",
-                    settings.target_output, available_labor
-                )),
-                TextFont {
-                    font_size: 14.0,
-                    ..default()
-                },
-                TextColor(if settings.target_output <= available_labor {
-                    Color::srgb(0.7, 0.9, 0.7)
-                } else {
-                    Color::srgb(0.9, 0.6, 0.6)
-                }),
-                ProductionLaborDisplay { building_entity },
-            ));
+            // Summary
+            crate::spawn_allocation_summary!(content, allocation_type);
 
             // TODO: Expand Industry button (Phase 5)
         });
 }
 
-/// Update production dialog target output display (Rendering Layer)
-pub fn update_production_target_display(
-    settings_query: Query<&ProductionSettings, Changed<ProductionSettings>>,
-    mut display_query: Query<(&mut Text, &ProductionTargetDisplay)>,
-) {
-    for (mut text, display) in display_query.iter_mut() {
-        if let Ok(settings) = settings_query.get(display.building_entity) {
-            **text = format!("{}", settings.target_output);
-        }
-    }
-}
-
 /// Update production dialog labor display (Rendering Layer)
+/// This updates the custom labor display that isn't part of the standard allocation bars
 pub fn update_production_labor_display(
     player_nation: Option<Res<PlayerNation>>,
-    settings_query: Query<&ProductionSettings>,
+    allocations_query: Query<&crate::economy::ResourceAllocations>,
     workforce_query: Query<&Workforce>,
     mut display_query: Query<(&mut Text, &mut TextColor, &ProductionLaborDisplay)>,
 ) {
@@ -432,21 +362,30 @@ pub fn update_production_labor_display(
         return;
     };
 
+    let Ok(allocations) = allocations_query.get(player.0) else {
+        return;
+    };
+
     let available_labor = workforce.available_labor();
 
     for (mut text, mut color, display) in display_query.iter_mut() {
-        if let Ok(settings) = settings_query.get(display.building_entity) {
-            **text = format!(
-                "Labor: {} units required (available: {})",
-                settings.target_output, available_labor
-            );
+        // Get production allocation for this building (sum of all outputs)
+        let production_alloc = allocations
+            .production
+            .get(&display.building_entity)
+            .map(|p| p.total_allocated())
+            .unwrap_or(0);
 
-            *color = TextColor(if settings.target_output <= available_labor {
-                Color::srgb(0.7, 0.9, 0.7)
-            } else {
-                Color::srgb(0.9, 0.6, 0.6)
-            });
-        }
+        **text = format!(
+            "Required: {} (Available: {})",
+            production_alloc, available_labor
+        );
+
+        *color = TextColor(if production_alloc <= available_labor {
+            Color::srgb(0.7, 0.9, 0.7)
+        } else {
+            Color::srgb(0.9, 0.6, 0.6)
+        });
     }
 }
 

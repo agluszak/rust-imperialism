@@ -1,3 +1,7 @@
+pub mod allocation;
+pub mod allocation_systems;
+#[cfg(test)]
+mod allocation_tests;
 pub mod calendar;
 pub mod goods;
 pub mod nation;
@@ -8,6 +12,10 @@ pub mod transport;
 pub mod treasury;
 pub mod workforce;
 
+pub use allocation::{
+    AdjustProduction, AdjustRecruitment, AdjustTraining, ProductionAllocation,
+    RecruitmentAllocation, ResourceAllocations, TrainingAllocation,
+};
 pub use calendar::{Calendar, Season};
 pub use goods::Good;
 pub use nation::{Capital, Name, NationColor, NationId, PlayerNation};
