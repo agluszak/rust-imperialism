@@ -2,55 +2,44 @@ use bevy::prelude::*;
 use std::collections::HashMap;
 
 use super::goods::Good;
+use super::reservation::ResourcePool;
 
 #[derive(Component, Debug, Clone, Default)]
 pub struct Stockpile {
-    /// Total resources in the stockpile
-    pub total: HashMap<Good, u32>,
-    /// Resources committed/reserved for various purposes (production, orders, etc.)
-    pub reserved: HashMap<Good, u32>,
+    pools: HashMap<Good, ResourcePool>,
 }
 
 impl Stockpile {
     /// Get total amount of a good (including reserved)
     pub fn get(&self, good: Good) -> u32 {
-        *self.total.get(&good).unwrap_or(&0)
+        self.pools.get(&good).map(|p| p.total).unwrap_or(0)
     }
 
     /// Get reserved amount of a good
     pub fn get_reserved(&self, good: Good) -> u32 {
-        *self.reserved.get(&good).unwrap_or(&0)
+        self.pools.get(&good).map(|p| p.reserved).unwrap_or(0)
     }
 
     /// Get available amount of a good (total - reserved)
     pub fn get_available(&self, good: Good) -> u32 {
-        self.get(good).saturating_sub(self.get_reserved(good))
+        self.pools.get(&good).map(|p| p.available()).unwrap_or(0)
     }
 
     /// Add resources to the stockpile
     pub fn add(&mut self, good: Good, qty: u32) {
-        *self.total.entry(good).or_default() += qty;
+        self.pools.entry(good).or_default().total += qty;
     }
 
     /// Reserve resources for a specific purpose (production, orders, etc.)
     /// Returns true if successful, false if not enough available
     pub fn reserve(&mut self, good: Good, qty: u32) -> bool {
-        if self.get_available(good) >= qty {
-            *self.reserved.entry(good).or_default() += qty;
-            true
-        } else {
-            false
-        }
+        self.pools.entry(good).or_default().try_reserve(qty)
     }
 
     /// Unreserve resources (e.g., cancel an order)
     pub fn unreserve(&mut self, good: Good, qty: u32) {
-        let current = self.get_reserved(good);
-        let new_reserved = current.saturating_sub(qty);
-        if new_reserved == 0 {
-            self.reserved.remove(&good);
-        } else {
-            self.reserved.insert(good, new_reserved);
+        if let Some(pool) = self.pools.get_mut(&good) {
+            pool.release(qty);
         }
     }
 
@@ -71,8 +60,10 @@ impl Stockpile {
     pub fn take_up_to(&mut self, good: Good, qty: u32) -> u32 {
         let available = self.get(good);
         let take = available.min(qty);
-        if take > 0 {
-            self.total.insert(good, available - take);
+        if take > 0
+            && let Some(pool) = self.pools.get_mut(&good)
+        {
+            pool.total = pool.total.saturating_sub(take);
         }
         take
     }
@@ -85,6 +76,11 @@ impl Stockpile {
     /// Returns true if the stockpile has at least `qty` units total (including reserved)
     pub fn has_at_least(&self, good: Good, qty: u32) -> bool {
         self.get(good) >= qty
+    }
+
+    /// Internal: Get mutable access to a pool (for ReservationSystem)
+    pub(super) fn get_pool_mut(&mut self, good: Good) -> Option<&mut ResourcePool> {
+        Some(self.pools.entry(good).or_default())
     }
 }
 

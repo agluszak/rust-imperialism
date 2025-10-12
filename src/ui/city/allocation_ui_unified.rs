@@ -5,8 +5,7 @@ use super::allocation_widgets::{
     AllocationType,
 };
 use crate::economy::{
-    AdjustProduction, AdjustRecruitment, AdjustTraining, PlayerNation, ResourceAllocations,
-    Stockpile,
+    AdjustProduction, AdjustRecruitment, AdjustTraining, Allocations, PlayerNation, Stockpile,
 };
 
 // ============================================================================
@@ -17,7 +16,7 @@ use crate::economy::{
 pub fn handle_all_stepper_buttons(
     interactions: Query<(&Interaction, &AllocationStepperButton), Changed<Interaction>>,
     player_nation: Option<Res<PlayerNation>>,
-    allocations: Query<&ResourceAllocations>,
+    allocations: Query<&Allocations>,
     mut recruit_writer: MessageWriter<AdjustRecruitment>,
     mut train_writer: MessageWriter<AdjustTraining>,
     mut prod_writer: MessageWriter<AdjustProduction>,
@@ -34,7 +33,7 @@ pub fn handle_all_stepper_buttons(
         if *interaction == Interaction::Pressed {
             match button.allocation_type {
                 AllocationType::Recruitment => {
-                    let current = alloc.recruitment.requested;
+                    let current = alloc.recruitment_count() as u32;
                     let new_requested = (current as i32 + button.delta).max(0) as u32;
                     recruit_writer.write(AdjustRecruitment {
                         nation: player.0,
@@ -47,12 +46,7 @@ pub fn handle_all_stepper_buttons(
                 }
 
                 AllocationType::Training(from_skill) => {
-                    let current = alloc
-                        .training
-                        .iter()
-                        .find(|t| t.from_skill == from_skill)
-                        .map(|t| t.requested)
-                        .unwrap_or(0);
+                    let current = alloc.training_count(from_skill) as u32;
                     let new_requested = (current as i32 + button.delta).max(0) as u32;
                     train_writer.write(AdjustTraining {
                         nation: player.0,
@@ -66,12 +60,7 @@ pub fn handle_all_stepper_buttons(
                 }
 
                 AllocationType::Production(building_entity, output_good) => {
-                    let current = alloc
-                        .production
-                        .get(&building_entity)
-                        .and_then(|p| p.outputs.get(&output_good))
-                        .map(|o| o.requested)
-                        .unwrap_or(0);
+                    let current = alloc.production_count(building_entity, output_good) as u32;
                     let new_target = (current as i32 + button.delta).max(0) as u32;
                     prod_writer.write(AdjustProduction {
                         nation: player.0,
@@ -97,7 +86,7 @@ pub fn handle_all_stepper_buttons(
 /// Update ALL stepper displays (recruitment, training, production)
 pub fn update_all_stepper_displays(
     player_nation: Option<Res<PlayerNation>>,
-    allocations: Query<&ResourceAllocations, Changed<ResourceAllocations>>,
+    allocations: Query<&Allocations, Changed<Allocations>>,
     mut displays: Query<(&mut Text, &AllocationStepperDisplay)>,
 ) {
     let Some(player) = player_nation else {
@@ -106,40 +95,18 @@ pub fn update_all_stepper_displays(
 
     if let Ok(alloc) = allocations.get(player.0) {
         for (mut text, display) in displays.iter_mut() {
-            let (requested, allocated) = match display.allocation_type {
-                AllocationType::Recruitment => {
-                    (alloc.recruitment.requested, alloc.recruitment.allocated)
-                }
+            let allocated = match display.allocation_type {
+                AllocationType::Recruitment => alloc.recruitment_count(),
 
-                AllocationType::Training(from_skill) => {
-                    if let Some(training) =
-                        alloc.training.iter().find(|t| t.from_skill == from_skill)
-                    {
-                        (training.requested, training.allocated)
-                    } else {
-                        (0, 0)
-                    }
-                }
+                AllocationType::Training(from_skill) => alloc.training_count(from_skill),
 
                 AllocationType::Production(building_entity, output_good) => {
-                    if let Some(prod) = alloc.production.get(&building_entity) {
-                        if let Some(output_alloc) = prod.outputs.get(&output_good) {
-                            (output_alloc.requested, output_alloc.allocated)
-                        } else {
-                            (0, 0)
-                        }
-                    } else {
-                        (0, 0)
-                    }
+                    alloc.production_count(building_entity, output_good)
                 }
             };
 
-            // Show both requested and allocated if they differ
-            text.0 = if requested == allocated {
-                format!("{}", allocated)
-            } else {
-                format!("{} (want: {})", allocated, requested)
-            };
+            // With new system, allocated is always what's been successfully reserved
+            text.0 = format!("{}", allocated);
         }
     }
 }
@@ -147,8 +114,9 @@ pub fn update_all_stepper_displays(
 /// Update ALL allocation bars (recruitment, training, production)
 pub fn update_all_allocation_bars(
     player_nation: Option<Res<PlayerNation>>,
-    allocations: Query<&ResourceAllocations, Changed<ResourceAllocations>>,
+    allocations: Query<&Allocations, Changed<Allocations>>,
     stockpiles: Query<&Stockpile>,
+    buildings: Query<&crate::economy::Building>,
     mut bars: Query<(
         &mut Text,
         &mut BackgroundColor,
@@ -156,6 +124,8 @@ pub fn update_all_allocation_bars(
         &AllocationBar,
     )>,
 ) {
+    use crate::economy::{BuildingKind, Good};
+
     let Some(player) = player_nation else {
         return;
     };
@@ -172,33 +142,46 @@ pub fn update_all_allocation_bars(
         let available = stockpile.get_available(bar.good);
 
         // Calculate needed based on allocation type
+        // Each allocation represents 1 unit, so needed = count × per-unit-cost
         let needed = match bar.allocation_type {
             AllocationType::Recruitment => {
-                // 1:1 ratio for recruitment goods
-                alloc.recruitment.allocated
+                // 1 CannedFood, 1 Clothing, 1 Furniture per worker
+                let count = alloc.recruitment_count() as u32;
+                match bar.good {
+                    Good::CannedFood | Good::Clothing | Good::Furniture => count,
+                    _ => 0,
+                }
             }
 
-            AllocationType::Training(_from_skill) => {
-                // Find matching training allocation
-
-                // 1:1 ratio for paper
-                alloc
-                    .training
-                    .iter()
-                    .find(|t| matches!(bar.allocation_type, AllocationType::Training(skill) if skill == t.from_skill))
-                    .map(|t| t.allocated)
-                    .unwrap_or(0)
+            AllocationType::Training(from_skill) => {
+                // 1 Paper per training
+                let count = alloc.training_count(from_skill) as u32;
+                match bar.good {
+                    Good::Paper => count,
+                    _ => 0,
+                }
             }
 
-            AllocationType::Production(building_entity, _output_good) => {
-                // Get production allocation and calculate inputs needed for ALL outputs
-                if let Some(prod) = alloc.production.get(&building_entity) {
-                    let inputs = prod.inputs_needed();
-                    inputs
-                        .iter()
-                        .find(|(good, _)| *good == bar.good)
-                        .map(|(_, qty)| *qty)
-                        .unwrap_or(0)
+            AllocationType::Production(building_entity, output_good) => {
+                // Get count and building kind to calculate inputs
+                let count = alloc.production_count(building_entity, output_good) as u32;
+                if count == 0 {
+                    0
+                } else if let Ok(building) = buildings.get(building_entity) {
+                    // Calculate per-unit cost and multiply by count
+                    let per_unit_cost = match (building.kind, bar.good) {
+                        (BuildingKind::TextileMill, Good::Cotton) => 2, // 2 cotton per fabric
+                        (BuildingKind::TextileMill, Good::Wool) => 2,   // 2 wool per fabric
+                        (BuildingKind::LumberMill, Good::Timber) => 2,  // 2 timber per output
+                        (BuildingKind::SteelMill, Good::Iron) => 1,     // 1 iron per steel
+                        (BuildingKind::SteelMill, Good::Coal) => 1,     // 1 coal per steel
+                        (BuildingKind::FoodProcessingCenter, Good::Grain) => 2, // per unit
+                        (BuildingKind::FoodProcessingCenter, Good::Fruit) => 1,
+                        (BuildingKind::FoodProcessingCenter, Good::Livestock) => 1,
+                        (BuildingKind::FoodProcessingCenter, Good::Fish) => 1,
+                        _ => 0,
+                    };
+                    count * per_unit_cost
                 } else {
                     0
                 }
@@ -238,7 +221,7 @@ pub fn update_all_allocation_bars(
 /// Update ALL allocation summaries
 pub fn update_all_allocation_summaries(
     player_nation: Option<Res<PlayerNation>>,
-    allocations: Query<&ResourceAllocations, Changed<ResourceAllocations>>,
+    allocations: Query<&Allocations, Changed<Allocations>>,
     mut summaries: Query<(&mut Text, &AllocationSummary)>,
 ) {
     let Some(player) = player_nation else {
@@ -249,7 +232,7 @@ pub fn update_all_allocation_summaries(
         for (mut text, summary) in summaries.iter_mut() {
             text.0 = match summary.allocation_type {
                 AllocationType::Recruitment => {
-                    let allocated = alloc.recruitment.allocated;
+                    let allocated = alloc.recruitment_count();
                     if allocated > 0 {
                         format!(
                             "→ Will recruit {} worker{} next turn",
@@ -262,12 +245,7 @@ pub fn update_all_allocation_summaries(
                 }
 
                 AllocationType::Training(from_skill) => {
-                    let allocated = alloc
-                        .training
-                        .iter()
-                        .find(|t| t.from_skill == from_skill)
-                        .map(|t| t.allocated)
-                        .unwrap_or(0);
+                    let allocated = alloc.training_count(from_skill);
                     if allocated > 0 {
                         let to_skill = from_skill.next_level();
                         format!(
@@ -283,17 +261,9 @@ pub fn update_all_allocation_summaries(
                 }
 
                 AllocationType::Production(building_entity, output_good) => {
-                    if let Some(prod) = alloc.production.get(&building_entity) {
-                        if let Some(output_alloc) = prod.outputs.get(&output_good) {
-                            let allocated = output_alloc.allocated;
-                            if allocated > 0 {
-                                format!("→ Will produce {} {:?} next turn", allocated, output_good)
-                            } else {
-                                "→ No production planned".to_string()
-                            }
-                        } else {
-                            "→ No production planned".to_string()
-                        }
+                    let allocated = alloc.production_count(building_entity, output_good);
+                    if allocated > 0 {
+                        format!("→ Will produce {} {:?} next turn", allocated, output_good)
                     } else {
                         "→ No production planned".to_string()
                     }

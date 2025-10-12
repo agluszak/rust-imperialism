@@ -276,7 +276,7 @@ pub fn handle_rescind_orders(
             // Apply refund if applicable
             if let Some(amount) = refund_amount {
                 if let Ok(mut treasury) = treasuries.get_mut(civilian.owner) {
-                    treasury.0 += amount;
+                    treasury.add(amount);
                     log_events.write(TerminalLogEvent {
                         message: format!(
                             "{:?} orders rescinded - returned to ({}, {}) from ({}, {}). ${} refunded (same turn).",

@@ -57,11 +57,13 @@ pub fn spawn_hired_civilian(
             continue;
         };
 
-        if treasury.0 < cost {
+        if treasury.total() < cost {
             log_events.write(crate::ui::logging::TerminalLogEvent {
                 message: format!(
                     "Not enough money to hire {:?} (need ${}, have ${})",
-                    event.kind, cost, treasury.0
+                    event.kind,
+                    cost,
+                    treasury.total()
                 ),
             });
             continue;
@@ -78,7 +80,7 @@ pub fn spawn_hired_civilian(
         };
 
         // Deduct cost
-        treasury.0 -= cost;
+        treasury.subtract(cost);
 
         // Spawn civilian
         commands.spawn(crate::civilians::Civilian {

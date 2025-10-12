@@ -99,8 +99,8 @@ fn handle_road_placement(
         if let Some(player) = &player
             && let Ok(mut treasury) = treasuries.get_mut(player.0)
         {
-            if treasury.0 >= cost {
-                treasury.0 -= cost;
+            if treasury.total() >= cost {
+                treasury.subtract(cost);
                 roads.0.insert(edge);
                 log_events.write(TerminalLogEvent {
                     message: format!(
@@ -112,7 +112,8 @@ fn handle_road_placement(
                 log_events.write(TerminalLogEvent {
                     message: format!(
                         "Not enough money to build road (need ${}, have ${})",
-                        cost, treasury.0
+                        cost,
+                        treasury.total()
                     ),
                 });
             }
@@ -226,8 +227,8 @@ fn handle_rail_construction(
     if let Some(player) = &player
         && let Ok(mut treasury) = treasuries.get_mut(player.0)
     {
-        if treasury.0 >= cost {
-            treasury.0 -= cost;
+        if treasury.total() >= cost {
+            treasury.subtract(cost);
 
             // Use the engineer from the message, or a dummy entity if not provided
             let engineer = e.engineer.unwrap_or(player.0);
@@ -250,7 +251,8 @@ fn handle_rail_construction(
             log_events.write(TerminalLogEvent {
                 message: format!(
                     "Not enough money to build rail (need ${}, have ${})",
-                    cost, treasury.0
+                    cost,
+                    treasury.total()
                 ),
             });
         }
@@ -269,8 +271,8 @@ fn handle_depot_placement(
     if let Some(player) = &player
         && let Ok(mut treasury) = treasuries.get_mut(player.0)
     {
-        if treasury.0 >= cost {
-            treasury.0 -= cost;
+        if treasury.total() >= cost {
+            treasury.subtract(cost);
             commands.spawn(Depot {
                 position: a,
                 owner: player.0,  // Set owner to player nation
@@ -283,7 +285,8 @@ fn handle_depot_placement(
             log_events.write(TerminalLogEvent {
                 message: format!(
                     "Not enough money to build depot (need ${}, have ${})",
-                    cost, treasury.0
+                    cost,
+                    treasury.total()
                 ),
             });
         }
@@ -336,8 +339,8 @@ fn handle_port_placement(
     if let Some(player) = &player
         && let Ok(mut treasury) = treasuries.get_mut(player.0)
     {
-        if treasury.0 >= cost {
-            treasury.0 -= cost;
+        if treasury.total() >= cost {
+            treasury.subtract(cost);
             commands.spawn(Port {
                 position: a,
                 owner: player.0, // Set owner to player nation
@@ -351,7 +354,8 @@ fn handle_port_placement(
             log_events.write(TerminalLogEvent {
                 message: format!(
                     "Not enough money to build port (need ${}, have ${})",
-                    cost, treasury.0
+                    cost,
+                    treasury.total()
                 ),
             });
         }

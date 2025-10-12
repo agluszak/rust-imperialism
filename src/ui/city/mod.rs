@@ -5,9 +5,8 @@ pub use components::*;
 pub use layout::{ensure_city_screen_visible, hide_city_screen};
 
 // Module declarations
-pub mod allocation_ui; // OLD: Per-type handlers (will be deprecated)
-pub mod allocation_ui_unified; // NEW: Unified allocation UI systems
-pub mod allocation_widgets; // NEW: Reusable allocation widgets
+pub mod allocation_ui_unified; // Unified allocation UI systems
+pub mod allocation_widgets; // Reusable allocation widgets
 pub mod buildings; // NEW: Building grid
 pub mod components;
 pub mod dialogs; // NEW: Dialog system

@@ -350,7 +350,7 @@ fn spawn_production_content(
 /// This updates the custom labor display that isn't part of the standard allocation bars
 pub fn update_production_labor_display(
     player_nation: Option<Res<PlayerNation>>,
-    allocations_query: Query<&crate::economy::ResourceAllocations>,
+    allocations_query: Query<&crate::economy::Allocations>,
     workforce_query: Query<&Workforce>,
     mut display_query: Query<(&mut Text, &mut TextColor, &ProductionLaborDisplay)>,
 ) {
@@ -370,11 +370,13 @@ pub fn update_production_labor_display(
 
     for (mut text, mut color, display) in display_query.iter_mut() {
         // Get production allocation for this building (sum of all outputs)
+        // Count all production allocations for this building across all output goods
         let production_alloc = allocations
             .production
-            .get(&display.building_entity)
-            .map(|p| p.total_allocated())
-            .unwrap_or(0);
+            .iter()
+            .filter(|((entity, _good), _reservations)| *entity == display.building_entity)
+            .map(|((_entity, _good), reservations)| reservations.len() as u32)
+            .sum::<u32>();
 
         **text = format!(
             "Required: {} (Available: {})",

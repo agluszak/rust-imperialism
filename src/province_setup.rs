@@ -116,10 +116,11 @@ pub fn assign_provinces_to_countries(
             crate::economy::NationId(i as u16 + 1),
             crate::economy::Name(name),
             crate::economy::NationColor(color),
-            crate::economy::Treasury(10_000),
+            crate::economy::Treasury::new(10_000),
             stockpile,
             crate::economy::Technologies::default(),
-            crate::economy::ResourceAllocations::default(), // NEW: Allocation tracking
+            crate::economy::Allocations::default(), // Simplified allocation tracking
+            crate::economy::ReservationSystem::default(), // Reservation tracking
         ));
 
         let country_entity = country_builder.id();

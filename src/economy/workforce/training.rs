@@ -100,12 +100,13 @@ pub fn handle_training(
             // For now, just check total cash
             let total_queued = queue.total_queued();
             let total_cash_needed = (total_queued as i64 + 1) * TRAINING_COST_CASH;
-            if treasury.0 < total_cash_needed {
+            if treasury.total() < total_cash_needed {
                 warn!("Cannot queue training: not enough money");
                 log_writer.write(crate::ui::logging::TerminalLogEvent {
                     message: format!(
                         "Cannot train: need ${} (have: ${})",
-                        total_cash_needed, treasury.0
+                        total_cash_needed,
+                        treasury.total()
                     ),
                 });
                 continue;
@@ -172,7 +173,7 @@ pub fn execute_training_orders(
                 if workforce.train_worker(*from_skill) {
                     // Consume reserved resources
                     stockpile.consume_reserved(Good::Paper, TRAINING_COST_PAPER);
-                    treasury.0 -= TRAINING_COST_CASH;
+                    treasury.subtract(TRAINING_COST_CASH);
 
                     info!(
                         "Trained worker from {:?} to {:?}",

@@ -48,13 +48,13 @@ fn handle_market_buttons(
             {
                 let price: i64 = 50; // fixed demo price
                 if buy.is_some() {
-                    if t.0 >= price {
-                        t.0 -= price;
+                    if t.total() >= price {
+                        t.subtract(price);
                         s.add(Good::Cloth, 1);
                     }
                 } else if sell.is_some() && s.get(Good::Cloth) >= 1 {
                     let _ = s.take_up_to(Good::Cloth, 1);
-                    t.0 += price;
+                    t.add(price);
                 }
             }
         }

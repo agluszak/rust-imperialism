@@ -6,7 +6,7 @@ use super::components::ProductionChoiceButton;
 pub fn handle_production_choice_buttons(
     interactions: Query<(&Interaction, &ProductionChoiceButton), Changed<Interaction>>,
     player_nation: Option<Res<crate::economy::PlayerNation>>,
-    allocations: Query<&crate::economy::ResourceAllocations>,
+    allocations: Query<&crate::economy::Allocations>,
     mut prod_writer: MessageWriter<crate::economy::AdjustProduction>,
 ) {
     let Some(player) = player_nation else {
@@ -40,16 +40,10 @@ pub fn handle_production_choice_buttons(
                 | crate::economy::production::ProductionChoice::UseFish => {
                     crate::economy::Good::CannedFood
                 }
-                _ => return, // Unknown choice
             };
 
             // Get current target output for this specific good
-            let current_target = alloc
-                .production
-                .get(&button.building_entity)
-                .and_then(|p| p.outputs.get(&output_good))
-                .map(|o| o.requested)
-                .unwrap_or(0);
+            let current_target = alloc.production_count(button.building_entity, output_good) as u32;
 
             // Write AdjustProduction with new choice but keep current target
             prod_writer.write(crate::economy::AdjustProduction {

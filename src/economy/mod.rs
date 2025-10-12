@@ -1,25 +1,22 @@
 pub mod allocation;
-pub mod allocation_systems;
-#[cfg(test)]
-mod allocation_tests;
+pub mod allocation_systems_v2;
 pub mod calendar;
 pub mod goods;
 pub mod nation;
 pub mod production;
+pub mod reservation;
 pub mod stockpile;
 pub mod technology;
 pub mod transport;
 pub mod treasury;
 pub mod workforce;
 
-pub use allocation::{
-    AdjustProduction, AdjustRecruitment, AdjustTraining, ProductionAllocation,
-    RecruitmentAllocation, ResourceAllocations, TrainingAllocation,
-};
+pub use allocation::{AdjustProduction, AdjustRecruitment, AdjustTraining, Allocations};
 pub use calendar::{Calendar, Season};
 pub use goods::Good;
 pub use nation::{Capital, Name, NationColor, NationId, PlayerNation};
 pub use production::{Building, BuildingKind};
+pub use reservation::{ReservationId, ReservationSystem, ResourcePool};
 pub use stockpile::Stockpile;
 pub use technology::{Technologies, Technology};
 pub use transport::{Depot, ImprovementKind, PlaceImprovement, Port, Rails, Roads};

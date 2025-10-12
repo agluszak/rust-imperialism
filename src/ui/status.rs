@@ -64,7 +64,7 @@ pub fn update_treasury_display(
     if let Some(player) = player
         && let Ok(treasury) = treasuries.get(player.0)
     {
-        let s = format_currency(treasury.0);
+        let s = format_currency(treasury.total());
         for mut text in q.iter_mut() {
             text.0 = s.clone();
         }

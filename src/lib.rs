@@ -302,18 +302,18 @@ pub fn app() -> App {
             // Worker recruitment and training (run anytime during player turn)
             economy::workforce::handle_recruitment,
             economy::workforce::handle_training,
-            // Allocation adjustment systems (run during PlayerTurn)
-            economy::allocation_systems::apply_recruitment_adjustments,
-            economy::allocation_systems::apply_training_adjustments,
-            economy::allocation_systems::apply_production_adjustments,
-            // Finalize allocations at turn end (before Processing)
-            economy::allocation_systems::finalize_allocations
+            // Allocation adjustment systems (run during PlayerTurn) - V2
+            economy::allocation_systems_v2::apply_recruitment_adjustments_v2,
+            economy::allocation_systems_v2::apply_training_adjustments_v2,
+            economy::allocation_systems_v2::apply_production_adjustments_v2,
+            // Finalize allocations at turn end (before Processing) - V2
+            economy::allocation_systems_v2::finalize_allocations_v2
                 .run_if(resource_changed::<TurnSystem>)
                 .run_if(|turn_system: Res<TurnSystem>| {
                     turn_system.phase == turn_system::TurnPhase::Processing
                 }),
-            // Reset allocations at start of PlayerTurn
-            economy::allocation_systems::reset_allocations
+            // Reset allocations at start of PlayerTurn - V2
+            economy::allocation_systems_v2::reset_allocations_v2
                 .run_if(resource_changed::<TurnSystem>)
                 .run_if(|turn_system: Res<TurnSystem>| {
                     turn_system.phase == turn_system::TurnPhase::PlayerTurn

@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use super::super::goods::Good;
+use super::super::reservation::ResourcePool;
 
 /// Workforce component tracks workers by skill level for a nation
 /// Workers provide labor points: Untrained=1, Trained=2, Expert=4
@@ -8,6 +9,8 @@ use super::super::goods::Good;
 pub struct Workforce {
     /// Individual workers with their state
     pub workers: Vec<Worker>,
+    /// Labor pool for reservations
+    pub labor_pool: ResourcePool,
 }
 
 impl Workforce {
@@ -15,6 +18,7 @@ impl Workforce {
     pub fn new() -> Self {
         Self {
             workers: Vec::new(),
+            labor_pool: ResourcePool::default(),
         }
     }
 
@@ -56,6 +60,22 @@ impl Workforce {
             .filter(|w| w.health == WorkerHealth::Healthy)
             .map(|w| w.skill.labor_points())
             .sum()
+    }
+
+    /// Update labor pool total based on current worker state
+    /// Should be called at start of turn after health resets
+    pub fn update_labor_pool(&mut self) {
+        self.labor_pool.total = self.available_labor();
+    }
+
+    /// Try to reserve labor (for ReservationSystem)
+    pub fn try_reserve_labor(&mut self, amount: u32) -> bool {
+        self.labor_pool.try_reserve(amount)
+    }
+
+    /// Release labor reservation (for ReservationSystem)
+    pub fn release_labor(&mut self, amount: u32) {
+        self.labor_pool.release(amount);
     }
 
     /// Train a worker from Untrained to Trained or Trained to Expert
