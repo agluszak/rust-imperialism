@@ -1,8 +1,7 @@
 use bevy::prelude::*;
 
 use super::components::{
-    AvailableLaborText, HireCivilian, HireCivilianButton, RecruitWorkersButton, TrainWorkerButton,
-    WorkforceCountsText,
+    HireCivilian, HireCivilianButton, RecruitWorkersButton, TrainWorkerButton,
 };
 use crate::tile_pos::TilePosExt;
 
@@ -198,43 +197,6 @@ pub fn handle_train_worker_buttons(
                 nation: player_nation.0,
                 from_skill: button.from_skill,
             });
-        }
-    }
-}
-
-/// Update workforce panel when data changes (Rendering Layer)
-/// Updates workforce panel text when workforce data changes
-pub fn update_workforce_panel(
-    player_nation: Option<Res<crate::economy::PlayerNation>>,
-    workforces: Query<&crate::economy::Workforce, Changed<crate::economy::Workforce>>,
-    mut worker_counts_text: Query<
-        &mut Text,
-        (With<WorkforceCountsText>, Without<AvailableLaborText>),
-    >,
-    mut labor_text: Query<&mut Text, (With<AvailableLaborText>, Without<WorkforceCountsText>)>,
-) {
-    let Some(player) = player_nation else {
-        return;
-    };
-
-    // Check if player's workforce changed
-    if let Ok(workforce) = workforces.get(player.0) {
-        let untrained = workforce.untrained_count();
-        let trained = workforce.trained_count();
-        let expert = workforce.expert_count();
-        let available_labor = workforce.available_labor();
-
-        // Update worker counts text
-        for mut text in worker_counts_text.iter_mut() {
-            text.0 = format!(
-                "Untrained: {} (1 labor) | Trained: {} (2 labor) | Expert: {} (4 labor)",
-                untrained, trained, expert
-            );
-        }
-
-        // Update available labor text
-        for mut text in labor_text.iter_mut() {
-            text.0 = format!("Available Labor: {}", available_labor);
         }
     }
 }

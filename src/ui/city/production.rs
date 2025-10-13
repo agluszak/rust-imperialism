@@ -56,8 +56,3 @@ pub fn handle_production_choice_buttons(
         }
     }
 }
-
-/// Update building panels (placeholder for now - we'll implement dynamic updates if needed)
-pub fn update_building_panels() {
-    // Buildings are static for now, but we could add dynamic updates here
-}

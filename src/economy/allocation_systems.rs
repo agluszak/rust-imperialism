@@ -17,7 +17,7 @@ use crate::province::Province;
 
 /// Apply production allocation adjustments using unit-by-unit reservations
 /// Each +1 adds one ReservationId, each -1 removes one
-pub fn apply_production_adjustments_v2(
+pub fn apply_production_adjustments(
     mut messages: MessageReader<AdjustProduction>,
     mut nations: Query<(
         &mut Allocations,
@@ -166,7 +166,7 @@ fn calculate_inputs_for_one_unit(
 // ============================================================================
 
 /// Apply recruitment allocation adjustments using unit-by-unit reservations
-pub fn apply_recruitment_adjustments_v2(
+pub fn apply_recruitment_adjustments(
     mut messages: MessageReader<AdjustRecruitment>,
     mut nations: Query<(&mut Allocations, &mut ReservationSystem, &mut Stockpile)>,
     provinces: Query<&Province>,
@@ -262,7 +262,7 @@ pub fn apply_recruitment_adjustments_v2(
 // ============================================================================
 
 /// Apply training allocation adjustments using unit-by-unit reservations
-pub fn apply_training_adjustments_v2(
+pub fn apply_training_adjustments(
     mut messages: MessageReader<AdjustTraining>,
     mut nations: Query<(
         &mut Allocations,
@@ -353,7 +353,7 @@ pub fn apply_training_adjustments_v2(
 
 /// Finalize allocations at turn end (when entering Processing phase)
 /// Consumes reservations and queues orders for execution
-pub fn finalize_allocations_v2(
+pub fn finalize_allocations(
     turn: Res<crate::turn_system::TurnSystem>,
     mut nations: Query<(
         &Allocations,
@@ -439,7 +439,7 @@ pub fn finalize_allocations_v2(
 
 /// Reset allocations at start of PlayerTurn
 /// Releases all reservations and clears allocation structures
-pub fn reset_allocations_v2(
+pub fn reset_allocations(
     turn: Res<crate::turn_system::TurnSystem>,
     mut nations: Query<(
         &mut Allocations,

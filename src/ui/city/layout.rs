@@ -13,9 +13,6 @@ pub fn ensure_city_screen_visible(
         return;
     }
 
-    // OLD CODE - No longer needed, using HUD borders and building grid instead
-    // (player_stockpile, player_buildings collection removed)
-
     // Fullscreen city background panel
     let city_screen_entity = commands
         .spawn((
@@ -41,7 +38,7 @@ pub fn ensure_city_screen_visible(
     super::hud::spawn_food_demand_panel(&mut commands, city_screen_entity);
     super::hud::spawn_warehouse_hud(&mut commands, city_screen_entity);
 
-    // Spawn building grid (NEW)
+    // Spawn building grid
     super::buildings::spawn_building_grid(&mut commands, city_screen_entity);
 
     // Add children to city screen

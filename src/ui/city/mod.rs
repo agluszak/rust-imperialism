@@ -7,13 +7,12 @@ pub use layout::{ensure_city_screen_visible, hide_city_screen};
 // Module declarations
 pub mod allocation_ui_unified; // Unified allocation UI systems
 pub mod allocation_widgets; // Reusable allocation widgets
-pub mod buildings; // NEW: Building grid
+pub mod buildings;
 pub mod components;
-pub mod dialogs; // NEW: Dialog system
-pub mod hud; // NEW: HUD borders
+pub mod dialogs;
+pub mod hud;
 pub mod layout;
 pub mod production;
-pub mod warehouse;
 pub mod workforce;
 
 // No private imports needed - using fully qualified paths in plugin registration
@@ -25,12 +24,10 @@ impl Plugin for CityUIPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<dialogs::DialogZIndexCounter>()
             .add_message::<HireCivilian>()
-            .add_message::<ChangeProductionSettings>()
             .add_message::<crate::economy::RecruitWorkers>()
             .add_message::<crate::economy::TrainWorker>()
             .add_message::<dialogs::OpenBuildingDialog>()
             .add_message::<dialogs::CloseBuildingDialog>()
-            // NEW: Allocation messages
             .add_message::<crate::economy::AdjustRecruitment>()
             .add_message::<crate::economy::AdjustTraining>()
             .add_message::<crate::economy::AdjustProduction>()
@@ -86,7 +83,6 @@ impl Plugin for CityUIPlugin {
                     production::handle_production_choice_buttons,
                     workforce::handle_recruit_workers_buttons,
                     workforce::handle_train_worker_buttons,
-                    // NEW: Unified allocation UI input handler
                     allocation_ui_unified::handle_all_stepper_buttons,
                 )
                     .run_if(in_state(crate::ui::mode::GameMode::City)),
@@ -94,11 +90,7 @@ impl Plugin for CityUIPlugin {
             .add_systems(
                 Update,
                 (
-                    // OLD panel update systems (will be removed later)
-                    production::update_building_panels,
-                    workforce::update_workforce_panel,
-                    warehouse::update_stockpile_display,
-                    // NEW: Unified allocation UI rendering systems
+                    // Unified allocation UI rendering systems
                     allocation_ui_unified::update_all_stepper_displays,
                     allocation_ui_unified::update_all_allocation_bars,
                     allocation_ui_unified::update_all_allocation_summaries,
