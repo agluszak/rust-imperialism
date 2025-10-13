@@ -1,16 +1,39 @@
 # AGENTS.md
 
-This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. It reflects the repository as of 2025-10-09.
+This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. Last updated: **2025-10-13**.
 
-**Recent refactorings**:
-- **2025-10-09**:
-  - `economy/transport.rs` split into modular subdirectory (types, messages, validation, construction, connectivity, input)
-  - `economy/workforce.rs` split into modular subdirectory (types, systems, recruitment, training, consumption)
-- **2025-10-08**: `civilians.rs` and `ui/city.rs` split into modular subdirectories
+**This is an economy-first, turn-based strategy game** inspired by Imperialism (1997). Built with Bevy 0.17 ECS, featuring hex-based maps, multi-nation economies, and a reservation-based resource allocation system.
 
-See MIGRATION_STATUS.md for details on the ui/city migration.
+**Recent changes** (Oct 2025):
+- Allocation system refactored to atomic reservations (`Vec<ReservationId>` per allocation)
+- Major modules now use subdirectory structure: `economy/{transport,workforce}`, `ui/city`, `civilians/`
+- Dead code cleanup: ~220 lines removed, all `_v2` suffixes eliminated
 
-If you remember older arcade/RPG features (hero, monsters, combat, health, pathfinding) — those were removed. This is now an economy-first, turn-based strategy prototype inspired by Imperialism (1997).
+**Key architectural decisions**:
+- Strict Input/Logic/Rendering separation via messages
+- Per-nation economy data as Components (not global Resources)
+- Resource allocation follows Imperialism's pre-allocation model (adjust during turn, commit at turn end)
+
+## Quick Reference
+
+**Build & Run:**
+```bash
+cargo run              # Run game (debug)
+cargo test             # Run all tests
+cargo clippy           # Lint checks
+```
+
+**Key Controls:**
+- WASD: pan camera | Z/X: zoom | Space: end turn
+- Left-click civilian: select | Escape: deselect all
+- Sidebar: Map/Transport/City/Market/Diplomacy modes
+
+**Where to find things:**
+- Game logic: `src/economy/`, `src/civilians/`
+- UI: `src/ui/city/`, `src/ui/{transport,market,diplomacy}.rs`
+- Systems registration: `src/lib.rs`
+- Allocation system: `src/economy/allocation*.rs`, `ALLOCATION_DESIGN.md`
+- Project overview: `OVERVIEW.md` (Imperialism 1997 mechanics)
 
 ## High-level overview
 
@@ -67,127 +90,88 @@ Read @OVERVIEW.md to get a high-level overview of the Imperialism game.
   - `PlayerNation(Entity)` resource points to the active player's nation
   - Each nation controls connected provinces; game typically starts with 3-5 nations
 
-## Project structure (actual)
+## Project structure
 
 ```
 src/
-├── main.rs               # App wiring, camera, state setup, map generation, systems registration
-├── lib.rs                # Library entry point with plugin registration
-├── assets.rs             # Asset path mapping (terrain, units, cities, transport)
-├── bmp_loader.rs         # Custom BMP loader with transparency handling
-├── constants.rs          # Tunable constants (map size, tile size, seeds)
-├── tiles.rs              # Tile categories and properties + texture index mapping
-├── terrain_gen.rs        # Perlin-based procedural terrain classifier
-├── terrain_atlas.rs      # Terrain texture atlas building
-├── tile_pos.rs           # Hex ↔ tile utilities and world-position helpers
-├── input.rs              # Pointer click routing (terrain edit, transport selection)
-├── turn_system.rs        # Turn phases, timers, calendar advancement
-├── province.rs           # Province, City, ProvinceId, TileProvince components
-├── province_gen.rs       # Province generation via flood-fill (15-20 tiles each)
-├── province_setup.rs     # Province assignment to countries (connected groups)
-├── border_rendering.rs   # Renders international (dual-color) and provincial borders
-├── city_rendering.rs     # Renders city and capital sprites
-├── civilians/            # Civilian units module (modular structure)
-│   ├── mod.rs           # Plugin and public API
-│   ├── types.rs         # Civilian types and components
-│   ├── commands.rs      # Message types for civilian orders
-│   ├── jobs.rs          # Multi-turn job system
-│   ├── systems.rs       # Core civilian systems (selection, orders, movement)
-│   ├── engineering.rs   # Engineer and Prospector-specific logic
-│   ├── rendering.rs     # Visual rendering for civilians
-│   ├── ui_components.rs # UI panels (order buttons, rescind UI)
-│   └── tests.rs         # Unit tests
-├── transport_rendering.rs # Visual rendering for roads, rails, depots, ports
+├── main.rs, lib.rs
+├── assets.rs, bmp_loader.rs, constants.rs
+│
+├── tiles.rs, terrain_gen.rs, terrain_atlas.rs, tile_pos.rs
+├── province.rs, province_gen.rs, province_setup.rs
+├── border_rendering.rs, city_rendering.rs, transport_rendering.rs
+│
+├── input.rs
+├── turn_system.rs
+│
+├── civilians/
+│   ├── types.rs, commands.rs, jobs.rs
+│   ├── systems.rs, engineering.rs
+│   ├── rendering.rs, ui_components.rs
+│   └── tests.rs
+│
 ├── economy/
-│   ├── goods.rs          # `Good` enum (Wool, Cotton, Cloth)
-│   ├── stockpile.rs      # `Stockpile` (Component) with helpers
-│   ├── treasury.rs       # `Treasury` (Component)
-│   ├── calendar.rs       # Global `Calendar` (Resource)
-│   ├── nation.rs         # `NationId`, `Name`, `NationColor`, `Capital` (Components), `PlayerNation` (Resource)
-│   ├── production.rs     # `Building`, `BuildingKind`, `run_production`
-│   ├── technology.rs     # Technology system
-│   ├── transport/        # Transport module (modular structure)
-│   │   ├── mod.rs        # Public API
-│   │   ├── types.rs      # ImprovementKind, Depot, Port, Roads, Rails, RailConstruction
-│   │   ├── messages.rs   # PlaceImprovement message
-│   │   ├── validation.rs # Terrain checks, adjacency validation
-│   │   ├── construction.rs # Rail construction advancement (logic)
-│   │   ├── connectivity.rs # Network connectivity BFS (logic)
-│   │   └── input.rs      # apply_improvements (input handler)
-│   └── workforce/        # Workforce module (modular structure)
-│       ├── mod.rs        # Public API
-│       ├── types.rs      # WorkerSkill, Workforce, Worker, WorkerHealth
-│       ├── systems.rs    # General workforce logic
-│       ├── recruitment.rs # Recruitment queue and processing
-│       ├── training.rs   # Training queue and processing
-│       └── consumption.rs # Food consumption and health
+│   ├── goods.rs, stockpile.rs, treasury.rs
+│   ├── calendar.rs, nation.rs
+│   ├── production.rs, technology.rs
+│   ├── allocation.rs, allocation_systems.rs, reservation.rs
+│   ├── transport/
+│   │   ├── types.rs, messages.rs, validation.rs
+│   │   ├── construction.rs, connectivity.rs, input.rs
+│   │   └── mod.rs
+│   └── workforce/
+│       ├── types.rs, systems.rs
+│       ├── recruitment.rs, training.rs, consumption.rs
+│       └── mod.rs
+│
 └── ui/
-    ├── mod.rs            # UI plugin (messages, state collection, scheduling)
-    ├── components.rs     # UI marker components (HUD/terminal/roots)
-    ├── setup.rs          # HUD/terminal/sidebar (spawned on entering InGame)
-    ├── logging.rs        # TerminalLog resource + events and rendering
-    ├── input.rs          # Terminal scroll + clamping
-    ├── status.rs         # HUD updaters (Turn/Calendar/Treasury)
-    ├── state/            # Centralized `UIState` + tests
-    ├── mode.rs           # `GameMode` SubState + button handlers
-    ├── menu.rs           # `AppState` (MainMenu/InGame) + main menu UI
-    ├── city/             # City Mode UI module (modular structure)
-    │   ├── mod.rs        # Plugin and public API
-    │   ├── components.rs # UI marker components and messages
-    │   ├── layout.rs     # Main city screen layout (~800 lines)
-    │   ├── production.rs # Production choice and adjustment handlers
-    │   ├── workforce.rs  # Worker hiring, recruitment, training
-    │   └── warehouse.rs  # Stockpile display updates
-    ├── transport.rs      # Transport overlay + click-to-edge tool
-    ├── market.rs         # Market overlay + fixed buy/sell
-    └── diplomacy.rs      # Diplomacy overlay (stub)
+    ├── mod.rs, components.rs, setup.rs
+    ├── logging.rs, input.rs, status.rs
+    ├── mode.rs, menu.rs
+    ├── state/
+    ├── city/
+    │   ├── components.rs, layout.rs
+    │   ├── production.rs, workforce.rs
+    │   ├── allocation_ui_unified.rs, allocation_widgets.rs
+    │   ├── buildings/, dialogs/, hud/
+    │   └── mod.rs
+    ├── transport.rs
+    ├── market.rs
+    └── diplomacy.rs
 ```
 
-## Important types and systems
+**Key modules:**
+- **terrain/tiles**: Procedural generation, hex utilities, atlas building
+- **provinces**: Province generation (flood-fill), assignment to countries, border rendering
+- **civilians**: Unit types, multi-turn jobs, Engineer/Prospector logic
+- **economy**: Goods, per-nation Stockpile/Treasury, production, allocation system, transport network, workforce
+- **ui**: HUD, terminal log, mode overlays (City/Transport/Market/Diplomacy)
 
-- States
-  - `AppState` (States): `MainMenu` | `InGame`
-  - `GameMode` (SubStates; source = `AppState::InGame`): `Map` | `Transport` | `City` | `Market` | `Diplomacy`
+## Important types
 
-- Geography & Political
-  - `Province` (Component) — owns multiple tiles, has a city, belongs to a nation
-  - `ProvinceId` (Component) — stable identifier
-  - `TileProvince` (Component on tiles) — links each tile to its province
-  - `City` (Component) — marks city/capital entity with `province: ProvinceId, is_capital: bool`
-  - Province generation: `generate_provinces()` creates 15-20 tile groups via flood-fill
-  - Province assignment: `assign_provinces_to_countries()` groups connected provinces per nation
+**States:**
+- `AppState`: `MainMenu` | `InGame`
+- `GameMode`: `Map` | `Transport` | `City` | `Market` | `Diplomacy`
 
-- Economy
-  - `Good` (Wool, Cotton, Cloth)
-  - `Stockpile` (Component, per nation) with `add`, `get`, `take_up_to`, `has_at_least`
-  - `Treasury` (Component, per nation)
-  - `Calendar` (Resource) — world time; `display()` returns e.g., "Spring, 1815"
-  - `NationId`, `Name`, `NationColor`, `Capital` (Components); `PlayerNation(Entity)` (Resource)
-  - Production: `Building` (with `capacity`), `BuildingKind::TextileMill`, `ProductionSettings` (choice + target_output); systems: `run_production`, `apply_production_settings_changes`
-  - Transport: `ImprovementKind::Road|Rail|Depot|Port`, `PlaceImprovement { a, b, kind }`; `Roads`, `Rails` (Resources); system: `apply_improvements`
+**Geography:**
+- `Province`, `ProvinceId`, `TileProvince`, `City` (Components)
+- Functions: `generate_provinces()`, `assign_provinces_to_countries()`
 
-- Civilians
-  - `Civilian` (Component) with `kind: CivilianKind`, `position: TilePos`, `owner: Entity`, `selected: bool`, `has_moved: bool`
-  - `CivilianKind` enum: Engineer, Prospector, Miner, Farmer, Rancher, Forester, Driller, Developer
-  - `CivilianJob` (Component) — multi-turn jobs with `turns_remaining`
-  - Engineers can build rails, depots, ports (with 2-3 turn construction times)
+**Economy:**
+- Per-nation: `Stockpile`, `Treasury`, `Workforce`, `Allocations` (Components)
+- Global: `Calendar` (Resource)
+- Nation identity: `NationId`, `Name`, `NationColor`, `Capital` (Components), `PlayerNation` (Resource)
+- Production: `Building`, `ProductionSettings` (Components), `Good` (enum)
+- Allocation: `Allocations`, `ReservationId`, `ResourcePool`
+- Transport: `ImprovementKind`, `Roads`, `Rails`, `Depot`, `Port`
 
-- Input/UI
-  - Pointer click handler: left-click civilians → select
-  - HUD updaters: `update_turn_display`, `update_calendar_display`, `update_treasury_display`
-  - Terminal: `TerminalLogEvent` → `TerminalLog` → text rendering with scrolling
-  - Engineer orders panel appears when Engineer selected
+**Civilians:**
+- `Civilian`, `CivilianJob` (Components)
+- `CivilianKind`: Engineer, Prospector, Miner, Farmer, Rancher, Forester, Driller, Developer
 
-- Rendering
-  - `render_borders()` — draws international borders (dual-color, offset) and provincial borders (thin black)
-  - `render_city_visuals()` — spawns sprites for cities and capitals at z=2.0
-  - `render_civilian_visuals()` — spawns sprites for civilians at z=3.0, tints yellow when selected
-  - `render_transport_improvements()` — draws roads, rails, depots, ports
-
-- Turn system
-  - `TurnSystem` resource with `current_turn`, `phase`, helpers (`end_player_turn`, `is_player_turn`)
-  - `process_turn_phases` handles timers and advances the `Calendar` on each full turn
-  - `reset_civilian_actions` and `advance_civilian_jobs` run at start of player turn
+**Turn System:**
+- `TurnSystem` (Resource): `current_turn`, `phase`, `end_player_turn()`, `is_player_turn()`
+- Systems: `process_turn_phases`, `reset_civilian_actions`, `advance_civilian_jobs`
 
 ## Controls (runtime)
 
@@ -217,76 +201,10 @@ src/
   - Example: economy systems run in `Update` while `in_state(AppState::InGame)`
   - Mode-specific UI logic can run with `run_if(in_state(GameMode::Transport))`, etc.
 
-## Architecture & Separation of Concerns
+## Architecture
 
-The codebase maintains **strict separation** between Input, Logic, and Rendering layers:
+**Three-layer separation:** Input → Logic → Rendering
 
-### Input Layer
-Input handlers only read interaction events and emit messages. They do not mutate game state or render anything.
-
-**Examples:**
-```rust
-fn handle_production_choice_buttons(
-    interactions: Query<(&Interaction, &ProductionChoiceButton), Changed<Interaction>>,
-    mut change_writer: MessageWriter<ChangeProductionSettings>,
-) {
-    // Only reads interaction, writes message - no state mutation
-    for (interaction, button) in interactions.iter() {
-        if *interaction == Interaction::Pressed {
-            change_writer.write(ChangeProductionSettings { ... });
-        }
-    }
-}
-```
-
-- `handle_civilian_click` → writes `SelectCivilian`
-- `handle_hire_button_clicks` → writes `HireCivilian`
-- `handle_tile_click` → routes to different messages based on `GameMode`
-- `handle_rescind_button_clicks` → writes `RescindOrders`
-
-### Logic Layer
-Logic systems process messages and update game state. They do not handle input or render anything.
-
-**Examples:**
-```rust
-pub fn run_production(
-    turn: Res<TurnSystem>,
-    mut q: Query<(&mut Stockpile, &Building, &mut ProductionSettings)>,
-) {
-    // Pure game logic - no input, no rendering
-    // Implements 2:1 production ratios
-    // Auto-reduces targets when inputs insufficient
-}
-```
-
-- `apply_production_settings_changes` - reads messages, mutates `ProductionSettings`
-- `execute_engineer_orders` - reads messages, validates ownership, spawns jobs
-- `handle_rescind_orders` - reads messages, restores state, handles refunds
-- `compute_rail_connectivity` - BFS over Rails, updates Depot/Port connectivity
-- `advance_civilian_jobs` - decrements job turns, removes completed jobs
-
-### Rendering Layer
-Rendering systems read game state and update visuals. They do not mutate game logic.
-
-**Examples:**
-```rust
-fn render_civilian_visuals(
-    mut commands: Commands,
-    all_civilians: Query<(Entity, &Civilian)>,
-    existing_visuals: Query<(Entity, &CivilianVisual)>,
-) {
-    // Reads game state, spawns/despawns sprites
-    // Does not mutate game logic
-}
-```
-
-- `update_civilian_visual_colors` - reads `Civilian` + `CivilianJob` state, updates sprite colors
-- `ensure_city_screen_visible` - reads buildings/stockpile, creates UI panels
-- `update_engineer_orders_ui` - reads selection state, shows/hides panels
-- `render_borders()` - reads province data, draws border lines
-- `render_transport_improvements()` - reads Roads/Rails, draws lines
-
-### Data Flow
 ```
 User Input → Input Handler → Message
                                ↓
@@ -295,93 +213,35 @@ User Input → Input Handler → Message
                                         Rendering System → Visuals (Sprites/UI)
 ```
 
-**Key Principles:**
-- Input systems never mutate game state directly
-- Logic systems never query `Interaction` or spawn visual entities
-- Rendering systems never mutate gameplay components
+**Principles:**
+- **Input Layer**: Reads `Interaction`, emits messages (never mutates state)
+- **Logic Layer**: Reads messages, mutates Components/Resources (never queries `Interaction`)
+- **Rendering Layer**: Reads state, spawns/updates visuals (never mutates game logic)
 - Messages (`MessageWriter`/`MessageReader`) decouple input from logic
-- All three layers can coexist in the same file but remain conceptually separate
+- Layers can coexist in same file but remain conceptually separate
 
 ## Resource Allocation System
 
-Following Imperialism's design, the game uses a **pre-allocation model** for all resource consumption:
-
-### Core Concept
-
-Resources are **allocated** (not spent) during PlayerTurn. Allocations are adjustable until turn end, when they convert to **reservations** and execute during Processing.
+**Pre-allocation model** (inspired by Imperialism): Resources are reserved during PlayerTurn, committed at turn end, consumed during Processing.
 
 ```
-PlayerTurn:  Player adjusts sliders → Allocations update → UI shows bars
-              ↓
-Turn End:    Allocations → Reservations (locks resources)
-              ↓
-Processing:  Reserved resources consumed → Outputs produced
-              ↓
-Next Turn:   Allocations reset to zero, player starts fresh
+PlayerTurn → reserve resources → adjust freely
+Turn End → commit reservations → lock resources
+Processing → consume → produce outputs
+Next Turn → reset → start fresh
 ```
 
-### Components
+**Key types:**
+- `Allocations` (Component): `Vec<ReservationId>` per production/recruitment/training (each ID = 1 unit)
+- `ResourcePool`: Atomic reserve/release/consume operations with rollback support
+- Messages: `AdjustRecruitment`, `AdjustTraining`, `AdjustProduction`
 
-**`ResourceAllocations`** (Component on Nation entities):
-- `recruitment: RecruitmentAllocation` - Capitol worker recruitment
-- `training: Vec<TrainingAllocation>` - Trade School worker training
-- `production: HashMap<Entity, ProductionAllocation>` - Per-building production plans
+**Systems:**
+- `apply_*_adjustments` - reserve resources unit-by-unit during PlayerTurn
+- `finalize_allocations` - consume reservations at turn end
+- `reset_allocations` - release all reservations at turn start
 
-Each allocation type tracks:
-- `requested` - what player wants
-- `allocated` - what's actually possible given constraints (capacity, resources, labor)
-
-### Messages (Input Layer)
-
-```rust
-AdjustRecruitment { nation, requested }
-AdjustTraining { nation, from_skill, requested }
-AdjustProduction { nation, building, choice, target_output }
-```
-
-### Systems (Logic Layer)
-
-**During PlayerTurn** (`Update` schedule):
-- `apply_recruitment_adjustments` - reads `AdjustRecruitment`, updates allocations, computes caps
-- `apply_training_adjustments` - reads `AdjustTraining`, updates allocations
-- `apply_production_adjustments` - reads `AdjustProduction`, updates allocations
-
-**At Turn End** (triggered by phase change to Processing):
-- `finalize_allocations` - converts allocations → stockpile reservations, sets queue values
-
-**At Turn Start** (triggered by phase change to PlayerTurn):
-- `reset_allocations` - clears all allocations for fresh turn
-
-### UI Pattern (Rendering Layer)
-
-Instead of instant-action buttons, use:
-- **Sliders** or **+/- steppers** to adjust `requested` values
-- **Allocation bars** showing `allocated / total_available` for each resource
-- **Color coding**: green (can allocate more), yellow (at limit), red (insufficient)
-
-Example (pseudocode):
-```
-┌─ Capitol Building ──────────────────┐
-│ Recruit Workers: [-] 5 [+]          │
-│ Canned Food:  [████░░] 5/10  ✓     │
-│ Clothing:     [████░░] 5/8   ✓     │
-│ Furniture:    [█████░] 5/5   ⚠️    │
-│ → Will recruit 5 workers next turn  │
-└──────────────────────────────────────┘
-```
-
-### Implementation Files
-
-- [src/economy/allocation.rs](src/economy/allocation.rs) - Types, messages, helper methods
-- [src/economy/allocation_systems.rs](src/economy/allocation_systems.rs) - Logic systems
-- [ALLOCATION_DESIGN.md](ALLOCATION_DESIGN.md) - Full design doc
-
-### Benefits
-
-1. **Matches source material**: Imperialism (1997) used this exact model
-2. **Flexibility**: Change your mind freely during turn
-3. **Clarity**: See exactly what will happen next turn via bars
-4. **Prevents errors**: Can't over-commit resources accidentally
+**See [ALLOCATION_DESIGN.md](ALLOCATION_DESIGN.md) for full details on implementation, UI patterns, and resource reservation mechanics.**
 
 ## Roadmap (short)
 
@@ -413,19 +273,3 @@ Example (pseudocode):
 - 🔲 Add coverage for roads toggling, production math, market clearing
 - 🔲 Add tests for province generation and assignment
 - 🔲 Clear warnings (HexExt false positive)
-
-## Build & run
-
-```bash
-# Build
-cargo build
-
-# Run the game (debug)
-cargo run
-
-# Run tests
-cargo test
-
-# Lints (may auto-fix some issues)
-cargo clippy --fix --allow-dirty --allow-staged
-```
