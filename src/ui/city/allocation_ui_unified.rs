@@ -85,12 +85,19 @@ pub fn handle_all_stepper_buttons(
 /// Update ALL stepper displays (recruitment, training, production)
 pub fn update_all_stepper_displays(
     player_nation: Option<Res<PlayerNation>>,
-    allocations: Query<&Allocations, Changed<Allocations>>,
+    allocations: Query<&Allocations>,
     mut displays: Query<(&mut Text, &AllocationStepperDisplay)>,
+    allocations_changed: Query<Entity, Changed<Allocations>>,
+    new_displays: Query<Entity, Added<AllocationStepperDisplay>>,
 ) {
     let Some(player) = player_nation else {
         return;
     };
+
+    // Only run if allocations changed OR new displays were added
+    if allocations_changed.is_empty() && new_displays.is_empty() {
+        return;
+    }
 
     if let Ok(alloc) = allocations.get(player.0) {
         for (mut text, display) in displays.iter_mut() {
@@ -113,7 +120,7 @@ pub fn update_all_stepper_displays(
 /// Update ALL allocation bars (recruitment, training, production)
 pub fn update_all_allocation_bars(
     player_nation: Option<Res<PlayerNation>>,
-    allocations: Query<&Allocations, Changed<Allocations>>,
+    allocations: Query<&Allocations>,
     stockpiles: Query<&Stockpile>,
     buildings_query: Query<&crate::economy::production::Buildings>,
     mut bars: Query<(
@@ -122,12 +129,19 @@ pub fn update_all_allocation_bars(
         &mut BorderColor,
         &AllocationBar,
     )>,
+    allocations_changed: Query<Entity, Changed<Allocations>>,
+    new_bars: Query<Entity, Added<AllocationBar>>,
 ) {
     use crate::economy::{BuildingKind, Good};
 
     let Some(player) = player_nation else {
         return;
     };
+
+    // Only run if allocations changed OR new bars were added
+    if allocations_changed.is_empty() && new_bars.is_empty() {
+        return;
+    }
 
     let Ok(alloc) = allocations.get(player.0) else {
         return;
@@ -235,12 +249,19 @@ pub fn update_all_allocation_bars(
 /// Update ALL allocation summaries
 pub fn update_all_allocation_summaries(
     player_nation: Option<Res<PlayerNation>>,
-    allocations: Query<&Allocations, Changed<Allocations>>,
+    allocations: Query<&Allocations>,
     mut summaries: Query<(&mut Text, &AllocationSummary)>,
+    allocations_changed: Query<Entity, Changed<Allocations>>,
+    new_summaries: Query<Entity, Added<AllocationSummary>>,
 ) {
     let Some(player) = player_nation else {
         return;
     };
+
+    // Only run if allocations changed OR new summaries were added
+    if allocations_changed.is_empty() && new_summaries.is_empty() {
+        return;
+    }
 
     if let Ok(alloc) = allocations.get(player.0) {
         for (mut text, summary) in summaries.iter_mut() {

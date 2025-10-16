@@ -93,13 +93,22 @@ pub fn assign_provinces_to_countries(
         let mut stockpile = crate::economy::Stockpile::default();
         if i == 0 {
             // Player starts with some resources
+            // Raw materials for textile production
             stockpile.add(crate::economy::Good::Wool, 10);
             stockpile.add(crate::economy::Good::Cotton, 10);
+
+            // Raw materials for wood/paper production
+            stockpile.add(crate::economy::Good::Timber, 20);
+
+            // Raw materials for steel production
+            stockpile.add(crate::economy::Good::Coal, 10);
+            stockpile.add(crate::economy::Good::Iron, 10);
 
             // Raw food for feeding workers
             stockpile.add(crate::economy::Good::Grain, 20);
             stockpile.add(crate::economy::Good::Fruit, 20);
             stockpile.add(crate::economy::Good::Livestock, 20);
+            stockpile.add(crate::economy::Good::Fish, 10);
 
             // Finished goods for recruiting workers
             stockpile.add(crate::economy::Good::CannedFood, 10);
@@ -130,6 +139,8 @@ pub fn assign_provinces_to_countries(
             let mut workforce = crate::economy::Workforce::new();
             // Start with 5 untrained workers
             workforce.add_untrained(5);
+            // Sync labor pool with worker counts
+            workforce.update_labor_pool();
 
             // All manufacturories are available at start
             commands.entity(country_entity).insert((

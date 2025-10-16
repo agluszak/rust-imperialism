@@ -66,7 +66,22 @@ pub fn apply_production_adjustments(
 
         let key = (msg.building, msg.output_good);
         let current_count = allocations.production_count(msg.building, msg.output_good);
-        let target = msg.target_output.min(building.capacity) as usize;
+
+        // Calculate total current production for this building across ALL outputs
+        let mut total_building_production = 0u32;
+        for ((entity, _output), res_ids) in allocations.production.iter() {
+            if *entity == msg.building {
+                total_building_production += res_ids.len() as u32;
+            }
+        }
+
+        // Calculate remaining capacity (excluding current allocation for this specific output)
+        let current_count_u32 = current_count as u32;
+        let other_outputs = total_building_production - current_count_u32;
+        let remaining_capacity = building.capacity.saturating_sub(other_outputs);
+
+        // Cap target at remaining capacity
+        let target = msg.target_output.min(remaining_capacity) as usize;
 
         // Decrease: remove reservations
         if target < current_count {
@@ -101,9 +116,18 @@ pub fn apply_production_adjustments(
                 let inputs_per_unit =
                     calculate_inputs_for_one_unit(building.kind, msg.output_good, &stockpile);
 
+                debug!(
+                    "Attempting to reserve for {:?} {:?}: inputs={:?}, labor=1, available_labor={}, labor_pool={:?}",
+                    building.kind,
+                    msg.output_good,
+                    &inputs_per_unit,
+                    workforce.available_labor(),
+                    workforce.labor_pool
+                );
+
                 // Try to reserve for ONE unit
                 if let Some(res_id) = reservations.try_reserve(
-                    inputs_per_unit,
+                    inputs_per_unit.clone(),
                     1, // 1 labor per unit
                     0, // no money
                     &mut stockpile,
@@ -112,8 +136,17 @@ pub fn apply_production_adjustments(
                 ) {
                     vec.push(res_id);
                     added += 1;
+                    debug!("Reservation successful");
                 } else {
                     // Can't reserve more, stop trying
+                    debug!(
+                        "Reservation failed - stockpile: [{}], workforce: untrained={}, trained={}, expert={}, labor_pool.available={}",
+                        inputs_per_unit.iter().map(|(g, amt)| format!("{:?}={}/{}", g, stockpile.get_available(*g), amt)).collect::<Vec<_>>().join(", "),
+                        workforce.untrained_count(),
+                        workforce.trained_count(),
+                        workforce.expert_count(),
+                        workforce.labor_pool.available()
+                    );
                     break;
                 }
             }

@@ -62,6 +62,10 @@ impl Plugin for CityUIPlugin {
                     dialogs::close_building_dialogs,
                     dialogs::handle_dialog_close_buttons,
                     dialogs::update_close_button_visuals,
+                    // Dialog dragging
+                    dialogs::start_dialog_drag,
+                    dialogs::update_dialog_drag,
+                    dialogs::update_drag_handle_cursor,
                     // Dialog content population
                     dialogs::populate_production_dialog,
                     dialogs::populate_special_dialog,

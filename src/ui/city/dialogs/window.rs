@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::types::{BuildingDialog, CloseBuildingDialog, DialogCloseButton};
+use super::types::{BuildingDialog, CloseBuildingDialog, DialogCloseButton, DialogDragHandle, DialogDragState};
 
 /// Spawn a dialog window frame (Rendering Layer)
 /// Returns the entity ID of the dialog
@@ -14,6 +14,7 @@ pub fn spawn_dialog_frame(
 ) -> Entity {
     let mut dialog_entity = Entity::PLACEHOLDER;
     let mut content_entity = Entity::PLACEHOLDER;
+    let mut header_entity = Entity::PLACEHOLDER;
 
     commands.entity(parent_entity).with_children(|parent| {
         dialog_entity = parent
@@ -23,35 +24,45 @@ pub fn spawn_dialog_frame(
                     // Position dialogs in a cascading pattern based on z-index
                     left: Val::Px(300.0 + (z_index as f32 * 30.0)),
                     top: Val::Px(200.0 + (z_index as f32 * 30.0)),
-                    width: Val::Px(500.0),
+                    width: Val::Px(380.0),
                     min_height: Val::Px(400.0),
                     flex_direction: FlexDirection::Column,
-                    padding: UiRect::all(Val::Px(16.0)),
-                    row_gap: Val::Px(12.0),
+                    padding: UiRect::all(Val::Px(12.0)),
+                    row_gap: Val::Px(8.0),
                     border: UiRect::all(Val::Px(3.0)),
                     ..default()
                 },
                 BackgroundColor(Color::srgba(0.12, 0.12, 0.16, 0.98)),
                 BorderColor::all(Color::srgba(0.5, 0.6, 0.7, 1.0)),
                 ZIndex(z_index),
+                DialogDragState {
+                    is_dragging: false,
+                    drag_offset: Vec2::ZERO,
+                },
                 // BuildingDialog will be added after we know content_entity
             ))
             .with_children(|dialog| {
-                // Header row: title + close button
-                dialog
-                    .spawn(Node {
-                        width: Val::Percent(100.0),
-                        justify_content: JustifyContent::SpaceBetween,
-                        align_items: AlignItems::Center,
-                        margin: UiRect::bottom(Val::Px(8.0)),
-                        ..default()
-                    })
+                // Header row: title + close button (draggable)
+                header_entity = dialog
+                    .spawn((
+                        Node {
+                            width: Val::Percent(100.0),
+                            justify_content: JustifyContent::SpaceBetween,
+                            align_items: AlignItems::Center,
+                            margin: UiRect::bottom(Val::Px(4.0)),
+                            ..default()
+                        },
+                        Interaction::None,
+                        DialogDragHandle {
+                            dialog_entity: Entity::PLACEHOLDER, // Will be updated below
+                        },
+                    ))
                     .with_children(|header| {
                         // Title
                         header.spawn((
                             Text::new(title),
                             TextFont {
-                                font_size: 20.0,
+                                font_size: 16.0,
                                 ..default()
                             },
                             TextColor(Color::srgb(1.0, 0.95, 0.8)),
@@ -62,11 +73,11 @@ pub fn spawn_dialog_frame(
                             .spawn((
                                 Button,
                                 Node {
-                                    width: Val::Px(30.0),
-                                    height: Val::Px(30.0),
+                                    width: Val::Px(24.0),
+                                    height: Val::Px(24.0),
                                     justify_content: JustifyContent::Center,
                                     align_items: AlignItems::Center,
-                                    border: UiRect::all(Val::Px(2.0)),
+                                    border: UiRect::all(Val::Px(1.0)),
                                     ..default()
                                 },
                                 BackgroundColor(Color::srgba(0.5, 0.2, 0.2, 1.0)),
@@ -77,20 +88,21 @@ pub fn spawn_dialog_frame(
                                 btn.spawn((
                                     Text::new("×"),
                                     TextFont {
-                                        font_size: 24.0,
+                                        font_size: 20.0,
                                         ..default()
                                     },
                                     TextColor(Color::srgb(1.0, 0.9, 0.9)),
                                 ));
                             });
-                    });
+                    })
+                    .id();
 
                 // Divider
                 dialog.spawn((
                     Node {
                         width: Val::Percent(100.0),
-                        height: Val::Px(2.0),
-                        margin: UiRect::bottom(Val::Px(8.0)),
+                        height: Val::Px(1.0),
+                        margin: UiRect::bottom(Val::Px(4.0)),
                         ..default()
                     },
                     BackgroundColor(Color::srgba(0.4, 0.5, 0.6, 0.5)),
@@ -102,7 +114,7 @@ pub fn spawn_dialog_frame(
                         Node {
                             width: Val::Percent(100.0),
                             flex_direction: FlexDirection::Column,
-                            row_gap: Val::Px(12.0),
+                            row_gap: Val::Px(8.0),
                             ..default()
                         },
                         // Marker for dialog content area
@@ -119,6 +131,11 @@ pub fn spawn_dialog_frame(
         building_kind,
         z_index,
         content_entity,
+    });
+
+    // Update the drag handle with the correct dialog entity
+    commands.entity(header_entity).insert(DialogDragHandle {
+        dialog_entity,
     });
 
     dialog_entity

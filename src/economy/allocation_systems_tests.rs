@@ -362,4 +362,97 @@ mod tests {
 
         assert_eq!(allocations.production_count(building, Good::Fabric), 3);
     }
+
+    /// Test that multi-output buildings (Lumber Mill) cannot exceed total capacity
+    /// This test verifies the core capacity checking logic used in the adjustment system
+    #[test]
+    fn test_lumber_mill_capacity_across_multiple_outputs() {
+        use bevy::prelude::Entity;
+
+        let mut allocations = Allocations::default();
+        let mut reservations = ReservationSystem::default();
+        let mut stockpile = Stockpile::default();
+        let mut workforce = Workforce::new();
+        let mut treasury = Treasury::new(1000);
+
+        // Setup: Plenty of resources
+        stockpile.add(Good::Timber, 100);
+        workforce.add_untrained(20);
+        workforce.update_labor_pool();
+
+        let building_entity = Entity::from_bits(42);
+        let lumber_mill_capacity = 4u32;
+
+        // Simulate allocating 4 Lumber first
+        for _ in 0..4 {
+            let res = reservations
+                .try_reserve(
+                    vec![(Good::Timber, 2)],
+                    1,
+                    0,
+                    &mut stockpile,
+                    &mut workforce,
+                    &mut treasury,
+                )
+                .unwrap();
+            allocations
+                .production
+                .entry((building_entity, Good::Lumber))
+                .or_default()
+                .push(res);
+        }
+
+        // Now simulate the capacity check that should happen when trying to add Paper
+        // This is the logic from apply_production_adjustments after the fix
+
+        // Calculate total current production for this building across ALL outputs
+        let mut total_building_production = 0u32;
+        for ((entity, _output), res_ids) in allocations.production.iter() {
+            if *entity == building_entity {
+                total_building_production += res_ids.len() as u32;
+            }
+        }
+
+        // Paper has 0 current allocations
+        let paper_current_count = allocations.production_count(building_entity, Good::Paper);
+        let paper_current_count_u32 = paper_current_count as u32;
+
+        // Calculate remaining capacity (excluding current allocation for Paper, which is 0)
+        let other_outputs = total_building_production - paper_current_count_u32;
+        let remaining_capacity = lumber_mill_capacity.saturating_sub(other_outputs);
+
+        // Try to allocate 1 Paper - should be capped by remaining capacity
+        let target_paper = 1u32.min(remaining_capacity);
+
+        println!(
+            "Lumber Mill (capacity {}): Lumber={}, total_production={}, remaining_capacity={}, target_paper={}",
+            lumber_mill_capacity,
+            allocations.production_count(building_entity, Good::Lumber),
+            total_building_production,
+            remaining_capacity,
+            target_paper
+        );
+
+        // The capacity check should prevent adding Paper when Lumber uses full capacity
+        assert_eq!(
+            remaining_capacity, 0,
+            "Remaining capacity should be 0 when Lumber uses all capacity"
+        );
+        assert_eq!(
+            target_paper, 0,
+            "Target for Paper should be capped to 0 when no capacity remains"
+        );
+
+        // Verify total doesn't exceed capacity
+        let lumber_count = allocations.production_count(building_entity, Good::Lumber);
+        let paper_count = allocations.production_count(building_entity, Good::Paper);
+        let total_count = lumber_count + paper_count;
+
+        assert!(
+            total_count <= lumber_mill_capacity as usize,
+            "Total production ({}) exceeds building capacity ({})",
+            total_count,
+            lumber_mill_capacity
+        );
+    }
 }

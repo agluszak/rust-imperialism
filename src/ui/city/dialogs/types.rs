@@ -47,3 +47,16 @@ impl DialogZIndexCounter {
 /// Marker for the content area inside a dialog
 #[derive(Component)]
 pub struct DialogContentArea;
+
+/// Marker for the draggable header area of a dialog
+#[derive(Component)]
+pub struct DialogDragHandle {
+    pub dialog_entity: Entity,
+}
+
+/// State for tracking dialog dragging
+#[derive(Component)]
+pub struct DialogDragState {
+    pub is_dragging: bool,
+    pub drag_offset: Vec2, // Offset from top-left corner to mouse position when drag started
+}

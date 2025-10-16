@@ -4,7 +4,7 @@ pub use types::{RecruitmentCapacity, Worker, WorkerHealth, WorkerSkill, Workforc
 
 // General workforce systems
 pub mod systems;
-pub use systems::calculate_recruitment_cap;
+pub use systems::{calculate_recruitment_cap, update_labor_pools};
 
 // Recruitment systems
 pub mod recruitment;

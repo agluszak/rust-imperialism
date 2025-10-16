@@ -96,16 +96,16 @@ fn spawn_production_content(
     commands.entity(content_entity).with_children(|content| {
         content.spawn((
             Text::new(format!(
-                "{:?} (Capacity: {})",
+                "{:?} (Cap: {})",
                 building_kind, building.capacity
             )),
             TextFont {
-                font_size: 18.0,
+                font_size: 16.0,
                 ..default()
             },
             TextColor(Color::srgb(0.9, 0.9, 1.0)),
             Node {
-                margin: UiRect::bottom(Val::Px(16.0)),
+                margin: UiRect::bottom(Val::Px(8.0)),
                 ..default()
             },
         ));
@@ -140,22 +140,22 @@ fn spawn_production_section(
             .spawn(Node {
                 width: Val::Percent(100.0),
                 flex_direction: FlexDirection::Column,
-                padding: UiRect::all(Val::Px(12.0)),
-                margin: UiRect::bottom(Val::Px(16.0)),
+                padding: UiRect::all(Val::Px(8.0)),
+                margin: UiRect::bottom(Val::Px(8.0)),
                 border: UiRect::all(Val::Px(2.0)),
                 ..default()
             })
             .with_children(|section| {
                 // Section title
                 section.spawn((
-                    Text::new(format!("Produce {:?}", output_good)),
+                    Text::new(format!("→ {:?}", output_good)),
                     TextFont {
-                        font_size: 16.0,
+                        font_size: 14.0,
                         ..default()
                     },
                     TextColor(Color::srgb(0.8, 0.9, 1.0)),
                     Node {
-                        margin: UiRect::bottom(Val::Px(8.0)),
+                        margin: UiRect::bottom(Val::Px(6.0)),
                         ..default()
                     },
                 ));
@@ -164,11 +164,11 @@ fn spawn_production_section(
                 section
                     .spawn(Node {
                         width: Val::Percent(100.0),
-                        padding: UiRect::all(Val::Px(16.0)),
+                        padding: UiRect::all(Val::Px(8.0)),
                         justify_content: JustifyContent::Center,
                         align_items: AlignItems::Center,
-                        column_gap: Val::Px(12.0),
-                        border: UiRect::all(Val::Px(2.0)),
+                        column_gap: Val::Px(6.0),
+                        border: UiRect::all(Val::Px(1.0)),
                         ..default()
                     })
                     .with_children(|equation| {
@@ -183,12 +183,12 @@ fn spawn_production_section(
                                 equation.spawn((
                                     Text::new("OR"),
                                     TextFont {
-                                        font_size: 16.0,
+                                        font_size: 12.0,
                                         ..default()
                                     },
                                     TextColor(Color::srgb(0.9, 0.7, 0.5)),
                                     Node {
-                                        margin: UiRect::horizontal(Val::Px(8.0)),
+                                        margin: UiRect::horizontal(Val::Px(4.0)),
                                         ..default()
                                     },
                                 ));
@@ -201,7 +201,7 @@ fn spawn_production_section(
                                     equation.spawn((
                                         Text::new("+"),
                                         TextFont {
-                                            font_size: 20.0,
+                                            font_size: 14.0,
                                             ..default()
                                         },
                                         TextColor(Color::srgb(0.7, 0.7, 0.7)),
@@ -215,18 +215,18 @@ fn spawn_production_section(
                                 // Input icon/text
                                 equation
                                     .spawn(Node {
-                                        width: Val::Px(80.0),
-                                        height: Val::Px(80.0),
+                                        width: Val::Px(55.0),
+                                        height: Val::Px(55.0),
                                         justify_content: JustifyContent::Center,
                                         align_items: AlignItems::Center,
-                                        border: UiRect::all(Val::Px(2.0)),
+                                        border: UiRect::all(Val::Px(1.0)),
                                         ..default()
                                     })
                                     .with_children(|icon| {
                                         icon.spawn((
                                             Text::new(format!("{}×\n{:?}", amount, good)),
                                             TextFont {
-                                                font_size: 12.0,
+                                                font_size: 10.0,
                                                 ..default()
                                             },
                                             TextColor(if has_enough {
@@ -245,7 +245,7 @@ fn spawn_production_section(
                                             icon.spawn((
                                                 Text::new("✗"),
                                                 TextFont {
-                                                    font_size: 48.0,
+                                                    font_size: 32.0,
                                                     ..default()
                                                 },
                                                 TextColor(Color::srgb(1.0, 0.2, 0.2)),
@@ -263,7 +263,7 @@ fn spawn_production_section(
                         equation.spawn((
                             Text::new("→"),
                             TextFont {
-                                font_size: 28.0,
+                                font_size: 20.0,
                                 ..default()
                             },
                             TextColor(Color::srgb(0.7, 0.7, 0.7)),
@@ -273,18 +273,18 @@ fn spawn_production_section(
                         let (out_good, out_amount) = output;
                         equation
                             .spawn(Node {
-                                width: Val::Px(80.0),
-                                height: Val::Px(80.0),
+                                width: Val::Px(55.0),
+                                height: Val::Px(55.0),
                                 justify_content: JustifyContent::Center,
                                 align_items: AlignItems::Center,
-                                border: UiRect::all(Val::Px(2.0)),
+                                border: UiRect::all(Val::Px(1.0)),
                                 ..default()
                             })
                             .with_children(|icon| {
                                 icon.spawn((
                                     Text::new(format!("{}×\n{:?}", out_amount, out_good)),
                                     TextFont {
-                                        font_size: 12.0,
+                                        font_size: 10.0,
                                         ..default()
                                     },
                                     TextColor(Color::srgb(0.7, 0.9, 0.7)),

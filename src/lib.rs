@@ -315,6 +315,12 @@ pub fn app() -> App {
                 .run_if(|turn_system: Res<TurnSystem>| {
                     turn_system.phase == turn_system::TurnPhase::PlayerTurn
                 }),
+            // Update labor pools at start of PlayerTurn (sync with worker counts)
+            economy::workforce::update_labor_pools
+                .run_if(resource_changed::<TurnSystem>)
+                .run_if(|turn_system: Res<TurnSystem>| {
+                    turn_system.phase == turn_system::TurnPhase::PlayerTurn
+                }),
         )
             .run_if(in_state(AppState::InGame)),
     )
