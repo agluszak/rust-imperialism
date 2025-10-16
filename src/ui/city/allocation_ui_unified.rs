@@ -66,7 +66,6 @@ pub fn handle_all_stepper_buttons(
                         nation: player.0,
                         building: building_entity,
                         output_good,
-                        choice: None, // Keep current choice
                         target_output: new_target,
                     });
                     info!(
@@ -116,7 +115,7 @@ pub fn update_all_allocation_bars(
     player_nation: Option<Res<PlayerNation>>,
     allocations: Query<&Allocations, Changed<Allocations>>,
     stockpiles: Query<&Stockpile>,
-    buildings: Query<&crate::economy::Building>,
+    buildings_query: Query<&crate::economy::production::Buildings>,
     mut bars: Query<(
         &mut Text,
         &mut BackgroundColor,
@@ -135,6 +134,10 @@ pub fn update_all_allocation_bars(
     };
 
     let Ok(stockpile) = stockpiles.get(player.0) else {
+        return;
+    };
+
+    let Ok(buildings_collection) = buildings_query.get(player.0) else {
         return;
     };
 
@@ -167,23 +170,34 @@ pub fn update_all_allocation_bars(
                 let count = alloc.production_count(building_entity, output_good) as u32;
                 if count == 0 {
                     0
-                } else if let Ok(building) = buildings.get(building_entity) {
-                    // Calculate per-unit cost and multiply by count
-                    let per_unit_cost = match (building.kind, bar.good) {
-                        (BuildingKind::TextileMill, Good::Cotton) => 2, // 2 cotton per fabric
-                        (BuildingKind::TextileMill, Good::Wool) => 2,   // 2 wool per fabric
-                        (BuildingKind::LumberMill, Good::Timber) => 2,  // 2 timber per output
-                        (BuildingKind::SteelMill, Good::Iron) => 1,     // 1 iron per steel
-                        (BuildingKind::SteelMill, Good::Coal) => 1,     // 1 coal per steel
-                        (BuildingKind::FoodProcessingCenter, Good::Grain) => 2, // per unit
-                        (BuildingKind::FoodProcessingCenter, Good::Fruit) => 1,
-                        (BuildingKind::FoodProcessingCenter, Good::Livestock) => 1,
-                        (BuildingKind::FoodProcessingCenter, Good::Fish) => 1,
-                        _ => 0,
-                    };
-                    count * per_unit_cost
                 } else {
-                    0
+                    // Infer building kind from output_good
+                    let building_kind = match output_good {
+                        Good::Fabric => BuildingKind::TextileMill,
+                        Good::Paper | Good::Lumber => BuildingKind::LumberMill,
+                        Good::Steel => BuildingKind::SteelMill,
+                        Good::CannedFood => BuildingKind::FoodProcessingCenter,
+                        _ => BuildingKind::TextileMill, // fallback
+                    };
+
+                    if buildings_collection.get(building_kind).is_some() {
+                        // Calculate per-unit cost and multiply by count
+                        let per_unit_cost = match (building_kind, bar.good) {
+                            (BuildingKind::TextileMill, Good::Cotton) => 2, // 2 cotton per fabric
+                            (BuildingKind::TextileMill, Good::Wool) => 2,   // 2 wool per fabric
+                            (BuildingKind::LumberMill, Good::Timber) => 2,  // 2 timber per output
+                            (BuildingKind::SteelMill, Good::Iron) => 1,     // 1 iron per steel
+                            (BuildingKind::SteelMill, Good::Coal) => 1,     // 1 coal per steel
+                            (BuildingKind::FoodProcessingCenter, Good::Grain) => 2, // per unit
+                            (BuildingKind::FoodProcessingCenter, Good::Fruit) => 1,
+                            (BuildingKind::FoodProcessingCenter, Good::Livestock) => 1,
+                            (BuildingKind::FoodProcessingCenter, Good::Fish) => 1,
+                            _ => 0,
+                        };
+                        count * per_unit_cost
+                    } else {
+                        0
+                    }
                 }
             }
         };

@@ -70,7 +70,7 @@ pub fn calculate_connected_production(
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BuildingKind {
     // Production buildings
     TextileMill,          // 2×Cotton OR 2×Wool → 1×Fabric
@@ -172,6 +172,38 @@ impl Building {
             kind: BuildingKind::PowerPlant,
             capacity, // Fuel → labor conversion capacity
         }
+    }
+}
+
+/// Collection of all buildings for a nation
+#[derive(Component, Debug, Clone, Default)]
+pub struct Buildings {
+    pub buildings: std::collections::HashMap<BuildingKind, Building>,
+}
+
+impl Buildings {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_all_initial() -> Self {
+        let mut buildings = std::collections::HashMap::new();
+        buildings.insert(BuildingKind::TextileMill, Building::textile_mill(8));
+        buildings.insert(BuildingKind::LumberMill, Building::lumber_mill(4));
+        buildings.insert(BuildingKind::SteelMill, Building::steel_mill(4));
+        buildings.insert(
+            BuildingKind::FoodProcessingCenter,
+            Building::food_processing_center(4),
+        );
+        Self { buildings }
+    }
+
+    pub fn get(&self, kind: BuildingKind) -> Option<Building> {
+        self.buildings.get(&kind).copied()
+    }
+
+    pub fn insert(&mut self, building: Building) {
+        self.buildings.insert(building.kind, building);
     }
 }
 

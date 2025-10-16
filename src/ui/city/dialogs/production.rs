@@ -1,9 +1,8 @@
 use bevy::prelude::*;
 
-use crate::economy::production::{BuildingKind, ProductionChoice, ProductionSettings};
-use crate::economy::{Building, Good, PlayerNation, Stockpile, Workforce};
-use crate::ui::button_style::NORMAL_BUTTON;
-use crate::ui::city::components::{ProductionChoiceButton, ProductionLaborDisplay};
+use crate::economy::production::{Building, BuildingKind, Buildings, ProductionSettings};
+use crate::economy::{Good, PlayerNation, Stockpile, Workforce};
+use crate::ui::city::components::ProductionLaborDisplay;
 
 use super::types::BuildingDialog;
 
@@ -12,7 +11,8 @@ use super::types::BuildingDialog;
 pub fn populate_production_dialog(
     mut commands: Commands,
     new_dialogs: Query<&BuildingDialog, Added<BuildingDialog>>,
-    buildings: Query<(&Building, &ProductionSettings)>,
+    buildings_collections: Query<&Buildings>,
+    settings_query: Query<&ProductionSettings>,
     player_nation: Option<Res<PlayerNation>>,
     stockpiles: Query<&Stockpile>,
     workforces: Query<&Workforce>,
@@ -29,6 +29,14 @@ pub fn populate_production_dialog(
         return;
     };
 
+    let Ok(buildings_collection) = buildings_collections.get(player.0) else {
+        return;
+    };
+
+    let Ok(settings) = settings_query.get(player.0) else {
+        return;
+    };
+
     for dialog in new_dialogs.iter() {
         // Only handle production buildings
         match dialog.building_kind {
@@ -39,7 +47,7 @@ pub fn populate_production_dialog(
             _ => continue, // Not a production building
         }
 
-        let Ok((building, settings)) = buildings.get(dialog.building_entity) else {
+        let Some(building) = buildings_collection.get(dialog.building_kind) else {
             continue;
         };
 
@@ -50,7 +58,7 @@ pub fn populate_production_dialog(
             &mut commands,
             content_entity,
             dialog.building_entity,
-            building,
+            &building,
             settings,
             stockpile,
             workforce,
@@ -64,55 +72,205 @@ fn spawn_production_content(
     content_entity: Entity,
     building_entity: Entity,
     building: &Building,
-    settings: &ProductionSettings,
+    _settings: &ProductionSettings,
     stockpile: &Stockpile,
     workforce: &Workforce,
 ) {
     let building_kind = building.kind;
-    let choice = settings.choice;
-    let _target_output = settings.target_output;
     let _capacity = building.capacity;
     let _available_labor = workforce.available_labor();
 
     // Clone values needed for the closure
     let stockpile_clone = stockpile.clone();
 
-    commands
-        .entity(content_entity)
-        .with_children(move |content| {
-            // Production equation section - INLINED
-            content
-                .spawn(Node {
-                    width: Val::Percent(100.0),
-                    padding: UiRect::all(Val::Px(16.0)),
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(12.0),
-                    border: UiRect::all(Val::Px(2.0)),
-                    ..default()
-                })
-                .with_children(|equation| {
-                    // Get recipe based on building kind and choice
-                    let (inputs, output) = get_recipe(building_kind, choice);
+    // Determine which output goods this building can produce
+    let output_goods = match building_kind {
+        BuildingKind::TextileMill => vec![Good::Fabric],
+        BuildingKind::LumberMill => vec![Good::Lumber, Good::Paper], // TWO separate outputs!
+        BuildingKind::SteelMill => vec![Good::Steel],
+        BuildingKind::FoodProcessingCenter => vec![Good::CannedFood],
+        _ => vec![],
+    };
 
-                    // Display inputs
-                    for (i, (good, amount)) in inputs.iter().enumerate() {
-                        if i > 0 {
-                            equation.spawn((
-                                Text::new("+"),
-                                TextFont {
-                                    font_size: 20.0,
-                                    ..default()
-                                },
-                                TextColor(Color::srgb(0.7, 0.7, 0.7)),
-                            ));
+    // Building title and capacity
+    commands.entity(content_entity).with_children(|content| {
+        content.spawn((
+            Text::new(format!(
+                "{:?} (Capacity: {})",
+                building_kind, building.capacity
+            )),
+            TextFont {
+                font_size: 18.0,
+                ..default()
+            },
+            TextColor(Color::srgb(0.9, 0.9, 1.0)),
+            Node {
+                margin: UiRect::bottom(Val::Px(16.0)),
+                ..default()
+            },
+        ));
+    });
+
+    // For each output good, show a production section
+    for output_good in output_goods.iter() {
+        spawn_production_section(
+            commands,
+            content_entity,
+            building_entity,
+            building_kind,
+            *output_good,
+            &stockpile_clone,
+            workforce,
+        );
+    }
+}
+
+/// Spawn a single production section (recipe + allocation UI) for one output
+fn spawn_production_section(
+    commands: &mut Commands,
+    parent_entity: Entity,
+    building_entity: Entity,
+    building_kind: BuildingKind,
+    output_good: Good,
+    stockpile: &Stockpile,
+    workforce: &Workforce,
+) {
+    commands.entity(parent_entity).with_children(|content| {
+        content
+            .spawn(Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                padding: UiRect::all(Val::Px(12.0)),
+                margin: UiRect::bottom(Val::Px(16.0)),
+                border: UiRect::all(Val::Px(2.0)),
+                ..default()
+            })
+            .with_children(|section| {
+                // Section title
+                section.spawn((
+                    Text::new(format!("Produce {:?}", output_good)),
+                    TextFont {
+                        font_size: 16.0,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.8, 0.9, 1.0)),
+                    Node {
+                        margin: UiRect::bottom(Val::Px(8.0)),
+                        ..default()
+                    },
+                ));
+
+                // Production equation section
+                section
+                    .spawn(Node {
+                        width: Val::Percent(100.0),
+                        padding: UiRect::all(Val::Px(16.0)),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        column_gap: Val::Px(12.0),
+                        border: UiRect::all(Val::Px(2.0)),
+                        ..default()
+                    })
+                    .with_children(|equation| {
+                        // Get recipe for this specific output
+                        let (input_alternatives, output) =
+                            get_recipe_for_output(building_kind, output_good);
+
+                        // Display input alternatives (e.g., "2× Cotton OR 2× Wool")
+                        for (alt_idx, alternative) in input_alternatives.iter().enumerate() {
+                            if alt_idx > 0 {
+                                // Show "OR" between alternatives
+                                equation.spawn((
+                                    Text::new("OR"),
+                                    TextFont {
+                                        font_size: 16.0,
+                                        ..default()
+                                    },
+                                    TextColor(Color::srgb(0.9, 0.7, 0.5)),
+                                    Node {
+                                        margin: UiRect::horizontal(Val::Px(8.0)),
+                                        ..default()
+                                    },
+                                ));
+                            }
+
+                            // Show this alternative's inputs
+                            for (i, (good, amount)) in alternative.iter().enumerate() {
+                                if i > 0 {
+                                    // Show "+" between inputs in same alternative
+                                    equation.spawn((
+                                        Text::new("+"),
+                                        TextFont {
+                                            font_size: 20.0,
+                                            ..default()
+                                        },
+                                        TextColor(Color::srgb(0.7, 0.7, 0.7)),
+                                    ));
+                                }
+
+                                // Check if we have enough of this input (use available, not total)
+                                let available = stockpile.get_available(*good);
+                                let has_enough = available >= *amount;
+
+                                // Input icon/text
+                                equation
+                                    .spawn(Node {
+                                        width: Val::Px(80.0),
+                                        height: Val::Px(80.0),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        border: UiRect::all(Val::Px(2.0)),
+                                        ..default()
+                                    })
+                                    .with_children(|icon| {
+                                        icon.spawn((
+                                            Text::new(format!("{}×\n{:?}", amount, good)),
+                                            TextFont {
+                                                font_size: 12.0,
+                                                ..default()
+                                            },
+                                            TextColor(if has_enough {
+                                                Color::srgb(0.9, 0.9, 0.9)
+                                            } else {
+                                                Color::srgb(0.9, 0.5, 0.5)
+                                            }),
+                                            TextLayout {
+                                                justify: Justify::Center,
+                                                ..default()
+                                            },
+                                        ));
+
+                                        // Red X overlay if missing
+                                        if !has_enough {
+                                            icon.spawn((
+                                                Text::new("✗"),
+                                                TextFont {
+                                                    font_size: 48.0,
+                                                    ..default()
+                                                },
+                                                TextColor(Color::srgb(1.0, 0.2, 0.2)),
+                                                Node {
+                                                    position_type: PositionType::Absolute,
+                                                    ..default()
+                                                },
+                                            ));
+                                        }
+                                    });
+                            }
                         }
 
-                        // Check if we have enough of this input (use available, not total)
-                        let available = stockpile_clone.get_available(*good);
-                        let has_enough = available >= *amount;
+                        // Arrow
+                        equation.spawn((
+                            Text::new("→"),
+                            TextFont {
+                                font_size: 28.0,
+                                ..default()
+                            },
+                            TextColor(Color::srgb(0.7, 0.7, 0.7)),
+                        ));
 
-                        // Input icon/text
+                        // Output
+                        let (out_good, out_amount) = output;
                         equation
                             .spawn(Node {
                                 width: Val::Px(80.0),
@@ -124,226 +282,90 @@ fn spawn_production_content(
                             })
                             .with_children(|icon| {
                                 icon.spawn((
-                                    Text::new(format!("{}×\n{:?}", amount, good)),
+                                    Text::new(format!("{}×\n{:?}", out_amount, out_good)),
                                     TextFont {
                                         font_size: 12.0,
                                         ..default()
                                     },
-                                    TextColor(if has_enough {
-                                        Color::srgb(0.9, 0.9, 0.9)
-                                    } else {
-                                        Color::srgb(0.9, 0.5, 0.5)
-                                    }),
+                                    TextColor(Color::srgb(0.7, 0.9, 0.7)),
                                     TextLayout {
                                         justify: Justify::Center,
                                         ..default()
                                     },
                                 ));
-
-                                // Red X overlay if missing
-                                if !has_enough {
-                                    icon.spawn((
-                                        Text::new("✗"),
-                                        TextFont {
-                                            font_size: 48.0,
-                                            ..default()
-                                        },
-                                        TextColor(Color::srgb(1.0, 0.2, 0.2)),
-                                        Node {
-                                            position_type: PositionType::Absolute,
-                                            ..default()
-                                        },
-                                    ));
-                                }
                             });
+                    });
+
+                // Allocation UI using widget macros
+                let allocation_type =
+                    crate::ui::city::allocation_widgets::AllocationType::Production(
+                        building_entity,
+                        output_good,
+                    );
+
+                // Stepper for target output
+                crate::spawn_allocation_stepper!(section, "Target Production", allocation_type);
+
+                // Resource allocation bars - show ALL possible inputs
+                let (input_alternatives, _output) =
+                    get_recipe_for_output(building_kind, output_good);
+                // Collect all unique goods from all alternatives
+                let mut all_goods: Vec<Good> = Vec::new();
+                for alternative in input_alternatives.iter() {
+                    for (good, _amount) in alternative.iter() {
+                        if !all_goods.contains(good) {
+                            all_goods.push(*good);
+                        }
                     }
+                }
+                // Show allocation bars for each unique good
+                for good in all_goods.iter() {
+                    let good_name = format!("{:?}", good);
+                    crate::spawn_allocation_bar!(section, *good, &good_name, allocation_type);
+                }
 
-                    // Arrow
-                    equation.spawn((
-                        Text::new("→"),
-                        TextFont {
-                            font_size: 28.0,
-                            ..default()
-                        },
-                        TextColor(Color::srgb(0.7, 0.7, 0.7)),
-                    ));
-
-                    // Output
-                    let (out_good, out_amount) = output;
-                    equation
-                        .spawn(Node {
-                            width: Val::Px(80.0),
-                            height: Val::Px(80.0),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            border: UiRect::all(Val::Px(2.0)),
-                            ..default()
-                        })
-                        .with_children(|icon| {
-                            icon.spawn((
-                                Text::new(format!("{}×\n{:?}", out_amount, out_good)),
-                                TextFont {
-                                    font_size: 12.0,
-                                    ..default()
-                                },
-                                TextColor(Color::srgb(0.7, 0.9, 0.7)),
-                                TextLayout {
-                                    justify: Justify::Center,
-                                    ..default()
-                                },
-                            ));
-                        });
-                });
-
-            // Choice buttons (if applicable) - INLINED
-            let choices: Option<Vec<(&str, ProductionChoice)>> = match building_kind {
-                BuildingKind::TextileMill => Some(vec![
-                    ("Use Cotton", ProductionChoice::UseCotton),
-                    ("Use Wool", ProductionChoice::UseWool),
-                ]),
-                BuildingKind::LumberMill => Some(vec![
-                    ("Make Lumber", ProductionChoice::MakeLumber),
-                    ("Make Paper", ProductionChoice::MakePaper),
-                ]),
-                BuildingKind::FoodProcessingCenter => Some(vec![
-                    ("Use Livestock", ProductionChoice::UseLivestock),
-                    ("Use Fish", ProductionChoice::UseFish),
-                ]),
-                _ => None,
-            };
-
-            if let Some(choices) = choices {
-                content
+                // Labor allocation bar (showing labor as a resource)
+                // Note: Labor will be dynamically updated by the update_production_labor_display system
+                section
                     .spawn(Node {
                         width: Val::Percent(100.0),
-                        justify_content: JustifyContent::Center,
-                        column_gap: Val::Px(8.0),
-                        margin: UiRect::top(Val::Px(12.0)),
+                        flex_direction: FlexDirection::Column,
+                        row_gap: Val::Px(4.0),
+                        padding: UiRect::all(Val::Px(8.0)),
+                        border: UiRect::all(Val::Px(1.0)),
                         ..default()
                     })
-                    .with_children(|row| {
-                        for (label, choice_opt) in choices {
-                            let is_selected = choice_opt == choice;
-                            row.spawn((
-                                Button,
-                                Node {
-                                    padding: UiRect::all(Val::Px(8.0)),
-                                    border: UiRect::all(Val::Px(2.0)),
-                                    ..default()
-                                },
-                                BackgroundColor(if is_selected {
-                                    Color::srgba(0.3, 0.4, 0.5, 1.0)
-                                } else {
-                                    NORMAL_BUTTON
-                                }),
-                                BorderColor::all(if is_selected {
-                                    Color::srgba(0.5, 0.7, 0.9, 1.0)
-                                } else {
-                                    Color::srgba(0.5, 0.5, 0.6, 0.8)
-                                }),
-                                ProductionChoiceButton {
-                                    building_entity,
-                                    choice: choice_opt,
-                                },
-                            ))
-                            .with_children(|btn| {
-                                btn.spawn((
-                                    Text::new(label),
-                                    TextFont {
-                                        font_size: 14.0,
-                                        ..default()
-                                    },
-                                    TextColor(Color::srgb(0.9, 0.9, 1.0)),
-                                ));
-                            });
-                        }
+                    .with_children(|bar_container| {
+                        bar_container.spawn((
+                            Text::new("Labor"),
+                            TextFont {
+                                font_size: 14.0,
+                                ..default()
+                            },
+                            TextColor(Color::srgb(0.8, 0.8, 0.8)),
+                        ));
+
+                        bar_container.spawn((
+                            Text::new(format!(
+                                "Required: 0 (Available: {})",
+                                workforce.available_labor()
+                            )),
+                            TextFont {
+                                font_size: 12.0,
+                                ..default()
+                            },
+                            TextColor(Color::srgb(0.7, 0.9, 0.7)),
+                            ProductionLaborDisplay {
+                                building_entity,
+                                output_good,
+                            },
+                        ));
                     });
-            }
 
-            // Capacity display
-            content.spawn((
-                Text::new(format!("Capacity: {} units/turn", building.capacity)),
-                TextFont {
-                    font_size: 16.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.9, 0.9, 0.9)),
-            ));
-
-            // Allocation UI using widget macros
-            // Determine the output good for this building and choice
-            let output_good = match building_kind {
-                BuildingKind::TextileMill => Good::Fabric,
-                BuildingKind::LumberMill => match choice {
-                    ProductionChoice::MakeLumber => Good::Lumber,
-                    ProductionChoice::MakePaper => Good::Paper,
-                    _ => Good::Lumber, // Default
-                },
-                BuildingKind::SteelMill => Good::Steel,
-                BuildingKind::FoodProcessingCenter => Good::CannedFood,
-                _ => Good::Fabric, // Fallback
-            };
-
-            let allocation_type = crate::ui::city::allocation_widgets::AllocationType::Production(
-                building_entity,
-                output_good,
-            );
-
-            // Stepper for target output
-            crate::spawn_allocation_stepper!(content, "Target Production", allocation_type);
-
-            // Resource allocation bars - show inputs required
-            let (inputs, _output) = get_recipe(building_kind, choice);
-            for (good, _amount) in inputs.iter() {
-                let good_name = format!("{:?}", good);
-                crate::spawn_allocation_bar!(content, *good, &good_name, allocation_type);
-            }
-
-            // Labor allocation bar (showing labor as a resource)
-            // Note: We'll need to add labor display support in the unified update systems
-            content
-                .spawn(Node {
-                    width: Val::Percent(100.0),
-                    flex_direction: FlexDirection::Column,
-                    row_gap: Val::Px(4.0),
-                    padding: UiRect::all(Val::Px(8.0)),
-                    border: UiRect::all(Val::Px(1.0)),
-                    ..default()
-                })
-                .with_children(|bar_container| {
-                    bar_container.spawn((
-                        Text::new("Labor"),
-                        TextFont {
-                            font_size: 14.0,
-                            ..default()
-                        },
-                        TextColor(Color::srgb(0.8, 0.8, 0.8)),
-                    ));
-
-                    bar_container.spawn((
-                        Text::new(format!(
-                            "Required: {} (Available: {})",
-                            settings.target_output,
-                            workforce.available_labor()
-                        )),
-                        TextFont {
-                            font_size: 12.0,
-                            ..default()
-                        },
-                        TextColor(if settings.target_output <= workforce.available_labor() {
-                            Color::srgb(0.7, 0.9, 0.7)
-                        } else {
-                            Color::srgb(0.9, 0.6, 0.6)
-                        }),
-                        ProductionLaborDisplay { building_entity },
-                    ));
-                });
-
-            // Summary
-            crate::spawn_allocation_summary!(content, allocation_type);
-
-            // TODO: Expand Industry button (Phase 5)
-        });
+                // Summary
+                crate::spawn_allocation_summary!(section, allocation_type);
+            });
+    });
 }
 
 /// Update production dialog labor display (Rendering Layer)
@@ -369,14 +391,9 @@ pub fn update_production_labor_display(
     let available_labor = workforce.available_labor();
 
     for (mut text, mut color, display) in display_query.iter_mut() {
-        // Get production allocation for this building (sum of all outputs)
-        // Count all production allocations for this building across all output goods
-        let production_alloc = allocations
-            .production
-            .iter()
-            .filter(|((entity, _good), _reservations)| *entity == display.building_entity)
-            .map(|((_entity, _good), reservations)| reservations.len() as u32)
-            .sum::<u32>();
+        // Get production allocation for this specific output_good
+        let production_alloc =
+            allocations.production_count(display.building_entity, display.output_good) as u32;
 
         **text = format!(
             "Required: {} (Available: {})",
@@ -392,36 +409,45 @@ pub fn update_production_labor_display(
 }
 
 /// Get recipe for a building and choice
-fn get_recipe(
+/// Get recipe for a specific output good
+/// Returns (inputs, output) where inputs shows ALL possible alternatives
+/// For TextileMill: shows "2× Cotton OR 2× Wool"
+/// For FoodProcessing: shows "2× Grain + 1× Fruit + 1× (Livestock OR Fish)"
+fn get_recipe_for_output(
     building_kind: BuildingKind,
-    choice: ProductionChoice,
-) -> (Vec<(Good, u32)>, (Good, u32)) {
-    match building_kind {
-        BuildingKind::TextileMill => {
-            let input = match choice {
-                ProductionChoice::UseCotton => Good::Cotton,
-                ProductionChoice::UseWool => Good::Wool,
-                _ => Good::Cotton,
-            };
-            (vec![(input, 2)], (Good::Fabric, 1))
-        }
-        BuildingKind::LumberMill => {
-            let output = match choice {
-                ProductionChoice::MakeLumber => Good::Lumber,
-                ProductionChoice::MakePaper => Good::Paper,
-                _ => Good::Lumber,
-            };
-            (vec![(Good::Timber, 2)], (output, 1))
-        }
-        BuildingKind::SteelMill => (vec![(Good::Iron, 1), (Good::Coal, 1)], (Good::Steel, 1)),
-        BuildingKind::FoodProcessingCenter => {
-            let meat = match choice {
-                ProductionChoice::UseLivestock => Good::Livestock,
-                ProductionChoice::UseFish => Good::Fish,
-                _ => Good::Livestock,
-            };
+    output_good: Good,
+) -> (Vec<Vec<(Good, u32)>>, (Good, u32)) {
+    match (building_kind, output_good) {
+        (BuildingKind::TextileMill, Good::Fabric) => {
+            // Two alternatives: Cotton OR Wool
             (
-                vec![(Good::Grain, 2), (Good::Fruit, 1), (meat, 1)],
+                vec![vec![(Good::Cotton, 2)], vec![(Good::Wool, 2)]],
+                (Good::Fabric, 1),
+            )
+        }
+        (BuildingKind::LumberMill, Good::Lumber) => {
+            // Simple: 2 Timber → 1 Lumber
+            (vec![vec![(Good::Timber, 2)]], (Good::Lumber, 1))
+        }
+        (BuildingKind::LumberMill, Good::Paper) => {
+            // Simple: 2 Timber → 1 Paper
+            (vec![vec![(Good::Timber, 2)]], (Good::Paper, 1))
+        }
+        (BuildingKind::SteelMill, Good::Steel) => {
+            // Simple: 1 Iron + 1 Coal → 1 Steel
+            (
+                vec![vec![(Good::Iron, 1), (Good::Coal, 1)]],
+                (Good::Steel, 1),
+            )
+        }
+        (BuildingKind::FoodProcessingCenter, Good::CannedFood) => {
+            // Complex: 2 Grain + 1 Fruit + (1 Livestock OR 1 Fish) → 2 CannedFood
+            // Show as two alternatives: one with Livestock, one with Fish
+            (
+                vec![
+                    vec![(Good::Grain, 2), (Good::Fruit, 1), (Good::Livestock, 1)],
+                    vec![(Good::Grain, 2), (Good::Fruit, 1), (Good::Fish, 1)],
+                ],
                 (Good::CannedFood, 2),
             )
         }

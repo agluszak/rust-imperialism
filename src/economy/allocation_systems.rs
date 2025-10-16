@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use super::{
     allocation::{AdjustProduction, AdjustRecruitment, AdjustTraining, Allocations},
     goods::Good,
-    production::{Building, BuildingKind, ProductionChoice},
+    production::{BuildingKind, Buildings},
     reservation::ReservationSystem,
     stockpile::Stockpile,
     treasury::Treasury,
@@ -25,7 +25,7 @@ pub fn apply_production_adjustments(
         &mut Stockpile,
         &mut Workforce,
     )>,
-    buildings: Query<&Building>,
+    buildings_query: Query<&Buildings>,
 ) {
     for msg in messages.read() {
         let Ok((mut allocations, mut reservations, mut stockpile, mut workforce)) =
@@ -35,8 +35,32 @@ pub fn apply_production_adjustments(
             continue;
         };
 
-        let Ok(building) = buildings.get(msg.building) else {
-            warn!("Cannot adjust production: building not found");
+        // Get the buildings collection and find the matching building for this output
+        let Ok(buildings_collection) = buildings_query.get(msg.building) else {
+            warn!("Cannot adjust production: buildings not found");
+            continue;
+        };
+
+        // Infer building kind from output_good
+        let building_kind = match msg.output_good {
+            Good::Fabric => BuildingKind::TextileMill,
+            Good::Paper | Good::Lumber => BuildingKind::LumberMill,
+            Good::Steel => BuildingKind::SteelMill,
+            Good::CannedFood => BuildingKind::FoodProcessingCenter,
+            _ => {
+                warn!(
+                    "Cannot determine building for output good: {:?}",
+                    msg.output_good
+                );
+                continue;
+            }
+        };
+
+        let Some(building) = buildings_collection.get(building_kind) else {
+            warn!(
+                "Cannot adjust production: building kind not found: {:?}",
+                building_kind
+            );
             continue;
         };
 
@@ -69,17 +93,17 @@ pub fn apply_production_adjustments(
         else if target > current_count {
             let to_add = target - current_count;
 
-            // Calculate inputs per unit
-            let inputs_per_unit =
-                calculate_inputs_for_one_unit(building.kind, msg.output_good, msg.choice);
-
             let vec = allocations.production.entry(key).or_default();
             let mut added = 0;
 
             for _ in 0..to_add {
+                // Calculate inputs per unit dynamically (checks stockpile availability)
+                let inputs_per_unit =
+                    calculate_inputs_for_one_unit(building.kind, msg.output_good, &stockpile);
+
                 // Try to reserve for ONE unit
                 if let Some(res_id) = reservations.try_reserve(
-                    inputs_per_unit.clone(),
+                    inputs_per_unit,
                     1, // 1 labor per unit
                     0, // no money
                     &mut stockpile,
@@ -113,25 +137,35 @@ pub fn apply_production_adjustments(
     }
 }
 
-/// Calculate inputs needed for ONE unit of output
-fn calculate_inputs_for_one_unit(
+/// Calculate inputs needed for one unit of production, intelligently choosing
+/// based on stockpile availability (e.g., Cotton vs Wool, Fish vs Livestock)
+pub(crate) fn calculate_inputs_for_one_unit(
     kind: BuildingKind,
     _output: Good,
-    choice: Option<ProductionChoice>,
+    stockpile: &Stockpile,
 ) -> Vec<(Good, u32)> {
     match kind {
         BuildingKind::TextileMill => {
             // 2 fiber → 1 fabric
-            // For now, default to Cotton if no choice specified
-            let fiber = match choice {
-                Some(ProductionChoice::UseWool) => Good::Wool,
-                _ => Good::Cotton,
+            // Intelligently pick Cotton or Wool based on availability
+            let cotton_available = stockpile.get_available(Good::Cotton);
+            let wool_available = stockpile.get_available(Good::Wool);
+
+            // Prefer whichever has more available (at least 2 units needed)
+            let fiber = if cotton_available >= 2 {
+                Good::Cotton
+            } else if wool_available >= 2 {
+                Good::Wool
+            } else if cotton_available > wool_available {
+                Good::Cotton
+            } else {
+                Good::Wool
             };
             vec![(fiber, 2)]
         }
 
         BuildingKind::LumberMill => {
-            // 2 timber → 1 output
+            // 2 timber → 1 output (Lumber or Paper)
             vec![(Good::Timber, 2)]
         }
 
@@ -141,19 +175,22 @@ fn calculate_inputs_for_one_unit(
         }
 
         BuildingKind::FoodProcessingCenter => {
-            // For 2 CannedFood: 2 Grain + 1 Fruit + 1 Meat
-            // But we're allocating per UNIT, so for 1 CannedFood:
-            // This is tricky because the recipe is for 2 units
-            // For simplicity, let's say 1 unit = 1 Grain + 0.5 Fruit + 0.5 Meat
-            // But we can't have fractional reservations...
-            // Better: reserve for batches of 2
-            let meat = match choice {
-                Some(ProductionChoice::UseFish) => Good::Fish,
-                _ => Good::Livestock,
+            // 2 Grain + 1 Fruit + 1 Meat → 2 CannedFood
+            // Per unit: 2 Grain, 1 Fruit, 1 Meat (produces 2 units)
+            // Intelligently pick Fish or Livestock based on availability
+            let fish_available = stockpile.get_available(Good::Fish);
+            let livestock_available = stockpile.get_available(Good::Livestock);
+
+            let meat = if fish_available >= 1 {
+                Good::Fish
+            } else if livestock_available >= 1 {
+                Good::Livestock
+            } else if fish_available > 0 {
+                Good::Fish
+            } else {
+                Good::Livestock
             };
 
-            // If allocating 1 unit, round up to 1 batch (which produces 2)
-            // This means we need: 2 Grain, 1 Fruit, 1 Meat per CannedFood
             vec![(Good::Grain, 2), (Good::Fruit, 1), (meat, 1)]
         }
 
@@ -483,3 +520,7 @@ pub fn reset_allocations(
         debug!("Reset allocations for new turn");
     }
 }
+
+#[cfg(test)]
+#[path = "allocation_systems_tests.rs"]
+mod tests;

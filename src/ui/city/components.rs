@@ -69,6 +69,7 @@ pub struct HireCivilian {
 #[derive(Component)]
 pub struct ProductionLaborDisplay {
     pub building_entity: Entity,
+    pub output_good: crate::economy::Good,
 }
 
 /// Marker for Capitol dialog requirement displays

@@ -1,9 +1,7 @@
 use bevy::prelude::*;
 use std::collections::HashMap;
 
-use super::{
-    goods::Good, production::ProductionChoice, reservation::ReservationId, workforce::WorkerSkill,
-};
+use super::{goods::Good, reservation::ReservationId, workforce::WorkerSkill};
 
 /// Per-nation component tracking all resource allocations via reservation IDs
 /// Each reservation represents ONE unit of output/worker/etc.
@@ -67,6 +65,5 @@ pub struct AdjustProduction {
     pub nation: Entity,
     pub building: Entity,
     pub output_good: Good, // Which output to adjust (Paper, Lumber, etc.)
-    pub choice: Option<ProductionChoice>, // None = keep current choice
     pub target_output: u32,
 }

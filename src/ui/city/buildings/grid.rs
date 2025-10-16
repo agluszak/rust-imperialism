@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-use crate::economy::production::BuildingKind;
-use crate::economy::{Building, PlayerNation};
+use crate::economy::PlayerNation;
+use crate::economy::production::{BuildingKind, Buildings};
 use crate::ui::button_style::*;
 use crate::ui::city::components::{BuildingButton, BuildingGrid};
 
@@ -107,24 +107,15 @@ pub fn spawn_building_grid(commands: &mut Commands, parent_entity: Entity) {
 /// Shows which buildings are built vs. available
 pub fn update_building_buttons(
     player_nation: Option<Res<PlayerNation>>,
-    buildings_query: Query<(Entity, &Building)>,
+    player_buildings_query: Query<&Buildings>,
     mut button_query: Query<(&mut BuildingButton, &mut BackgroundColor, &mut BorderColor)>,
 ) {
     let Some(player) = player_nation else {
         return;
     };
 
-    // Collect player's buildings
-    let player_buildings: Vec<(Entity, BuildingKind)> = buildings_query
-        .iter()
-        .filter_map(|(entity, building)| {
-            if entity == player.0 {
-                Some((entity, building.kind))
-            } else {
-                None
-            }
-        })
-        .collect();
+    // Get player's buildings collection
+    let player_buildings = player_buildings_query.get(player.0).ok();
 
     // Update button states
     for (mut button, mut bg_color, mut border_color) in button_query.iter_mut() {
@@ -137,8 +128,8 @@ pub fn update_building_buttons(
         // Check if this building is built
         let is_built = always_available
             || player_buildings
-                .iter()
-                .any(|(_, kind)| *kind == button.building_kind);
+                .map(|buildings| buildings.get(button.building_kind).is_some())
+                .unwrap_or(false);
 
         if is_built {
             // Building is built - highlight button

@@ -131,9 +131,9 @@ pub fn assign_provinces_to_countries(
             // Start with 5 untrained workers
             workforce.add_untrained(5);
 
-            // Textile mill is the main production building on the nation entity
+            // All manufacturories are available at start
             commands.entity(country_entity).insert((
-                crate::economy::Building::textile_mill(8), // Capacity of 8
+                crate::economy::production::Buildings::with_all_initial(),
                 crate::economy::production::ProductionSettings::default(),
                 workforce,
                 crate::economy::RecruitmentCapacity::default(),
