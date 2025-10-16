@@ -141,7 +141,16 @@ pub fn apply_production_adjustments(
                     // Can't reserve more, stop trying
                     debug!(
                         "Reservation failed - stockpile: [{}], workforce: untrained={}, trained={}, expert={}, labor_pool.available={}",
-                        inputs_per_unit.iter().map(|(g, amt)| format!("{:?}={}/{}", g, stockpile.get_available(*g), amt)).collect::<Vec<_>>().join(", "),
+                        inputs_per_unit
+                            .iter()
+                            .map(|(g, amt)| format!(
+                                "{:?}={}/{}",
+                                g,
+                                stockpile.get_available(*g),
+                                amt
+                            ))
+                            .collect::<Vec<_>>()
+                            .join(", "),
                         workforce.untrained_count(),
                         workforce.trained_count(),
                         workforce.expert_count(),

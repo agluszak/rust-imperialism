@@ -95,10 +95,7 @@ fn spawn_production_content(
     // Building title and capacity
     commands.entity(content_entity).with_children(|content| {
         content.spawn((
-            Text::new(format!(
-                "{:?} (Cap: {})",
-                building_kind, building.capacity
-            )),
+            Text::new(format!("{:?} (Cap: {})", building_kind, building.capacity)),
             TextFont {
                 font_size: 16.0,
                 ..default()

@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-use super::types::{BuildingDialog, CloseBuildingDialog, DialogCloseButton, DialogDragHandle, DialogDragState};
+use super::types::{
+    BuildingDialog, CloseBuildingDialog, DialogCloseButton, DialogDragHandle, DialogDragState,
+};
 
 /// Spawn a dialog window frame (Rendering Layer)
 /// Returns the entity ID of the dialog
@@ -134,9 +136,9 @@ pub fn spawn_dialog_frame(
     });
 
     // Update the drag handle with the correct dialog entity
-    commands.entity(header_entity).insert(DialogDragHandle {
-        dialog_entity,
-    });
+    commands
+        .entity(header_entity)
+        .insert(DialogDragHandle { dialog_entity });
 
     dialog_entity
 }

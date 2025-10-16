@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use super::Workforce;
+use bevy::prelude::*;
 
 /// Calculate recruitment cap based on province count
 pub fn calculate_recruitment_cap(province_count: u32, upgraded: bool) -> u32 {
