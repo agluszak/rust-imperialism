@@ -18,4 +18,5 @@ noise = "0.9"
 bevy-inspector-egui = "0.34.0"
 image = "0.25"
 thiserror = "2.0"
+moonshine-save = { git = "https://github.com/Zeenobit/moonshine_save", tag = "0.6.0" }
 

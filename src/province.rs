@@ -1,12 +1,16 @@
+use bevy::ecs::entity::{EntityMapper, MapEntities};
+use bevy::ecs::reflect::ReflectMapEntities;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
 
 /// Unique identifier for a province
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect)]
+#[reflect(Component)]
 pub struct ProvinceId(pub u32);
 
 /// A province is a collection of adjacent tiles with one city
-#[derive(Component, Debug, Clone)]
+#[derive(Component, Debug, Clone, Reflect)]
+#[reflect(Component, MapEntities)]
 pub struct Province {
     pub id: ProvinceId,
     pub tiles: Vec<TilePos>,
@@ -15,14 +19,16 @@ pub struct Province {
 }
 
 /// Marker component for the city within a province
-#[derive(Component, Debug, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy, Reflect)]
+#[reflect(Component)]
 pub struct City {
     pub province: ProvinceId,
     pub is_capital: bool,
 }
 
 /// Component that marks a tile as belonging to a province
-#[derive(Component, Debug, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy, Reflect)]
+#[reflect(Component)]
 pub struct TileProvince {
     pub province_id: ProvinceId,
 }
@@ -34,6 +40,14 @@ impl Province {
             tiles,
             city_tile,
             owner: None,
+        }
+    }
+}
+
+impl MapEntities for Province {
+    fn map_entities<M: EntityMapper>(&mut self, mapper: &mut M) {
+        if let Some(owner) = self.owner.as_mut() {
+            *owner = mapper.get_mapped(*owner);
         }
     }
 }
