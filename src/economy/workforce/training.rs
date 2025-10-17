@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use super::super::goods::Good;
 use super::super::stockpile::Stockpile;
 use super::types::{WorkerSkill, Workforce};
+use crate::economy::NationInstance;
 use crate::economy::treasury::Treasury;
 use crate::turn_system::{TurnPhase, TurnSystem};
 use crate::ui::logging::TerminalLogEvent;
@@ -10,7 +11,7 @@ use crate::ui::logging::TerminalLogEvent;
 /// Message to queue training of a worker at the Trade School
 #[derive(Message, Debug, Clone, Copy)]
 pub struct TrainWorker {
-    pub nation: Entity,
+    pub nation: NationInstance,
     pub from_skill: WorkerSkill,
 }
 
@@ -51,7 +52,9 @@ pub fn handle_training(
     const TRAINING_COST_CASH: i64 = 100;
 
     for event in events.read() {
-        if let Ok((workforce, mut stockpile, treasury, mut queue)) = nations.get_mut(event.nation) {
+        if let Ok((workforce, mut stockpile, treasury, mut queue)) =
+            nations.get_mut(event.nation.entity())
+        {
             // Calculate total training orders of this type (including queued)
             let already_queued = queue
                 .orders

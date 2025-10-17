@@ -230,7 +230,7 @@ fn update_market_treasury_text(
         return;
     }
 
-    let Ok(treasury) = treasuries.get(player.0) else {
+    let Ok(treasury) = treasuries.get(player.entity()) else {
         return;
     };
 
@@ -262,11 +262,13 @@ fn update_market_inventory_texts(
         return;
     }
 
-    let Ok(stockpile) = stockpiles.get(player.0) else {
+    let player_entity = player.entity();
+
+    let Ok(stockpile) = stockpiles.get(player_entity) else {
         return;
     };
 
-    let Ok(_allocations) = allocations.get(player.0) else {
+    let Ok(_allocations) = allocations.get(player_entity) else {
         return;
     };
 

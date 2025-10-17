@@ -67,7 +67,7 @@ pub fn update_treasury_display(
     };
 
     // Only update if the player's treasury changed
-    if let Ok(treasury) = changed_treasuries.get(player.0) {
+    if let Ok(treasury) = changed_treasuries.get(player.entity()) {
         let s = format_currency(treasury.total());
         for mut text in q.iter_mut() {
             text.0 = s.clone();
@@ -157,7 +157,7 @@ pub fn update_tile_info_display(
                     {
                         // Find player's tech
                         for (nation_entity, _, techs) in nations_query.iter() {
-                            if nation_entity == player.0 {
+                            if nation_entity == player.entity() {
                                 let buildable = check_buildability(terrain, techs);
                                 tile_info.push_str(&format!("\n{}", buildable));
                                 break;

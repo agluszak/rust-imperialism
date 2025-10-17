@@ -73,7 +73,7 @@ pub fn update_warehouse_display(
     };
 
     // Only update if the player's stockpile changed
-    let Ok(stockpile) = changed_stockpiles.get(player.0) else {
+    let Ok(stockpile) = changed_stockpiles.get(player.entity()) else {
         return;
     };
 

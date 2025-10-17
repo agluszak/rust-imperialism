@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 use super::{goods::Good, reservation::ReservationId, workforce::WorkerSkill};
+use crate::economy::NationInstance;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MarketInterest {
@@ -71,14 +72,14 @@ impl Allocations {
 /// Player adjusts recruitment allocation (Capitol building)
 #[derive(Message, Debug, Clone, Copy)]
 pub struct AdjustRecruitment {
-    pub nation: Entity,
+    pub nation: NationInstance,
     pub requested: u32,
 }
 
 /// Player adjusts training allocation (Trade School)
 #[derive(Message, Debug, Clone, Copy)]
 pub struct AdjustTraining {
-    pub nation: Entity,
+    pub nation: NationInstance,
     pub from_skill: WorkerSkill,
     pub requested: u32,
 }
@@ -86,7 +87,7 @@ pub struct AdjustTraining {
 /// Player adjusts production allocation (mills/factories)
 #[derive(Message, Debug, Clone, Copy)]
 pub struct AdjustProduction {
-    pub nation: Entity,
+    pub nation: NationInstance,
     pub building: Entity,
     pub output_good: Good, // Which output to adjust (Paper, Lumber, etc.)
     pub target_output: u32,
@@ -97,7 +98,7 @@ pub struct AdjustProduction {
 /// For Sell: requested is the actual quantity to allocate
 #[derive(Message, Debug, Clone, Copy)]
 pub struct AdjustMarketOrder {
-    pub nation: Entity,
+    pub nation: NationInstance,
     pub good: Good,
     pub kind: MarketInterest,
     pub requested: u32,

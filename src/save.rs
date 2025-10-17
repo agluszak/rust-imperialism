@@ -153,7 +153,6 @@ fn emit_load_completion(
 fn rebuild_runtime_state_after_load(
     _: On<Loaded>,
     mut commands: Commands,
-    mut player_nation: Option<ResMut<PlayerNation>>,
     nations: Query<(
         Entity,
         &NationId,
@@ -183,11 +182,17 @@ fn rebuild_runtime_state_after_load(
     }
 
     if let Some(entity) = player_entity {
-        if let Some(existing) = player_nation.as_mut() {
-            existing.0 = entity;
-        } else {
-            commands.insert_resource(PlayerNation(entity));
-        }
+        // Defer the world access - we can't call from_entity here due to system parameter conflicts
+        // Instead, we'll use the register_command approach
+        commands.queue(move |world: &mut World| {
+            if let Some(nation) = PlayerNation::from_entity(world, entity) {
+                if world.contains_resource::<PlayerNation>() {
+                    *world.resource_mut::<PlayerNation>() = nation;
+                } else {
+                    world.insert_resource(nation);
+                }
+            }
+        });
     }
 }
 
@@ -327,7 +332,7 @@ mod tests {
         assert_eq!(completions.len(), 1);
         assert_eq!(completions[0].path, path);
 
-        let player_nation_entity = app.world().resource::<PlayerNation>().0;
+        let player_nation_entity = app.world().resource::<PlayerNation>().entity();
         let entity = app.world().entity(player_nation_entity);
         assert_eq!(entity.get::<NationId>().unwrap().0, 1);
         assert!(entity.contains::<Allocations>());
