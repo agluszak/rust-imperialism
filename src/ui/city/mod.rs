@@ -31,6 +31,7 @@ impl Plugin for CityUIPlugin {
             .add_message::<crate::economy::AdjustRecruitment>()
             .add_message::<crate::economy::AdjustTraining>()
             .add_message::<crate::economy::AdjustProduction>()
+            .add_message::<crate::economy::AdjustMarketOrder>()
             .add_systems(
                 OnEnter(crate::ui::mode::GameMode::City),
                 layout::ensure_city_screen_visible,

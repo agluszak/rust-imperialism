@@ -303,6 +303,7 @@ pub fn app() -> App {
             economy::allocation_systems::apply_recruitment_adjustments,
             economy::allocation_systems::apply_training_adjustments,
             economy::allocation_systems::apply_production_adjustments,
+            economy::allocation_systems::apply_market_order_adjustments,
             // Finalize allocations at turn end (before Processing)
             economy::allocation_systems::finalize_allocations
                 .run_if(resource_changed::<TurnSystem>)

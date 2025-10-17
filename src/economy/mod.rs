@@ -5,18 +5,23 @@ pub mod goods;
 pub mod nation;
 pub mod production;
 pub mod reservation;
+pub mod market;
 pub mod stockpile;
 pub mod technology;
 pub mod transport;
 pub mod treasury;
 pub mod workforce;
 
-pub use allocation::{AdjustProduction, AdjustRecruitment, AdjustTraining, Allocations};
+pub use allocation::{
+    AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, Allocations,
+    MarketOrderKind,
+};
 pub use calendar::{Calendar, Season};
 pub use goods::Good;
 pub use nation::{Capital, Name, NationColor, NationId, PlayerNation};
 pub use production::{Building, BuildingKind};
 pub use reservation::{ReservationId, ReservationSystem, ResourcePool};
+pub use market::{market_price, MARKET_RESOURCES};
 pub use stockpile::Stockpile;
 pub use technology::{Technologies, Technology};
 pub use transport::{Depot, ImprovementKind, PlaceImprovement, Port, Rails, Roads};

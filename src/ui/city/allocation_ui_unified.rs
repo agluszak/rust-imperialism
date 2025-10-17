@@ -5,7 +5,8 @@ use super::allocation_widgets::{
     AllocationType,
 };
 use crate::economy::{
-    AdjustProduction, AdjustRecruitment, AdjustTraining, Allocations, PlayerNation, Stockpile,
+    AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, Allocations,
+    MarketOrderKind, PlayerNation, Stockpile, Treasury,
 };
 
 // ============================================================================
@@ -20,6 +21,7 @@ pub fn handle_all_stepper_buttons(
     mut recruit_writer: MessageWriter<AdjustRecruitment>,
     mut train_writer: MessageWriter<AdjustTraining>,
     mut prod_writer: MessageWriter<AdjustProduction>,
+    mut market_writer: MessageWriter<AdjustMarketOrder>,
 ) {
     let Some(player) = player_nation else {
         return;
@@ -73,6 +75,36 @@ pub fn handle_all_stepper_buttons(
                         output_good, current, new_target, button.delta
                     );
                 }
+
+                AllocationType::MarketBuy(good) => {
+                    let current = alloc.market_buy_count(good) as u32;
+                    let new_requested = (current as i32 + button.delta).max(0) as u32;
+                    market_writer.write(AdjustMarketOrder {
+                        nation: player.0,
+                        good,
+                        kind: MarketOrderKind::Buy,
+                        requested: new_requested,
+                    });
+                    info!(
+                        "Market buy ({:?}): {} → {} (delta: {})",
+                        good, current, new_requested, button.delta
+                    );
+                }
+
+                AllocationType::MarketSell(good) => {
+                    let current = alloc.market_sell_count(good) as u32;
+                    let new_requested = (current as i32 + button.delta).max(0) as u32;
+                    market_writer.write(AdjustMarketOrder {
+                        nation: player.0,
+                        good,
+                        kind: MarketOrderKind::Sell,
+                        requested: new_requested,
+                    });
+                    info!(
+                        "Market sell ({:?}): {} → {} (delta: {})",
+                        good, current, new_requested, button.delta
+                    );
+                }
             }
         }
     }
@@ -109,6 +141,10 @@ pub fn update_all_stepper_displays(
                 AllocationType::Production(building_entity, output_good) => {
                     alloc.production_count(building_entity, output_good)
                 }
+
+                AllocationType::MarketBuy(good) => alloc.market_buy_count(good),
+
+                AllocationType::MarketSell(good) => alloc.market_sell_count(good),
             };
 
             // With new system, allocated is always what's been successfully reserved
@@ -122,6 +158,7 @@ pub fn update_all_allocation_bars(
     player_nation: Option<Res<PlayerNation>>,
     allocations: Query<&Allocations>,
     stockpiles: Query<&Stockpile>,
+    treasuries: Query<&Treasury>,
     buildings_query: Query<&crate::economy::production::Buildings>,
     mut bars: Query<(
         &mut Text,
@@ -132,7 +169,7 @@ pub fn update_all_allocation_bars(
     allocations_changed: Query<Entity, Changed<Allocations>>,
     new_bars: Query<Entity, Added<AllocationBar>>,
 ) {
-    use crate::economy::{BuildingKind, Good};
+    use crate::economy::{market_price, BuildingKind, Good};
 
     let Some(player) = player_nation else {
         return;
@@ -155,70 +192,88 @@ pub fn update_all_allocation_bars(
         return;
     };
 
-    for (mut text, mut bg_color, mut border_color, bar) in bars.iter_mut() {
-        let available = stockpile.get_available(bar.good);
+    let Ok(treasury) = treasuries.get(player.0) else {
+        return;
+    };
 
+    for (mut text, mut bg_color, mut border_color, bar) in bars.iter_mut() {
         // Calculate needed based on allocation type
         // Each allocation represents 1 unit, so needed = count × per-unit-cost
-        let needed = match bar.allocation_type {
+        let (needed, available) = match bar.allocation_type {
             AllocationType::Recruitment => {
-                // 1 CannedFood, 1 Clothing, 1 Furniture per worker
                 let count = alloc.recruitment_count() as u32;
-                match bar.good {
+                let available = stockpile.get_available(bar.good);
+                let needed = match bar.good {
                     Good::CannedFood | Good::Clothing | Good::Furniture => count,
                     _ => 0,
-                }
+                };
+                (needed, available)
             }
 
             AllocationType::Training(from_skill) => {
-                // 1 Paper per training
                 let count = alloc.training_count(from_skill) as u32;
-                match bar.good {
+                let available = stockpile.get_available(bar.good);
+                let needed = match bar.good {
                     Good::Paper => count,
                     _ => 0,
-                }
+                };
+                (needed, available)
             }
 
             AllocationType::Production(building_entity, output_good) => {
-                // Get count and building kind to calculate inputs
+                let available = stockpile.get_available(bar.good);
                 let count = alloc.production_count(building_entity, output_good) as u32;
                 if count == 0 {
-                    0
+                    (0, available)
                 } else {
-                    // Infer building kind from output_good
                     let building_kind = match output_good {
                         Good::Fabric => BuildingKind::TextileMill,
                         Good::Paper | Good::Lumber => BuildingKind::LumberMill,
                         Good::Steel => BuildingKind::SteelMill,
                         Good::CannedFood => BuildingKind::FoodProcessingCenter,
-                        _ => BuildingKind::TextileMill, // fallback
+                        _ => BuildingKind::TextileMill,
                     };
 
                     if buildings_collection.get(building_kind).is_some() {
-                        // Calculate per-unit cost and multiply by count
                         let per_unit_cost = match (building_kind, bar.good) {
-                            (BuildingKind::TextileMill, Good::Cotton) => 2, // 2 cotton per fabric
-                            (BuildingKind::TextileMill, Good::Wool) => 2,   // 2 wool per fabric
-                            (BuildingKind::LumberMill, Good::Timber) => 2,  // 2 timber per output
-                            (BuildingKind::SteelMill, Good::Iron) => 1,     // 1 iron per steel
-                            (BuildingKind::SteelMill, Good::Coal) => 1,     // 1 coal per steel
-                            (BuildingKind::FoodProcessingCenter, Good::Grain) => 2, // per unit
+                            (BuildingKind::TextileMill, Good::Cotton) => 2,
+                            (BuildingKind::TextileMill, Good::Wool) => 2,
+                            (BuildingKind::LumberMill, Good::Timber) => 2,
+                            (BuildingKind::SteelMill, Good::Iron) => 1,
+                            (BuildingKind::SteelMill, Good::Coal) => 1,
+                            (BuildingKind::FoodProcessingCenter, Good::Grain) => 2,
                             (BuildingKind::FoodProcessingCenter, Good::Fruit) => 1,
                             (BuildingKind::FoodProcessingCenter, Good::Livestock) => 1,
                             (BuildingKind::FoodProcessingCenter, Good::Fish) => 1,
                             _ => 0,
                         };
-                        count * per_unit_cost
+                        (count * per_unit_cost, available)
                     } else {
-                        0
+                        (0, available)
                     }
                 }
+            }
+
+            AllocationType::MarketBuy(good) => {
+                let count = alloc.market_buy_count(good) as u32;
+                let needed = if count == 0 {
+                    0
+                } else {
+                    count.saturating_mul(market_price(good))
+                };
+                let available = treasury.available().max(0) as u32;
+                (needed, available)
+            }
+
+            AllocationType::MarketSell(good) => {
+                let count = alloc.market_sell_count(good) as u32;
+                let available = stockpile.get_available(good);
+                (count, available)
             }
         };
 
         // Update text
-        let good_name = format!("{:?}", bar.good); // Simple debug format for now
-        text.0 = format!("{}: {} / {}", good_name, needed, available);
+        text.0 = format!("{}: {} / {}", bar.label, needed, available);
 
         // Color based on constraints
         let (bar_color, border_col) = if needed == 0 {
@@ -301,6 +356,32 @@ pub fn update_all_allocation_summaries(
                         format!("→ Will produce {} {:?} next turn", allocated, output_good)
                     } else {
                         "→ No production planned".to_string()
+                    }
+                }
+
+                AllocationType::MarketBuy(good) => {
+                    let allocated = alloc.market_buy_count(good);
+                    if allocated > 0 {
+                        format!(
+                            "→ Will place buy orders for {} {}",
+                            allocated,
+                            good
+                        )
+                    } else {
+                        format!("→ No buy orders for {}", good)
+                    }
+                }
+
+                AllocationType::MarketSell(good) => {
+                    let allocated = alloc.market_sell_count(good);
+                    if allocated > 0 {
+                        format!(
+                            "→ Will offer {} {} for sale",
+                            allocated,
+                            good
+                        )
+                    } else {
+                        format!("→ No sell offers for {}", good)
                     }
                 }
             };
