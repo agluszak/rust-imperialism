@@ -1,10 +1,9 @@
-#![cfg(test)]
-use super::*;
 use crate::test_utils::*;
+use crate::turn_system::{TurnPhase, TurnSystem};
 
 #[test]
 fn test_turn_system_default() {
-    let mut world = create_test_world();
+    let world = create_test_world();
     let turn_system = world.resource::<TurnSystem>();
     assert_eq!(turn_system.current_turn, 1);
     assert_eq!(turn_system.phase, TurnPhase::PlayerTurn);
@@ -96,7 +95,7 @@ fn test_turn_phase_equality() {
 #[test]
 fn test_turn_phase_clone() {
     let phase = TurnPhase::PlayerTurn;
-    let cloned = phase.clone();
+    let cloned = phase;
     assert_eq!(phase, cloned);
 }
 

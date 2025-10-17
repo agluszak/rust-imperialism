@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_ecs_tilemap::prelude::TilePos;
+use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
 
 use super::commands::{
     DeselectAllCivilians, DeselectCivilian, GiveCivilianOrder, RescindOrders, SelectCivilian,
@@ -8,6 +8,9 @@ use super::types::{
     ActionTurn, Civilian, CivilianJob, CivilianOrder, CivilianOrderKind, CivilianVisual,
     PreviousPosition,
 };
+use crate::economy::treasury::Treasury;
+use crate::province::{Province, TileProvince};
+use crate::turn_system::TurnSystem;
 use crate::ui::logging::TerminalLogEvent;
 
 /// Handle clicks on civilian visuals to select them
@@ -153,9 +156,9 @@ pub fn handle_civilian_orders(
 pub fn tile_owned_by_nation(
     tile_pos: TilePos,
     nation_entity: Entity,
-    tile_storage: &bevy_ecs_tilemap::prelude::TileStorage,
-    tile_provinces: &Query<&crate::province::TileProvince>,
-    provinces: &Query<&crate::province::Province>,
+    tile_storage: &TileStorage,
+    tile_provinces: &Query<&TileProvince>,
+    provinces: &Query<&Province>,
 ) -> bool {
     if let Some(tile_entity) = tile_storage.get(&tile_pos)
         && let Ok(tile_province) = tile_provinces.get(tile_entity)
@@ -175,10 +178,10 @@ pub fn execute_move_orders(
     mut commands: Commands,
     mut civilians: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
     mut deselect_writer: MessageWriter<DeselectCivilian>,
-    turn: Res<crate::turn_system::TurnSystem>,
-    tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
-    tile_provinces: Query<&crate::province::TileProvince>,
-    provinces: Query<&crate::province::Province>,
+    turn: Res<TurnSystem>,
+    tile_storage_query: Query<&TileStorage>,
+    tile_provinces: Query<&TileProvince>,
+    provinces: Query<&Province>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (entity, mut civilian, order) in civilians.iter_mut() {
@@ -242,8 +245,8 @@ pub fn handle_rescind_orders(
         Option<&ActionTurn>,
         Option<&CivilianJob>,
     )>,
-    turn: Res<crate::turn_system::TurnSystem>,
-    mut treasuries: Query<&mut crate::economy::treasury::Treasury>,
+    turn: Res<TurnSystem>,
+    mut treasuries: Query<&mut Treasury>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for event in rescind_events.read() {

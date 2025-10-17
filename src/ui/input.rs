@@ -1,4 +1,6 @@
+use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
+use bevy::ui::RelativeCursorPosition;
 
 use crate::ui::components::{ScrollableTerminal, TerminalOutput};
 
@@ -21,13 +23,9 @@ pub fn clamp_scroll_position(
 }
 
 pub fn handle_mouse_wheel_scroll(
-    mut scroll_events: MessageReader<bevy::input::mouse::MouseWheel>,
+    mut scroll_events: MessageReader<MouseWheel>,
     mut scrollable_query: Query<
-        (
-            &mut ScrollPosition,
-            &bevy::ui::RelativeCursorPosition,
-            &ComputedNode,
-        ),
+        (&mut ScrollPosition, &RelativeCursorPosition, &ComputedNode),
         With<ScrollableTerminal>,
     >,
     terminal_text_query: Query<&ComputedNode, With<TerminalOutput>>,

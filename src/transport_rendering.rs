@@ -5,6 +5,8 @@ use crate::assets;
 use crate::civilians::{Civilian, CivilianKind};
 use crate::economy::{Depot, Port, Rails, Roads};
 use crate::tile_pos::TilePosExt;
+use crate::ui::menu::AppState;
+use crate::ui::mode::GameMode;
 
 /// Resource tracking the currently hovered tile
 #[derive(Resource, Default)]
@@ -53,8 +55,8 @@ impl Plugin for TransportRenderingPlugin {
                 update_port_visuals,
                 render_shadow_rail,
             )
-                .run_if(in_state(crate::ui::mode::GameMode::Map))
-                .run_if(in_state(crate::ui::menu::AppState::InGame)),
+                .run_if(in_state(GameMode::Map))
+                .run_if(in_state(AppState::InGame)),
         );
     }
 }

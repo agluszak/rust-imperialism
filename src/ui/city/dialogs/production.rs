@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::economy::production::{Building, BuildingKind, Buildings, ProductionSettings};
 use crate::economy::{Good, PlayerNation, Stockpile, Workforce};
+use crate::ui::city::allocation_widgets::AllocationType;
 use crate::ui::city::components::ProductionLaborDisplay;
 
 use super::types::BuildingDialog;
@@ -294,11 +295,7 @@ fn spawn_production_section(
                     });
 
                 // Allocation UI using widget macros
-                let allocation_type =
-                    crate::ui::city::allocation_widgets::AllocationType::Production(
-                        building_entity,
-                        output_good,
-                    );
+                let allocation_type = AllocationType::Production(building_entity, output_good);
 
                 // Stepper for target output
                 crate::spawn_allocation_stepper!(section, "Target Production", allocation_type);

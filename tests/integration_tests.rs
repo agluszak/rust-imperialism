@@ -2,10 +2,6 @@
 //!
 //! These tests demonstrate ECS testing patterns and verify core game mechanics
 
-use bevy::prelude::*;
-use bevy_ecs_tilemap::prelude::*;
-use rust_imperialism::*;
-
 /// Test turn system functionality
 #[test]
 fn test_turn_system() {
@@ -42,7 +38,6 @@ fn test_ui_state() {
             current_turn: 5,
             phase: TurnPhase::EnemyTurn,
         },
-        ..Default::default()
     };
 
     assert_eq!(ui_state.turn_display_text(), "Turn: 5 - Enemy Turn");

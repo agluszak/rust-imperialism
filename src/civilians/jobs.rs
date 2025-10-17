@@ -1,7 +1,8 @@
 use bevy::prelude::*;
+use bevy_ecs_tilemap::prelude::TileStorage;
 
 use super::types::{ActionTurn, Civilian, CivilianJob, JobType, PreviousPosition};
-use crate::ui::logging::TerminalLogEvent;
+use crate::{resources::TileResource, ui::logging::TerminalLogEvent};
 
 /// Reset civilian movement at start of player turn
 pub fn reset_civilian_actions(mut civilians: Query<&mut Civilian>) {
@@ -38,8 +39,8 @@ pub fn advance_civilian_jobs(
 /// Complete improvement jobs when they finish
 pub fn complete_improvement_jobs(
     civilians_with_jobs: Query<(&Civilian, &CivilianJob)>,
-    tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
-    mut tile_resources: Query<&mut crate::resources::TileResource>,
+    tile_storage_query: Query<&TileStorage>,
+    mut tile_resources: Query<&mut TileResource>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (civilian, job) in civilians_with_jobs.iter() {

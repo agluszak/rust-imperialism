@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use std::collections::{HashMap, HashSet};
+use std::iter;
 
 use crate::{
     economy::transport::{Depot, Port},
@@ -8,8 +9,9 @@ use crate::{
 };
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
 
+use super::workforce::Workforce;
 use super::{goods::Good, stockpile::Stockpile};
-use crate::turn_system::TurnPhase;
+use crate::turn_system::{TurnPhase, TurnSystem};
 
 /// Resource that stores the total connected production output for each nation.
 /// `(u32, u32)` is `(number_of_improvements, total_output)`
@@ -37,7 +39,7 @@ pub fn calculate_connected_production(
     let mut process_improvement = |owner: Entity, position: TilePos| {
         let center_hex = position.to_hex();
         let neighbors = center_hex.all_neighbors();
-        let tiles_to_check = neighbors.iter().copied().chain(std::iter::once(center_hex));
+        let tiles_to_check = neighbors.iter().copied().chain(iter::once(center_hex));
 
         for hex in tiles_to_check {
             if let Some(tile_pos) = hex.to_tile_pos() {
@@ -178,7 +180,7 @@ impl Building {
 /// Collection of all buildings for a nation
 #[derive(Component, Debug, Clone, Default)]
 pub struct Buildings {
-    pub buildings: std::collections::HashMap<BuildingKind, Building>,
+    pub buildings: HashMap<BuildingKind, Building>,
 }
 
 impl Buildings {
@@ -187,7 +189,7 @@ impl Buildings {
     }
 
     pub fn with_all_initial() -> Self {
-        let mut buildings = std::collections::HashMap::new();
+        let mut buildings = HashMap::new();
         buildings.insert(BuildingKind::TextileMill, Building::textile_mill(8));
         buildings.insert(BuildingKind::LumberMill, Building::lumber_mill(4));
         buildings.insert(BuildingKind::SteelMill, Building::steel_mill(4));
@@ -212,9 +214,9 @@ impl Buildings {
 /// Production rules follow 2:1 ratios (2 inputs → 1 output).
 /// Production now requires labor points from workers.
 pub fn run_production(
-    turn: Res<crate::turn_system::TurnSystem>,
+    turn: Res<TurnSystem>,
     mut q: Query<(
-        Option<&super::workforce::Workforce>,
+        Option<&Workforce>,
         &mut Stockpile,
         &Building,
         &mut ProductionSettings,

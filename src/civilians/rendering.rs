@@ -3,6 +3,7 @@ use bevy::prelude::*;
 
 use super::systems::handle_civilian_click;
 use super::types::{Civilian, CivilianJob, CivilianVisual};
+use crate::assets::civilian_asset_path;
 use crate::tile_pos::TilePosExt;
 
 const ENGINEER_SIZE: f32 = 64.0; // Match tile size
@@ -33,8 +34,7 @@ pub fn render_civilian_visuals(
             let pos = civilian.position.to_world_pos();
 
             // Load the appropriate sprite for this civilian type
-            let texture: Handle<Image> =
-                asset_server.load(crate::assets::civilian_asset_path(civilian.kind));
+            let texture: Handle<Image> = asset_server.load(civilian_asset_path(civilian.kind));
 
             // Tint sprite based on selection (white = normal, yellow = selected)
             let color = if civilian.selected {

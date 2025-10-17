@@ -5,15 +5,19 @@ pub use commands::*;
 pub use jobs::{advance_civilian_jobs, complete_improvement_jobs, reset_civilian_actions};
 pub use types::*;
 
+use crate::ui::mode::GameMode;
+
 // Module declarations
 pub mod commands;
 pub mod engineering;
 pub mod jobs;
 pub mod rendering;
 pub mod systems;
-pub mod tests;
 pub mod types;
 pub mod ui_components;
+
+#[cfg(test)]
+mod tests;
 
 // No private imports needed - using fully qualified paths in plugin registration
 
@@ -54,7 +58,7 @@ impl Plugin for CivilianPlugin {
                     rendering::render_civilian_visuals,
                     rendering::update_civilian_visual_colors,
                 )
-                    .run_if(in_state(crate::ui::mode::GameMode::Map)),
+                    .run_if(in_state(GameMode::Map)),
             );
     }
 }

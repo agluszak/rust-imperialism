@@ -1,4 +1,4 @@
-use crate::constants::TILE_SIZE;
+use crate::constants::{MAP_SIZE, TILE_SIZE};
 use bevy_ecs_tilemap::prelude::*;
 use hexx::Hex;
 
@@ -53,8 +53,8 @@ impl TilePosExt for TilePos {
         use bevy_ecs_tilemap::prelude::*;
 
         let map_size = TilemapSize {
-            x: crate::constants::MAP_SIZE,
-            y: crate::constants::MAP_SIZE,
+            x: MAP_SIZE,
+            y: MAP_SIZE,
         };
 
         let tile_size = TilemapTileSize {

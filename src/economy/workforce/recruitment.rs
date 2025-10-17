@@ -4,7 +4,9 @@ use super::super::goods::Good;
 use super::super::stockpile::Stockpile;
 use super::systems::calculate_recruitment_cap;
 use super::types::{RecruitmentCapacity, Workforce};
+use crate::province::Province;
 use crate::turn_system::{TurnPhase, TurnSystem};
+use crate::ui::logging::TerminalLogEvent;
 
 /// Message to queue recruitment of untrained workers at the Capitol
 #[derive(Message, Debug, Clone, Copy)]
@@ -26,8 +28,8 @@ pub fn handle_recruitment(
     mut events: MessageReader<RecruitWorkers>,
     mut nations: Query<(&mut RecruitmentQueue, &mut Stockpile)>,
     recruitment_capacity: Query<&RecruitmentCapacity>,
-    provinces: Query<&crate::province::Province>,
-    mut log_writer: MessageWriter<crate::ui::logging::TerminalLogEvent>,
+    provinces: Query<&Province>,
+    mut log_writer: MessageWriter<TerminalLogEvent>,
 ) {
     for event in events.read() {
         if let Ok((mut queue, mut stockpile)) = nations.get_mut(event.nation) {
@@ -49,7 +51,7 @@ pub fn handle_recruitment(
 
             if actual_count == 0 {
                 warn!("Cannot queue recruitment: cap is 0 (need more provinces)");
-                log_writer.write(crate::ui::logging::TerminalLogEvent {
+                log_writer.write(TerminalLogEvent {
                     message: "Cannot recruit: need more provinces".to_string(),
                 });
                 continue;
@@ -72,7 +74,7 @@ pub fn handle_recruitment(
                     "Cannot queue recruitment: not enough available resources (need: {} each, available: {} food, {} clothing, {} furniture)",
                     actual_count, canned_food_available, clothing_available, furniture_available
                 );
-                log_writer.write(crate::ui::logging::TerminalLogEvent {
+                log_writer.write(TerminalLogEvent {
                     message: format!(
                         "Cannot recruit: need Canned Food, Clothing, Furniture (available: {}, {}, {})",
                         canned_food_available, clothing_available, furniture_available
@@ -97,7 +99,7 @@ pub fn handle_recruitment(
                 "Queued {} workers for recruitment (total queued: {}, cap: {})",
                 final_count, queue.queued, cap
             );
-            log_writer.write(crate::ui::logging::TerminalLogEvent {
+            log_writer.write(TerminalLogEvent {
                 message: format!(
                     "Queued {} workers for recruitment (will hire next turn)",
                     final_count

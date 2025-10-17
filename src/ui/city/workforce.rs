@@ -3,7 +3,10 @@ use bevy::prelude::*;
 use super::components::{
     HireCivilian, HireCivilianButton, RecruitWorkersButton, TrainWorkerButton,
 };
+use crate::civilians::{Civilian, CivilianKind};
+use crate::economy::{Capital, PlayerNation, RecruitWorkers, TrainWorker, Treasury};
 use crate::tile_pos::TilePosExt;
+use crate::ui::logging::TerminalLogEvent;
 
 /// Handle hire civilian button clicks
 pub fn handle_hire_button_clicks(
@@ -22,12 +25,12 @@ pub fn handle_hire_button_clicks(
 pub fn spawn_hired_civilian(
     mut commands: Commands,
     mut hire_events: MessageReader<HireCivilian>,
-    player_nation: Option<Res<crate::economy::PlayerNation>>,
-    nations: Query<&crate::economy::Capital>,
-    mut treasuries: Query<&mut crate::economy::Treasury>,
+    player_nation: Option<Res<PlayerNation>>,
+    nations: Query<&Capital>,
+    mut treasuries: Query<&mut Treasury>,
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
-    civilians: Query<&crate::civilians::Civilian>,
-    mut log_events: MessageWriter<crate::ui::logging::TerminalLogEvent>,
+    civilians: Query<&Civilian>,
+    mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for event in hire_events.read() {
         let Some(player) = &player_nation else {
@@ -36,7 +39,7 @@ pub fn spawn_hired_civilian(
 
         // Get capital position
         let Ok(capital) = nations.get(player.0) else {
-            log_events.write(crate::ui::logging::TerminalLogEvent {
+            log_events.write(TerminalLogEvent {
                 message: "Cannot hire: no capital found".to_string(),
             });
             continue;
@@ -44,10 +47,10 @@ pub fn spawn_hired_civilian(
 
         // Determine cost based on civilian type
         let cost = match event.kind {
-            crate::civilians::CivilianKind::Engineer => 200,
-            crate::civilians::CivilianKind::Prospector => 150,
-            crate::civilians::CivilianKind::Developer => 180,
-            crate::civilians::CivilianKind::Miner | crate::civilians::CivilianKind::Driller => 120,
+            CivilianKind::Engineer => 200,
+            CivilianKind::Prospector => 150,
+            CivilianKind::Developer => 180,
+            CivilianKind::Miner | CivilianKind::Driller => 120,
             _ => 100,
         };
 
@@ -57,7 +60,7 @@ pub fn spawn_hired_civilian(
         };
 
         if treasury.total() < cost {
-            log_events.write(crate::ui::logging::TerminalLogEvent {
+            log_events.write(TerminalLogEvent {
                 message: format!(
                     "Not enough money to hire {:?} (need ${}, have ${})",
                     event.kind,
@@ -72,7 +75,7 @@ pub fn spawn_hired_civilian(
         let spawn_pos = find_unoccupied_tile_near(capital.0, &tile_storage_query, &civilians);
 
         let Some(spawn_pos) = spawn_pos else {
-            log_events.write(crate::ui::logging::TerminalLogEvent {
+            log_events.write(TerminalLogEvent {
                 message: "No unoccupied tiles near capital to spawn civilian".to_string(),
             });
             continue;
@@ -82,7 +85,7 @@ pub fn spawn_hired_civilian(
         treasury.subtract(cost);
 
         // Spawn civilian
-        commands.spawn(crate::civilians::Civilian {
+        commands.spawn(Civilian {
             kind: event.kind,
             position: spawn_pos,
             owner: player.0,
@@ -90,7 +93,7 @@ pub fn spawn_hired_civilian(
             has_moved: false,
         });
 
-        log_events.write(crate::ui::logging::TerminalLogEvent {
+        log_events.write(TerminalLogEvent {
             message: format!(
                 "Hired {:?} for ${} at ({}, {})",
                 event.kind, cost, spawn_pos.x, spawn_pos.y
@@ -103,7 +106,7 @@ pub fn spawn_hired_civilian(
 fn find_unoccupied_tile_near(
     center: bevy_ecs_tilemap::prelude::TilePos,
     tile_storage_query: &Query<&bevy_ecs_tilemap::prelude::TileStorage>,
-    civilians: &Query<&crate::civilians::Civilian>,
+    civilians: &Query<&Civilian>,
 ) -> Option<bevy_ecs_tilemap::prelude::TilePos> {
     use crate::tile_pos::HexExt;
 
@@ -134,18 +137,15 @@ fn find_unoccupied_tile_near(
 }
 
 /// Check if a tile is occupied by a civilian
-fn is_tile_occupied(
-    pos: bevy_ecs_tilemap::prelude::TilePos,
-    civilians: &Query<&crate::civilians::Civilian>,
-) -> bool {
+fn is_tile_occupied(pos: bevy_ecs_tilemap::prelude::TilePos, civilians: &Query<&Civilian>) -> bool {
     civilians.iter().any(|c| c.position == pos)
 }
 
 /// Handle recruit workers button clicks (Input Layer)
 pub fn handle_recruit_workers_buttons(
     interactions: Query<(&Interaction, &RecruitWorkersButton), Changed<Interaction>>,
-    mut writer: MessageWriter<crate::economy::RecruitWorkers>,
-    player_nation: Option<Res<crate::economy::PlayerNation>>,
+    mut writer: MessageWriter<RecruitWorkers>,
+    player_nation: Option<Res<PlayerNation>>,
     buttons: Query<Entity, With<RecruitWorkersButton>>,
 ) {
     // Debug: check if buttons exist
@@ -163,7 +163,7 @@ pub fn handle_recruit_workers_buttons(
         debug!("Recruit button interaction: {:?}", interaction);
         if *interaction == Interaction::Pressed {
             info!("Recruit {} workers button clicked", button.count);
-            writer.write(crate::economy::RecruitWorkers {
+            writer.write(RecruitWorkers {
                 nation: player_nation.0,
                 count: button.count,
             });
@@ -174,8 +174,8 @@ pub fn handle_recruit_workers_buttons(
 /// Handle train worker button clicks (Input Layer)
 pub fn handle_train_worker_buttons(
     interactions: Query<(&Interaction, &TrainWorkerButton), Changed<Interaction>>,
-    mut writer: MessageWriter<crate::economy::TrainWorker>,
-    player_nation: Option<Res<crate::economy::PlayerNation>>,
+    mut writer: MessageWriter<TrainWorker>,
+    player_nation: Option<Res<PlayerNation>>,
     buttons: Query<Entity, With<TrainWorkerButton>>,
 ) {
     // Debug: check if buttons exist
@@ -193,7 +193,7 @@ pub fn handle_train_worker_buttons(
         debug!("Train button interaction: {:?}", interaction);
         if *interaction == Interaction::Pressed {
             info!("Train worker button clicked: {:?}", button.from_skill);
-            writer.write(crate::economy::TrainWorker {
+            writer.write(TrainWorker {
                 nation: player_nation.0,
                 from_skill: button.from_skill,
             });

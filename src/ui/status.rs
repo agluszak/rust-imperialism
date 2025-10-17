@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TileStorage;
 
 use crate::civilians::{Civilian, CivilianKind};
-use crate::economy::{Calendar, Name, PlayerNation, Technologies, Treasury};
+use crate::economy::{Calendar, Name, PlayerNation, Technologies, Technology, Treasury};
 use crate::province::{City, Province, TileProvince};
 use crate::tiles::TerrainType;
 use crate::transport_rendering::HoveredTile;
@@ -174,21 +174,21 @@ pub fn update_tile_info_display(
 fn check_buildability(terrain: &TerrainType, technologies: &Technologies) -> String {
     match terrain {
         TerrainType::Mountain => {
-            if technologies.has(crate::economy::Technology::MountainEngineering) {
+            if technologies.has(Technology::MountainEngineering) {
                 "Can build rails".to_string()
             } else {
                 "⚠ Need Mountain Engineering".to_string()
             }
         }
         TerrainType::Hills => {
-            if technologies.has(crate::economy::Technology::HillGrading) {
+            if technologies.has(Technology::HillGrading) {
                 "Can build rails".to_string()
             } else {
                 "⚠ Need Hill Grading".to_string()
             }
         }
         TerrainType::Swamp => {
-            if technologies.has(crate::economy::Technology::SwampDrainage) {
+            if technologies.has(Technology::SwampDrainage) {
                 "Can build rails".to_string()
             } else {
                 "⚠ Need Swamp Drainage".to_string()

@@ -7,7 +7,11 @@ use super::types::{
     ActionTurn, Civilian, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind, JobType,
     PreviousPosition,
 };
+use crate::economy::transport::{Rails, ordered_edge};
 use crate::economy::{ImprovementKind, PlaceImprovement};
+use crate::province::{Province, TileProvince};
+use crate::resources::{DevelopmentLevel, TileResource};
+use crate::turn_system::TurnSystem;
 use crate::ui::logging::TerminalLogEvent;
 
 /// Execute Engineer orders (building infrastructure)
@@ -16,11 +20,11 @@ pub fn execute_engineer_orders(
     mut engineers: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
     mut improvement_writer: MessageWriter<PlaceImprovement>,
     mut deselect_writer: MessageWriter<DeselectCivilian>,
-    rails: Res<crate::economy::transport::Rails>,
-    turn: Res<crate::turn_system::TurnSystem>,
+    rails: Res<Rails>,
+    turn: Res<TurnSystem>,
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
-    tile_provinces: Query<&crate::province::TileProvince>,
-    provinces: Query<&crate::province::Province>,
+    tile_provinces: Query<&TileProvince>,
+    provinces: Query<&Province>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (entity, mut civilian, order) in engineers.iter_mut() {
@@ -112,11 +116,11 @@ fn handle_build_rail_order(
     to: TilePos,
     improvement_writer: &mut MessageWriter<PlaceImprovement>,
     deselect_writer: &mut MessageWriter<DeselectCivilian>,
-    rails: &Res<crate::economy::transport::Rails>,
-    turn: &Res<crate::turn_system::TurnSystem>,
+    rails: &Res<Rails>,
+    turn: &Res<TurnSystem>,
     tile_storage_query: &Query<&bevy_ecs_tilemap::prelude::TileStorage>,
-    tile_provinces: &Query<&crate::province::TileProvince>,
-    provinces: &Query<&crate::province::Province>,
+    tile_provinces: &Query<&TileProvince>,
+    provinces: &Query<&Province>,
     log_events: &mut MessageWriter<TerminalLogEvent>,
 ) {
     // Also check target tile ownership
@@ -140,7 +144,7 @@ fn handle_build_rail_order(
     }
 
     // Check if rail already exists
-    let edge = crate::economy::transport::ordered_edge(civilian.position, to);
+    let edge = ordered_edge(civilian.position, to);
     let rail_exists = rails.0.contains(&edge);
 
     // Store previous position for potential undo
@@ -194,7 +198,7 @@ fn handle_build_depot_order(
     civilian: &mut Civilian,
     improvement_writer: &mut MessageWriter<PlaceImprovement>,
     deselect_writer: &mut MessageWriter<DeselectCivilian>,
-    turn: &Res<crate::turn_system::TurnSystem>,
+    turn: &Res<TurnSystem>,
 ) {
     // Store previous position for potential undo
     let previous_pos = civilian.position;
@@ -226,7 +230,7 @@ fn handle_build_port_order(
     civilian: &mut Civilian,
     improvement_writer: &mut MessageWriter<PlaceImprovement>,
     deselect_writer: &mut MessageWriter<DeselectCivilian>,
-    turn: &Res<crate::turn_system::TurnSystem>,
+    turn: &Res<TurnSystem>,
 ) {
     // Store previous position for potential undo
     let previous_pos = civilian.position;
@@ -257,11 +261,11 @@ pub fn execute_prospector_orders(
     mut commands: Commands,
     mut prospectors: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
     mut deselect_writer: MessageWriter<DeselectCivilian>,
-    turn: Res<crate::turn_system::TurnSystem>,
+    turn: Res<TurnSystem>,
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
-    tile_provinces: Query<&crate::province::TileProvince>,
-    provinces: Query<&crate::province::Province>,
-    mut tile_resources: Query<&mut crate::resources::TileResource>,
+    tile_provinces: Query<&TileProvince>,
+    provinces: Query<&Province>,
+    mut tile_resources: Query<&mut TileResource>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (entity, mut civilian, order) in prospectors.iter_mut() {
@@ -347,11 +351,11 @@ pub fn execute_civilian_improvement_orders(
     mut commands: Commands,
     mut civilians: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
     mut deselect_writer: MessageWriter<DeselectCivilian>,
-    turn: Res<crate::turn_system::TurnSystem>,
+    turn: Res<TurnSystem>,
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
-    tile_provinces: Query<&crate::province::TileProvince>,
-    provinces: Query<&crate::province::Province>,
-    tile_resources: Query<&mut crate::resources::TileResource>,
+    tile_provinces: Query<&TileProvince>,
+    provinces: Query<&Province>,
+    tile_resources: Query<&mut TileResource>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (entity, mut civilian, order) in civilians.iter_mut() {
@@ -411,8 +415,7 @@ pub fn execute_civilian_improvement_orders(
                         _ => false,
                     };
 
-                    if can_improve && resource.development < crate::resources::DevelopmentLevel::Lv3
-                    {
+                    if can_improve && resource.development < DevelopmentLevel::Lv3 {
                         // Store previous position for potential undo
                         let previous_pos = civilian.position;
 
@@ -440,7 +443,7 @@ pub fn execute_civilian_improvement_orders(
                         });
                         civilian.has_moved = true;
                         deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
-                    } else if resource.development >= crate::resources::DevelopmentLevel::Lv3 {
+                    } else if resource.development >= DevelopmentLevel::Lv3 {
                         log_events.write(TerminalLogEvent {
                             message: format!(
                                 "Resource already at max development at ({}, {})",

@@ -4,8 +4,13 @@ use super::button_style::*;
 use crate::economy::{
     Allocations, Good, MARKET_RESOURCES, PlayerNation, Stockpile, Treasury, market_price,
 };
+use crate::ui::city::allocation_ui_unified::{
+    handle_all_stepper_buttons, update_all_allocation_bars, update_all_allocation_summaries,
+    update_all_stepper_displays,
+};
 use crate::ui::city::allocation_widgets::AllocationType;
-use crate::ui::mode::GameMode;
+use crate::ui::mode::{GameMode, MapModeButton};
+use crate::{spawn_allocation_bar, spawn_allocation_stepper, spawn_allocation_summary};
 
 #[derive(Component)]
 pub struct MarketScreen;
@@ -27,10 +32,10 @@ impl Plugin for MarketUIPlugin {
             .add_systems(
                 Update,
                 (
-                    crate::ui::city::allocation_ui_unified::handle_all_stepper_buttons,
-                    crate::ui::city::allocation_ui_unified::update_all_stepper_displays,
-                    crate::ui::city::allocation_ui_unified::update_all_allocation_bars,
-                    crate::ui::city::allocation_ui_unified::update_all_allocation_summaries,
+                    handle_all_stepper_buttons,
+                    update_all_stepper_displays,
+                    update_all_allocation_bars,
+                    update_all_allocation_summaries,
                     update_market_treasury_text,
                     update_market_inventory_texts,
                 )
@@ -153,21 +158,18 @@ pub fn ensure_market_screen_visible(
                                 ..default()
                             },))
                                 .with_children(|buy| {
-                                    crate::spawn_allocation_stepper!(
+                                    spawn_allocation_stepper!(
                                         buy,
                                         "Buy Orders",
                                         AllocationType::MarketBuy(good)
                                     );
-                                    crate::spawn_allocation_bar!(
+                                    spawn_allocation_bar!(
                                         buy,
                                         Good::Gold,
                                         "Treasury",
                                         AllocationType::MarketBuy(good)
                                     );
-                                    crate::spawn_allocation_summary!(
-                                        buy,
-                                        AllocationType::MarketBuy(good)
-                                    );
+                                    spawn_allocation_summary!(buy, AllocationType::MarketBuy(good));
                                 });
 
                             // Sell column
@@ -178,18 +180,18 @@ pub fn ensure_market_screen_visible(
                                 ..default()
                             },))
                                 .with_children(|sell| {
-                                    crate::spawn_allocation_stepper!(
+                                    spawn_allocation_stepper!(
                                         sell,
                                         "Sell Offers",
                                         AllocationType::MarketSell(good)
                                     );
-                                    crate::spawn_allocation_bar!(
+                                    spawn_allocation_bar!(
                                         sell,
                                         good,
                                         "Inventory",
                                         AllocationType::MarketSell(good)
                                     );
-                                    crate::spawn_allocation_summary!(
+                                    spawn_allocation_summary!(
                                         sell,
                                         AllocationType::MarketSell(good)
                                     );
@@ -210,7 +212,7 @@ pub fn ensure_market_screen_visible(
                         ..default()
                     },
                     BackgroundColor(NORMAL_BUTTON),
-                    crate::ui::mode::MapModeButton,
+                    MapModeButton,
                 ))
                 .with_children(|b| {
                     b.spawn((

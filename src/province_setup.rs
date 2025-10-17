@@ -1,7 +1,15 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
+use std::collections::{HashMap, HashSet};
 
+use crate::civilians::{Civilian, CivilianKind};
 use crate::constants::MAP_SIZE;
+use crate::economy::{
+    Allocations, Capital, Good, Name, NationColor, NationId, PlayerNation, RecruitmentCapacity,
+    RecruitmentQueue, ReservationSystem, Stockpile, Technologies, TrainingQueue, Treasury,
+    Workforce,
+    production::{Buildings, ProductionSettings},
+};
 use crate::province::{City, Province, ProvinceId};
 use crate::province_gen::generate_provinces;
 use crate::tile_pos::TilePosExt; // HexExt used for trait methods: to_hex(), distance_to()
@@ -70,7 +78,7 @@ pub fn assign_provinces_to_countries(
     );
 
     // Define number of countries (for now, let's say 3-5 based on province count)
-    let num_countries = ((province_list.len() / 8).max(3)).min(5);
+    let num_countries = (province_list.len() / 8).clamp(3, 5);
 
     // Define distinct nation colors
     let nation_colors = [
@@ -90,53 +98,53 @@ pub fn assign_provinces_to_countries(
             format!("Nation {}", i + 1)
         };
 
-        let mut stockpile = crate::economy::Stockpile::default();
+        let mut stockpile = Stockpile::default();
         if i == 0 {
             // Player starts with some resources
             // Raw materials for textile production
-            stockpile.add(crate::economy::Good::Wool, 10);
-            stockpile.add(crate::economy::Good::Cotton, 10);
+            stockpile.add(Good::Wool, 10);
+            stockpile.add(Good::Cotton, 10);
 
             // Raw materials for wood/paper production
-            stockpile.add(crate::economy::Good::Timber, 20);
+            stockpile.add(Good::Timber, 20);
 
             // Raw materials for steel production
-            stockpile.add(crate::economy::Good::Coal, 10);
-            stockpile.add(crate::economy::Good::Iron, 10);
+            stockpile.add(Good::Coal, 10);
+            stockpile.add(Good::Iron, 10);
 
             // Raw food for feeding workers
-            stockpile.add(crate::economy::Good::Grain, 20);
-            stockpile.add(crate::economy::Good::Fruit, 20);
-            stockpile.add(crate::economy::Good::Livestock, 20);
-            stockpile.add(crate::economy::Good::Fish, 10);
+            stockpile.add(Good::Grain, 20);
+            stockpile.add(Good::Fruit, 20);
+            stockpile.add(Good::Livestock, 20);
+            stockpile.add(Good::Fish, 10);
 
             // Finished goods for recruiting workers
-            stockpile.add(crate::economy::Good::CannedFood, 10);
-            stockpile.add(crate::economy::Good::Clothing, 10);
-            stockpile.add(crate::economy::Good::Furniture, 10);
+            stockpile.add(Good::CannedFood, 10);
+            stockpile.add(Good::Clothing, 10);
+            stockpile.add(Good::Furniture, 10);
 
             // Paper for training workers
-            stockpile.add(crate::economy::Good::Paper, 5);
+            stockpile.add(Good::Paper, 5);
         }
 
         let color = nation_colors[i % nation_colors.len()];
 
         let country_builder = commands.spawn((
-            crate::economy::NationId(i as u16 + 1),
-            crate::economy::Name(name),
-            crate::economy::NationColor(color),
-            crate::economy::Treasury::new(10_000),
+            NationId(i as u16 + 1),
+            Name(name),
+            NationColor(color),
+            Treasury::new(10_000),
             stockpile,
-            crate::economy::Technologies::default(),
-            crate::economy::Allocations::default(), // Simplified allocation tracking
-            crate::economy::ReservationSystem::default(), // Reservation tracking
+            Technologies::default(),
+            Allocations::default(),       // Simplified allocation tracking
+            ReservationSystem::default(), // Reservation tracking
         ));
 
         let country_entity = country_builder.id();
 
         // Player gets starting buildings and workforce
         if i == 0 {
-            let mut workforce = crate::economy::Workforce::new();
+            let mut workforce = Workforce::new();
             // Start with 5 untrained workers
             workforce.add_untrained(5);
             // Sync labor pool with worker counts
@@ -144,12 +152,12 @@ pub fn assign_provinces_to_countries(
 
             // All manufacturories are available at start
             commands.entity(country_entity).insert((
-                crate::economy::production::Buildings::with_all_initial(),
-                crate::economy::production::ProductionSettings::default(),
+                Buildings::with_all_initial(),
+                ProductionSettings::default(),
                 workforce,
-                crate::economy::RecruitmentCapacity::default(),
-                crate::economy::RecruitmentQueue::default(),
-                crate::economy::TrainingQueue::default(),
+                RecruitmentCapacity::default(),
+                RecruitmentQueue::default(),
+                TrainingQueue::default(),
             ));
 
             // Note: Capitol and TradeSchool don't need separate Building entities
@@ -161,14 +169,14 @@ pub fn assign_provinces_to_countries(
 
     // Set player nation reference
     if !country_entities.is_empty() {
-        commands.insert_resource(crate::economy::PlayerNation(country_entities[0]));
+        commands.insert_resource(PlayerNation(country_entities[0]));
     }
 
     // Build adjacency map for provinces
     let adjacency_map = build_province_adjacency(&provinces);
 
     // Assign connected groups of provinces to countries
-    let mut assigned: std::collections::HashSet<ProvinceId> = std::collections::HashSet::new();
+    let mut assigned: HashSet<ProvinceId> = HashSet::new();
     let mut country_idx = 0;
 
     for &(_province_entity, province_id, _city_tile) in &province_list {
@@ -234,8 +242,8 @@ pub fn assign_provinces_to_countries(
         && let Some(player_capital) = province_list.first()
     {
         let engineer_pos = player_capital.2; // Use capital tile for now
-        commands.spawn(crate::civilians::Civilian {
-            kind: crate::civilians::CivilianKind::Engineer,
+        commands.spawn(Civilian {
+            kind: CivilianKind::Engineer,
             position: engineer_pos,
             owner: *player_entity,
             selected: false,
@@ -259,7 +267,7 @@ fn assign_province_to_country(
     city_tile: TilePos,
     country_entity: Entity,
     is_first_of_country: bool,
-    assigned: &std::collections::HashSet<ProvinceId>,
+    assigned: &HashSet<ProvinceId>,
 ) {
     // Update province owner
     if let Ok((_, mut province)) = provinces.get_mut(province_entity) {
@@ -278,9 +286,7 @@ fn assign_province_to_country(
 
     // If this is a capital, add Capital component to the country
     if is_capital {
-        commands
-            .entity(country_entity)
-            .insert(crate::economy::Capital(city_tile));
+        commands.entity(country_entity).insert(Capital(city_tile));
         info!("Set capital at ({}, {})", city_tile.x, city_tile.y);
     }
 }
@@ -288,7 +294,7 @@ fn assign_province_to_country(
 /// Build adjacency map for provinces based on shared tiles
 fn build_province_adjacency(
     provinces: &Query<(Entity, &mut Province)>,
-) -> std::collections::HashMap<ProvinceId, Vec<ProvinceId>> {
+) -> HashMap<ProvinceId, Vec<ProvinceId>> {
     use std::collections::{HashMap, HashSet};
 
     let mut adjacency: HashMap<ProvinceId, HashSet<ProvinceId>> = HashMap::new();
@@ -332,8 +338,8 @@ fn build_province_adjacency(
 /// Get connected provinces using flood-fill
 fn get_connected_provinces(
     start: ProvinceId,
-    adjacency: &std::collections::HashMap<ProvinceId, Vec<ProvinceId>>,
-    already_assigned: &std::collections::HashSet<ProvinceId>,
+    adjacency: &HashMap<ProvinceId, Vec<ProvinceId>>,
+    already_assigned: &HashSet<ProvinceId>,
     target_size: usize,
 ) -> Vec<ProvinceId> {
     use std::collections::{HashSet, VecDeque};

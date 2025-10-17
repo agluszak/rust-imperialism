@@ -1,4 +1,7 @@
-use crate::civilians::CivilianKind;
+use crate::{
+    civilians::CivilianKind,
+    economy::{BuildingKind, Good, WorkerSkill, production::ProductionChoice},
+};
 use bevy::prelude::*;
 
 /// Marker for the root of the City UI screen
@@ -45,7 +48,7 @@ pub struct BuildingGrid;
 #[derive(Component, Clone)]
 pub struct BuildingButton {
     pub building_entity: Option<Entity>, // None if not built yet
-    pub building_kind: crate::economy::production::BuildingKind,
+    pub building_kind: BuildingKind,
 }
 
 /// Marker for hire civilian buttons
@@ -56,7 +59,7 @@ pub struct HireCivilianButton(pub CivilianKind);
 #[derive(Component)]
 pub struct ProductionChoiceButton {
     pub building_entity: Entity,
-    pub choice: crate::economy::production::ProductionChoice,
+    pub choice: ProductionChoice,
 }
 
 /// Message to hire a civilian
@@ -69,13 +72,13 @@ pub struct HireCivilian {
 #[derive(Component)]
 pub struct ProductionLaborDisplay {
     pub building_entity: Entity,
-    pub output_good: crate::economy::Good,
+    pub output_good: Good,
 }
 
 /// Marker for Capitol dialog requirement displays
 #[derive(Component)]
 pub struct CapitolRequirementDisplay {
-    pub good: crate::economy::Good,
+    pub good: Good,
 }
 
 /// Marker for Capitol dialog capacity display
@@ -99,5 +102,5 @@ pub struct RecruitWorkersButton {
 /// Marker for train worker button
 #[derive(Component)]
 pub struct TrainWorkerButton {
-    pub from_skill: crate::economy::WorkerSkill,
+    pub from_skill: WorkerSkill,
 }

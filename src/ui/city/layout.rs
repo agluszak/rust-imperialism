@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use super::components::*;
-use crate::ui::button_style::*;
+use crate::ui::{button_style::*, mode::MapModeButton};
 
 /// Ensure City screen is visible, creating it if needed
 pub fn ensure_city_screen_visible(
@@ -65,7 +65,7 @@ pub fn ensure_city_screen_visible(
                     ..default()
                 },
                 BackgroundColor(NORMAL_BUTTON),
-                crate::ui::mode::MapModeButton,
+                MapModeButton,
             ))
             .with_children(|b| {
                 b.spawn((

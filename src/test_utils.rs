@@ -1,4 +1,3 @@
-#![cfg(test)]
 //! Testing utilities for Rust Imperialism
 //!
 //! This module provides helper functions and fixtures for unit testing
@@ -103,8 +102,6 @@ pub fn advance_turns(world: &mut World, phases: usize) {
         world.resource_mut::<TurnSystem>().advance_turn();
     }
 }
-
-/// Sets up a combat scenario with a hero and monster
 
 /// Asserts that two tile positions are adjacent (distance = 1)
 pub fn assert_adjacent(pos1: TilePos, pos2: TilePos) {

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::economy::{PlayerNation, Workforce};
+use crate::economy::{PlayerNation, WorkerSkill, Workforce};
 use crate::ui::city::components::{AvailableLaborDisplay, LaborPoolPanel, WorkforceCountDisplay};
 
 /// Spawn the labor pool panel (left border) (Rendering Layer)
@@ -110,9 +110,9 @@ pub fn update_workforce_display(
         return;
     };
 
-    let untrained = workforce.count_by_skill(crate::economy::WorkerSkill::Untrained);
-    let trained = workforce.count_by_skill(crate::economy::WorkerSkill::Trained);
-    let expert = workforce.count_by_skill(crate::economy::WorkerSkill::Expert);
+    let untrained = workforce.count_by_skill(WorkerSkill::Untrained);
+    let trained = workforce.count_by_skill(WorkerSkill::Trained);
+    let expert = workforce.count_by_skill(WorkerSkill::Expert);
 
     for mut text in count_text.iter_mut() {
         **text = format!(

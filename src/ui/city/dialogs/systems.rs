@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::economy::production::BuildingKind;
+
 use super::types::{BuildingDialog, CloseBuildingDialog, DialogZIndexCounter, OpenBuildingDialog};
 use super::window::spawn_dialog_frame;
 
@@ -33,13 +35,13 @@ pub fn open_building_dialogs(
 
         // Get dialog title
         let title = match event.building_kind {
-            crate::economy::production::BuildingKind::TextileMill => "Textile Mill",
-            crate::economy::production::BuildingKind::LumberMill => "Lumber Mill",
-            crate::economy::production::BuildingKind::SteelMill => "Steel Mill",
-            crate::economy::production::BuildingKind::FoodProcessingCenter => "Food Processing",
-            crate::economy::production::BuildingKind::Capitol => "Capitol",
-            crate::economy::production::BuildingKind::TradeSchool => "Trade School",
-            crate::economy::production::BuildingKind::PowerPlant => "Power Plant",
+            BuildingKind::TextileMill => "Textile Mill",
+            BuildingKind::LumberMill => "Lumber Mill",
+            BuildingKind::SteelMill => "Steel Mill",
+            BuildingKind::FoodProcessingCenter => "Food Processing",
+            BuildingKind::Capitol => "Capitol",
+            BuildingKind::TradeSchool => "Trade School",
+            BuildingKind::PowerPlant => "Power Plant",
         };
 
         // Spawn dialog frame

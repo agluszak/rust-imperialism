@@ -1,13 +1,15 @@
 # AGENTS.md
 
-This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. Last updated: **2025-10-13**.
+This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. Last updated: **2025-10-17**.
 
 **This is an economy-first, turn-based strategy game** inspired by Imperialism (1997). Built with Bevy 0.17 ECS, featuring hex-based maps, multi-nation economies, and a reservation-based resource allocation system.
 
 **Recent changes** (Oct 2025):
 - Allocation system refactored to atomic reservations (`Vec<ReservationId>` per allocation)
 - Major modules now use subdirectory structure: `economy/{transport,workforce}`, `ui/city`, `civilians/`
-- Dead code cleanup: ~220 lines removed, all `_v2` suffixes eliminated
+- Test organization standardized: inline for small tests, separate files for large test suites
+- All imports use explicit `crate::` paths (no `super::` in tests)
+- Zero clippy warnings, all tests passing
 
 **Key architectural decisions**:
 - Strict Input/Logic/Rendering separation via messages
@@ -187,9 +189,62 @@ src/
 
 ## Testing
 
-- Unit tests included for `goods`, `stockpile`, `calendar`, UI state, and turn system
-- Integration tests cover turn transitions, tile properties, UI state formatting, and hex utilities
-- `cargo test` currently passes (warnings may appear, but no failures)
+**Test Organization (Two Simple Patterns):**
+
+1. **Small tests (< 50 lines)**: Inline `#[cfg(test)] mod tests { }` at end of module file
+   ```rust
+   // In module_name.rs
+   #[cfg(test)]
+   mod tests {
+       use crate::module::Type;
+       #[test]
+       fn test_something() {}
+   }
+   ```
+   - Example: `src/ui/state.rs`
+
+2. **Large tests (> 50 lines)**: Separate `tests.rs` in module subdirectory
+   ```rust
+   // In module_name/mod.rs (or single file → convert to directory)
+   #[cfg(test)]
+   mod tests;  // Rust automatically finds tests.rs
+   ```
+   - Examples: `src/civilians/tests.rs`, `src/turn_system/tests.rs`, `src/economy/allocation_systems/tests.rs`
+   - **Important**: If module is a single file with large tests, convert it to a directory first
+     (`module.rs` → `module/mod.rs` + `module/tests.rs`)
+
+**Import Style:**
+- All test imports use explicit `crate::` paths (never `super::` or `use super::*`)
+- Example: `use crate::turn_system::{TurnPhase, TurnSystem};`
+- Never use `#[path = "..."]` attribute for test files
+
+**Coverage:**
+- Unit tests: economy (goods, stockpile, allocation, workforce), turn system, UI state, civilians
+- Integration tests: turn transitions, tile properties, UI formatting, hex utilities
+- Run: `cargo test` (53 unit tests + 3 integration tests, all passing)
+
+## Code Style & Conventions
+
+**Imports:**
+- Use explicit `crate::` paths in all code (production and tests)
+- Avoid `super::` and wildcard imports (`use super::*`)
+- Group imports: standard library → external crates → crate modules
+
+**Module Organization:**
+- Subdirectories for complex modules: `economy/`, `civilians/`, `ui/city/`
+- Single files for simple modules: `treasury.rs`, `calendar.rs`
+- Public API via re-exports in `mod.rs`: `pub use submodule::Type;`
+
+**ECS Architecture:**
+- Per-nation data: Components on nation entities (`Stockpile`, `Treasury`, `Workforce`)
+- Global game state: Resources (`Calendar`, `TurnSystem`, `PlayerNation`)
+- Player input: Events/Messages (`PlaceImprovement`, `AdjustProduction`)
+- Three-layer separation: Input → Logic → Rendering (see Architecture section)
+
+**Testing:**
+- Follow standardized test organization patterns (see Testing section)
+- Run `cargo test` and `cargo clippy` before committing
+- Aim for zero warnings
 
 ## How to work on this codebase
 

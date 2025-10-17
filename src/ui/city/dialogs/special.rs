@@ -2,7 +2,11 @@ use bevy::prelude::*;
 
 use crate::economy::production::BuildingKind;
 use crate::economy::workforce::calculate_recruitment_cap;
-use crate::economy::{Good, PlayerNation, Stockpile, Workforce};
+use crate::economy::{
+    Good, PlayerNation, RecruitmentCapacity, RecruitmentQueue, Stockpile, WorkerSkill, Workforce,
+};
+use crate::province::Province;
+use crate::ui::city::allocation_widgets::AllocationType;
 use crate::ui::city::components::{
     CapitolCapacityDisplay, CapitolRequirementDisplay, TradeSchoolPaperDisplay,
     TradeSchoolWorkforceDisplay,
@@ -17,9 +21,9 @@ pub fn populate_special_dialog(
     player_nation: Option<Res<PlayerNation>>,
     stockpiles: Query<&Stockpile>,
     workforces: Query<&Workforce>,
-    recruitment_caps: Query<&crate::economy::RecruitmentCapacity>,
-    recruitment_queues: Query<&crate::economy::RecruitmentQueue>,
-    provinces: Query<&crate::province::Province>,
+    recruitment_caps: Query<&RecruitmentCapacity>,
+    recruitment_queues: Query<&RecruitmentQueue>,
+    provinces: Query<&Province>,
 ) {
     let Some(player) = player_nation else {
         return;
@@ -71,8 +75,8 @@ fn spawn_capitol_content(
     content_entity: Entity,
     stockpile: &Stockpile,
     province_count: u32,
-    recruitment_cap: Option<&crate::economy::RecruitmentCapacity>,
-    recruitment_queue: Option<&crate::economy::RecruitmentQueue>,
+    recruitment_cap: Option<&RecruitmentCapacity>,
+    recruitment_queue: Option<&RecruitmentQueue>,
 ) {
     let upgraded = recruitment_cap.map(|c| c.upgraded).unwrap_or(false);
     let cap = calculate_recruitment_cap(province_count, upgraded);
@@ -193,11 +197,7 @@ fn spawn_capitol_content(
         ));
 
         // NEW: Allocation stepper (using macro)
-        crate::spawn_allocation_stepper!(
-            content,
-            "Allocate Workers",
-            crate::ui::city::allocation_widgets::AllocationType::Recruitment
-        );
+        crate::spawn_allocation_stepper!(content, "Allocate Workers", AllocationType::Recruitment);
 
         // Resource allocation section header
         content.spawn((
@@ -219,19 +219,11 @@ fn spawn_capitol_content(
             (Good::Clothing, "Clothing"),
             (Good::Furniture, "Furniture"),
         ] {
-            crate::spawn_allocation_bar!(
-                content,
-                good,
-                name,
-                crate::ui::city::allocation_widgets::AllocationType::Recruitment
-            );
+            crate::spawn_allocation_bar!(content, good, name, AllocationType::Recruitment);
         }
 
         // Summary (using macro)
-        crate::spawn_allocation_summary!(
-            content,
-            crate::ui::city::allocation_widgets::AllocationType::Recruitment
-        );
+        crate::spawn_allocation_summary!(content, AllocationType::Recruitment);
     });
 }
 
@@ -348,26 +340,17 @@ fn spawn_trade_school_content(
         crate::spawn_allocation_stepper!(
             content,
             "Allocate Workers",
-            crate::ui::city::allocation_widgets::AllocationType::Training(
-                crate::economy::WorkerSkill::Untrained
-            )
+            AllocationType::Training(WorkerSkill::Untrained)
         );
 
         crate::spawn_allocation_bar!(
             content,
             Good::Paper,
             "Paper",
-            crate::ui::city::allocation_widgets::AllocationType::Training(
-                crate::economy::WorkerSkill::Untrained
-            )
+            AllocationType::Training(WorkerSkill::Untrained)
         );
 
-        crate::spawn_allocation_summary!(
-            content,
-            crate::ui::city::allocation_widgets::AllocationType::Training(
-                crate::economy::WorkerSkill::Untrained
-            )
-        );
+        crate::spawn_allocation_summary!(content, AllocationType::Training(WorkerSkill::Untrained));
 
         // Section 2: Train Trained → Expert
         content.spawn((
@@ -386,26 +369,17 @@ fn spawn_trade_school_content(
         crate::spawn_allocation_stepper!(
             content,
             "Allocate Workers",
-            crate::ui::city::allocation_widgets::AllocationType::Training(
-                crate::economy::WorkerSkill::Trained
-            )
+            AllocationType::Training(WorkerSkill::Trained)
         );
 
         crate::spawn_allocation_bar!(
             content,
             Good::Paper,
             "Paper",
-            crate::ui::city::allocation_widgets::AllocationType::Training(
-                crate::economy::WorkerSkill::Trained
-            )
+            AllocationType::Training(WorkerSkill::Trained)
         );
 
-        crate::spawn_allocation_summary!(
-            content,
-            crate::ui::city::allocation_widgets::AllocationType::Training(
-                crate::economy::WorkerSkill::Trained
-            )
-        );
+        crate::spawn_allocation_summary!(content, AllocationType::Training(WorkerSkill::Trained));
     });
 }
 
@@ -521,12 +495,9 @@ pub fn update_capitol_requirement_displays(
 /// Update Capitol capacity display when recruitment queue changes
 pub fn update_capitol_capacity_display(
     player_nation: Option<Res<PlayerNation>>,
-    recruitment_cap_query: Query<&crate::economy::RecruitmentCapacity>,
-    recruitment_queue_query: Query<
-        &crate::economy::RecruitmentQueue,
-        Changed<crate::economy::RecruitmentQueue>,
-    >,
-    provinces: Query<&crate::province::Province>,
+    recruitment_cap_query: Query<&RecruitmentCapacity>,
+    recruitment_queue_query: Query<&RecruitmentQueue, Changed<RecruitmentQueue>>,
+    provinces: Query<&Province>,
     mut display_query: Query<(&mut Text, &mut TextColor), With<CapitolCapacityDisplay>>,
 ) {
     let Some(player) = player_nation else {

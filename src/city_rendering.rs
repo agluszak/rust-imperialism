@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
 
+use crate::assets::{capital_asset_path, town_asset_path};
 use crate::province::City;
 use crate::tile_pos::TilePosExt;
 
@@ -30,9 +31,9 @@ fn render_city_visuals(
 
         // Load the appropriate sprite based on whether it's a capital
         let texture: Handle<Image> = if city.is_capital {
-            asset_server.load(crate::assets::capital_asset_path())
+            asset_server.load(capital_asset_path())
         } else {
-            asset_server.load(crate::assets::town_asset_path())
+            asset_server.load(town_asset_path())
         };
 
         info!(

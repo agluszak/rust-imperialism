@@ -12,7 +12,7 @@ use super::{
     treasury::Treasury,
     workforce::{RecruitmentCapacity, types::*},
 };
-use crate::province::Province;
+use crate::{economy::market_price, province::Province, turn_system::TurnSystem};
 
 // ============================================================================
 // Production Adjustment System (Unit-by-Unit Reservations)
@@ -479,7 +479,7 @@ pub fn apply_market_order_adjustments(
                 } else if target > current {
                     let to_add = target - current;
                     let mut added = 0;
-                    let price = crate::economy::market_price(msg.good);
+                    let price = market_price(msg.good);
 
                     for _ in 0..to_add {
                         if let Some(res_id) = reservations.try_reserve(
@@ -582,7 +582,7 @@ pub fn apply_market_order_adjustments(
 /// Finalize allocations at turn end (when entering Processing phase)
 /// Consumes reservations and queues orders for execution
 pub fn finalize_allocations(
-    turn: Res<crate::turn_system::TurnSystem>,
+    turn: Res<TurnSystem>,
     mut nations: Query<(
         &Allocations,
         &mut ReservationSystem,
@@ -689,7 +689,7 @@ pub fn finalize_allocations(
 /// Reset allocations at start of PlayerTurn
 /// Releases all reservations and clears allocation structures
 pub fn reset_allocations(
-    turn: Res<crate::turn_system::TurnSystem>,
+    turn: Res<TurnSystem>,
     mut nations: Query<(
         &mut Allocations,
         &mut ReservationSystem,
@@ -748,5 +748,4 @@ pub fn reset_allocations(
 }
 
 #[cfg(test)]
-#[path = "allocation_systems_tests.rs"]
 mod tests;
