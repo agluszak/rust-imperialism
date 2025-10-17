@@ -50,6 +50,7 @@ pub mod input;
 pub mod province;
 pub mod province_gen;
 pub mod province_setup;
+pub mod save;
 pub mod resources;
 pub mod terrain_atlas;
 pub mod terrain_gen;

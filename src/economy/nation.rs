@@ -2,7 +2,8 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
 
 /// Unique identifier for a nation (stable across saves)
-#[derive(Component, Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[derive(Component, Clone, Copy, Debug, Eq, PartialEq, Hash, Reflect)]
+#[reflect(Component)]
 pub struct NationId(pub u16);
 
 /// Display name for a nation

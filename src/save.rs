@@ -1,29 +1,11 @@
 use std::path::PathBuf;
 
 use bevy::prelude::*;
-use bevy_ecs_tilemap::prelude::TilePos;
 use moonshine_save::prelude::*;
 
-use crate::civilians::types::{
-    ActionTurn, Civilian, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind, JobType,
-    PreviousPosition,
-};
 use crate::economy::allocation::Allocations;
-use crate::economy::goods::Good;
-use crate::economy::nation::{Capital, Name, NationColor, NationId, PlayerNation};
-use crate::economy::production::{
-    Building, BuildingKind, Buildings, ProductionChoice, ProductionSettings,
-};
-use crate::economy::reservation::{ReservationSystem, ResourcePool};
-use crate::economy::stockpile::Stockpile;
-use crate::economy::technology::{Technologies, Technology};
-use crate::economy::transport::{Depot, Port, RailConstruction, Rails, Roads};
-use crate::economy::treasury::Treasury;
-use crate::economy::workforce::types::{Worker, WorkerHealth, WorkerSkill, Workforce};
-use crate::economy::{Calendar, RecruitmentCapacity, RecruitmentQueue, Season, TrainingQueue};
-use crate::province::{City, Province, ProvinceId, TileProvince};
-use crate::province_setup::ProvincesGenerated;
-use crate::turn_system::{TurnPhase, TurnSystem};
+use crate::economy::nation::{Name, NationId, PlayerNation};
+use crate::economy::reservation::ReservationSystem;
 use crate::ui::menu::AppState;
 
 /// Plugin that wires the moonshine save/load pipeline into the game.
@@ -107,51 +89,7 @@ impl Plugin for GameSavePlugin {
 }
 
 fn register_reflect_types(app: &mut App) {
-    app.register_type::<TilePos>()
-        .register_type::<Good>()
-        .register_type::<ResourcePool>()
-        .register_type::<Stockpile>()
-        .register_type::<Technology>()
-        .register_type::<Technologies>()
-        .register_type::<NationId>()
-        .register_type::<Name>()
-        .register_type::<NationColor>()
-        .register_type::<Capital>()
-        .register_type::<Treasury>()
-        .register_type::<Season>()
-        .register_type::<Calendar>()
-        .register_type::<TurnPhase>()
-        .register_type::<TurnSystem>()
-        .register_type::<ProvinceId>()
-        .register_type::<Province>()
-        .register_type::<City>()
-        .register_type::<TileProvince>()
-        .register_type::<CivilianKind>()
-        .register_type::<Civilian>()
-        .register_type::<CivilianOrder>()
-        .register_type::<CivilianOrderKind>()
-        .register_type::<CivilianJob>()
-        .register_type::<JobType>()
-        .register_type::<PreviousPosition>()
-        .register_type::<ActionTurn>()
-        .register_type::<ProductionChoice>()
-        .register_type::<ProductionSettings>()
-        .register_type::<BuildingKind>()
-        .register_type::<Building>()
-        .register_type::<Buildings>()
-        .register_type::<WorkerSkill>()
-        .register_type::<WorkerHealth>()
-        .register_type::<Worker>()
-        .register_type::<Workforce>()
-        .register_type::<RecruitmentCapacity>()
-        .register_type::<RecruitmentQueue>()
-        .register_type::<TrainingQueue>()
-        .register_type::<Roads>()
-        .register_type::<Rails>()
-        .register_type::<Depot>()
-        .register_type::<Port>()
-        .register_type::<RailConstruction>()
-        .register_type::<ProvincesGenerated>();
+    app.register_type::<NationId>();
 }
 
 fn process_save_requests(
@@ -167,11 +105,6 @@ fn process_save_requests(
             .unwrap_or_else(|| settings.default_path.clone());
 
         let event = SaveWorld::default_into_file(path.clone())
-            .include_resource::<Calendar>()
-            .include_resource::<TurnSystem>()
-            .include_resource::<Roads>()
-            .include_resource::<Rails>()
-            .include_resource::<ProvincesGenerated>()
             .exclude_component::<Allocations>()
             .exclude_component::<ReservationSystem>();
 
@@ -255,5 +188,151 @@ fn rebuild_runtime_state_after_load(
         } else {
             commands.insert_resource(PlayerNation(entity));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::path::PathBuf;
+
+    use bevy::app::App;
+    use bevy::ecs::message::{MessageReader, MessageWriter};
+    use bevy::ecs::system::RunSystemOnce;
+    use bevy::prelude::{AppExtStates, Commands, Component, MinimalPlugins, Reflect, ReflectComponent};
+    use bevy::state::app::StatesPlugin;
+
+    use moonshine_save::prelude::Save;
+
+    use crate::economy::allocation::Allocations;
+    use crate::economy::reservation::ReservationSystem;
+    use crate::economy::transport::{Rails, Roads};
+    use crate::economy::Calendar;
+    use crate::economy::nation::{NationId, PlayerNation};
+    use crate::province_setup::ProvincesGenerated;
+    use crate::save::{
+        GameSavePlugin, LoadGameCompleted, LoadGameRequest, SaveGameCompleted, SaveGameRequest,
+    };
+    use crate::ui::menu::AppState;
+    use crate::turn_system::TurnSystem;
+
+    #[derive(Component, Reflect, Default, Clone)]
+    #[reflect(Component)]
+    struct SerializableComponent {
+        value: i32,
+    }
+
+    fn temp_save_path(label: &str) -> PathBuf {
+        let mut path = std::env::temp_dir();
+        path.push(format!("rust_imperialism_{label}_{}.ron", rand::random::<u64>()));
+        path
+    }
+
+    fn init_test_app() -> App {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.insert_state(AppState::InGame);
+        app.add_plugins(GameSavePlugin);
+        app.register_type::<SerializableComponent>();
+
+        {
+            let world = app.world_mut();
+            world.insert_resource(Calendar::default());
+            world.insert_resource(TurnSystem::default());
+            world.insert_resource(Roads::default());
+            world.insert_resource(Rails::default());
+            world.insert_resource(ProvincesGenerated);
+        }
+
+        app
+    }
+
+    #[test]
+    fn save_request_creates_file_and_completion_message() {
+        let mut app = init_test_app();
+        let path = temp_save_path("save_request");
+
+        let request_path = path.clone();
+        let _ = app.world_mut().run_system_once(
+            move |mut commands: Commands, mut writer: MessageWriter<SaveGameRequest>| {
+                commands.spawn((SerializableComponent { value: 42 }, Save));
+                writer.write(SaveGameRequest {
+                    path: Some(request_path.clone()),
+                });
+            },
+        );
+
+        app.update();
+        app.update();
+
+        let completions = app
+            .world_mut()
+            .run_system_once(|mut reader: MessageReader<SaveGameCompleted>| {
+                reader.read().cloned().collect::<Vec<_>>()
+            })
+            .unwrap();
+        assert_eq!(completions.len(), 1);
+        assert_eq!(completions[0].path, path);
+
+        let contents = fs::read_to_string(&completions[0].path).unwrap();
+        assert!(contents.contains("SerializableComponent"));
+        assert!(contents.contains("42"));
+
+        fs::remove_file(completions[0].path.clone()).unwrap();
+    }
+
+    #[test]
+    fn load_request_rebuilds_player_nation_runtime_state() {
+        let mut app = init_test_app();
+        let path = temp_save_path("load_request");
+
+        let save_request_path = path.clone();
+        let _ = app.world_mut().run_system_once(
+            move |mut commands: Commands, mut writer: MessageWriter<SaveGameRequest>| {
+                commands.spawn((
+                    Save,
+                    NationId(1),
+                    Allocations::default(),
+                    ReservationSystem::default(),
+                ));
+                writer.write(SaveGameRequest {
+                    path: Some(save_request_path.clone()),
+                });
+            },
+        );
+
+        app.update();
+        app.update();
+
+        assert!(fs::metadata(&path).is_ok());
+
+        let mut app = init_test_app();
+        let load_request_path = path.clone();
+        let _ = app.world_mut().run_system_once(move |mut writer: MessageWriter<LoadGameRequest>| {
+            writer.write(LoadGameRequest {
+                path: Some(load_request_path.clone()),
+            });
+        });
+
+        app.update();
+        app.update();
+        app.update();
+
+        let completions = app
+            .world_mut()
+            .run_system_once(|mut reader: MessageReader<LoadGameCompleted>| {
+                reader.read().cloned().collect::<Vec<_>>()
+            })
+            .unwrap();
+        assert_eq!(completions.len(), 1);
+        assert_eq!(completions[0].path, path);
+
+        let player_nation_entity = app.world().resource::<PlayerNation>().0;
+        let entity = app.world().entity(player_nation_entity);
+        assert_eq!(entity.get::<NationId>().unwrap().0, 1);
+        assert!(entity.contains::<Allocations>());
+        assert!(entity.contains::<ReservationSystem>());
+
+        fs::remove_file(completions[0].path.clone()).unwrap();
     }
 }
