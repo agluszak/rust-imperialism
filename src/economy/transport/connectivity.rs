@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
 use std::collections::{HashMap, HashSet, VecDeque};
 
+use super::messages::RecomputeConnectivity;
 use super::types::{Depot, Port, Rails};
 
 /// Build adjacency list for BFS from rail edges
@@ -16,12 +17,19 @@ pub fn build_rail_graph(rails: &Rails) -> HashMap<TilePos, Vec<TilePos>> {
 
 /// Compute rail network connectivity for all nations (Logic Layer)
 /// Uses BFS from each nation's capital to mark depots/ports as connected
+/// Only runs when RecomputeConnectivity messages are present (topology changes)
 pub fn compute_rail_connectivity(
+    mut events: MessageReader<RecomputeConnectivity>,
     rails: Res<Rails>,
     nations: Query<(Entity, &super::super::nation::Capital)>,
     mut depots: Query<&mut Depot>,
     mut ports: Query<&mut Port>,
 ) {
+    // Only recompute when topology changed
+    if events.is_empty() {
+        return;
+    }
+    events.clear();
     // Build the rail graph once
     let graph = build_rail_graph(&rails);
 
@@ -61,4 +69,30 @@ pub fn compute_rail_connectivity(
             }
         }
     }
+}
+
+/// Observer: trigger connectivity recomputation when Depot is added
+pub fn on_depot_added(_trigger: On<Add, Depot>, mut writer: MessageWriter<RecomputeConnectivity>) {
+    writer.write(RecomputeConnectivity);
+}
+
+/// Observer: trigger connectivity recomputation when Depot is removed
+pub fn on_depot_removed(
+    _trigger: On<Remove, Depot>,
+    mut writer: MessageWriter<RecomputeConnectivity>,
+) {
+    writer.write(RecomputeConnectivity);
+}
+
+/// Observer: trigger connectivity recomputation when Port is added
+pub fn on_port_added(_trigger: On<Add, Port>, mut writer: MessageWriter<RecomputeConnectivity>) {
+    writer.write(RecomputeConnectivity);
+}
+
+/// Observer: trigger connectivity recomputation when Port is removed
+pub fn on_port_removed(
+    _trigger: On<Remove, Port>,
+    mut writer: MessageWriter<RecomputeConnectivity>,
+) {
+    writer.write(RecomputeConnectivity);
 }

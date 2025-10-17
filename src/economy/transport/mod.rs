@@ -4,7 +4,7 @@ pub use types::{Depot, ImprovementKind, Port, RailConstruction, Rails, Roads, or
 
 // Messages
 pub mod messages;
-pub use messages::PlaceImprovement;
+pub use messages::{PlaceImprovement, RecomputeConnectivity};
 
 // Validation logic
 pub mod validation;
@@ -16,7 +16,10 @@ pub use construction::advance_rail_construction;
 
 // Connectivity systems (Logic Layer)
 pub mod connectivity;
-pub use connectivity::{build_rail_graph, compute_rail_connectivity};
+pub use connectivity::{
+    build_rail_graph, compute_rail_connectivity, on_depot_added, on_depot_removed, on_port_added,
+    on_port_removed,
+};
 
 // Input handlers (Input Layer)
 pub mod input;

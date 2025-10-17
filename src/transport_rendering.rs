@@ -4,6 +4,7 @@ use bevy_ecs_tilemap::prelude::TilePos;
 use crate::assets;
 use crate::civilians::{Civilian, CivilianKind};
 use crate::economy::{Depot, Port, Rails, Roads};
+use crate::rendering::{MapVisual, MapVisualFor};
 use crate::tile_pos::TilePosExt;
 use crate::ui::menu::AppState;
 use crate::ui::mode::GameMode;
@@ -12,21 +13,17 @@ use crate::ui::mode::GameMode;
 #[derive(Resource, Default)]
 pub struct HoveredTile(pub Option<TilePos>);
 
-/// Marker for rail line visual entities
+/// Marker for rail line visual entities with edge tracking
 #[derive(Component)]
-pub struct RailLineVisual;
+pub struct RailLineVisual {
+    pub edge: (TilePos, TilePos),
+}
 
-/// Marker for road line visual entities
+/// Marker for road line visual entities with edge tracking
 #[derive(Component)]
-pub struct RoadLineVisual;
-
-/// Marker for depot visual entities
-#[derive(Component)]
-pub struct DepotVisual(pub Entity); // Points to the actual Depot entity
-
-/// Marker for port visual entities
-#[derive(Component)]
-pub struct PortVisual(pub Entity); // Points to the actual Port entity
+pub struct RoadLineVisual {
+    pub edge: (TilePos, TilePos),
+}
 
 /// Marker for shadow rail preview visual
 #[derive(Component)]
@@ -61,7 +58,8 @@ impl Plugin for TransportRenderingPlugin {
     }
 }
 
-/// Spawn/despawn rail line visuals to match the Rails resource
+/// Incrementally update rail line visuals to match the Rails resource
+/// Only spawns/despawns changed edges instead of full redraw
 fn render_rails(
     mut commands: Commands,
     rails: Res<Rails>,
@@ -73,32 +71,42 @@ fn render_rails(
         return;
     }
 
-    // Despawn all existing rail visuals
-    for (entity, _) in existing.iter() {
-        commands.entity(entity).despawn();
+    // Build set of existing edges
+    let existing_edges: std::collections::HashSet<(TilePos, TilePos)> =
+        existing.iter().map(|(_, visual)| visual.edge).collect();
+
+    // Find edges to add (in Rails but not in existing visuals)
+    for &edge in rails.0.iter() {
+        if !existing_edges.contains(&edge) {
+            let (a, b) = edge;
+            let pos_a = a.to_world_pos();
+            let pos_b = b.to_world_pos();
+
+            let center = (pos_a + pos_b) / 2.0;
+            let diff = pos_b - pos_a;
+            let length = diff.length();
+            let angle = diff.y.atan2(diff.x);
+
+            commands.spawn((
+                Mesh2d(meshes.add(Rectangle::new(length, LINE_WIDTH))),
+                MeshMaterial2d(materials.add(ColorMaterial::from_color(RAIL_COLOR))),
+                Transform::from_translation(center.extend(1.0))
+                    .with_rotation(Quat::from_rotation_z(angle)),
+                RailLineVisual { edge },
+            ));
+        }
     }
 
-    // Spawn new visuals for each rail edge
-    for &(a, b) in rails.0.iter() {
-        let pos_a = a.to_world_pos();
-        let pos_b = b.to_world_pos();
-
-        let center = (pos_a + pos_b) / 2.0;
-        let diff = pos_b - pos_a;
-        let length = diff.length();
-        let angle = diff.y.atan2(diff.x);
-
-        commands.spawn((
-            Mesh2d(meshes.add(Rectangle::new(length, LINE_WIDTH))),
-            MeshMaterial2d(materials.add(ColorMaterial::from_color(RAIL_COLOR))),
-            Transform::from_translation(center.extend(1.0))
-                .with_rotation(Quat::from_rotation_z(angle)),
-            RailLineVisual,
-        ));
+    // Find edges to remove (in existing visuals but not in Rails)
+    for (entity, visual) in existing.iter() {
+        if !rails.0.contains(&visual.edge) {
+            commands.entity(entity).despawn();
+        }
     }
 }
 
-/// Spawn/despawn road line visuals to match the Roads resource
+/// Incrementally update road line visuals to match the Roads resource
+/// Only spawns/despawns changed edges instead of full redraw
 fn render_roads(
     mut commands: Commands,
     roads: Res<Roads>,
@@ -110,64 +118,86 @@ fn render_roads(
         return;
     }
 
-    // Despawn all existing road visuals
-    for (entity, _) in existing.iter() {
-        commands.entity(entity).despawn();
+    // Build set of existing edges
+    let existing_edges: std::collections::HashSet<(TilePos, TilePos)> =
+        existing.iter().map(|(_, visual)| visual.edge).collect();
+
+    // Find edges to add (in Roads but not in existing visuals)
+    for &edge in roads.0.iter() {
+        if !existing_edges.contains(&edge) {
+            let (a, b) = edge;
+            let pos_a = a.to_world_pos();
+            let pos_b = b.to_world_pos();
+
+            let center = (pos_a + pos_b) / 2.0;
+            let diff = pos_b - pos_a;
+            let length = diff.length();
+            let angle = diff.y.atan2(diff.x);
+
+            commands.spawn((
+                Mesh2d(meshes.add(Rectangle::new(length, LINE_WIDTH))),
+                MeshMaterial2d(materials.add(ColorMaterial::from_color(ROAD_COLOR))),
+                Transform::from_translation(center.extend(0.5))
+                    .with_rotation(Quat::from_rotation_z(angle)),
+                RoadLineVisual { edge },
+            ));
+        }
     }
 
-    // Spawn new visuals for each road edge
-    for &(a, b) in roads.0.iter() {
-        let pos_a = a.to_world_pos();
-        let pos_b = b.to_world_pos();
-
-        let center = (pos_a + pos_b) / 2.0;
-        let diff = pos_b - pos_a;
-        let length = diff.length();
-
-        commands.spawn((
-            Mesh2d(meshes.add(Rectangle::new(length, LINE_WIDTH))),
-            MeshMaterial2d(materials.add(ColorMaterial::from_color(ROAD_COLOR))),
-            Transform::from_translation(center.extend(0.5)),
-            RoadLineVisual,
-        ));
+    // Find edges to remove (in existing visuals but not in Roads)
+    for (entity, visual) in existing.iter() {
+        if !roads.0.contains(&visual.edge) {
+            commands.entity(entity).despawn();
+        }
     }
 }
 
 /// Update depot visual colors based on connectivity
+/// Uses relationship pattern for O(1) sprite lookups and automatic cleanup
 fn update_depot_visuals(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    all_depots: Query<(Entity, &Depot)>,
-    changed_depots: Query<(Entity, &Depot), Changed<Depot>>,
-    mut existing_visuals: Query<(Entity, &DepotVisual, &mut Sprite)>,
+    new_depots: Query<(Entity, &Depot), Added<Depot>>,
+    changed_depots: Query<(Entity, &Depot, Option<&MapVisual>), Changed<Depot>>,
+    mut sprites: Query<&mut Sprite>,
 ) {
-    // Remove visuals for despawned depots
-    for (visual_entity, depot_visual, _) in existing_visuals.iter() {
-        if all_depots.get(depot_visual.0).is_err() {
-            commands.entity(visual_entity).despawn();
-        }
-    }
-
-    // Update colors for changed depots
-    for (depot_entity, depot) in changed_depots.iter() {
+    // Create visuals for new depots
+    for (depot_entity, depot) in new_depots.iter() {
+        let pos = depot.position.to_world_pos();
+        let texture: Handle<Image> = asset_server.load(assets::depot_asset_path());
         let color = if depot.connected {
             DEPOT_CONNECTED_COLOR
         } else {
             DEPOT_DISCONNECTED_COLOR
         };
 
-        // Find and update existing visual
-        let mut found = false;
-        for (_, depot_visual, mut sprite) in existing_visuals.iter_mut() {
-            if depot_visual.0 == depot_entity {
-                sprite.color = color;
-                found = true;
-                break;
-            }
-        }
+        commands.spawn((
+            Sprite {
+                image: texture,
+                color,
+                custom_size: Some(Vec2::new(64.0, 64.0)),
+                ..default()
+            },
+            Transform::from_translation(pos.extend(2.0)),
+            MapVisualFor(depot_entity), // Relationship: sprite -> depot
+        ));
+    }
 
-        // If no visual exists, create one with sprite
-        if !found {
+    // Update colors for changed depots (O(1) lookup via relationship)
+    for (depot_entity, depot, visual) in changed_depots.iter() {
+        let color = if depot.connected {
+            DEPOT_CONNECTED_COLOR
+        } else {
+            DEPOT_DISCONNECTED_COLOR
+        };
+
+        // If depot has a visual, update its color
+        if let Some(visual) = visual
+            && let Ok(mut sprite) = sprites.get_mut(visual.entity())
+        {
+            sprite.color = color;
+        } else if !new_depots.contains(depot_entity) {
+            // Depot changed but has no visual (and wasn't just added) - create one
             let pos = depot.position.to_world_pos();
             let texture: Handle<Image> = asset_server.load(assets::depot_asset_path());
             commands.spawn((
@@ -178,47 +208,58 @@ fn update_depot_visuals(
                     ..default()
                 },
                 Transform::from_translation(pos.extend(2.0)),
-                DepotVisual(depot_entity),
+                MapVisualFor(depot_entity),
             ));
         }
     }
 }
 
 /// Update port visual colors based on connectivity
+/// Uses relationship pattern for O(1) sprite lookups and automatic cleanup
 fn update_port_visuals(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    all_ports: Query<(Entity, &Port)>,
-    changed_ports: Query<(Entity, &Port), Changed<Port>>,
-    mut existing_visuals: Query<(Entity, &PortVisual, &mut Sprite)>,
+    new_ports: Query<(Entity, &Port), Added<Port>>,
+    changed_ports: Query<(Entity, &Port, Option<&MapVisual>), Changed<Port>>,
+    mut sprites: Query<&mut Sprite>,
 ) {
-    // Remove visuals for despawned ports
-    for (visual_entity, port_visual, _) in existing_visuals.iter() {
-        if all_ports.get(port_visual.0).is_err() {
-            commands.entity(visual_entity).despawn();
-        }
-    }
-
-    // Update colors for changed ports
-    for (port_entity, port) in changed_ports.iter() {
+    // Create visuals for new ports
+    for (port_entity, port) in new_ports.iter() {
+        let pos = port.position.to_world_pos();
+        let texture: Handle<Image> = asset_server.load(assets::port_asset_path());
         let color = if port.connected {
             PORT_CONNECTED_COLOR
         } else {
             PORT_DISCONNECTED_COLOR
         };
 
-        // Find and update existing visual
-        let mut found = false;
-        for (_, port_visual, mut sprite) in existing_visuals.iter_mut() {
-            if port_visual.0 == port_entity {
-                sprite.color = color;
-                found = true;
-                break;
-            }
-        }
+        commands.spawn((
+            Sprite {
+                image: texture,
+                color,
+                custom_size: Some(Vec2::new(64.0, 64.0)),
+                ..default()
+            },
+            Transform::from_translation(pos.extend(2.0)),
+            MapVisualFor(port_entity), // Relationship: sprite -> port
+        ));
+    }
 
-        // If no visual exists, create one with sprite
-        if !found {
+    // Update colors for changed ports (O(1) lookup via relationship)
+    for (port_entity, port, visual) in changed_ports.iter() {
+        let color = if port.connected {
+            PORT_CONNECTED_COLOR
+        } else {
+            PORT_DISCONNECTED_COLOR
+        };
+
+        // If port has a visual, update its color
+        if let Some(visual) = visual
+            && let Ok(mut sprite) = sprites.get_mut(visual.entity())
+        {
+            sprite.color = color;
+        } else if !new_ports.contains(port_entity) {
+            // Port changed but has no visual (and wasn't just added) - create one
             let pos = port.position.to_world_pos();
             let texture: Handle<Image> = asset_server.load(assets::port_asset_path());
             commands.spawn((
@@ -229,7 +270,7 @@ fn update_port_visuals(
                     ..default()
                 },
                 Transform::from_translation(pos.extend(2.0)),
-                PortVisual(port_entity),
+                MapVisualFor(port_entity),
             ));
         }
     }

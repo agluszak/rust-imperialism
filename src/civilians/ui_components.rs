@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::commands::{GiveCivilianOrder, RescindOrders};
+use super::commands::{DeselectAllCivilians, GiveCivilianOrder, RescindOrders, SelectCivilian};
 use super::types::CivilianOrderKind;
 use super::types::{Civilian, CivilianKind, PreviousPosition};
 use crate::ui::button_style::*;
@@ -33,22 +33,33 @@ pub struct RescindOrdersButton;
 #[derive(Component)]
 pub struct RescindOrdersPanel;
 
-/// Show/hide Engineer orders UI based on selection
-/// Only runs when Civilian selection state changes
+/// Show/hide Engineer orders UI based on selection messages
+/// Event-driven system that only runs when selection actually changes
 pub fn update_engineer_orders_ui(
     mut commands: Commands,
-    civilians: Query<&Civilian, Changed<Civilian>>,
-    all_civilians: Query<&Civilian>,
-    existing_panel: Query<(Entity, &Children), With<EngineerOrdersPanel>>,
+    mut select_events: MessageReader<SelectCivilian>,
+    mut deselect_all_events: MessageReader<DeselectAllCivilians>,
+    civilians: Query<&Civilian>,
+    existing_panel: Query<Entity, With<EngineerOrdersPanel>>,
 ) {
-    // Only run if any Civilian changed (e.g., selection state)
-    if civilians.is_empty() {
+    // Handle deselect-all first (always hides panel)
+    if !deselect_all_events.is_empty() {
+        deselect_all_events.clear();
+        for entity in existing_panel.iter() {
+            commands.entity(entity).despawn();
+        }
         return;
     }
 
-    let selected_engineer = all_civilians
-        .iter()
-        .find(|c| c.selected && c.kind == CivilianKind::Engineer);
+    // Handle selection events
+    let mut selected_engineer = None;
+    for event in select_events.read() {
+        if let Ok(civilian) = civilians.get(event.entity)
+            && civilian.kind == CivilianKind::Engineer
+        {
+            selected_engineer = Some(civilian);
+        }
+    }
 
     if let Some(_engineer) = selected_engineer {
         // Engineer is selected, ensure panel exists
@@ -112,14 +123,9 @@ pub fn update_engineer_orders_ui(
                 ],
             ));
         }
-    } else {
-        // No engineer selected, remove panel and its children
-        for (entity, children) in existing_panel.iter() {
-            // Despawn all children first
-            for child in children.iter() {
-                commands.entity(child).despawn();
-            }
-            // Then despawn the panel itself
+    } else if !select_events.is_empty() {
+        // Non-engineer selected, remove panel if it exists
+        for entity in existing_panel.iter() {
             commands.entity(entity).despawn();
         }
     }
@@ -160,30 +166,40 @@ pub fn handle_order_button_clicks(
     }
 }
 
-/// Show/hide resource improver orders UI based on selection
-/// Only runs when Civilian selection state changes
+/// Show/hide resource improver orders UI based on selection messages
+/// Event-driven system that only runs when selection actually changes
 pub fn update_improver_orders_ui(
     mut commands: Commands,
-    civilians: Query<&Civilian, Changed<Civilian>>,
-    all_civilians: Query<&Civilian>,
-    existing_panel: Query<(Entity, &Children), With<ImproverOrdersPanel>>,
+    mut select_events: MessageReader<SelectCivilian>,
+    mut deselect_all_events: MessageReader<DeselectAllCivilians>,
+    civilians: Query<&Civilian>,
+    existing_panel: Query<Entity, With<ImproverOrdersPanel>>,
 ) {
-    // Only run if any Civilian changed (e.g., selection state)
-    if civilians.is_empty() {
+    // Handle deselect-all first (always hides panel)
+    if !deselect_all_events.is_empty() {
+        deselect_all_events.clear();
+        for entity in existing_panel.iter() {
+            commands.entity(entity).despawn();
+        }
         return;
     }
 
-    let selected_improver = all_civilians.iter().find(|c| {
-        c.selected
+    // Handle selection events
+    let mut selected_improver = None;
+    for event in select_events.read() {
+        if let Ok(civilian) = civilians.get(event.entity)
             && matches!(
-                c.kind,
+                civilian.kind,
                 CivilianKind::Farmer
                     | CivilianKind::Rancher
                     | CivilianKind::Forester
                     | CivilianKind::Miner
                     | CivilianKind::Driller
             )
-    });
+        {
+            selected_improver = Some(civilian);
+        }
+    }
 
     if let Some(improver) = selected_improver {
         // Resource improver is selected, ensure panel exists
@@ -231,29 +247,41 @@ pub fn update_improver_orders_ui(
                 ],
             ));
         }
-    } else {
-        // No improver selected, remove panel and its children
-        for (entity, children) in existing_panel.iter() {
-            // Despawn all children first
-            for child in children.iter() {
-                commands.entity(child).despawn();
-            }
-            // Then despawn the panel itself
+    } else if !select_events.is_empty() {
+        // Non-improver selected, remove panel if it exists
+        for entity in existing_panel.iter() {
             commands.entity(entity).despawn();
         }
     }
 }
 
-/// Update UI for rescind orders panel (shown for any civilian with PreviousPosition)
+/// Update UI for rescind orders panel based on selection messages
+/// Event-driven system that only runs when selection actually changes
 pub fn update_rescind_orders_ui(
     mut commands: Commands,
-    selected_civilians: Query<(Entity, &Civilian, &PreviousPosition), With<Civilian>>,
-    existing_panel: Query<(Entity, &Children), With<RescindOrdersPanel>>,
+    mut select_events: MessageReader<SelectCivilian>,
+    mut deselect_all_events: MessageReader<DeselectAllCivilians>,
+    civilians_with_prev: Query<&PreviousPosition, With<Civilian>>,
+    existing_panel: Query<Entity, With<RescindOrdersPanel>>,
 ) {
-    // Check if there's a selected civilian with PreviousPosition
-    let selected_with_prev = selected_civilians.iter().find(|(_, c, _)| c.selected);
+    // Handle deselect-all first (always hides panel)
+    if !deselect_all_events.is_empty() {
+        deselect_all_events.clear();
+        for entity in existing_panel.iter() {
+            commands.entity(entity).despawn();
+        }
+        return;
+    }
 
-    if let Some((_entity, _civilian, prev_pos)) = selected_with_prev {
+    // Handle selection events - check if selected civilian has PreviousPosition
+    let mut selected_with_prev = None;
+    for event in select_events.read() {
+        if let Ok(prev_pos) = civilians_with_prev.get(event.entity) {
+            selected_with_prev = Some(prev_pos);
+        }
+    }
+
+    if let Some(prev_pos) = selected_with_prev {
         // Civilian is selected and has a previous position - show panel
         if existing_panel.is_empty() {
             // Create panel if it doesn't exist
@@ -311,14 +339,9 @@ pub fn update_rescind_orders_ui(
                 ],
             ));
         }
-    } else {
-        // No selected civilian with previous position, remove panel and its children
-        for (entity, children) in existing_panel.iter() {
-            // Despawn all children first
-            for child in children.iter() {
-                commands.entity(child).despawn();
-            }
-            // Then despawn the panel itself
+    } else if !select_events.is_empty() {
+        // Selected civilian without previous position, remove panel if it exists
+        for entity in existing_panel.iter() {
             commands.entity(entity).despawn();
         }
     }

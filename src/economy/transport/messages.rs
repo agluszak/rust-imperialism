@@ -11,3 +11,8 @@ pub struct PlaceImprovement {
     pub kind: ImprovementKind,
     pub engineer: Option<Entity>, // Engineer entity building this (for tracking construction)
 }
+
+/// Message to trigger rail network connectivity recomputation
+/// Sent when topology changes (rails added, depots/ports added/removed)
+#[derive(Message, Debug, Clone, Copy)]
+pub struct RecomputeConnectivity;

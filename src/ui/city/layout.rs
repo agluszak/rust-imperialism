@@ -80,9 +80,5 @@ pub fn ensure_city_screen_visible(
     }); // Close with_children for city_screen_entity
 }
 
-/// Hide City screen
-pub fn hide_city_screen(mut roots: Query<&mut Visibility, With<CityScreen>>) {
-    for mut vis in roots.iter_mut() {
-        *vis = Visibility::Hidden;
-    }
-}
+// Note: hide_city_screen replaced with generic hide_screen::<CityScreen>
+// See src/ui/generic_systems.rs for the generic implementation

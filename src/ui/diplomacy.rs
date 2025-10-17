@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use super::button_style::*;
+use super::generic_systems::hide_screen;
 use crate::ui::mode::GameMode;
 
 #[derive(Component)]
@@ -14,7 +15,7 @@ impl Plugin for DiplomacyUIPlugin {
             OnEnter(GameMode::Diplomacy),
             ensure_diplomacy_screen_visible,
         )
-        .add_systems(OnExit(GameMode::Diplomacy), hide_diplomacy_screen);
+        .add_systems(OnExit(GameMode::Diplomacy), hide_screen::<DiplomacyScreen>);
     }
 }
 
@@ -75,8 +76,5 @@ pub fn ensure_diplomacy_screen_visible(
     ));
 }
 
-pub fn hide_diplomacy_screen(mut roots: Query<&mut Visibility, With<DiplomacyScreen>>) {
-    for mut vis in roots.iter_mut() {
-        *vis = Visibility::Hidden;
-    }
-}
+// Note: hide_diplomacy_screen replaced with generic hide_screen::<DiplomacyScreen>
+// See src/ui/generic_systems.rs for the generic implementation

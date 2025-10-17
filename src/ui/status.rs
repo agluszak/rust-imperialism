@@ -56,14 +56,18 @@ fn format_currency(value: i64) -> String {
 }
 
 /// Update treasury HUD text based on the active player's nation
+/// Only runs when Treasury component actually changes (reactive)
 pub fn update_treasury_display(
     player: Option<Res<PlayerNation>>,
-    treasuries: Query<&Treasury>,
+    changed_treasuries: Query<&Treasury, Changed<Treasury>>,
     mut q: Query<&mut Text, With<TreasuryDisplay>>,
 ) {
-    if let Some(player) = player
-        && let Ok(treasury) = treasuries.get(player.0)
-    {
+    let Some(player) = player else {
+        return;
+    };
+
+    // Only update if the player's treasury changed
+    if let Ok(treasury) = changed_treasuries.get(player.0) {
         let s = format_currency(treasury.total());
         for mut text in q.iter_mut() {
             text.0 = s.clone();
