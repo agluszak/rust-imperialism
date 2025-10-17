@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use super::{
-    allocation::{AdjustProduction, AdjustRecruitment, AdjustTraining, Allocations},
+    allocation::{AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, Allocations, MarketOrderKind},
     goods::Good,
     production::{BuildingKind, Buildings},
     reservation::ReservationSystem,
@@ -427,6 +427,157 @@ pub fn apply_training_adjustments(
 }
 
 // ============================================================================
+// Market Adjustment System
+// ============================================================================
+
+/// Apply market buy/sell allocation adjustments using reservations
+pub fn apply_market_order_adjustments(
+    mut messages: MessageReader<AdjustMarketOrder>,
+    mut nations: Query<(
+        &mut Allocations,
+        &mut ReservationSystem,
+        &mut Stockpile,
+        &mut Workforce,
+        &mut Treasury,
+    )>,
+) {
+    for msg in messages.read() {
+        let Ok((
+            mut allocations,
+            mut reservations,
+            mut stockpile,
+            mut workforce,
+            mut treasury,
+        )) = nations.get_mut(msg.nation)
+        else {
+            warn!("Cannot adjust market orders: nation not found");
+            continue;
+        };
+
+        let target = msg.requested as usize;
+
+        match msg.kind {
+            MarketOrderKind::Buy => {
+                let orders = allocations.market_buys.entry(msg.good).or_default();
+                let current = orders.len();
+
+                if target < current {
+                    let to_remove = current - target;
+                    for _ in 0..to_remove {
+                        if let Some(res_id) = orders.pop() {
+                            reservations.release(
+                                res_id,
+                                &mut stockpile,
+                                &mut workforce,
+                                &mut treasury,
+                            );
+                        }
+                    }
+
+                    debug!(
+                        "Market buy decreased: {:?} {} → {}",
+                        msg.good, current, target
+                    );
+                } else if target > current {
+                    let to_add = target - current;
+                    let mut added = 0;
+                    let price = crate::economy::market_price(msg.good);
+
+                    for _ in 0..to_add {
+                        if let Some(res_id) = reservations.try_reserve(
+                            Vec::<(Good, u32)>::new(),
+                            0,
+                            price,
+                            &mut stockpile,
+                            &mut workforce,
+                            &mut treasury,
+                        ) {
+                            orders.push(res_id);
+                            added += 1;
+                        } else {
+                            break;
+                        }
+                    }
+
+                    if added > 0 {
+                        debug!(
+                            "Market buy increased: {:?} {} → {} ({} added)",
+                            msg.good,
+                            current,
+                            current + added,
+                            added
+                        );
+                    } else if to_add > 0 {
+                        debug!(
+                            "Market buy increase blocked: {:?} – insufficient treasury",
+                            msg.good
+                        );
+                    }
+                }
+            }
+
+            MarketOrderKind::Sell => {
+                let orders = allocations.market_sells.entry(msg.good).or_default();
+                let current = orders.len();
+
+                if target < current {
+                    let to_remove = current - target;
+                    for _ in 0..to_remove {
+                        if let Some(res_id) = orders.pop() {
+                            reservations.release(
+                                res_id,
+                                &mut stockpile,
+                                &mut workforce,
+                                &mut treasury,
+                            );
+                        }
+                    }
+
+                    debug!(
+                        "Market sell decreased: {:?} {} → {}",
+                        msg.good, current, target
+                    );
+                } else if target > current {
+                    let to_add = target - current;
+                    let mut added = 0;
+
+                    for _ in 0..to_add {
+                        if let Some(res_id) = reservations.try_reserve(
+                            vec![(msg.good, 1)],
+                            0,
+                            0,
+                            &mut stockpile,
+                            &mut workforce,
+                            &mut treasury,
+                        ) {
+                            orders.push(res_id);
+                            added += 1;
+                        } else {
+                            break;
+                        }
+                    }
+
+                    if added > 0 {
+                        debug!(
+                            "Market sell increased: {:?} {} → {} ({} added)",
+                            msg.good,
+                            current,
+                            current + added,
+                            added
+                        );
+                    } else if to_add > 0 {
+                        debug!(
+                            "Market sell increase blocked: {:?} – insufficient stock",
+                            msg.good
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
 // Turn Management Systems
 // ============================================================================
 
@@ -513,6 +664,27 @@ pub fn finalize_allocations(
                 }
             }
         }
+
+        // Log market orders - execution happens in dedicated market systems
+        for (good, res_ids) in &allocations.market_buys {
+            if !res_ids.is_empty() {
+                info!(
+                    "Queued market buy orders: {} × {:?} (awaiting clearing)",
+                    res_ids.len(),
+                    good
+                );
+            }
+        }
+
+        for (good, res_ids) in &allocations.market_sells {
+            if !res_ids.is_empty() {
+                info!(
+                    "Queued market sell offers: {} × {:?} (awaiting clearing)",
+                    res_ids.len(),
+                    good
+                );
+            }
+        }
     }
 }
 
@@ -552,6 +724,20 @@ pub fn reset_allocations(
 
         // Release all training reservations
         for (_skill, res_ids) in allocations.training.iter() {
+            for res_id in res_ids {
+                reservations.release(*res_id, &mut stockpile, &mut workforce, &mut treasury);
+            }
+        }
+
+        // Release market buy reservations (refund money)
+        for (_good, res_ids) in allocations.market_buys.iter() {
+            for res_id in res_ids {
+                reservations.release(*res_id, &mut stockpile, &mut workforce, &mut treasury);
+            }
+        }
+
+        // Release market sell reservations (return goods)
+        for (_good, res_ids) in allocations.market_sells.iter() {
             for res_id in res_ids {
                 reservations.release(*res_id, &mut stockpile, &mut workforce, &mut treasury);
             }

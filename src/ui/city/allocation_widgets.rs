@@ -15,6 +15,8 @@ pub enum AllocationType {
     Recruitment,
     Training(WorkerSkill),
     Production(Entity, Good), // building entity + output good
+    MarketBuy(Good),
+    MarketSell(Good),
 }
 
 /// Generic stepper display (shows current allocated value)
@@ -35,6 +37,7 @@ pub struct AllocationStepperButton {
 pub struct AllocationBar {
     pub allocation_type: AllocationType,
     pub good: Good,
+    pub label: &'static str,
 }
 
 /// Generic summary text ("Will do X next turn")
@@ -204,6 +207,7 @@ macro_rules! spawn_allocation_bar {
                     AllocationBar {
                         allocation_type: $allocation_type,
                         good: $good,
+                        label: $good_name,
                     },
                 ));
 
