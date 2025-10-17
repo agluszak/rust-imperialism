@@ -2,8 +2,9 @@ use bevy::picking::prelude::Pickable;
 use bevy::prelude::*;
 
 use super::systems::handle_civilian_click;
-use super::types::{Civilian, CivilianJob, MapVisual, MapVisualFor};
+use super::types::{Civilian, CivilianJob};
 use crate::assets::civilian_asset_path;
+use crate::rendering::{MapVisual, MapVisualFor};
 use crate::tile_pos::TilePosExt;
 
 const ENGINEER_SIZE: f32 = 64.0; // Match tile size

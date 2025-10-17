@@ -5,10 +5,10 @@ use super::commands::{
     DeselectAllCivilians, DeselectCivilian, GiveCivilianOrder, RescindOrders, SelectCivilian,
 };
 use super::types::{
-    ActionTurn, Civilian, CivilianJob, CivilianOrder, CivilianOrderKind, MapVisualFor,
-    PreviousPosition,
+    ActionTurn, Civilian, CivilianJob, CivilianOrder, CivilianOrderKind, PreviousPosition,
 };
 use crate::economy::treasury::Treasury;
+use crate::rendering::MapVisualFor;
 use crate::province::{Province, TileProvince};
 use crate::turn_system::TurnSystem;
 use crate::ui::logging::TerminalLogEvent;
