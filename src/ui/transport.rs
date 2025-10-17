@@ -126,29 +126,26 @@ fn setup_transport_screen(
                     }
                 });
 
-            parent
-                .spawn((
-                    Button,
-                    Node {
-                        position_type: PositionType::Absolute,
-                        top: Val::Px(16.0),
-                        right: Val::Px(16.0),
-                        padding: UiRect::all(Val::Px(6.0)),
+            parent.spawn((
+                Button,
+                Node {
+                    position_type: PositionType::Absolute,
+                    top: Val::Px(16.0),
+                    right: Val::Px(16.0),
+                    padding: UiRect::all(Val::Px(6.0)),
+                    ..default()
+                },
+                BackgroundColor(NORMAL_BUTTON),
+                crate::ui::mode::MapModeButton,
+                children![(
+                    Text::new("Back to Map"),
+                    TextFont {
+                        font_size: 16.0,
                         ..default()
                     },
-                    BackgroundColor(NORMAL_BUTTON),
-                    crate::ui::mode::MapModeButton,
-                ))
-                .with_children(|b| {
-                    b.spawn((
-                        Text::new("Back to Map"),
-                        TextFont {
-                            font_size: 16.0,
-                            ..default()
-                        },
-                        TextColor(Color::srgb(0.9, 0.9, 1.0)),
-                    ));
-                });
+                    TextColor(Color::srgb(0.9, 0.9, 1.0)),
+                )],
+            ));
         });
 }
 

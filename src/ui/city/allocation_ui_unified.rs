@@ -169,7 +169,7 @@ pub fn update_all_allocation_bars(
     allocations_changed: Query<Entity, Changed<Allocations>>,
     new_bars: Query<Entity, Added<AllocationBar>>,
 ) {
-    use crate::economy::{market_price, BuildingKind, Good};
+    use crate::economy::{BuildingKind, Good, market_price};
 
     let Some(player) = player_nation else {
         return;
@@ -362,11 +362,7 @@ pub fn update_all_allocation_summaries(
                 AllocationType::MarketBuy(good) => {
                     let allocated = alloc.market_buy_count(good);
                     if allocated > 0 {
-                        format!(
-                            "→ Will place buy orders for {} {}",
-                            allocated,
-                            good
-                        )
+                        format!("→ Will place buy orders for {} {}", allocated, good)
                     } else {
                         format!("→ No buy orders for {}", good)
                     }
@@ -375,11 +371,7 @@ pub fn update_all_allocation_summaries(
                 AllocationType::MarketSell(good) => {
                     let allocated = alloc.market_sell_count(good);
                     if allocated > 0 {
-                        format!(
-                            "→ Will offer {} {} for sale",
-                            allocated,
-                            good
-                        )
+                        format!("→ Will offer {} {} for sale", allocated, good)
                     } else {
                         format!("→ No sell offers for {}", good)
                     }

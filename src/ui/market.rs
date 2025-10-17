@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::button_style::*;
 use crate::economy::{
-    market_price, Allocations, Good, PlayerNation, Stockpile, Treasury, MARKET_RESOURCES,
+    Allocations, Good, MARKET_RESOURCES, PlayerNation, Stockpile, Treasury, market_price,
 };
 use crate::ui::city::allocation_widgets::AllocationType;
 use crate::ui::mode::GameMode;
@@ -98,113 +98,103 @@ pub fn ensure_market_screen_visible(
                     for &good in MARKET_RESOURCES {
                         let price = market_price(good);
                         let good_name = good.to_string();
-                        list
-                            .spawn((
-                                Node {
-                                    width: Val::Percent(100.0),
-                                    flex_direction: FlexDirection::Row,
-                                    column_gap: Val::Px(18.0),
-                                    padding: UiRect::all(Val::Px(12.0)),
-                                    align_items: AlignItems::FlexStart,
-                                    ..default()
-                                },
-                                BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.85)),
-                            ))
-                            .with_children(|row| {
-                                // Info column
-                                row
-                                    .spawn((
-                                        Node {
-                                            flex_direction: FlexDirection::Column,
-                                            row_gap: Val::Px(4.0),
-                                            min_width: Val::Px(160.0),
+                        list.spawn((
+                            Node {
+                                width: Val::Percent(100.0),
+                                flex_direction: FlexDirection::Row,
+                                column_gap: Val::Px(18.0),
+                                padding: UiRect::all(Val::Px(12.0)),
+                                align_items: AlignItems::FlexStart,
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.85)),
+                        ))
+                        .with_children(|row| {
+                            // Info column
+                            row.spawn((Node {
+                                flex_direction: FlexDirection::Column,
+                                row_gap: Val::Px(4.0),
+                                min_width: Val::Px(160.0),
+                                ..default()
+                            },))
+                                .with_children(|info| {
+                                    info.spawn((
+                                        Text::new(good_name.clone()),
+                                        TextFont {
+                                            font_size: 18.0,
                                             ..default()
                                         },
-                                    ))
-                                    .with_children(|info| {
-                                        info.spawn((
-                                            Text::new(good_name.clone()),
-                                            TextFont {
-                                                font_size: 18.0,
-                                                ..default()
-                                            },
-                                            TextColor(Color::srgb(0.95, 0.95, 0.9)),
-                                        ));
-                                        info.spawn((
-                                            Text::new(format!("Price: ${}", price)),
-                                            TextFont {
-                                                font_size: 14.0,
-                                                ..default()
-                                            },
-                                            TextColor(Color::srgb(0.75, 0.85, 1.0)),
-                                        ));
-                                        info.spawn((
-                                            Text::new("Stockpile: 0 free / 0 total (market 0)"),
-                                            TextFont {
-                                                font_size: 14.0,
-                                                ..default()
-                                            },
-                                            TextColor(Color::srgb(0.85, 0.85, 0.85)),
-                                            MarketInventoryText { good },
-                                        ));
-                                    });
+                                        TextColor(Color::srgb(0.95, 0.95, 0.9)),
+                                    ));
+                                    info.spawn((
+                                        Text::new(format!("Price: ${}", price)),
+                                        TextFont {
+                                            font_size: 14.0,
+                                            ..default()
+                                        },
+                                        TextColor(Color::srgb(0.75, 0.85, 1.0)),
+                                    ));
+                                    info.spawn((
+                                        Text::new("Stockpile: 0 free / 0 total (market 0)"),
+                                        TextFont {
+                                            font_size: 14.0,
+                                            ..default()
+                                        },
+                                        TextColor(Color::srgb(0.85, 0.85, 0.85)),
+                                        MarketInventoryText { good },
+                                    ));
+                                });
 
-                                // Buy column
-                                row
-                                    .spawn((
-                                        Node {
-                                            flex_direction: FlexDirection::Column,
-                                            row_gap: Val::Px(6.0),
-                                            min_width: Val::Px(220.0),
-                                            ..default()
-                                        },
-                                    ))
-                                    .with_children(|buy| {
-                                        crate::spawn_allocation_stepper!(
-                                            buy,
-                                            "Buy Orders",
-                                            AllocationType::MarketBuy(good)
-                                        );
-                                        crate::spawn_allocation_bar!(
-                                            buy,
-                                            Good::Gold,
-                                            "Treasury",
-                                            AllocationType::MarketBuy(good)
-                                        );
-                                        crate::spawn_allocation_summary!(
-                                            buy,
-                                            AllocationType::MarketBuy(good)
-                                        );
-                                    });
+                            // Buy column
+                            row.spawn((Node {
+                                flex_direction: FlexDirection::Column,
+                                row_gap: Val::Px(6.0),
+                                min_width: Val::Px(220.0),
+                                ..default()
+                            },))
+                                .with_children(|buy| {
+                                    crate::spawn_allocation_stepper!(
+                                        buy,
+                                        "Buy Orders",
+                                        AllocationType::MarketBuy(good)
+                                    );
+                                    crate::spawn_allocation_bar!(
+                                        buy,
+                                        Good::Gold,
+                                        "Treasury",
+                                        AllocationType::MarketBuy(good)
+                                    );
+                                    crate::spawn_allocation_summary!(
+                                        buy,
+                                        AllocationType::MarketBuy(good)
+                                    );
+                                });
 
-                                // Sell column
-                                row
-                                    .spawn((
-                                        Node {
-                                            flex_direction: FlexDirection::Column,
-                                            row_gap: Val::Px(6.0),
-                                            min_width: Val::Px(220.0),
-                                            ..default()
-                                        },
-                                    ))
-                                    .with_children(|sell| {
-                                        crate::spawn_allocation_stepper!(
-                                            sell,
-                                            "Sell Offers",
-                                            AllocationType::MarketSell(good)
-                                        );
-                                        crate::spawn_allocation_bar!(
-                                            sell,
-                                            good,
-                                            "Inventory",
-                                            AllocationType::MarketSell(good)
-                                        );
-                                        crate::spawn_allocation_summary!(
-                                            sell,
-                                            AllocationType::MarketSell(good)
-                                        );
-                                    });
-                            });
+                            // Sell column
+                            row.spawn((Node {
+                                flex_direction: FlexDirection::Column,
+                                row_gap: Val::Px(6.0),
+                                min_width: Val::Px(220.0),
+                                ..default()
+                            },))
+                                .with_children(|sell| {
+                                    crate::spawn_allocation_stepper!(
+                                        sell,
+                                        "Sell Offers",
+                                        AllocationType::MarketSell(good)
+                                    );
+                                    crate::spawn_allocation_bar!(
+                                        sell,
+                                        good,
+                                        "Inventory",
+                                        AllocationType::MarketSell(good)
+                                    );
+                                    crate::spawn_allocation_summary!(
+                                        sell,
+                                        AllocationType::MarketSell(good)
+                                    );
+                                });
+                        });
                     }
                 });
 
@@ -243,7 +233,9 @@ fn update_market_treasury_text(
     treasury_changed: Query<Entity, Changed<Treasury>>,
     new_texts: Query<Entity, Added<MarketTreasuryText>>,
 ) {
-    let Some(player) = player else { return; };
+    let Some(player) = player else {
+        return;
+    };
 
     if treasury_changed.is_empty() && allocations_changed.is_empty() && new_texts.is_empty() {
         return;
@@ -259,8 +251,7 @@ fn update_market_treasury_text(
     for mut text in texts.iter_mut() {
         text.0 = format!(
             "Treasury available: ${} (reserved ${})",
-            available,
-            reserved
+            available, reserved
         );
     }
 }
@@ -274,7 +265,9 @@ fn update_market_inventory_texts(
     allocations_changed: Query<Entity, Changed<Allocations>>,
     new_texts: Query<Entity, Added<MarketInventoryText>>,
 ) {
-    let Some(player) = player else { return; };
+    let Some(player) = player else {
+        return;
+    };
 
     if stockpile_changed.is_empty() && allocations_changed.is_empty() && new_texts.is_empty() {
         return;
@@ -295,10 +288,7 @@ fn update_market_inventory_texts(
         let market_reserved = allocations.market_sell_count(marker.good) as u32;
         text.0 = format!(
             "Stockpile: {} free / {} total (reserved {}, market {})",
-            available,
-            total,
-            reserved,
-            market_reserved
+            available, total, reserved, market_reserved
         );
     }
 }

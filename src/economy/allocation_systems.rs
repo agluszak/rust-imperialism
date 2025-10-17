@@ -1,7 +1,10 @@
 use bevy::prelude::*;
 
 use super::{
-    allocation::{AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, Allocations, MarketOrderKind},
+    allocation::{
+        AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, Allocations,
+        MarketOrderKind,
+    },
     goods::Good,
     production::{BuildingKind, Buildings},
     reservation::ReservationSystem,
@@ -442,13 +445,8 @@ pub fn apply_market_order_adjustments(
     )>,
 ) {
     for msg in messages.read() {
-        let Ok((
-            mut allocations,
-            mut reservations,
-            mut stockpile,
-            mut workforce,
-            mut treasury,
-        )) = nations.get_mut(msg.nation)
+        let Ok((mut allocations, mut reservations, mut stockpile, mut workforce, mut treasury)) =
+            nations.get_mut(msg.nation)
         else {
             warn!("Cannot adjust market orders: nation not found");
             continue;

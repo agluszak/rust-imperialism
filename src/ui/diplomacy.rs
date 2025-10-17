@@ -27,58 +27,52 @@ pub fn ensure_diplomacy_screen_visible(
         return;
     }
 
-    commands
-        .spawn((
-            Node {
-                position_type: PositionType::Absolute,
-                left: Val::Px(0.0),
-                right: Val::Px(0.0),
-                top: Val::Px(0.0),
-                bottom: Val::Px(0.0),
-                padding: UiRect::all(Val::Px(16.0)),
-                flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(12.0),
-                ..default()
-            },
-            BackgroundColor(Color::srgba(0.07, 0.05, 0.05, 0.92)),
-            DiplomacyScreen,
-            Visibility::Visible,
-        ))
-        .with_children(|parent| {
-            parent.spawn((
+    commands.spawn((
+        Node {
+            position_type: PositionType::Absolute,
+            left: Val::Px(0.0),
+            right: Val::Px(0.0),
+            top: Val::Px(0.0),
+            bottom: Val::Px(0.0),
+            padding: UiRect::all(Val::Px(16.0)),
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(12.0),
+            ..default()
+        },
+        BackgroundColor(Color::srgba(0.07, 0.05, 0.05, 0.92)),
+        DiplomacyScreen,
+        Visibility::Visible,
+        children![
+            (
                 Text::new("Diplomacy Mode (stub)"),
                 TextFont {
                     font_size: 24.0,
                     ..default()
                 },
                 TextColor(Color::srgb(0.95, 0.9, 1.0)),
-            ));
-
-            // Back to Map
-            parent
-                .spawn((
-                    Button,
-                    Node {
-                        position_type: PositionType::Absolute,
-                        top: Val::Px(16.0),
-                        right: Val::Px(16.0),
-                        padding: UiRect::all(Val::Px(6.0)),
+            ),
+            (
+                Button,
+                Node {
+                    position_type: PositionType::Absolute,
+                    top: Val::Px(16.0),
+                    right: Val::Px(16.0),
+                    padding: UiRect::all(Val::Px(6.0)),
+                    ..default()
+                },
+                BackgroundColor(NORMAL_BUTTON),
+                crate::ui::mode::MapModeButton,
+                children![(
+                    Text::new("Back to Map"),
+                    TextFont {
+                        font_size: 16.0,
                         ..default()
                     },
-                    BackgroundColor(NORMAL_BUTTON),
-                    crate::ui::mode::MapModeButton,
-                ))
-                .with_children(|b| {
-                    b.spawn((
-                        Text::new("Back to Map"),
-                        TextFont {
-                            font_size: 16.0,
-                            ..default()
-                        },
-                        TextColor(Color::srgb(0.9, 0.9, 1.0)),
-                    ));
-                });
-        });
+                    TextColor(Color::srgb(0.9, 0.9, 1.0)),
+                )],
+            ),
+        ],
+    ));
 }
 
 pub fn hide_diplomacy_screen(mut roots: Query<&mut Visibility, With<DiplomacyScreen>>) {

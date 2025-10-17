@@ -212,110 +212,95 @@ pub fn setup_ui(mut commands: Commands) {
                 TransportModeButton,
             };
             // Map Mode button
-            sidebar
-                .spawn((
-                    Button,
-                    Node {
-                        padding: UiRect::all(Val::Px(6.0)),
+            sidebar.spawn((
+                Button,
+                Node {
+                    padding: UiRect::all(Val::Px(6.0)),
+                    ..default()
+                },
+                BackgroundColor(NORMAL_BUTTON),
+                MapModeButton,
+                children![(
+                    Text::new("Map"),
+                    TextFont {
+                        font_size: 16.0,
                         ..default()
                     },
-                    BackgroundColor(NORMAL_BUTTON),
-                    MapModeButton,
-                ))
-                .with_children(|b| {
-                    b.spawn((
-                        Text::new("Map"),
-                        TextFont {
-                            font_size: 16.0,
-                            ..default()
-                        },
-                        TextColor(Color::srgb(0.9, 0.9, 1.0)),
-                    ));
-                });
+                    TextColor(Color::srgb(0.9, 0.9, 1.0)),
+                )],
+            ));
             // Transport Mode button
-            sidebar
-                .spawn((
-                    Button,
-                    Node {
-                        padding: UiRect::all(Val::Px(6.0)),
+            sidebar.spawn((
+                Button,
+                Node {
+                    padding: UiRect::all(Val::Px(6.0)),
+                    ..default()
+                },
+                BackgroundColor(NORMAL_BUTTON),
+                TransportModeButton,
+                children![(
+                    Text::new("Transport"),
+                    TextFont {
+                        font_size: 16.0,
                         ..default()
                     },
-                    BackgroundColor(NORMAL_BUTTON),
-                    TransportModeButton,
-                ))
-                .with_children(|b| {
-                    b.spawn((
-                        Text::new("Transport"),
-                        TextFont {
-                            font_size: 16.0,
-                            ..default()
-                        },
-                        TextColor(Color::srgb(0.9, 0.9, 1.0)),
-                    ));
-                });
+                    TextColor(Color::srgb(0.9, 0.9, 1.0)),
+                )],
+            ));
             // City Mode button
-            sidebar
-                .spawn((
-                    Button,
-                    Node {
-                        padding: UiRect::all(Val::Px(6.0)),
+            sidebar.spawn((
+                Button,
+                Node {
+                    padding: UiRect::all(Val::Px(6.0)),
+                    ..default()
+                },
+                BackgroundColor(NORMAL_BUTTON),
+                CityModeButton,
+                children![(
+                    Text::new("City"),
+                    TextFont {
+                        font_size: 16.0,
                         ..default()
                     },
-                    BackgroundColor(NORMAL_BUTTON),
-                    CityModeButton,
-                ))
-                .with_children(|b| {
-                    b.spawn((
-                        Text::new("City"),
-                        TextFont {
-                            font_size: 16.0,
-                            ..default()
-                        },
-                        TextColor(Color::srgb(0.9, 0.9, 1.0)),
-                    ));
-                });
+                    TextColor(Color::srgb(0.9, 0.9, 1.0)),
+                )],
+            ));
             // Market Mode button
-            sidebar
-                .spawn((
-                    Button,
-                    Node {
-                        padding: UiRect::all(Val::Px(6.0)),
+            sidebar.spawn((
+                Button,
+                Node {
+                    padding: UiRect::all(Val::Px(6.0)),
+                    ..default()
+                },
+                BackgroundColor(NORMAL_BUTTON),
+                MarketModeButton,
+                children![(
+                    Text::new("Market"),
+                    TextFont {
+                        font_size: 16.0,
                         ..default()
                     },
-                    BackgroundColor(NORMAL_BUTTON),
-                    MarketModeButton,
-                ))
-                .with_children(|b| {
-                    b.spawn((
-                        Text::new("Market"),
-                        TextFont {
-                            font_size: 16.0,
-                            ..default()
-                        },
-                        TextColor(Color::srgb(0.9, 0.9, 1.0)),
-                    ));
-                });
+                    TextColor(Color::srgb(0.9, 0.9, 1.0)),
+                )],
+            ));
             // Diplomacy Mode button
-            sidebar
-                .spawn((
-                    Button,
-                    Node {
-                        padding: UiRect::all(Val::Px(6.0)),
+            sidebar.spawn((
+                Button,
+                Node {
+                    padding: UiRect::all(Val::Px(6.0)),
+                    ..default()
+                },
+                BackgroundColor(NORMAL_BUTTON),
+                DiplomacyModeButton,
+                children![(
+                    Text::new("Diplomacy"),
+                    TextFont {
+                        font_size: 16.0,
                         ..default()
                     },
-                    BackgroundColor(NORMAL_BUTTON),
-                    DiplomacyModeButton,
-                ))
-                .with_children(|b| {
-                    b.spawn((
-                        Text::new("Diplomacy"),
-                        TextFont {
-                            font_size: 16.0,
-                            ..default()
-                        },
-                        TextColor(Color::srgb(0.9, 0.9, 1.0)),
-                    ));
-                });
+                    TextColor(Color::srgb(0.9, 0.9, 1.0)),
+                )],
+            ));
         });
 }
 

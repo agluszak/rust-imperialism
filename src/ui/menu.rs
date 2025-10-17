@@ -48,27 +48,25 @@ fn ensure_main_menu_visible(
     }
 
     // Fullscreen menu background panel
-    commands
-        .spawn((
-            Node {
-                position_type: PositionType::Absolute,
-                left: Val::Px(0.0),
-                right: Val::Px(0.0),
-                top: Val::Px(0.0),
-                bottom: Val::Px(0.0),
-                padding: UiRect::all(Val::Px(16.0)),
-                flex_direction: FlexDirection::Column,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                row_gap: Val::Px(16.0),
-                ..default()
-            },
-            BackgroundColor(Color::srgba(0.02, 0.02, 0.05, 0.96)),
-            MainMenuRoot,
-            Visibility::Visible,
-        ))
-        .with_children(|parent| {
-            parent.spawn((
+    commands.spawn((
+        Node {
+            position_type: PositionType::Absolute,
+            left: Val::Px(0.0),
+            right: Val::Px(0.0),
+            top: Val::Px(0.0),
+            bottom: Val::Px(0.0),
+            padding: UiRect::all(Val::Px(16.0)),
+            flex_direction: FlexDirection::Column,
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            row_gap: Val::Px(16.0),
+            ..default()
+        },
+        BackgroundColor(Color::srgba(0.02, 0.02, 0.05, 0.96)),
+        MainMenuRoot,
+        Visibility::Visible,
+        children![
+            (
                 Text::new("Rust Imperialism"),
                 TextFont {
                     font_size: 36.0,
@@ -79,53 +77,44 @@ fn ensure_main_menu_visible(
                     margin: UiRect::bottom(Val::Px(16.0)),
                     ..default()
                 },
-            ));
-
-            // New Game button
-            parent
-                .spawn((
-                    Button,
-                    Node {
-                        padding: UiRect::axes(Val::Px(20.0), Val::Px(10.0)),
+            ),
+            (
+                Button,
+                Node {
+                    padding: UiRect::axes(Val::Px(20.0), Val::Px(10.0)),
+                    ..default()
+                },
+                BackgroundColor(NORMAL_ACCENT),
+                AccentButton,
+                NewGameButton,
+                children![(
+                    Text::new("New Game"),
+                    TextFont {
+                        font_size: 20.0,
                         ..default()
                     },
-                    BackgroundColor(NORMAL_ACCENT),
-                    AccentButton,
-                    NewGameButton,
-                ))
-                .with_children(|b| {
-                    b.spawn((
-                        Text::new("New Game"),
-                        TextFont {
-                            font_size: 20.0,
-                            ..default()
-                        },
-                        TextColor(Color::srgb(0.9, 0.9, 1.0)),
-                    ));
-                });
-
-            // Quit button
-            parent
-                .spawn((
-                    Button,
-                    Node {
-                        padding: UiRect::axes(Val::Px(20.0), Val::Px(10.0)),
+                    TextColor(Color::srgb(0.9, 0.9, 1.0)),
+                )],
+            ),
+            (
+                Button,
+                Node {
+                    padding: UiRect::axes(Val::Px(20.0), Val::Px(10.0)),
+                    ..default()
+                },
+                BackgroundColor(NORMAL_BUTTON),
+                QuitButton,
+                children![(
+                    Text::new("Quit"),
+                    TextFont {
+                        font_size: 20.0,
                         ..default()
                     },
-                    BackgroundColor(NORMAL_BUTTON),
-                    QuitButton,
-                ))
-                .with_children(|b| {
-                    b.spawn((
-                        Text::new("Quit"),
-                        TextFont {
-                            font_size: 20.0,
-                            ..default()
-                        },
-                        TextColor(Color::srgb(0.9, 0.9, 1.0)),
-                    ));
-                });
-        });
+                    TextColor(Color::srgb(0.9, 0.9, 1.0)),
+                )],
+            ),
+        ],
+    ));
 }
 
 fn hide_main_menu(mut roots: Query<&mut Visibility, With<MainMenuRoot>>) {

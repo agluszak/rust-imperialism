@@ -54,74 +54,63 @@ pub fn update_engineer_orders_ui(
         // Engineer is selected, ensure panel exists
         if existing_panel.is_empty() {
             info!("Creating Engineer orders panel");
-            commands
-                .spawn((
-                    Node {
-                        position_type: PositionType::Absolute,
-                        right: Val::Px(16.0),
-                        top: Val::Px(100.0),
-                        padding: UiRect::all(Val::Px(12.0)),
-                        flex_direction: FlexDirection::Column,
-                        row_gap: Val::Px(8.0),
-                        ..default()
-                    },
-                    BackgroundColor(Color::srgba(0.1, 0.1, 0.15, 0.95)),
-                    EngineerOrdersPanel,
-                ))
-                .with_children(|parent| {
-                    parent.spawn((
+            commands.spawn((
+                Node {
+                    position_type: PositionType::Absolute,
+                    right: Val::Px(16.0),
+                    top: Val::Px(100.0),
+                    padding: UiRect::all(Val::Px(12.0)),
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(8.0),
+                    ..default()
+                },
+                BackgroundColor(Color::srgba(0.1, 0.1, 0.15, 0.95)),
+                EngineerOrdersPanel,
+                children![
+                    (
                         Text::new("Engineer Orders"),
                         TextFont {
                             font_size: 18.0,
                             ..default()
                         },
                         TextColor(Color::srgb(1.0, 0.95, 0.8)),
-                    ));
-
-                    // Build Depot button
-                    parent
-                        .spawn((
-                            Button,
-                            Node {
-                                padding: UiRect::all(Val::Px(8.0)),
+                    ),
+                    (
+                        Button,
+                        Node {
+                            padding: UiRect::all(Val::Px(8.0)),
+                            ..default()
+                        },
+                        BackgroundColor(NORMAL_BUTTON),
+                        BuildDepotButton,
+                        children![(
+                            Text::new("Build Depot"),
+                            TextFont {
+                                font_size: 14.0,
                                 ..default()
                             },
-                            BackgroundColor(NORMAL_BUTTON),
-                            BuildDepotButton,
-                        ))
-                        .with_children(|b| {
-                            b.spawn((
-                                Text::new("Build Depot"),
-                                TextFont {
-                                    font_size: 14.0,
-                                    ..default()
-                                },
-                                TextColor(Color::srgb(0.9, 0.95, 1.0)),
-                            ));
-                        });
-
-                    // Build Port button
-                    parent
-                        .spawn((
-                            Button,
-                            Node {
-                                padding: UiRect::all(Val::Px(8.0)),
+                            TextColor(Color::srgb(0.9, 0.95, 1.0)),
+                        )],
+                    ),
+                    (
+                        Button,
+                        Node {
+                            padding: UiRect::all(Val::Px(8.0)),
+                            ..default()
+                        },
+                        BackgroundColor(NORMAL_BUTTON),
+                        BuildPortButton,
+                        children![(
+                            Text::new("Build Port"),
+                            TextFont {
+                                font_size: 14.0,
                                 ..default()
                             },
-                            BackgroundColor(NORMAL_BUTTON),
-                            BuildPortButton,
-                        ))
-                        .with_children(|b| {
-                            b.spawn((
-                                Text::new("Build Port"),
-                                TextFont {
-                                    font_size: 14.0,
-                                    ..default()
-                                },
-                                TextColor(Color::srgb(0.9, 0.95, 1.0)),
-                            ));
-                        });
-                });
+                            TextColor(Color::srgb(0.9, 0.95, 1.0)),
+                        )],
+                    ),
+                ],
+            ));
         }
     } else {
         // No engineer selected, remove panel and its children
@@ -201,52 +190,46 @@ pub fn update_improver_orders_ui(
         if existing_panel.is_empty() {
             let panel_title = format!("{:?} Orders", improver.kind);
             info!("Creating {} orders panel", panel_title);
-            commands
-                .spawn((
-                    Node {
-                        position_type: PositionType::Absolute,
-                        right: Val::Px(16.0),
-                        top: Val::Px(100.0),
-                        padding: UiRect::all(Val::Px(12.0)),
-                        flex_direction: FlexDirection::Column,
-                        row_gap: Val::Px(8.0),
-                        ..default()
-                    },
-                    BackgroundColor(Color::srgba(0.1, 0.15, 0.1, 0.95)),
-                    ImproverOrdersPanel,
-                ))
-                .with_children(|parent| {
-                    parent.spawn((
+            commands.spawn((
+                Node {
+                    position_type: PositionType::Absolute,
+                    right: Val::Px(16.0),
+                    top: Val::Px(100.0),
+                    padding: UiRect::all(Val::Px(12.0)),
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(8.0),
+                    ..default()
+                },
+                BackgroundColor(Color::srgba(0.1, 0.15, 0.1, 0.95)),
+                ImproverOrdersPanel,
+                children![
+                    (
                         Text::new(panel_title),
                         TextFont {
                             font_size: 18.0,
                             ..default()
                         },
                         TextColor(Color::srgb(1.0, 0.95, 0.8)),
-                    ));
-
-                    // Improve Tile button
-                    parent
-                        .spawn((
-                            Button,
-                            Node {
-                                padding: UiRect::all(Val::Px(8.0)),
+                    ),
+                    (
+                        Button,
+                        Node {
+                            padding: UiRect::all(Val::Px(8.0)),
+                            ..default()
+                        },
+                        BackgroundColor(NORMAL_BUTTON),
+                        ImproveTileButton,
+                        children![(
+                            Text::new("Improve Tile"),
+                            TextFont {
+                                font_size: 14.0,
                                 ..default()
                             },
-                            BackgroundColor(NORMAL_BUTTON),
-                            ImproveTileButton,
-                        ))
-                        .with_children(|b| {
-                            b.spawn((
-                                Text::new("Improve Tile"),
-                                TextFont {
-                                    font_size: 14.0,
-                                    ..default()
-                                },
-                                TextColor(Color::srgb(0.9, 0.9, 1.0)),
-                            ));
-                        });
-                });
+                            TextColor(Color::srgb(0.9, 0.9, 1.0)),
+                        )],
+                    ),
+                ],
+            ));
         }
     } else {
         // No improver selected, remove panel and its children
@@ -274,24 +257,21 @@ pub fn update_rescind_orders_ui(
         // Civilian is selected and has a previous position - show panel
         if existing_panel.is_empty() {
             // Create panel if it doesn't exist
-            commands
-                .spawn((
-                    Node {
-                        position_type: PositionType::Absolute,
-                        left: Val::Px(16.0),
-                        bottom: Val::Px(200.0),
-                        padding: UiRect::all(Val::Px(12.0)),
-                        flex_direction: FlexDirection::Column,
-                        row_gap: Val::Px(8.0),
-                        ..default()
-                    },
-                    BackgroundColor(Color::srgba(0.15, 0.12, 0.1, 0.95)),
-                    BorderColor::all(Color::srgba(0.6, 0.5, 0.4, 0.9)),
-                    RescindOrdersPanel,
-                ))
-                .with_children(|parent| {
-                    // Title showing previous position
-                    parent.spawn((
+            commands.spawn((
+                Node {
+                    position_type: PositionType::Absolute,
+                    left: Val::Px(16.0),
+                    bottom: Val::Px(200.0),
+                    padding: UiRect::all(Val::Px(12.0)),
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(8.0),
+                    ..default()
+                },
+                BackgroundColor(Color::srgba(0.15, 0.12, 0.1, 0.95)),
+                BorderColor::all(Color::srgba(0.6, 0.5, 0.4, 0.9)),
+                RescindOrdersPanel,
+                children![
+                    (
                         Text::new(format!(
                             "Undo Action\nWas at: ({}, {})",
                             prev_pos.0.x, prev_pos.0.y
@@ -301,41 +281,35 @@ pub fn update_rescind_orders_ui(
                             ..default()
                         },
                         TextColor(Color::srgb(1.0, 0.9, 0.7)),
-                    ));
-
-                    // Rescind Orders button
-                    parent
-                        .spawn((
-                            Button,
-                            Node {
-                                padding: UiRect::all(Val::Px(8.0)),
+                    ),
+                    (
+                        Button,
+                        Node {
+                            padding: UiRect::all(Val::Px(8.0)),
+                            ..default()
+                        },
+                        BackgroundColor(NORMAL_DANGER),
+                        crate::ui::button_style::DangerButton,
+                        RescindOrdersButton,
+                        children![(
+                            Text::new("Rescind Orders"),
+                            TextFont {
+                                font_size: 14.0,
                                 ..default()
                             },
-                            BackgroundColor(NORMAL_DANGER),
-                            crate::ui::button_style::DangerButton,
-                            RescindOrdersButton,
-                        ))
-                        .with_children(|b| {
-                            b.spawn((
-                                Text::new("Rescind Orders"),
-                                TextFont {
-                                    font_size: 14.0,
-                                    ..default()
-                                },
-                                TextColor(Color::srgb(1.0, 0.9, 0.9)),
-                            ));
-                        });
-
-                    // Warning text about refund policy
-                    parent.spawn((
+                            TextColor(Color::srgb(1.0, 0.9, 0.9)),
+                        )],
+                    ),
+                    (
                         Text::new("(Refund if same turn)"),
                         TextFont {
                             font_size: 11.0,
                             ..default()
                         },
                         TextColor(Color::srgb(0.7, 0.9, 0.7)),
-                    ));
-                });
+                    ),
+                ],
+            ));
         }
     } else {
         // No selected civilian with previous position, remove panel and its children

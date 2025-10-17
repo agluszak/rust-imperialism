@@ -33,11 +33,11 @@ pub struct AllocationStepperButton {
 }
 
 /// Generic allocation bar (for resource requirements)
-#[derive(Component, Clone, Copy)]
+#[derive(Component, Clone)]
 pub struct AllocationBar {
     pub allocation_type: AllocationType,
     pub good: Good,
-    pub label: &'static str,
+    pub label: String,
 }
 
 /// Generic summary text ("Will do X next turn")
@@ -207,7 +207,7 @@ macro_rules! spawn_allocation_bar {
                     AllocationBar {
                         allocation_type: $allocation_type,
                         good: $good,
-                        label: $good_name,
+                        label: $good_name.to_string(),
                     },
                 ));
 
