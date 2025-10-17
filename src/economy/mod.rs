@@ -14,7 +14,7 @@ pub mod workforce;
 
 pub use allocation::{
     AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, Allocations,
-    MarketOrderKind,
+    MarketInterest,
 };
 pub use calendar::{Calendar, Season};
 pub use goods::Good;

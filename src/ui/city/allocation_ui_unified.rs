@@ -6,7 +6,7 @@ use super::allocation_widgets::{
 };
 use crate::economy::{
     AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, Allocations,
-    MarketOrderKind, PlayerNation, Stockpile, Treasury,
+    MarketInterest, PlayerNation, Stockpile, Treasury,
 };
 
 // ============================================================================
@@ -77,17 +77,20 @@ pub fn handle_all_stepper_buttons(
                 }
 
                 AllocationType::MarketBuy(good) => {
-                    let current = alloc.market_buy_count(good) as u32;
-                    let new_requested = (current as i32 + button.delta).max(0) as u32;
+                    // Buy interest is boolean - toggle between 0 and 1
+                    let current = if alloc.has_buy_interest(good) { 1 } else { 0 };
+                    let new_requested = if current == 0 { 1 } else { 0 };
                     market_writer.write(AdjustMarketOrder {
                         nation: player.0,
                         good,
-                        kind: MarketOrderKind::Buy,
+                        kind: MarketInterest::Buy,
                         requested: new_requested,
                     });
                     info!(
-                        "Market buy ({:?}): {} → {} (delta: {})",
-                        good, current, new_requested, button.delta
+                        "Market buy interest ({:?}): {} → {}",
+                        good,
+                        if current == 1 { "ON" } else { "OFF" },
+                        if new_requested == 1 { "ON" } else { "OFF" }
                     );
                 }
 
@@ -97,7 +100,7 @@ pub fn handle_all_stepper_buttons(
                     market_writer.write(AdjustMarketOrder {
                         nation: player.0,
                         good,
-                        kind: MarketOrderKind::Sell,
+                        kind: MarketInterest::Sell,
                         requested: new_requested,
                     });
                     info!(
@@ -142,7 +145,13 @@ pub fn update_all_stepper_displays(
                     alloc.production_count(building_entity, output_good)
                 }
 
-                AllocationType::MarketBuy(good) => alloc.market_buy_count(good),
+                AllocationType::MarketBuy(good) => {
+                    if alloc.has_buy_interest(good) {
+                        1
+                    } else {
+                        0
+                    }
+                }
 
                 AllocationType::MarketSell(good) => alloc.market_sell_count(good),
             };
@@ -169,7 +178,7 @@ pub fn update_all_allocation_bars(
     allocations_changed: Query<Entity, Changed<Allocations>>,
     new_bars: Query<Entity, Added<AllocationBar>>,
 ) {
-    use crate::economy::{BuildingKind, Good, market_price};
+    use crate::economy::{BuildingKind, Good};
 
     let Some(player) = player_nation else {
         return;
@@ -192,7 +201,7 @@ pub fn update_all_allocation_bars(
         return;
     };
 
-    let Ok(treasury) = treasuries.get(player.0) else {
+    let Ok(_treasury) = treasuries.get(player.0) else {
         return;
     };
 
@@ -255,14 +264,9 @@ pub fn update_all_allocation_bars(
             }
 
             AllocationType::MarketBuy(good) => {
-                let count = alloc.market_buy_count(good) as u32;
-                let needed = if count == 0 {
-                    0
-                } else {
-                    count.saturating_mul(market_price(good))
-                };
-                let available = treasury.available().max(0) as u32;
-                (needed, available)
+                // Buy interest is just a flag, no resources needed/reserved
+                let _has_interest = alloc.has_buy_interest(good);
+                (0, 0)
             }
 
             AllocationType::MarketSell(good) => {
@@ -360,11 +364,10 @@ pub fn update_all_allocation_summaries(
                 }
 
                 AllocationType::MarketBuy(good) => {
-                    let allocated = alloc.market_buy_count(good);
-                    if allocated > 0 {
-                        format!("→ Will place buy orders for {} {}", allocated, good)
+                    if alloc.has_buy_interest(good) {
+                        format!("→ Interested in buying {}", good)
                     } else {
-                        format!("→ No buy orders for {}", good)
+                        format!("→ No buy interest for {}", good)
                     }
                 }
 

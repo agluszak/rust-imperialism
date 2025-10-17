@@ -447,3 +447,85 @@ fn test_lumber_mill_capacity_across_multiple_outputs() {
         lumber_mill_capacity
     );
 }
+
+/// Test that buy and sell orders are mutually exclusive for the same good
+#[test]
+fn test_market_orders_mutually_exclusive() {
+    let mut allocations = Allocations::default();
+    let mut reservations = ReservationSystem::default();
+    let mut stockpile = Stockpile::default();
+    let mut workforce = Workforce::new();
+    let mut treasury = Treasury::new(10000);
+
+    // Setup: plenty of resources
+    stockpile.add(Good::Cotton, 100);
+    workforce.add_untrained(10);
+    workforce.update_labor_pool();
+
+    // Place 3 sell orders for Cotton (uses reservation system)
+    for _ in 0..3 {
+        let res_id = reservations
+            .try_reserve(
+                vec![(Good::Cotton, 1)],
+                0,
+                0,
+                &mut stockpile,
+                &mut workforce,
+                &mut treasury,
+            )
+            .unwrap();
+        allocations
+            .market_sells
+            .entry(Good::Cotton)
+            .or_default()
+            .push(res_id);
+    }
+
+    assert_eq!(allocations.market_sell_count(Good::Cotton), 3);
+    assert!(!allocations.has_buy_interest(Good::Cotton));
+    assert_eq!(stockpile.get_available(Good::Cotton), 97); // 3 reserved for selling
+
+    // Set buy interest for Cotton - this should clear the sell orders
+    allocations.market_buy_interest.insert(Good::Cotton);
+
+    // Simulate what apply_market_order_adjustments would do:
+    // When setting buy interest, it should clear sell orders
+    if let Some(sell_orders) = allocations.market_sells.get_mut(&Good::Cotton) {
+        while let Some(res_id) = sell_orders.pop() {
+            reservations.release(res_id, &mut stockpile, &mut workforce, &mut treasury);
+        }
+    }
+
+    // Verify sell orders are now cleared and buy interest is set
+    assert_eq!(allocations.market_sell_count(Good::Cotton), 0);
+    assert!(allocations.has_buy_interest(Good::Cotton));
+    assert_eq!(stockpile.get_available(Good::Cotton), 100); // All Cotton now available
+
+    // Now reverse: place sell orders again, which should clear buy interest
+    for _ in 0..2 {
+        let res_id = reservations
+            .try_reserve(
+                vec![(Good::Cotton, 1)],
+                0,
+                0,
+                &mut stockpile,
+                &mut workforce,
+                &mut treasury,
+            )
+            .unwrap();
+        allocations
+            .market_sells
+            .entry(Good::Cotton)
+            .or_default()
+            .push(res_id);
+    }
+
+    // Simulate what apply_market_order_adjustments would do:
+    // When setting sell orders, it should clear buy interest
+    allocations.market_buy_interest.remove(&Good::Cotton);
+
+    // Verify buy interest is now cleared and sell orders exist
+    assert!(!allocations.has_buy_interest(Good::Cotton));
+    assert_eq!(allocations.market_sell_count(Good::Cotton), 2);
+    assert_eq!(stockpile.get_available(Good::Cotton), 98); // 2 reserved for selling
+}

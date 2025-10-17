@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use super::{
     allocation::{
         AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, Allocations,
-        MarketOrderKind,
+        MarketInterest,
     },
     goods::Good,
     production::{BuildingKind, Buildings},
@@ -12,7 +12,7 @@ use super::{
     treasury::Treasury,
     workforce::{RecruitmentCapacity, types::*},
 };
-use crate::{economy::market_price, province::Province, turn_system::TurnSystem};
+use crate::{province::Province, turn_system::TurnSystem};
 
 // ============================================================================
 // Production Adjustment System (Unit-by-Unit Reservations)
@@ -452,17 +452,16 @@ pub fn apply_market_order_adjustments(
             continue;
         };
 
-        let target = msg.requested as usize;
-
         match msg.kind {
-            MarketOrderKind::Buy => {
-                let orders = allocations.market_buys.entry(msg.good).or_default();
-                let current = orders.len();
+            MarketInterest::Buy => {
+                // Buy orders are just interest flags (no quantities or reservations)
+                let wants_to_buy = msg.requested > 0;
 
-                if target < current {
-                    let to_remove = current - target;
-                    for _ in 0..to_remove {
-                        if let Some(res_id) = orders.pop() {
+                if wants_to_buy {
+                    // Clear any existing sell orders for this good (can't buy and sell simultaneously)
+                    if let Some(sell_orders) = allocations.market_sells.get_mut(&msg.good) {
+                        let cleared_count = sell_orders.len();
+                        while let Some(res_id) = sell_orders.pop() {
                             reservations.release(
                                 res_id,
                                 &mut stockpile,
@@ -470,51 +469,37 @@ pub fn apply_market_order_adjustments(
                                 &mut treasury,
                             );
                         }
-                    }
-
-                    debug!(
-                        "Market buy decreased: {:?} {} → {}",
-                        msg.good, current, target
-                    );
-                } else if target > current {
-                    let to_add = target - current;
-                    let mut added = 0;
-                    let price = market_price(msg.good);
-
-                    for _ in 0..to_add {
-                        if let Some(res_id) = reservations.try_reserve(
-                            Vec::<(Good, u32)>::new(),
-                            0,
-                            price,
-                            &mut stockpile,
-                            &mut workforce,
-                            &mut treasury,
-                        ) {
-                            orders.push(res_id);
-                            added += 1;
-                        } else {
-                            break;
+                        if cleared_count > 0 {
+                            debug!(
+                                "Cleared {} sell orders for {:?} (switching to buy interest)",
+                                cleared_count, msg.good
+                            );
                         }
                     }
 
-                    if added > 0 {
-                        debug!(
-                            "Market buy increased: {:?} {} → {} ({} added)",
-                            msg.good,
-                            current,
-                            current + added,
-                            added
-                        );
-                    } else if to_add > 0 {
-                        debug!(
-                            "Market buy increase blocked: {:?} – insufficient treasury",
-                            msg.good
-                        );
+                    // Set buy interest flag
+                    if allocations.market_buy_interest.insert(msg.good) {
+                        debug!("Set buy interest for {:?}", msg.good);
+                    }
+                } else {
+                    // Clear buy interest flag
+                    if allocations.market_buy_interest.remove(&msg.good) {
+                        debug!("Cleared buy interest for {:?}", msg.good);
                     }
                 }
             }
 
-            MarketOrderKind::Sell => {
+            MarketInterest::Sell => {
+                let target = msg.requested as usize;
+
+                // Clear any existing buy interest for this good (can't buy and sell simultaneously)
+                if target > 0 && allocations.market_buy_interest.remove(&msg.good) {
+                    debug!(
+                        "Cleared buy interest for {:?} (switching to sell)",
+                        msg.good
+                    );
+                }
+
                 let orders = allocations.market_sells.entry(msg.good).or_default();
                 let current = orders.len();
 
@@ -663,15 +648,9 @@ pub fn finalize_allocations(
             }
         }
 
-        // Log market orders - execution happens in dedicated market systems
-        for (good, res_ids) in &allocations.market_buys {
-            if !res_ids.is_empty() {
-                info!(
-                    "Queued market buy orders: {} × {:?} (awaiting clearing)",
-                    res_ids.len(),
-                    good
-                );
-            }
+        // Log market buy interest - execution happens in dedicated market systems
+        for good in &allocations.market_buy_interest {
+            info!("Buy interest set for: {:?} (awaiting clearing)", good);
         }
 
         for (good, res_ids) in &allocations.market_sells {
@@ -727,12 +706,7 @@ pub fn reset_allocations(
             }
         }
 
-        // Release market buy reservations (refund money)
-        for (_good, res_ids) in allocations.market_buys.iter() {
-            for res_id in res_ids {
-                reservations.release(*res_id, &mut stockpile, &mut workforce, &mut treasury);
-            }
-        }
+        // Buy interest has no reservations to release (it's just a flag)
 
         // Release market sell reservations (return goods)
         for (_good, res_ids) in allocations.market_sells.iter() {

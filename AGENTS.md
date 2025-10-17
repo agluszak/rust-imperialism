@@ -77,9 +77,14 @@ Read @OVERVIEW.md to get a high-level overview of the Imperialism game.
     - Auto-reduces target when inputs insufficient
     - Player nation starts with Textile Mill (capacity 8)
 
-- Market Mode (MVP)
-  - Two buttons: “Buy 1 Cloth ($50)”, “Sell 1 Cloth ($50)” (fixed price)
-  - Applies to the Player nation’s `Treasury` and `Stockpile`
+- Market Mode
+  - Order-based trading: place buy/sell orders during player turn, execute during processing
+  - **Exclusive orders**: Cannot buy AND sell the same resource simultaneously
+    - Setting buy orders automatically clears any existing sell orders for that good
+    - Setting sell orders automatically clears any existing buy orders for that good
+  - Uses allocation/reservation system (like production and workforce)
+  - Fixed prices for MVP (will be replaced by market clearing in future)
+  - Tradable resources: Grain, Fruit, Livestock, Fish, Cotton, Wool, Timber, Coal, Iron, Gold, Gems, Oil
 
 - Turn system & Calendar
   - Press Space to end `PlayerTurn`
@@ -183,7 +188,7 @@ src/
 - **Escape**: deselect all civilians
 - **Engineer orders** (when selected): buttons to Build Depot or Build Port
 - **Transport Mode**: left-click two tiles to toggle a road (charges/credits $10)
-- **Market Mode**: click buy/sell buttons to adjust Cloth and money (fixed $50)
+- **Market Mode**: use +/- buttons to place buy OR sell orders (mutually exclusive per resource)
 - **Space**: end PlayerTurn
 - **Sidebar**: Map/Transport/City/Market/Diplomacy; each overlay includes a "Back to Map" button
 
