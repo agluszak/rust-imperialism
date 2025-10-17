@@ -85,7 +85,7 @@ pub fn update_labor_display(
         return;
     };
 
-    let Ok(workforce) = workforce_query.get(player.0) else {
+    let Ok(workforce) = workforce_query.get(player.entity()) else {
         return;
     };
 
@@ -106,7 +106,7 @@ pub fn update_workforce_display(
         return;
     };
 
-    let Ok(workforce) = workforce_query.get(player.0) else {
+    let Ok(workforce) = workforce_query.get(player.entity()) else {
         return;
     };
 

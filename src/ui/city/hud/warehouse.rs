@@ -71,7 +71,7 @@ pub fn update_warehouse_display(
         return;
     };
 
-    let Ok(stockpile) = stockpile_query.get(player.0) else {
+    let Ok(stockpile) = stockpile_query.get(player.entity()) else {
         return;
     };
 

@@ -22,19 +22,19 @@ pub fn populate_production_dialog(
         return;
     };
 
-    let Ok(stockpile) = stockpiles.get(player.0) else {
+    let Ok(stockpile) = stockpiles.get(player.entity()) else {
         return;
     };
 
-    let Ok(workforce) = workforces.get(player.0) else {
+    let Ok(workforce) = workforces.get(player.entity()) else {
         return;
     };
 
-    let Ok(buildings_collection) = buildings_collections.get(player.0) else {
+    let Ok(buildings_collection) = buildings_collections.get(player.entity()) else {
         return;
     };
 
-    let Ok(settings) = settings_query.get(player.0) else {
+    let Ok(settings) = settings_query.get(player.entity()) else {
         return;
     };
 
@@ -374,11 +374,11 @@ pub fn update_production_labor_display(
         return;
     };
 
-    let Ok(workforce) = workforce_query.get(player.0) else {
+    let Ok(workforce) = workforce_query.get(player.entity()) else {
         return;
     };
 
-    let Ok(allocations) = allocations_query.get(player.0) else {
+    let Ok(allocations) = allocations_query.get(player.entity()) else {
         return;
     };
 

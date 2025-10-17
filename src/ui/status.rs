@@ -62,7 +62,7 @@ pub fn update_treasury_display(
     mut q: Query<&mut Text, With<TreasuryDisplay>>,
 ) {
     if let Some(player) = player
-        && let Ok(treasury) = treasuries.get(player.0)
+        && let Ok(treasury) = treasuries.get(player.entity())
     {
         let s = format_currency(treasury.total());
         for mut text in q.iter_mut() {
@@ -153,7 +153,7 @@ pub fn update_tile_info_display(
                     {
                         // Find player's tech
                         for (nation_entity, _, techs) in nations_query.iter() {
-                            if nation_entity == player.0 {
+                            if nation_entity == player.entity() {
                                 let buildable = check_buildability(terrain, techs);
                                 tile_info.push_str(&format!("\n{}", buildable));
                                 break;

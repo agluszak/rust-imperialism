@@ -3726,6 +3726,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "moonshine-kind"
+version = "0.4.1"
+source = "git+https://github.com/Zeenobit/moonshine_kind?rev=5e3b12d58b5292bb043b87b8f4f6342256ef9982#5e3b12d58b5292bb043b87b8f4f6342256ef9982"
+dependencies = [
+ "bevy_ecs",
+ "bevy_reflect 0.17.2",
+ "bevy_utils 0.17.2",
+ "disqualified",
+]
+
+[[package]]
 name = "moxcms"
 version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4906,6 +4917,7 @@ dependencies = [
  "bevy_ecs_tilemap",
  "hexx",
  "image",
+ "moonshine-kind",
  "noise",
  "rand 0.9.2",
  "thiserror 2.0.17",

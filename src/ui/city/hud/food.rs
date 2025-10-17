@@ -84,7 +84,7 @@ pub fn update_food_demand_display(
         return;
     };
 
-    let Ok(workforce) = workforce_query.get(player.0) else {
+    let Ok(workforce) = workforce_query.get(player.entity()) else {
         return;
     };
 

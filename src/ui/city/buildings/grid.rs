@@ -115,7 +115,8 @@ pub fn update_building_buttons(
     };
 
     // Get player's buildings collection
-    let player_buildings = player_buildings_query.get(player.0).ok();
+    let player_entity = player.entity();
+    let player_buildings = player_buildings_query.get(player_entity).ok();
 
     // Update button states
     for (mut button, mut bg_color, mut border_color) in button_query.iter_mut() {
@@ -133,7 +134,7 @@ pub fn update_building_buttons(
 
         if is_built {
             // Building is built - highlight button
-            button.building_entity = Some(player.0);
+            button.building_entity = Some(player_entity);
             *bg_color = BackgroundColor(Color::srgba(0.2, 0.3, 0.4, 1.0)); // Brighter
             *border_color = BorderColor::all(Color::srgba(0.4, 0.6, 0.8, 1.0)); // Blue border
         } else {

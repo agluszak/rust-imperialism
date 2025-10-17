@@ -168,8 +168,14 @@ pub fn assign_provinces_to_countries(
     }
 
     // Set player nation reference
-    if !country_entities.is_empty() {
-        commands.insert_resource(PlayerNation(country_entities[0]));
+    if let Some(&player_entity) = country_entities.first() {
+        commands.queue(move |world: &mut World| {
+            if let Some(player_nation) = PlayerNation::from_entity(world, player_entity) {
+                world.insert_resource(player_nation);
+            } else {
+                warn!("Failed to initialize player nation from entity {player_entity:?}");
+            }
+        });
     }
 
     // Build adjacency map for provinces

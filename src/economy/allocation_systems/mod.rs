@@ -32,7 +32,7 @@ pub fn apply_production_adjustments(
 ) {
     for msg in messages.read() {
         let Ok((mut allocations, mut reservations, mut stockpile, mut workforce)) =
-            nations.get_mut(msg.nation)
+            nations.get_mut(msg.nation.entity())
         else {
             warn!("Cannot adjust production: nation not found");
             continue;
@@ -255,7 +255,8 @@ pub fn apply_recruitment_adjustments(
     recruitment_capacity: Query<&RecruitmentCapacity>,
 ) {
     for msg in messages.read() {
-        let Ok((mut allocations, mut reservations, mut stockpile)) = nations.get_mut(msg.nation)
+        let Ok((mut allocations, mut reservations, mut stockpile)) =
+            nations.get_mut(msg.nation.entity())
         else {
             warn!("Cannot adjust recruitment: nation not found");
             continue;
@@ -264,11 +265,11 @@ pub fn apply_recruitment_adjustments(
         // Calculate capacity cap
         let province_count = provinces
             .iter()
-            .filter(|p| p.owner == Some(msg.nation))
+            .filter(|p| p.owner == Some(msg.nation.entity()))
             .count() as u32;
 
         let capacity_upgraded = recruitment_capacity
-            .get(msg.nation)
+            .get(msg.nation.entity())
             .map(|c| c.upgraded)
             .unwrap_or(false);
 
@@ -356,7 +357,7 @@ pub fn apply_training_adjustments(
 ) {
     for msg in messages.read() {
         let Ok((mut allocations, mut reservations, mut stockpile, workforce, mut treasury)) =
-            nations.get_mut(msg.nation)
+            nations.get_mut(msg.nation.entity())
         else {
             warn!("Cannot adjust training: nation not found");
             continue;
@@ -446,7 +447,7 @@ pub fn apply_market_order_adjustments(
 ) {
     for msg in messages.read() {
         let Ok((mut allocations, mut reservations, mut stockpile, mut workforce, mut treasury)) =
-            nations.get_mut(msg.nation)
+            nations.get_mut(msg.nation.entity())
         else {
             warn!("Cannot adjust market orders: nation not found");
             continue;

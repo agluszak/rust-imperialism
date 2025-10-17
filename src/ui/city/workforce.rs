@@ -38,7 +38,7 @@ pub fn spawn_hired_civilian(
         };
 
         // Get capital position
-        let Ok(capital) = nations.get(player.0) else {
+        let Ok(capital) = nations.get(player.entity()) else {
             log_events.write(TerminalLogEvent {
                 message: "Cannot hire: no capital found".to_string(),
             });
@@ -55,7 +55,7 @@ pub fn spawn_hired_civilian(
         };
 
         // Check if player can afford
-        let Ok(mut treasury) = treasuries.get_mut(player.0) else {
+        let Ok(mut treasury) = treasuries.get_mut(player.entity()) else {
             continue;
         };
 
@@ -88,7 +88,7 @@ pub fn spawn_hired_civilian(
         commands.spawn(Civilian {
             kind: event.kind,
             position: spawn_pos,
-            owner: player.0,
+            owner: player.entity(),
             selected: false,
             has_moved: false,
         });
@@ -164,7 +164,7 @@ pub fn handle_recruit_workers_buttons(
         if *interaction == Interaction::Pressed {
             info!("Recruit {} workers button clicked", button.count);
             writer.write(RecruitWorkers {
-                nation: player_nation.0,
+                nation: player_nation.instance(),
                 count: button.count,
             });
         }
@@ -194,7 +194,7 @@ pub fn handle_train_worker_buttons(
         if *interaction == Interaction::Pressed {
             info!("Train worker button clicked: {:?}", button.from_skill);
             writer.write(TrainWorker {
-                nation: player_nation.0,
+                nation: player_nation.instance(),
                 from_skill: button.from_skill,
             });
         }
