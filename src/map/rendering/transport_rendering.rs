@@ -6,6 +6,7 @@ use crate::civilians::{Civilian, CivilianKind};
 use crate::economy::{Depot, Port, Rails, Roads};
 use crate::map::rendering::{MapVisual, MapVisualFor};
 use crate::map::tile_pos::TilePosExt;
+use crate::ui::components::MapTilemap;
 use crate::ui::menu::AppState;
 use crate::ui::mode::GameMode;
 
@@ -93,6 +94,7 @@ fn render_rails(
                 Transform::from_translation(center.extend(1.0))
                     .with_rotation(Quat::from_rotation_z(angle)),
                 RailLineVisual { edge },
+                MapTilemap, // Marker for visibility control
             ));
         }
     }
@@ -140,6 +142,7 @@ fn render_roads(
                 Transform::from_translation(center.extend(0.5))
                     .with_rotation(Quat::from_rotation_z(angle)),
                 RoadLineVisual { edge },
+                MapTilemap, // Marker for visibility control
             ));
         }
     }
@@ -180,6 +183,7 @@ fn update_depot_visuals(
             },
             Transform::from_translation(pos.extend(2.0)),
             MapVisualFor(depot_entity), // Relationship: sprite -> depot
+            MapTilemap,                 // Marker for visibility control
         ));
     }
 
@@ -242,6 +246,7 @@ fn update_port_visuals(
             },
             Transform::from_translation(pos.extend(2.0)),
             MapVisualFor(port_entity), // Relationship: sprite -> port
+            MapTilemap,                // Marker for visibility control
         ));
     }
 
@@ -327,6 +332,7 @@ fn render_shadow_rail(
             Transform::from_translation(center.extend(1.5))
                 .with_rotation(Quat::from_rotation_z(angle)),
             ShadowRailVisual,
+            MapTilemap, // Marker for visibility control
         ));
     } else if has_shadow {
         // Remove shadow rail if conditions no longer met

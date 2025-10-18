@@ -5,6 +5,7 @@ use crate::assets::{capital_asset_path, town_asset_path};
 use crate::map::province::City;
 use crate::map::rendering::{MapVisual, MapVisualFor};
 use crate::map::tile_pos::TilePosExt;
+use crate::ui::components::MapTilemap;
 
 /// Plugin to render city sprites on the map
 pub struct CityRenderingPlugin;
@@ -51,6 +52,7 @@ fn render_city_visuals(
             },
             Transform::from_translation(pos.extend(2.0)), // Below civilians (z=3), above terrain
             MapVisualFor(city_entity),                    // Relationship: sprite -> city
+            MapTilemap,                                   // Marker for visibility control
         ));
     }
 }
