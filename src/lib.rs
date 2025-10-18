@@ -11,7 +11,11 @@ use crate::economy::allocation_systems;
 use crate::economy::production::{
     ConnectedProduction, calculate_connected_production, run_production,
 };
-use crate::economy::transport::{self, RecomputeConnectivity, compute_rail_connectivity};
+use crate::economy::transport::{
+    self, RecomputeConnectivity, TransportAdjustAllocation, TransportAllocations,
+    TransportCapacity, TransportDemandSnapshot, apply_transport_allocations,
+    compute_rail_connectivity, update_transport_capacity, update_transport_demand_snapshot,
+};
 use crate::economy::workforce;
 use crate::economy::{Calendar, Capital, NationId, PlaceImprovement, PlayerNation, Rails, Roads};
 use crate::helpers::camera;
@@ -62,6 +66,9 @@ pub mod tiles;
 pub mod transport_rendering;
 pub mod turn_system;
 pub mod ui;
+
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone, Copy)]
+struct InGameEconomySet;
 
 /// Marker resource to track if tilemap has been created
 #[derive(Resource)]
@@ -240,13 +247,18 @@ pub fn app() -> App {
     .add_sub_state::<GameMode>()
     .add_systems(Update, log_transitions::<AppState>)
     .add_systems(Update, log_transitions::<GameMode>)
+    .configure_sets(Update, InGameEconomySet.run_if(in_state(AppState::InGame)))
     // Root app state: start in Main Menu; also set up in-game mode state (Map)
     .insert_resource(Calendar::default())
     .insert_resource(Roads::default())
     .insert_resource(Rails::default())
     .insert_resource(ConnectedProduction::default())
+    .insert_resource(TransportCapacity::default())
+    .insert_resource(TransportAllocations::default())
+    .insert_resource(TransportDemandSnapshot::default())
     .add_message::<PlaceImprovement>()
     .add_message::<RecomputeConnectivity>()
+    .add_message::<TransportAdjustAllocation>()
     .add_systems(Startup, (setup_camera,))
     // Start loading terrain atlas at startup
     .add_systems(Startup, terrain_atlas::start_terrain_atlas_loading)
@@ -271,53 +283,57 @@ pub fn app() -> App {
         (
             transport::apply_improvements,
             compute_rail_connectivity.after(transport::apply_improvements),
-            calculate_connected_production.after(compute_rail_connectivity),
+            update_transport_capacity.after(compute_rail_connectivity),
+            calculate_connected_production.after(update_transport_capacity),
+            update_transport_demand_snapshot.after(calculate_connected_production),
+            apply_transport_allocations,
             run_production,
-            // Execute recruitment and training orders during Processing phase
+        )
+            .in_set(InGameEconomySet),
+    )
+    .add_systems(
+        Update,
+        (
             workforce::execute_recruitment_orders,
             workforce::execute_training_orders,
-            // Advance rail construction at the start of each player turn
-            transport::advance_rail_construction
-                .run_if(resource_changed::<TurnSystem>)
-                .run_if(|turn_system: Res<TurnSystem>| turn_system.phase == TurnPhase::PlayerTurn),
-            // Reset civilian actions at the start of each player turn
-            reset_civilian_actions
-                .run_if(resource_changed::<TurnSystem>)
-                .run_if(|turn_system: Res<TurnSystem>| turn_system.phase == TurnPhase::PlayerTurn),
-            // Complete improvement jobs before advancing (so we can log completion)
-            complete_improvement_jobs
-                .run_if(resource_changed::<TurnSystem>)
-                .run_if(|turn_system: Res<TurnSystem>| turn_system.phase == TurnPhase::PlayerTurn),
-            // Advance civilian jobs at the start of each player turn
-            advance_civilian_jobs
-                .run_if(resource_changed::<TurnSystem>)
-                .run_if(|turn_system: Res<TurnSystem>| turn_system.phase == TurnPhase::PlayerTurn),
-            // Feed workers at the start of each player turn
-            workforce::feed_workers
-                .run_if(resource_changed::<TurnSystem>)
-                .run_if(|turn_system: Res<TurnSystem>| turn_system.phase == TurnPhase::PlayerTurn),
-            // Worker recruitment and training (run anytime during player turn)
             workforce::handle_recruitment,
             workforce::handle_training,
-            // Allocation adjustment systems (run during PlayerTurn)
             allocation_systems::apply_recruitment_adjustments,
             allocation_systems::apply_training_adjustments,
             allocation_systems::apply_production_adjustments,
             allocation_systems::apply_market_order_adjustments,
-            // Finalize allocations at turn end (before Processing)
+        )
+            .in_set(InGameEconomySet),
+    )
+    .add_systems(
+        Update,
+        (
+            transport::advance_rail_construction
+                .run_if(resource_changed::<TurnSystem>)
+                .run_if(|turn_system: Res<TurnSystem>| turn_system.phase == TurnPhase::PlayerTurn),
+            reset_civilian_actions
+                .run_if(resource_changed::<TurnSystem>)
+                .run_if(|turn_system: Res<TurnSystem>| turn_system.phase == TurnPhase::PlayerTurn),
+            complete_improvement_jobs
+                .run_if(resource_changed::<TurnSystem>)
+                .run_if(|turn_system: Res<TurnSystem>| turn_system.phase == TurnPhase::PlayerTurn),
+            advance_civilian_jobs
+                .run_if(resource_changed::<TurnSystem>)
+                .run_if(|turn_system: Res<TurnSystem>| turn_system.phase == TurnPhase::PlayerTurn),
+            workforce::feed_workers
+                .run_if(resource_changed::<TurnSystem>)
+                .run_if(|turn_system: Res<TurnSystem>| turn_system.phase == TurnPhase::PlayerTurn),
             allocation_systems::finalize_allocations
                 .run_if(resource_changed::<TurnSystem>)
                 .run_if(|turn_system: Res<TurnSystem>| turn_system.phase == TurnPhase::Processing),
-            // Reset allocations at start of PlayerTurn
             allocation_systems::reset_allocations
                 .run_if(resource_changed::<TurnSystem>)
                 .run_if(|turn_system: Res<TurnSystem>| turn_system.phase == TurnPhase::PlayerTurn),
-            // Update labor pools at start of PlayerTurn (sync with worker counts)
             workforce::update_labor_pools
                 .run_if(resource_changed::<TurnSystem>)
                 .run_if(|turn_system: Res<TurnSystem>| turn_system.phase == TurnPhase::PlayerTurn),
         )
-            .run_if(in_state(AppState::InGame)),
+            .in_set(InGameEconomySet),
     )
     .add_systems(
         Update,

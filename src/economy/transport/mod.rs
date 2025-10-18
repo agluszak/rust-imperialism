@@ -2,6 +2,20 @@
 pub mod types;
 pub use types::{Depot, ImprovementKind, Port, RailConstruction, Rails, Roads, ordered_edge};
 
+// Transport state (capacity, allocations, demand)
+pub mod state;
+pub use state::{
+    AllocationSlot, CapacitySnapshot, DemandEntry, NationAllocations, TransportAllocations,
+    TransportCapacity, TransportCommodity, TransportDemandSnapshot,
+};
+
+// Derived metrics and logic
+pub mod metrics;
+pub use metrics::{
+    TransportAdjustAllocation, apply_transport_allocations, transport_capacity, transport_demand,
+    transport_slot, update_transport_capacity, update_transport_demand_snapshot,
+};
+
 // Messages
 pub mod messages;
 pub use messages::{PlaceImprovement, RecomputeConnectivity};
