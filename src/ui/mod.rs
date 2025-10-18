@@ -75,9 +75,7 @@ impl Plugin for GameUIPlugin {
                 input::handle_mouse_wheel_scroll,
                 // Clamp scroll position after all scroll operations
                 input::clamp_scroll_position.after(input::handle_mouse_wheel_scroll),
-                // Mode buttons handler (only active in-game)
-                mode::handle_mode_buttons.run_if(in_state(AppState::InGame)),
-                // Button interaction visual feedback
+                // Button interaction visual feedback (standard Button widget handles mode switching via observers)
                 button_style::button_interaction_system,
                 button_style::accent_button_interaction_system,
                 button_style::danger_button_interaction_system,

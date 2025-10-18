@@ -10,7 +10,7 @@ use crate::ui::city::allocation_ui_unified::{
     update_all_stepper_displays,
 };
 use crate::ui::city::allocation_widgets::AllocationType;
-use crate::ui::mode::{GameMode, MapModeButton};
+use crate::ui::mode::{GameMode, switch_to_mode};
 use crate::{spawn_allocation_bar, spawn_allocation_stepper, spawn_allocation_summary};
 
 #[derive(Component)]
@@ -199,7 +199,7 @@ pub fn ensure_market_screen_visible(
                         ..default()
                     },
                     BackgroundColor(NORMAL_BUTTON),
-                    MapModeButton,
+                    switch_to_mode(GameMode::Map),
                 ))
                 .with_children(|b| {
                     b.spawn((

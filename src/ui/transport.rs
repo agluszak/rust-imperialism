@@ -13,7 +13,7 @@ use crate::economy::transport::{
 };
 use crate::economy::{ImprovementKind, PlaceImprovement};
 use crate::ui::logging::TerminalLogEvent;
-use crate::ui::mode::{GameMode, MapModeButton};
+use crate::ui::mode::{GameMode, switch_to_mode};
 
 #[derive(Component)]
 pub struct TransportScreen;
@@ -271,7 +271,7 @@ fn setup_transport_screen(mut commands: Commands, player: Option<Res<PlayerNatio
                     ..default()
                 },
                 BackgroundColor(NORMAL_BUTTON),
-                MapModeButton,
+                switch_to_mode(GameMode::Map),
                 children![(
                     Text::new("Back to Map"),
                     TextFont {

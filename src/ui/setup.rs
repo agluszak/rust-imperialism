@@ -207,10 +207,7 @@ pub fn setup_ui(mut commands: Commands) {
             GameplayUIRoot,
         ))
         .with_children(|sidebar| {
-            use crate::ui::mode::{
-                CityModeButton, DiplomacyModeButton, MapModeButton, MarketModeButton,
-                TransportModeButton,
-            };
+            use crate::ui::mode::{GameMode, switch_to_mode};
             // Map Mode button
             sidebar.spawn((
                 Button,
@@ -219,7 +216,7 @@ pub fn setup_ui(mut commands: Commands) {
                     ..default()
                 },
                 BackgroundColor(NORMAL_BUTTON),
-                MapModeButton,
+                switch_to_mode(GameMode::Map),
                 children![(
                     Text::new("Map"),
                     TextFont {
@@ -237,7 +234,7 @@ pub fn setup_ui(mut commands: Commands) {
                     ..default()
                 },
                 BackgroundColor(NORMAL_BUTTON),
-                TransportModeButton,
+                switch_to_mode(GameMode::Transport),
                 children![(
                     Text::new("Transport"),
                     TextFont {
@@ -255,7 +252,7 @@ pub fn setup_ui(mut commands: Commands) {
                     ..default()
                 },
                 BackgroundColor(NORMAL_BUTTON),
-                CityModeButton,
+                switch_to_mode(GameMode::City),
                 children![(
                     Text::new("City"),
                     TextFont {
@@ -273,7 +270,7 @@ pub fn setup_ui(mut commands: Commands) {
                     ..default()
                 },
                 BackgroundColor(NORMAL_BUTTON),
-                MarketModeButton,
+                switch_to_mode(GameMode::Market),
                 children![(
                     Text::new("Market"),
                     TextFont {
@@ -291,7 +288,7 @@ pub fn setup_ui(mut commands: Commands) {
                     ..default()
                 },
                 BackgroundColor(NORMAL_BUTTON),
-                DiplomacyModeButton,
+                switch_to_mode(GameMode::Diplomacy),
                 children![(
                     Text::new("Diplomacy"),
                     TextFont {

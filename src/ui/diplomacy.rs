@@ -12,7 +12,7 @@ use crate::diplomacy::{
 };
 use crate::economy::{Name, NationId, PlayerNation, Treasury};
 use crate::ui::logging::TerminalLogEvent;
-use crate::ui::mode::{GameMode, MapModeButton};
+use crate::ui::mode::{GameMode, switch_to_mode};
 
 const PANEL_BG: Color = Color::srgba(0.08, 0.09, 0.12, 0.92);
 const LIST_BG: Color = Color::srgba(0.11, 0.12, 0.15, 0.85);
@@ -542,7 +542,7 @@ fn setup_diplomacy_screen(
                     ..default()
                 },
                 BackgroundColor(NORMAL_BUTTON),
-                MapModeButton,
+                switch_to_mode(GameMode::Map),
             ))
             .with_children(|button| {
                 button.spawn((
