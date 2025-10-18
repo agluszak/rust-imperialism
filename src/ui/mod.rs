@@ -15,7 +15,6 @@ pub mod transport;
 
 use crate::ui::menu::AppState;
 use bevy::prelude::*;
-use bevy::ui_widgets::ScrollbarPlugin;
 
 pub use components::ScrollableTerminal;
 pub use input::handle_mouse_wheel_scroll;
@@ -26,8 +25,9 @@ pub struct GameUIPlugin;
 
 impl Plugin for GameUIPlugin {
     fn build(&self, app: &mut App) {
+        // Note: UiWidgetsPlugins (including ScrollbarPlugin, SliderPlugin, etc.)
+        // is added in lib.rs, so we don't add individual widget plugins here
         app.add_plugins((
-            ScrollbarPlugin,
             city::CityUIPlugin,
             transport::TransportUIPlugin,
             market::MarketUIPlugin,
