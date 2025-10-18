@@ -102,6 +102,33 @@ impl TransportCommodity {
         }
     }
 
+    /// Icon glyph used for compact UI displays.
+    pub fn icon(self) -> &'static str {
+        use TransportCommodity::*;
+        match self {
+            Grain => "🌾",
+            Fruit => "🍎",
+            Fiber => "🧵",
+            Meat => "🥩",
+            Timber => "🪵",
+            Coal => "⛏️",
+            Iron => "⚙️",
+            Precious => "💎",
+            Oil => "🛢️",
+            Fabric => "🧶",
+            Lumber => "🪚",
+            Paper => "📄",
+            Steel => "🔩",
+            Fuel => "⛽",
+            Clothing => "👗",
+            Furniture => "🪑",
+            Hardware => "🛠️",
+            Armaments => "⚔️",
+            CannedFood => "🥫",
+            Horses => "🐎",
+        }
+    }
+
     /// Ordering used for UI layout: resources → materials → goods.
     pub const ORDERED: [TransportCommodity; 20] = [
         TransportCommodity::Grain,

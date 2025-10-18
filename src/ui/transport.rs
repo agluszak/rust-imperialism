@@ -1,10 +1,7 @@
 use bevy::ecs::hierarchy::ChildSpawnerCommands;
-use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::ui::widget::Button as OldButton;
-use bevy::ui_widgets::{
-    Button, Slider, SliderRange, SliderThumb, SliderValue, ValueChange, observe,
-};
+use bevy::ui_widgets::{Activate, Button, observe};
 use bevy_ecs_tilemap::prelude::TilePos;
 
 use super::button_style::*;
@@ -32,36 +29,41 @@ pub struct TransportSelectTile {
 }
 
 #[derive(Component)]
-struct TransportLabel {
-    commodity: TransportCommodity,
-}
-
-#[derive(Component)]
-struct TransportSliderFill {
-    commodity: TransportCommodity,
-    kind: SliderFillKind,
-}
-
-#[derive(Component)]
-struct TransportSliderBackground {
-    commodity: TransportCommodity,
-}
-
-#[derive(Component)]
-struct TransportStatsText {
-    commodity: TransportCommodity,
-}
-
-#[derive(Component)]
 struct TransportCapacityText;
 
 #[derive(Component)]
 struct TransportCapacityFill;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SliderFillKind {
+enum TransportBarFillKind {
     Requested,
     Granted,
+}
+
+#[derive(Component)]
+struct TransportBarFill {
+    commodity: TransportCommodity,
+    kind: TransportBarFillKind,
+}
+
+#[derive(Component)]
+struct TransportBarBackground {
+    commodity: TransportCommodity,
+}
+
+#[derive(Component)]
+struct TransportBarText {
+    commodity: TransportCommodity,
+}
+
+#[derive(Component)]
+struct TransportIconText {
+    commodity: TransportCommodity,
+}
+
+#[derive(Component)]
+struct TransportSatisfactionFill {
+    commodity: TransportCommodity,
 }
 
 const RESOURCE_COMMODITIES: &[TransportCommodity] = &[
@@ -105,10 +107,11 @@ impl Plugin for TransportUIPlugin {
                 Update,
                 (
                     handle_transport_selection,
-                    update_transport_slider_fills,
-                    update_transport_slider_backgrounds,
-                    update_transport_stats_text,
-                    update_transport_labels,
+                    update_transport_bar_fills,
+                    update_transport_bar_backgrounds,
+                    update_transport_bar_texts,
+                    update_transport_icon_colors,
+                    update_transport_satisfaction_bars,
                     update_transport_capacity_display,
                 )
                     .run_if(in_state(GameMode::Transport)),
@@ -309,6 +312,8 @@ fn spawn_commodity_column(
         });
 }
 
+const MAIN_BAR_WIDTH: f32 = 240.0;
+
 fn spawn_commodity_row(
     parent: &mut ChildSpawnerCommands,
     commodity: TransportCommodity,
@@ -318,108 +323,222 @@ fn spawn_commodity_row(
         .spawn((Node {
             flex_direction: FlexDirection::Row,
             align_items: AlignItems::Center,
-            column_gap: Val::Px(16.0),
+            column_gap: Val::Px(12.0),
             ..default()
         },))
         .with_children(|row: &mut ChildSpawnerCommands| {
-            row.spawn((
-                Text::new(format!("{:?}", commodity)),
-                TextFont {
-                    font_size: 16.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.82, 0.86, 0.95)),
-                TransportLabel { commodity },
-            ));
+            spawn_adjust_button_column(row, commodity, nation, [-5, -1]);
 
-            // Use Bevy's standard Slider widget with observer for interaction
-            row.spawn((
-                Node {
-                    width: Val::Px(220.0),
-                    height: Val::Px(20.0),
-                    border: UiRect::all(Val::Px(1.0)),
-                    justify_content: JustifyContent::FlexStart,
+            row.spawn(Node {
+                width: Val::Px(36.0),
+                height: Val::Px(36.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            })
+            .with_children(|icon| {
+                icon.spawn((
+                    Text::new(commodity.icon()),
+                    TextFont {
+                        font_size: 28.0,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.86, 0.9, 1.0)),
+                    TransportIconText { commodity },
+                ));
+            });
+
+            row.spawn(Node {
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(4.0),
+                ..default()
+            })
+            .with_children(|bars| {
+                bars.spawn(Node {
+                    flex_direction: FlexDirection::Row,
                     align_items: AlignItems::Center,
-                    position_type: PositionType::Relative,
+                    column_gap: Val::Px(8.0),
                     ..default()
-                },
-                BackgroundColor(Color::srgba(0.12, 0.14, 0.18, 1.0)),
-                Hovered::default(),
-                Slider::default(),
-                SliderValue(0.0),
-                SliderRange::new(0.0, 100.0), // Will be updated dynamically
-                TransportSliderBackground { commodity },
-                // Observer handles value changes
-                observe(move |value_change: On<ValueChange<f32>>, mut adjust_writer: MessageWriter<TransportAdjustAllocation>| {
-                    adjust_writer.write(TransportAdjustAllocation {
-                        nation,
-                        commodity,
-                        requested: value_change.value.round() as u32,
-                    });
-                }),
-                children![
-                    // Requested fill (blue)
-                    (
+                })
+                .with_children(|main| {
+                    main.spawn((
                         Node {
-                            position_type: PositionType::Absolute,
-                            left: Val::Px(0.0),
-                            top: Val::Px(0.0),
-                            height: Val::Percent(100.0),
-                            width: Val::Percent(0.0),
+                            width: Val::Px(MAIN_BAR_WIDTH),
+                            height: Val::Px(14.0),
+                            border: UiRect::all(Val::Px(1.0)),
+                            overflow: Overflow::clip(),
                             ..default()
                         },
-                        BackgroundColor(Color::srgb(0.32, 0.45, 0.72)),
-                        TransportSliderFill {
-                            commodity,
-                            kind: SliderFillKind::Requested,
-                        },
-                    ),
-                    // Granted fill (green)
-                    (
-                        Node {
-                            position_type: PositionType::Absolute,
-                            left: Val::Px(0.0),
-                            top: Val::Px(0.0),
-                            height: Val::Percent(100.0),
-                            width: Val::Percent(0.0),
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgb(0.28, 0.76, 0.52)),
-                        TransportSliderFill {
-                            commodity,
-                            kind: SliderFillKind::Granted,
-                        },
-                    ),
-                    // Invisible thumb for drag interaction (required by Slider)
-                    (
-                        SliderThumb,
-                        Node {
-                            width: Val::Px(0.0),
-                            height: Val::Px(0.0),
-                            ..default()
-                        },
-                    ),
-                ],
-            ));
+                        BackgroundColor(Color::srgba(0.12, 0.14, 0.18, 1.0)),
+                        TransportBarBackground { commodity },
+                    ))
+                    .with_children(|bar| {
+                        bar.spawn((
+                            Node {
+                                position_type: PositionType::Absolute,
+                                left: Val::Px(0.0),
+                                top: Val::Px(0.0),
+                                height: Val::Percent(100.0),
+                                width: Val::Percent(0.0),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgb(0.32, 0.45, 0.72)),
+                            TransportBarFill {
+                                commodity,
+                                kind: TransportBarFillKind::Requested,
+                            },
+                        ));
 
-            row.spawn((
-                Text::new("Requested 0 / 0 | Supply 0 | Demand 0"),
-                TextFont {
-                    font_size: 14.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.75, 0.78, 0.85)),
-                TransportStatsText { commodity },
-            ));
+                        bar.spawn((
+                            Node {
+                                position_type: PositionType::Absolute,
+                                left: Val::Px(0.0),
+                                top: Val::Px(0.0),
+                                height: Val::Percent(100.0),
+                                width: Val::Percent(0.0),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgb(0.28, 0.76, 0.52)),
+                            TransportBarFill {
+                                commodity,
+                                kind: TransportBarFillKind::Granted,
+                            },
+                        ));
+                    });
+
+                    main.spawn((
+                        Text::new("0 / 0"),
+                        TextFont {
+                            font_size: 14.0,
+                            ..default()
+                        },
+                        TextColor(Color::srgb(0.75, 0.78, 0.85)),
+                        TransportBarText { commodity },
+                    ));
+                });
+
+                bars.spawn((
+                    Node {
+                        width: Val::Px(MAIN_BAR_WIDTH),
+                        height: Val::Px(4.0),
+                        border: UiRect::all(Val::Px(1.0)),
+                        overflow: Overflow::clip(),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgba(0.08, 0.08, 0.1, 0.7)),
+                ))
+                .with_children(|satisfaction| {
+                    satisfaction.spawn((
+                        Node {
+                            position_type: PositionType::Absolute,
+                            left: Val::Px(0.0),
+                            top: Val::Px(0.0),
+                            height: Val::Percent(100.0),
+                            width: Val::Percent(0.0),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.55, 0.85, 0.6)),
+                        TransportSatisfactionFill { commodity },
+                    ));
+                });
+            });
+
+            spawn_adjust_button_column(row, commodity, nation, [1, 5]);
         });
 }
 
-fn update_transport_slider_fills(
+fn spawn_adjust_button_column(
+    parent: &mut ChildSpawnerCommands,
+    commodity: TransportCommodity,
+    nation: Entity,
+    deltas: [i32; 2],
+) {
+    parent
+        .spawn(Node {
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Stretch,
+            row_gap: Val::Px(4.0),
+            ..default()
+        })
+        .with_children(|column| {
+            for &delta in deltas.iter() {
+                column
+                    .spawn((
+                        Button,
+                        OldButton,
+                        Node {
+                            width: Val::Px(28.0),
+                            height: Val::Px(22.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        BackgroundColor(NORMAL_BUTTON),
+                        transport_adjustment_button(commodity, nation, delta),
+                    ))
+                    .with_children(|button| {
+                        button.spawn((
+                            Text::new(button_label(delta)),
+                            TextFont {
+                                font_size: 14.0,
+                                ..default()
+                            },
+                            TextColor(Color::srgb(0.9, 0.9, 1.0)),
+                        ));
+                    });
+            }
+        });
+}
+
+fn button_label(delta: i32) -> &'static str {
+    match delta {
+        -5 => "--",
+        -1 => "-",
+        1 => "+",
+        5 => "++",
+        _ if delta < 0 => "-",
+        _ => "+",
+    }
+}
+
+fn transport_adjustment_button(
+    commodity: TransportCommodity,
+    nation: Entity,
+    delta: i32,
+) -> impl Bundle {
+    observe(
+        move |_activate: On<Activate>,
+              allocations: Res<TransportAllocations>,
+              mut adjust_writer: MessageWriter<TransportAdjustAllocation>| {
+            let slot = transport_slot(&allocations, nation, commodity);
+            let current = slot.requested;
+            let new_requested = adjust_requested(current, delta);
+
+            if new_requested != current {
+                adjust_writer.write(TransportAdjustAllocation {
+                    nation,
+                    commodity,
+                    requested: new_requested,
+                });
+            }
+        },
+    )
+}
+
+fn adjust_requested(current: u32, delta: i32) -> u32 {
+    if delta < 0 {
+        current.saturating_sub((-delta) as u32)
+    } else {
+        current.saturating_add(delta as u32)
+    }
+}
+
+fn update_transport_bar_fills(
     player: Option<Res<PlayerNation>>,
     capacity: Res<TransportCapacity>,
     allocations: Res<TransportAllocations>,
     demand_snapshot: Res<TransportDemandSnapshot>,
-    mut slider_fills: Query<(&mut Node, &TransportSliderFill)>,
+    mut bar_fills: Query<(&mut Node, &TransportBarFill)>,
 ) {
     if !capacity.is_changed() && !allocations.is_changed() && !demand_snapshot.is_changed() {
         return;
@@ -431,8 +550,7 @@ fn update_transport_slider_fills(
     let nation = player.entity();
     let snapshot = transport_capacity(&capacity, nation);
 
-    // Update visual fills based on allocation state
-    for (mut node, fill) in slider_fills.iter_mut() {
+    for (mut node, fill) in bar_fills.iter_mut() {
         let slot = transport_slot(&allocations, nation, fill.commodity);
         let demand = transport_demand(&demand_snapshot, nation, fill.commodity);
         let scale = snapshot
@@ -442,18 +560,18 @@ fn update_transport_slider_fills(
             .max(demand.demand)
             .max(1);
         let value = match fill.kind {
-            SliderFillKind::Requested => slot.requested,
-            SliderFillKind::Granted => slot.granted,
+            TransportBarFillKind::Requested => slot.requested,
+            TransportBarFillKind::Granted => slot.granted,
         };
         let percent = (value as f32 / scale as f32 * 100.0).clamp(0.0, 100.0);
         node.width = Val::Percent(percent);
     }
 }
 
-fn update_transport_slider_backgrounds(
+fn update_transport_bar_backgrounds(
     player: Option<Res<PlayerNation>>,
     demand_snapshot: Res<TransportDemandSnapshot>,
-    mut slider_backgrounds: Query<(&mut BackgroundColor, &TransportSliderBackground)>,
+    mut backgrounds: Query<(&mut BackgroundColor, &TransportBarBackground)>,
 ) {
     if !demand_snapshot.is_changed() {
         return;
@@ -464,8 +582,8 @@ fn update_transport_slider_backgrounds(
     };
     let nation = player.entity();
 
-    for (mut background, slider) in slider_backgrounds.iter_mut() {
-        let demand = transport_demand(&demand_snapshot, nation, slider.commodity);
+    for (mut background, bar) in backgrounds.iter_mut() {
+        let demand = transport_demand(&demand_snapshot, nation, bar.commodity);
         if demand.supply == 0 {
             background.0 = Color::srgba(0.08, 0.08, 0.1, 0.7);
         } else {
@@ -474,11 +592,11 @@ fn update_transport_slider_backgrounds(
     }
 }
 
-fn update_transport_stats_text(
+fn update_transport_bar_texts(
     player: Option<Res<PlayerNation>>,
     allocations: Res<TransportAllocations>,
     demand_snapshot: Res<TransportDemandSnapshot>,
-    mut stat_texts: Query<(&mut Text, &mut TextColor, &TransportStatsText)>,
+    mut texts: Query<(&mut Text, &mut TextColor, &TransportBarText)>,
 ) {
     if !allocations.is_changed() && !demand_snapshot.is_changed() {
         return;
@@ -489,13 +607,15 @@ fn update_transport_stats_text(
     };
     let nation = player.entity();
 
-    for (mut text, mut color, stats) in stat_texts.iter_mut() {
-        let slot = transport_slot(&allocations, nation, stats.commodity);
-        let demand = transport_demand(&demand_snapshot, nation, stats.commodity);
-        text.0 = format!(
-            "Requested {} / {} | Supply {} | Demand {}",
-            slot.requested, slot.granted, demand.supply, demand.demand
-        );
+    for (mut text, mut color, bar_text) in texts.iter_mut() {
+        let slot = transport_slot(&allocations, nation, bar_text.commodity);
+        let demand = transport_demand(&demand_snapshot, nation, bar_text.commodity);
+        let target = slot.requested.max(demand.demand);
+        if target == 0 {
+            text.0 = format!("{} / -", slot.granted);
+        } else {
+            text.0 = format!("{} / {}", slot.granted, target);
+        }
 
         if demand.demand == 0 {
             color.0 = Color::srgb(0.75, 0.78, 0.85);
@@ -507,10 +627,10 @@ fn update_transport_stats_text(
     }
 }
 
-fn update_transport_labels(
+fn update_transport_icon_colors(
     player: Option<Res<PlayerNation>>,
     demand_snapshot: Res<TransportDemandSnapshot>,
-    mut labels: Query<(&mut TextColor, &TransportLabel)>,
+    mut icons: Query<(&mut TextColor, &TransportIconText)>,
 ) {
     if !demand_snapshot.is_changed() {
         return;
@@ -521,12 +641,47 @@ fn update_transport_labels(
     };
     let nation = player.entity();
 
-    for (mut color, label) in labels.iter_mut() {
-        let demand = transport_demand(&demand_snapshot, nation, label.commodity);
+    for (mut color, icon) in icons.iter_mut() {
+        let demand = transport_demand(&demand_snapshot, nation, icon.commodity);
         if demand.supply == 0 {
-            color.0 = Color::srgb(0.5, 0.52, 0.58);
+            color.0 = Color::srgb(0.52, 0.54, 0.6);
         } else {
-            color.0 = Color::srgb(0.82, 0.86, 0.95);
+            color.0 = Color::srgb(0.86, 0.9, 1.0);
+        }
+    }
+}
+
+fn update_transport_satisfaction_bars(
+    player: Option<Res<PlayerNation>>,
+    allocations: Res<TransportAllocations>,
+    demand_snapshot: Res<TransportDemandSnapshot>,
+    mut bars: Query<(&mut Node, &mut BackgroundColor, &TransportSatisfactionFill)>,
+) {
+    if !allocations.is_changed() && !demand_snapshot.is_changed() {
+        return;
+    }
+
+    let Some(player) = player else {
+        return;
+    };
+    let nation = player.entity();
+
+    for (mut node, mut color, bar) in bars.iter_mut() {
+        let slot = transport_slot(&allocations, nation, bar.commodity);
+        let demand = transport_demand(&demand_snapshot, nation, bar.commodity);
+
+        if demand.demand == 0 {
+            node.width = Val::Percent(0.0);
+            color.0 = Color::srgb(0.45, 0.48, 0.55);
+            continue;
+        }
+
+        let ratio = (slot.granted as f32 / demand.demand as f32).clamp(0.0, 1.0);
+        node.width = Val::Percent(ratio * 100.0);
+        if slot.granted >= demand.demand {
+            color.0 = Color::srgb(0.55, 0.85, 0.6);
+        } else {
+            color.0 = Color::srgb(0.85, 0.4, 0.4);
         }
     }
 }
