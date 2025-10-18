@@ -11,7 +11,7 @@ use crate::economy::allocation_systems;
 use crate::economy::production::{
     ConnectedProduction, calculate_connected_production, run_production,
 };
-use crate::economy::transport::{self, compute_rail_connectivity, RecomputeConnectivity};
+use crate::economy::transport::{self, RecomputeConnectivity, compute_rail_connectivity};
 use crate::economy::workforce;
 use crate::economy::{Calendar, Capital, NationId, PlaceImprovement, PlayerNation, Rails, Roads};
 use crate::helpers::camera;

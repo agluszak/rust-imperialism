@@ -74,8 +74,7 @@ fn handle_turn_input(
             && offers.has_pending_for(*player_id)
         {
             log_writer.write(TerminalLogEvent {
-                message: "Resolve pending diplomatic offers before ending the turn."
-                    .to_string(),
+                message: "Resolve pending diplomatic offers before ending the turn.".to_string(),
             });
             return;
         }

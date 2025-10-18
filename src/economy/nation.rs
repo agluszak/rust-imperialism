@@ -185,9 +185,18 @@ mod tests {
         assert_eq!(player3.entity(), nation3);
 
         // Verify the IDs are correct
-        assert_eq!(world.entity(player1.entity()).get::<NationId>().unwrap().0, 1);
-        assert_eq!(world.entity(player2.entity()).get::<NationId>().unwrap().0, 2);
-        assert_eq!(world.entity(player3.entity()).get::<NationId>().unwrap().0, 3);
+        assert_eq!(
+            world.entity(player1.entity()).get::<NationId>().unwrap().0,
+            1
+        );
+        assert_eq!(
+            world.entity(player2.entity()).get::<NationId>().unwrap().0,
+            2
+        );
+        assert_eq!(
+            world.entity(player3.entity()).get::<NationId>().unwrap().0,
+            3
+        );
     }
 
     #[test]

@@ -79,11 +79,7 @@ impl Plugin for GameSavePlugin {
             .add_observer(rebuild_runtime_state_after_load)
             .add_systems(
                 Update,
-                (
-                    process_save_requests,
-                    process_load_requests,
-                )
-                    .run_if(in_state(AppState::InGame)),
+                (process_save_requests, process_load_requests).run_if(in_state(AppState::InGame)),
             );
     }
 }
@@ -204,22 +200,24 @@ mod tests {
     use bevy::app::App;
     use bevy::ecs::message::{MessageReader, MessageWriter};
     use bevy::ecs::system::RunSystemOnce;
-    use bevy::prelude::{AppExtStates, Commands, Component, MinimalPlugins, Reflect, ReflectComponent};
+    use bevy::prelude::{
+        AppExtStates, Commands, Component, MinimalPlugins, Reflect, ReflectComponent,
+    };
     use bevy::state::app::StatesPlugin;
 
     use moonshine_save::prelude::Save;
 
+    use crate::economy::Calendar;
     use crate::economy::allocation::Allocations;
+    use crate::economy::nation::{NationId, PlayerNation};
     use crate::economy::reservation::ReservationSystem;
     use crate::economy::transport::{Rails, Roads};
-    use crate::economy::Calendar;
-    use crate::economy::nation::{NationId, PlayerNation};
     use crate::province_setup::ProvincesGenerated;
     use crate::save::{
         GameSavePlugin, LoadGameCompleted, LoadGameRequest, SaveGameCompleted, SaveGameRequest,
     };
-    use crate::ui::menu::AppState;
     use crate::turn_system::TurnSystem;
+    use crate::ui::menu::AppState;
 
     #[derive(Component, Reflect, Default, Clone)]
     #[reflect(Component)]
@@ -229,7 +227,10 @@ mod tests {
 
     fn temp_save_path(label: &str) -> PathBuf {
         let mut path = std::env::temp_dir();
-        path.push(format!("rust_imperialism_{label}_{}.ron", rand::random::<u64>()));
+        path.push(format!(
+            "rust_imperialism_{label}_{}.ron",
+            rand::random::<u64>()
+        ));
         path
     }
 
@@ -313,11 +314,13 @@ mod tests {
 
         let mut app = init_test_app();
         let load_request_path = path.clone();
-        let _ = app.world_mut().run_system_once(move |mut writer: MessageWriter<LoadGameRequest>| {
-            writer.write(LoadGameRequest {
-                path: Some(load_request_path.clone()),
-            });
-        });
+        let _ =
+            app.world_mut()
+                .run_system_once(move |mut writer: MessageWriter<LoadGameRequest>| {
+                    writer.write(LoadGameRequest {
+                        path: Some(load_request_path.clone()),
+                    });
+                });
 
         app.update();
         app.update();
