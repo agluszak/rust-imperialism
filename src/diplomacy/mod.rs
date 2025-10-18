@@ -264,6 +264,10 @@ impl DiplomaticOffers {
     pub fn len(&self) -> usize {
         self.pending.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.pending.is_empty()
+    }
 }
 
 /// Orders issued during the player turn.
@@ -778,30 +782,30 @@ pub fn resolve_offer_response(
                 });
             }
             DiplomaticOfferKind::ForeignAid { amount, locked } => {
-                if let Some(&from_entity) = id_to_entity.get(&offer.from) {
-                    if let Ok(mut donor_treasury) = treasuries.get_mut(from_entity) {
-                        if donor_treasury.available() < amount as i64 {
-                            log.write(TerminalLogEvent {
-                                message: format!(
-                                    "{} could not afford the ${} aid promised to {}.",
-                                    display_name(&id_to_name, offer.from),
-                                    amount,
-                                    display_name(&id_to_name, offer.to)
-                                ),
-                            });
-                            return;
-                        }
-                        donor_treasury.subtract(amount as i64);
+                if let Some(&from_entity) = id_to_entity.get(&offer.from)
+                    && let Ok(mut donor_treasury) = treasuries.get_mut(from_entity)
+                {
+                    if donor_treasury.available() < amount as i64 {
+                        log.write(TerminalLogEvent {
+                            message: format!(
+                                "{} could not afford the ${} aid promised to {}.",
+                                display_name(&id_to_name, offer.from),
+                                amount,
+                                display_name(&id_to_name, offer.to)
+                            ),
+                        });
+                        return;
                     }
+                    donor_treasury.subtract(amount as i64);
                 }
 
-                if let Some(&to_entity) = id_to_entity.get(&offer.to) {
-                    if let Ok(mut receiver) = treasuries.get_mut(to_entity) {
-                        receiver.add(amount as i64);
-                    }
+                if let Some(&to_entity) = id_to_entity.get(&offer.to)
+                    && let Ok(mut receiver) = treasuries.get_mut(to_entity)
+                {
+                    receiver.add(amount as i64);
                 }
 
-                state.adjust_score(offer.from, offer.to, ((amount / 200).max(1)) as i32);
+                state.adjust_score(offer.from, offer.to, (amount / 200).max(1));
 
                 if locked {
                     ledger.upsert(RecurringGrant {
