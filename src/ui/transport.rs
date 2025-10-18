@@ -108,7 +108,11 @@ impl Plugin for TransportUIPlugin {
                 (
                     handle_transport_selection,
                     handle_transport_slider_input,
-                    update_transport_ui_elements,
+                    update_transport_slider_fills,
+                    update_transport_slider_backgrounds,
+                    update_transport_stats_text,
+                    update_transport_labels,
+                    update_transport_capacity_display,
                 )
                     .run_if(in_state(GameMode::Transport)),
             );
@@ -434,17 +438,12 @@ fn handle_transport_slider_input(
     }
 }
 
-fn update_transport_ui_elements(
+fn update_transport_slider_fills(
     player: Option<Res<PlayerNation>>,
     capacity: Res<TransportCapacity>,
     allocations: Res<TransportAllocations>,
     demand_snapshot: Res<TransportDemandSnapshot>,
     mut slider_fills: Query<(&mut Node, &TransportSliderFill)>,
-    mut slider_backgrounds: Query<(&mut BackgroundColor, &TransportSliderBackground)>,
-    mut stat_texts: Query<(&mut Text, &mut TextColor, &TransportStatsText), (Without<TransportLabel>, Without<TransportCapacityText>)>,
-    mut labels: Query<(&mut TextColor, &TransportLabel), Without<TransportStatsText>>,
-    mut capacity_text: Query<&mut Text, (With<TransportCapacityText>, Without<TransportStatsText>)>,
-    mut capacity_fill: Query<&mut Node, With<TransportCapacityFill>>,
 ) {
     if !capacity.is_changed() && !allocations.is_changed() && !demand_snapshot.is_changed() {
         return;
@@ -472,6 +471,21 @@ fn update_transport_ui_elements(
         let percent = (value as f32 / scale as f32 * 100.0).clamp(0.0, 100.0);
         node.width = Val::Percent(percent);
     }
+}
+
+fn update_transport_slider_backgrounds(
+    player: Option<Res<PlayerNation>>,
+    demand_snapshot: Res<TransportDemandSnapshot>,
+    mut slider_backgrounds: Query<(&mut BackgroundColor, &TransportSliderBackground)>,
+) {
+    if !demand_snapshot.is_changed() {
+        return;
+    }
+
+    let Some(player) = player else {
+        return;
+    };
+    let nation = player.entity();
 
     for (mut background, slider) in slider_backgrounds.iter_mut() {
         let demand = transport_demand(&demand_snapshot, nation, slider.commodity);
@@ -481,6 +495,22 @@ fn update_transport_ui_elements(
             background.0 = Color::srgba(0.12, 0.14, 0.18, 1.0);
         }
     }
+}
+
+fn update_transport_stats_text(
+    player: Option<Res<PlayerNation>>,
+    allocations: Res<TransportAllocations>,
+    demand_snapshot: Res<TransportDemandSnapshot>,
+    mut stat_texts: Query<(&mut Text, &mut TextColor, &TransportStatsText)>,
+) {
+    if !allocations.is_changed() && !demand_snapshot.is_changed() {
+        return;
+    }
+
+    let Some(player) = player else {
+        return;
+    };
+    let nation = player.entity();
 
     for (mut text, mut color, stats) in stat_texts.iter_mut() {
         let slot = transport_slot(&allocations, nation, stats.commodity);
@@ -498,6 +528,21 @@ fn update_transport_ui_elements(
             color.0 = Color::srgb(0.85, 0.45, 0.45);
         }
     }
+}
+
+fn update_transport_labels(
+    player: Option<Res<PlayerNation>>,
+    demand_snapshot: Res<TransportDemandSnapshot>,
+    mut labels: Query<(&mut TextColor, &TransportLabel)>,
+) {
+    if !demand_snapshot.is_changed() {
+        return;
+    }
+
+    let Some(player) = player else {
+        return;
+    };
+    let nation = player.entity();
 
     for (mut color, label) in labels.iter_mut() {
         let demand = transport_demand(&demand_snapshot, nation, label.commodity);
@@ -507,6 +552,23 @@ fn update_transport_ui_elements(
             color.0 = Color::srgb(0.82, 0.86, 0.95);
         }
     }
+}
+
+fn update_transport_capacity_display(
+    player: Option<Res<PlayerNation>>,
+    capacity: Res<TransportCapacity>,
+    mut capacity_text: Query<&mut Text, With<TransportCapacityText>>,
+    mut capacity_fill: Query<&mut Node, With<TransportCapacityFill>>,
+) {
+    if !capacity.is_changed() {
+        return;
+    }
+
+    let Some(player) = player else {
+        return;
+    };
+    let nation = player.entity();
+    let snapshot = transport_capacity(&capacity, nation);
 
     if let Ok(mut text) = capacity_text.single_mut() {
         text.0 = format!("Capacity: {} / {} used", snapshot.used, snapshot.total);
