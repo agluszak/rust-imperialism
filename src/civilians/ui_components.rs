@@ -2,173 +2,68 @@ use bevy::prelude::*;
 use bevy::ui_widgets::{Activate, observe};
 
 use super::commands::{DeselectAllCivilians, GiveCivilianOrder, RescindOrders, SelectCivilian};
-use super::types::CivilianOrderKind;
-use super::types::{Civilian, CivilianKind, PreviousPosition};
+use super::types::{Civilian, PreviousPosition};
 use crate::ui::button_style::*;
 
-/// Marker for Engineer orders UI panel
+/// Marker for civilian orders UI panel
 #[derive(Component)]
-pub struct EngineerOrdersPanel;
-
-/// Marker for resource improver orders UI panel (Farmer, Rancher, etc.)
-#[derive(Component)]
-pub struct ImproverOrdersPanel;
+pub struct CivilianOrdersPanel;
 
 /// Marker for rescind orders panel
 #[derive(Component)]
 pub struct RescindOrdersPanel;
 
-/// Show/hide Engineer orders UI based on selection messages
-/// Event-driven system that only runs when selection actually changes
-pub fn update_engineer_orders_ui(
+/// Show/hide civilian orders UI based on selection messages using metadata-driven buttons
+pub fn update_civilian_orders_ui(
     mut commands: Commands,
     mut select_events: MessageReader<SelectCivilian>,
     mut deselect_all_events: MessageReader<DeselectAllCivilians>,
     civilians: Query<&Civilian>,
-    existing_panel: Query<Entity, With<EngineerOrdersPanel>>,
+    existing_panel: Query<Entity, With<CivilianOrdersPanel>>,
+    children_query: Query<&Children>,
 ) {
     // Handle deselect-all first (always hides panel)
     if !deselect_all_events.is_empty() {
         deselect_all_events.clear();
         for entity in existing_panel.iter() {
-            commands.entity(entity).despawn();
+            despawn_with_children(&mut commands, entity, &children_query);
         }
         return;
     }
 
-    // Handle selection events
-    let mut selected_engineer_entity = None;
+    let mut selection_changed = false;
+    let mut panel_request: Option<(
+        Entity,
+        &'static str,
+        &'static [super::types::CivilianActionButton],
+    )> = None;
+
     for event in select_events.read() {
-        if let Ok(civilian) = civilians.get(event.entity)
-            && civilian.kind == CivilianKind::Engineer
-        {
-            selected_engineer_entity = Some(event.entity);
+        selection_changed = true;
+
+        if let Ok(civilian) = civilians.get(event.entity) {
+            let definition = civilian.kind.definition();
+            if !definition.action_buttons.is_empty() {
+                panel_request = Some((
+                    event.entity,
+                    definition.display_name,
+                    definition.action_buttons,
+                ));
+            } else {
+                panel_request = None; // Selected unit has no actionable buttons
+            }
         }
     }
 
-    if let Some(civilian_entity) = selected_engineer_entity {
-        // Engineer is selected, ensure panel exists
-        if existing_panel.is_empty() {
-            info!("Creating Engineer orders panel");
-            commands.spawn((
-                Node {
-                    position_type: PositionType::Absolute,
-                    right: Val::Px(16.0),
-                    top: Val::Px(100.0),
-                    padding: UiRect::all(Val::Px(12.0)),
-                    flex_direction: FlexDirection::Column,
-                    row_gap: Val::Px(8.0),
-                    ..default()
-                },
-                BackgroundColor(Color::srgba(0.1, 0.1, 0.15, 0.95)),
-                EngineerOrdersPanel,
-                children![
-                    (
-                        Text::new("Engineer Orders"),
-                        TextFont {
-                            font_size: 18.0,
-                            ..default()
-                        },
-                        TextColor(Color::srgb(1.0, 0.95, 0.8)),
-                    ),
-                    (
-                        Button,
-                        Node {
-                            padding: UiRect::all(Val::Px(8.0)),
-                            ..default()
-                        },
-                        BackgroundColor(NORMAL_BUTTON),
-                        observe(move |_: On<Activate>, mut order_writer: MessageWriter<GiveCivilianOrder>| {
-                            info!("Build Depot button clicked for civilian {:?}", civilian_entity);
-                            order_writer.write(GiveCivilianOrder {
-                                entity: civilian_entity,
-                                order: CivilianOrderKind::BuildDepot,
-                            });
-                        }),
-                        children![(
-                            Text::new("Build Depot"),
-                            TextFont {
-                                font_size: 14.0,
-                                ..default()
-                            },
-                            TextColor(Color::srgb(0.9, 0.95, 1.0)),
-                        )],
-                    ),
-                    (
-                        Button,
-                        Node {
-                            padding: UiRect::all(Val::Px(8.0)),
-                            ..default()
-                        },
-                        BackgroundColor(NORMAL_BUTTON),
-                        observe(move |_: On<Activate>, mut order_writer: MessageWriter<GiveCivilianOrder>| {
-                            info!("Build Port button clicked for civilian {:?}", civilian_entity);
-                            order_writer.write(GiveCivilianOrder {
-                                entity: civilian_entity,
-                                order: CivilianOrderKind::BuildPort,
-                            });
-                        }),
-                        children![(
-                            Text::new("Build Port"),
-                            TextFont {
-                                font_size: 14.0,
-                                ..default()
-                            },
-                            TextColor(Color::srgb(0.9, 0.95, 1.0)),
-                        )],
-                    ),
-                ],
-            ));
-        }
-    } else if !select_events.is_empty() {
-        // Non-engineer selected, remove panel if it exists
+    if selection_changed {
         for entity in existing_panel.iter() {
-            commands.entity(entity).despawn();
-        }
-    }
-}
-
-/// Show/hide resource improver orders UI based on selection messages
-/// Event-driven system that only runs when selection actually changes
-pub fn update_improver_orders_ui(
-    mut commands: Commands,
-    mut select_events: MessageReader<SelectCivilian>,
-    mut deselect_all_events: MessageReader<DeselectAllCivilians>,
-    civilians: Query<&Civilian>,
-    existing_panel: Query<Entity, With<ImproverOrdersPanel>>,
-) {
-    // Handle deselect-all first (always hides panel)
-    if !deselect_all_events.is_empty() {
-        deselect_all_events.clear();
-        for entity in existing_panel.iter() {
-            commands.entity(entity).despawn();
-        }
-        return;
-    }
-
-    // Handle selection events
-    let mut selected_improver_data = None;
-    for event in select_events.read() {
-        if let Ok(civilian) = civilians.get(event.entity)
-            && matches!(
-                civilian.kind,
-                CivilianKind::Farmer
-                    | CivilianKind::Rancher
-                    | CivilianKind::Forester
-                    | CivilianKind::Miner
-                    | CivilianKind::Driller
-            )
-        {
-            selected_improver_data = Some((event.entity, civilian.kind));
+            despawn_with_children(&mut commands, entity, &children_query);
         }
     }
 
-    if let Some((civilian_entity, civilian_kind)) = selected_improver_data {
-        // Resource improver is selected, ensure panel exists
-        if existing_panel.is_empty() {
-            let panel_title = format!("{:?} Orders", civilian_kind);
-            info!("Creating {} orders panel", panel_title);
-            commands.spawn((
+    if let Some((civilian_entity, display_name, buttons)) = panel_request {
+        let panel_entity = commands
+            .spawn((
                 Node {
                     position_type: PositionType::Absolute,
                     right: Val::Px(16.0),
@@ -179,48 +74,65 @@ pub fn update_improver_orders_ui(
                     ..default()
                 },
                 BackgroundColor(Color::srgba(0.1, 0.15, 0.1, 0.95)),
-                ImproverOrdersPanel,
-                children![
-                    (
-                        Text::new(panel_title),
-                        TextFont {
-                            font_size: 18.0,
-                            ..default()
-                        },
-                        TextColor(Color::srgb(1.0, 0.95, 0.8)),
-                    ),
-                    (
+                CivilianOrdersPanel,
+            ))
+            .id();
+
+        commands.entity(panel_entity).with_children(|parent| {
+            parent.spawn((
+                Text::new(format!("{} Orders", display_name)),
+                TextFont {
+                    font_size: 18.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(1.0, 0.95, 0.8)),
+            ));
+
+            for button in buttons {
+                let order_kind = button.order;
+                let label = button.label;
+
+                parent
+                    .spawn((
                         Button,
                         Node {
                             padding: UiRect::all(Val::Px(8.0)),
                             ..default()
                         },
                         BackgroundColor(NORMAL_BUTTON),
-                        observe(move |_: On<Activate>, mut order_writer: MessageWriter<GiveCivilianOrder>| {
-                            info!("Improve Tile button clicked for {:?}", civilian_kind);
-                            order_writer.write(GiveCivilianOrder {
-                                entity: civilian_entity,
-                                order: CivilianOrderKind::ImproveTile,
-                            });
-                        }),
-                        children![(
-                            Text::new("Improve Tile"),
+                    ))
+                    .observe(move |_: On<Activate>, mut order_writer: MessageWriter<GiveCivilianOrder>| {
+                        order_writer.write(GiveCivilianOrder {
+                            entity: civilian_entity,
+                            order: order_kind,
+                        });
+                    })
+                    .with_children(|button_parent| {
+                        button_parent.spawn((
+                            Text::new(label),
                             TextFont {
                                 font_size: 14.0,
                                 ..default()
                             },
-                            TextColor(Color::srgb(0.9, 0.9, 1.0)),
-                        )],
-                    ),
-                ],
-            ));
-        }
-    } else if !select_events.is_empty() {
-        // Non-improver selected, remove panel if it exists
-        for entity in existing_panel.iter() {
-            commands.entity(entity).despawn();
+                            TextColor(Color::srgb(0.9, 0.95, 1.0)),
+                        ));
+                    });
+            }
+        });
+    }
+}
+
+fn despawn_with_children(
+    commands: &mut Commands,
+    entity: Entity,
+    children_query: &Query<&Children>,
+) {
+    if let Ok(children) = children_query.get(entity) {
+        for child in children.iter() {
+            despawn_with_children(commands, child, children_query);
         }
     }
+    commands.entity(entity).despawn();
 }
 
 /// Update UI for rescind orders panel based on selection messages

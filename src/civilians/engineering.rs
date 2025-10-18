@@ -355,23 +355,18 @@ pub fn execute_civilian_improvement_orders(
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
-    tile_resources: Query<&mut TileResource>,
+    tile_resources: Query<&TileResource>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (entity, mut civilian, order) in civilians.iter_mut() {
-        // Check if this is a resource-improving civilian
-        let is_improver = matches!(
-            civilian.kind,
-            CivilianKind::Farmer
-                | CivilianKind::Rancher
-                | CivilianKind::Forester
-                | CivilianKind::Driller
-                | CivilianKind::Miner
-        );
-
-        if !is_improver {
+        // Only process civilians that support tile improvements
+        if !civilian.kind.supports_improvements() {
             continue;
         }
+
+        let Some(resource_predicate) = civilian.kind.improvement_predicate() else {
+            continue;
+        };
 
         // Check territory ownership
         let has_territory_access = tile_storage_query
@@ -405,15 +400,7 @@ pub fn execute_civilian_improvement_orders(
                 && let Some(tile_entity) = tile_storage.get(&civilian.position)
             {
                 if let Ok(resource) = tile_resources.get(tile_entity) {
-                    // Check if this civilian can improve this resource
-                    let can_improve = match civilian.kind {
-                        CivilianKind::Farmer => resource.improvable_by_farmer(),
-                        CivilianKind::Rancher => resource.improvable_by_rancher(),
-                        CivilianKind::Forester => resource.improvable_by_forester(),
-                        CivilianKind::Miner => resource.improvable_by_miner(),
-                        CivilianKind::Driller => resource.improvable_by_driller(),
-                        _ => false,
-                    };
+                    let can_improve = resource_predicate(resource);
 
                     if can_improve && resource.development < DevelopmentLevel::Lv3 {
                         // Store previous position for potential undo

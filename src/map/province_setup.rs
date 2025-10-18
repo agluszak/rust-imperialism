@@ -12,7 +12,7 @@ use crate::economy::{
 };
 use crate::map::province::{City, Province, ProvinceId};
 use crate::map::province_gen::generate_provinces;
-use crate::map::tile_pos::TilePosExt; // HexExt used for trait methods: to_hex(), distance_to()
+use crate::map::tile_pos::{HexExt, TilePosExt}; // Trait methods: to_hex(), distance_to()
 use crate::map::tiles::TerrainType;
 
 /// Resource to track if provinces have been generated
@@ -243,22 +243,47 @@ pub fn assign_provinces_to_countries(
         }
     }
 
-    // Spawn an Engineer for the player near their capital
+    // Spawn starter civilian roster for the player clustered around the capital
     if let Some(player_entity) = country_entities.first()
         && let Some(player_capital) = province_list.first()
     {
-        let engineer_pos = player_capital.2; // Use capital tile for now
-        commands.spawn(Civilian {
-            kind: CivilianKind::Engineer,
-            position: engineer_pos,
-            owner: *player_entity,
-            selected: false,
-            has_moved: false,
-        });
-        info!(
-            "Spawned Engineer for player at ({}, {})",
-            engineer_pos.x, engineer_pos.y
-        );
+        let capital_pos = player_capital.2;
+        let capital_hex = capital_pos.to_hex();
+        let mut spawn_positions = Vec::new();
+        spawn_positions.push(capital_pos);
+
+        for neighbor in capital_hex.all_neighbors() {
+            if let Some(tile_pos) = neighbor.to_tile_pos() {
+                spawn_positions.push(tile_pos);
+            }
+            if spawn_positions.len() >= 6 {
+                break;
+            }
+        }
+
+        while spawn_positions.len() < 6 {
+            spawn_positions.push(capital_pos);
+        }
+
+        let starter_units = [
+            CivilianKind::Engineer,
+            CivilianKind::Prospector,
+            CivilianKind::Farmer,
+            CivilianKind::Miner,
+            CivilianKind::Rancher,
+            CivilianKind::Forester,
+        ];
+
+        for (kind, pos) in starter_units.iter().zip(spawn_positions.iter()) {
+            commands.spawn(Civilian {
+                kind: *kind,
+                position: *pos,
+                owner: *player_entity,
+                selected: false,
+                has_moved: false,
+            });
+            info!("Spawned {:?} for player at ({}, {})", kind, pos.x, pos.y);
+        }
     }
 
     info!("Province assignment complete!");

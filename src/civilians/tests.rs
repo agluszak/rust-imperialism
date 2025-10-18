@@ -5,6 +5,7 @@ use crate::civilians::types::{
 };
 use crate::economy::transport::{PlaceImprovement, Rails, ordered_edge};
 use crate::map::province::{Province, ProvinceId, TileProvince};
+use crate::resources::{ResourceType, TileResource};
 use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
@@ -173,4 +174,29 @@ fn test_engineer_starts_job_on_new_rail() {
         job.target, target_pos,
         "Job target should be the target position"
     );
+}
+
+#[test]
+fn test_prospector_metadata_has_prospect_action() {
+    let definition = CivilianKind::Prospector.definition();
+    assert_eq!(definition.display_name, "Prospector");
+    assert_eq!(definition.action_buttons.len(), 1);
+    assert_eq!(
+        definition.action_buttons[0].order,
+        CivilianOrderKind::Prospect
+    );
+}
+
+#[test]
+fn test_miner_predicate_accepts_minerals_only() {
+    let predicate = CivilianKind::Miner
+        .improvement_predicate()
+        .expect("Miner should have improvement predicate");
+
+    let mut coal = TileResource::hidden_mineral(ResourceType::Coal);
+    coal.discovered = true;
+    assert!(predicate(&coal));
+
+    let timber = TileResource::visible(ResourceType::Timber);
+    assert!(!predicate(&timber));
 }

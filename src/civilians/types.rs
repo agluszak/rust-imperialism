@@ -3,6 +3,26 @@ use bevy::ecs::reflect::ReflectMapEntities;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
 
+use crate::resources::TileResource;
+
+/// Resource predicate used to validate whether a civilian can improve a tile
+pub type ResourcePredicate = fn(&TileResource) -> bool;
+
+/// Descriptor for an action button that appears in the civilian orders UI
+#[derive(Debug, Clone, Copy)]
+pub struct CivilianActionButton {
+    pub label: &'static str,
+    pub order: CivilianOrderKind,
+}
+
+/// Static metadata describing how a civilian behaves in the UI and systems
+#[derive(Debug, Clone, Copy)]
+pub struct CivilianKindDefinition {
+    pub display_name: &'static str,
+    pub action_buttons: &'static [CivilianActionButton],
+    pub resource_predicate: Option<ResourcePredicate>,
+}
+
 /// Type of civilian unit
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
 pub enum CivilianKind {
@@ -14,6 +34,96 @@ pub enum CivilianKind {
     Driller,    // Improves oil
     Engineer,   // Builds rails, depots, ports, fortifications
     Developer,  // Works in Minor Nations
+}
+
+impl CivilianKind {
+    /// Lookup table for civilian metadata
+    pub fn definition(&self) -> &'static CivilianKindDefinition {
+        // Static button descriptors reused across definitions
+        const IMPROVE_TILE_BUTTON: CivilianActionButton = CivilianActionButton {
+            label: "Improve Tile",
+            order: CivilianOrderKind::ImproveTile,
+        };
+        const PROSPECT_BUTTON: CivilianActionButton = CivilianActionButton {
+            label: "Prospect Tile",
+            order: CivilianOrderKind::Prospect,
+        };
+        const ENGINEER_ACTIONS: &[CivilianActionButton] = &[
+            CivilianActionButton {
+                label: "Build Depot",
+                order: CivilianOrderKind::BuildDepot,
+            },
+            CivilianActionButton {
+                label: "Build Port",
+                order: CivilianOrderKind::BuildPort,
+            },
+        ];
+        const IMPROVER_ACTIONS: &[CivilianActionButton] = &[IMPROVE_TILE_BUTTON];
+        const PROSPECTOR_ACTIONS: &[CivilianActionButton] = &[PROSPECT_BUTTON];
+        const EMPTY_ACTIONS: &[CivilianActionButton] = &[];
+
+        const ENGINEER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
+            display_name: "Engineer",
+            action_buttons: ENGINEER_ACTIONS,
+            resource_predicate: None,
+        };
+        const FARMER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
+            display_name: "Farmer",
+            action_buttons: IMPROVER_ACTIONS,
+            resource_predicate: Some(TileResource::improvable_by_farmer),
+        };
+        const RANCHER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
+            display_name: "Rancher",
+            action_buttons: IMPROVER_ACTIONS,
+            resource_predicate: Some(TileResource::improvable_by_rancher),
+        };
+        const FORESTER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
+            display_name: "Forester",
+            action_buttons: IMPROVER_ACTIONS,
+            resource_predicate: Some(TileResource::improvable_by_forester),
+        };
+        const MINER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
+            display_name: "Miner",
+            action_buttons: IMPROVER_ACTIONS,
+            resource_predicate: Some(TileResource::improvable_by_miner),
+        };
+        const DRILLER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
+            display_name: "Driller",
+            action_buttons: IMPROVER_ACTIONS,
+            resource_predicate: Some(TileResource::improvable_by_driller),
+        };
+        const PROSPECTOR_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
+            display_name: "Prospector",
+            action_buttons: PROSPECTOR_ACTIONS,
+            resource_predicate: None,
+        };
+        const DEVELOPER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
+            display_name: "Developer",
+            action_buttons: EMPTY_ACTIONS,
+            resource_predicate: None,
+        };
+
+        match self {
+            CivilianKind::Engineer => &ENGINEER_DEFINITION,
+            CivilianKind::Farmer => &FARMER_DEFINITION,
+            CivilianKind::Rancher => &RANCHER_DEFINITION,
+            CivilianKind::Forester => &FORESTER_DEFINITION,
+            CivilianKind::Miner => &MINER_DEFINITION,
+            CivilianKind::Driller => &DRILLER_DEFINITION,
+            CivilianKind::Prospector => &PROSPECTOR_DEFINITION,
+            CivilianKind::Developer => &DEVELOPER_DEFINITION,
+        }
+    }
+
+    /// Returns true if the civilian can improve tile resources
+    pub fn supports_improvements(&self) -> bool {
+        self.definition().resource_predicate.is_some()
+    }
+
+    /// Get the resource predicate used to validate improvements
+    pub fn improvement_predicate(&self) -> Option<ResourcePredicate> {
+        self.definition().resource_predicate
+    }
 }
 
 /// Civilian unit component
@@ -83,7 +193,7 @@ pub struct PreviousPosition(pub TilePos);
 #[reflect(Component)]
 pub struct ActionTurn(pub u32);
 
-#[derive(Debug, Clone, Copy, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
 pub enum CivilianOrderKind {
     BuildRail { to: TilePos }, // Build rail to adjacent tile
     BuildDepot,                // Build depot at current position
