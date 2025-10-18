@@ -242,6 +242,7 @@ pub fn app() -> App {
     app.add_plugins((
         DefaultPlugins.set(ImagePlugin::default_nearest()),
         bmp_loader::ImperialismBmpLoaderPlugin,
+        bevy::ui_widgets::UiWidgetsPlugins,
     ))
     .insert_state(AppState::MainMenu)
     .add_sub_state::<GameMode>()

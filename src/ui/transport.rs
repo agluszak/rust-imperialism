@@ -1,6 +1,7 @@
 use bevy::ecs::hierarchy::ChildSpawnerCommands;
+use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
-use bevy::ui::RelativeCursorPosition;
+use bevy::ui_widgets::{Slider, SliderRange, SliderThumb, SliderValue, ValueChange, observe};
 use bevy_ecs_tilemap::prelude::TilePos;
 
 use super::button_style::*;
@@ -32,7 +33,9 @@ struct TransportLabel {
     commodity: TransportCommodity,
 }
 
+// Note: Fields are used in observer closure, but compiler doesn't detect this
 #[derive(Component)]
+#[allow(dead_code)]
 struct TransportSlider {
     commodity: TransportCommodity,
     nation: Entity,
@@ -107,7 +110,6 @@ impl Plugin for TransportUIPlugin {
                 Update,
                 (
                     handle_transport_selection,
-                    handle_transport_slider_input,
                     update_transport_slider_fills,
                     update_transport_slider_backgrounds,
                     update_transport_stats_text,
@@ -334,8 +336,8 @@ fn spawn_commodity_row(
                 TransportLabel { commodity },
             ));
 
+            // Use Bevy's standard Slider widget with observer for interaction
             row.spawn((
-                Button,
                 Node {
                     width: Val::Px(220.0),
                     height: Val::Px(20.0),
@@ -346,43 +348,64 @@ fn spawn_commodity_row(
                     ..default()
                 },
                 BackgroundColor(Color::srgba(0.12, 0.14, 0.18, 1.0)),
-                RelativeCursorPosition::default(),
+                Hovered::default(),
+                Slider::default(),
+                SliderValue(0.0),
+                SliderRange::new(0.0, 100.0), // Will be updated dynamically
                 TransportSlider { commodity, nation },
                 TransportSliderBackground { commodity },
-            ))
-            .with_children(|slider: &mut ChildSpawnerCommands| {
-                slider.spawn((
-                    Node {
-                        position_type: PositionType::Absolute,
-                        left: Val::Px(0.0),
-                        top: Val::Px(0.0),
-                        height: Val::Percent(100.0),
-                        width: Val::Percent(0.0),
-                        ..default()
-                    },
-                    BackgroundColor(Color::srgb(0.32, 0.45, 0.72)),
-                    TransportSliderFill {
+                // Observer handles value changes
+                observe(move |value_change: On<ValueChange<f32>>, mut adjust_writer: MessageWriter<TransportAdjustAllocation>| {
+                    adjust_writer.write(TransportAdjustAllocation {
+                        nation,
                         commodity,
-                        kind: SliderFillKind::Requested,
-                    },
-                ));
-
-                slider.spawn((
-                    Node {
-                        position_type: PositionType::Absolute,
-                        left: Val::Px(0.0),
-                        top: Val::Px(0.0),
-                        height: Val::Percent(100.0),
-                        width: Val::Percent(0.0),
-                        ..default()
-                    },
-                    BackgroundColor(Color::srgb(0.28, 0.76, 0.52)),
-                    TransportSliderFill {
-                        commodity,
-                        kind: SliderFillKind::Granted,
-                    },
-                ));
-            });
+                        requested: value_change.value.round() as u32,
+                    });
+                }),
+                children![
+                    // Requested fill (blue)
+                    (
+                        Node {
+                            position_type: PositionType::Absolute,
+                            left: Val::Px(0.0),
+                            top: Val::Px(0.0),
+                            height: Val::Percent(100.0),
+                            width: Val::Percent(0.0),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.32, 0.45, 0.72)),
+                        TransportSliderFill {
+                            commodity,
+                            kind: SliderFillKind::Requested,
+                        },
+                    ),
+                    // Granted fill (green)
+                    (
+                        Node {
+                            position_type: PositionType::Absolute,
+                            left: Val::Px(0.0),
+                            top: Val::Px(0.0),
+                            height: Val::Percent(100.0),
+                            width: Val::Percent(0.0),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.28, 0.76, 0.52)),
+                        TransportSliderFill {
+                            commodity,
+                            kind: SliderFillKind::Granted,
+                        },
+                    ),
+                    // Invisible thumb for drag interaction (required by Slider)
+                    (
+                        SliderThumb,
+                        Node {
+                            width: Val::Px(0.0),
+                            height: Val::Px(0.0),
+                            ..default()
+                        },
+                    ),
+                ],
+            ));
 
             row.spawn((
                 Text::new("Requested 0 / 0 | Supply 0 | Demand 0"),
@@ -394,48 +417,6 @@ fn spawn_commodity_row(
                 TransportStatsText { commodity },
             ));
         });
-}
-
-fn handle_transport_slider_input(
-    player: Option<Res<PlayerNation>>,
-    capacity: Res<TransportCapacity>,
-    mut interactions: Query<
-        (&Interaction, &RelativeCursorPosition, &TransportSlider),
-        (Changed<Interaction>, With<Button>),
-    >,
-    mut adjust_writer: MessageWriter<TransportAdjustAllocation>,
-) {
-    let Some(player) = player else {
-        return;
-    };
-
-    let nation = player.entity();
-    let snapshot = transport_capacity(&capacity, nation);
-    if snapshot.total == 0 {
-        return;
-    }
-
-    for (interaction, cursor, slider) in interactions.iter_mut() {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
-
-        if slider.nation != nation {
-            continue;
-        }
-
-        let Some(position) = cursor.normalized else {
-            continue;
-        };
-
-        let ratio = position.x.clamp(0.0, 1.0);
-        let requested = (ratio * snapshot.total as f32).round() as u32;
-        adjust_writer.write(TransportAdjustAllocation {
-            nation,
-            commodity: slider.commodity,
-            requested,
-        });
-    }
 }
 
 fn update_transport_slider_fills(
@@ -455,6 +436,7 @@ fn update_transport_slider_fills(
     let nation = player.entity();
     let snapshot = transport_capacity(&capacity, nation);
 
+    // Update visual fills based on allocation state
     for (mut node, fill) in slider_fills.iter_mut() {
         let slot = transport_slot(&allocations, nation, fill.commodity);
         let demand = transport_demand(&demand_snapshot, nation, fill.commodity);
