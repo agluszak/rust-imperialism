@@ -119,7 +119,7 @@ pub fn update_transport_demand_snapshot(
 
     // Supply from connected production
     for (nation, resources) in connected_production.0.iter() {
-        let entries = snapshot.nations.entry(*nation).or_insert_with(HashMap::new);
+        let entries = snapshot.nations.entry(*nation).or_default();
         for commodity in TransportCommodity::ORDERED.iter() {
             let mut supply = 0u32;
             for resource_type in commodity.resource_types() {
@@ -130,7 +130,7 @@ pub fn update_transport_demand_snapshot(
             if supply > 0 {
                 entries
                     .entry(*commodity)
-                    .or_insert_with(DemandEntry::default)
+                    .or_default()
                     .supply = supply;
             }
         }
@@ -138,7 +138,7 @@ pub fn update_transport_demand_snapshot(
 
     // Demand from workforce (food)
     for (entity, workforce) in workforces.iter() {
-        let entries = snapshot.nations.entry(entity).or_insert_with(HashMap::new);
+        let entries = snapshot.nations.entry(entity).or_default();
         for (index, _worker) in workforce.workers.iter().enumerate() {
             let commodity = match index % 3 {
                 0 => TransportCommodity::Grain,
@@ -147,14 +147,14 @@ pub fn update_transport_demand_snapshot(
             };
             entries
                 .entry(commodity)
-                .or_insert_with(DemandEntry::default)
+                .or_default()
                 .demand += 1;
         }
     }
 
     // Demand from production allocations
     for (nation, alloc, maybe_buildings) in allocations.iter() {
-        let entries = snapshot.nations.entry(nation).or_insert_with(HashMap::new);
+        let entries = snapshot.nations.entry(nation).or_default();
 
         for ((_, output_good), reservations) in alloc.production.iter() {
             let Some(buildings) = maybe_buildings else {
@@ -187,7 +187,7 @@ pub fn update_transport_demand_snapshot(
                 if let Some(commodity) = TransportCommodity::from_good(good) {
                     entries
                         .entry(commodity)
-                        .or_insert_with(DemandEntry::default)
+                        .or_default()
                         .demand += amount_per_unit * units;
                 }
             }
