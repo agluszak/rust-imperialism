@@ -1,5 +1,6 @@
 use bevy::app::AppExit;
 use bevy::prelude::*;
+use bevy::ui_widgets::{Activate, observe};
 
 use super::button_style::*;
 use super::generic_systems::hide_screen;
@@ -18,24 +19,26 @@ pub enum AppState {
 #[derive(Component)]
 pub struct MainMenuRoot;
 
-/// Marker for "New Game" button
-#[derive(Component)]
-pub struct NewGameButton;
+/// Creates an observer that starts a new game when button is activated
+pub fn start_new_game() -> impl Bundle {
+    observe(|_activate: On<Activate>, mut next_state: ResMut<NextState<AppState>>| {
+        next_state.set(AppState::InGame);
+    })
+}
 
-/// Marker for "Quit" button
-#[derive(Component)]
-pub struct QuitButton;
+/// Creates an observer that quits the application when button is activated
+pub fn quit_game() -> impl Bundle {
+    observe(|_activate: On<Activate>, mut exit_writer: MessageWriter<AppExit>| {
+        exit_writer.write(AppExit::Success);
+    })
+}
 
 pub struct MenuUIPlugin;
 
 impl Plugin for MenuUIPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(AppState::MainMenu), ensure_main_menu_visible)
-            .add_systems(OnExit(AppState::MainMenu), hide_screen::<MainMenuRoot>)
-            .add_systems(
-                Update,
-                handle_menu_buttons.run_if(in_state(AppState::MainMenu)),
-            );
+            .add_systems(OnExit(AppState::MainMenu), hide_screen::<MainMenuRoot>);
     }
 }
 
@@ -87,7 +90,7 @@ fn ensure_main_menu_visible(
                 },
                 BackgroundColor(NORMAL_ACCENT),
                 AccentButton,
-                NewGameButton,
+                start_new_game(),
                 children![(
                     Text::new("New Game"),
                     TextFont {
@@ -104,7 +107,7 @@ fn ensure_main_menu_visible(
                     ..default()
                 },
                 BackgroundColor(NORMAL_BUTTON),
-                QuitButton,
+                quit_game(),
                 children![(
                     Text::new("Quit"),
                     TextFont {
@@ -116,26 +119,4 @@ fn ensure_main_menu_visible(
             ),
         ],
     ));
-}
-
-// Note: hide_main_menu replaced with generic hide_screen::<MainMenuRoot>
-// See src/ui/generic_systems.rs for the generic implementation
-
-fn handle_menu_buttons(
-    mut interactions: Query<
-        (&Interaction, Option<&NewGameButton>, Option<&QuitButton>),
-        Changed<Interaction>,
-    >,
-    mut next_app_state: ResMut<NextState<AppState>>,
-    mut exit_writer: MessageWriter<AppExit>,
-) {
-    for (interaction, is_new_game, is_quit) in interactions.iter_mut() {
-        if *interaction == Interaction::Pressed {
-            if is_new_game.is_some() {
-                next_app_state.set(AppState::InGame);
-            } else if is_quit.is_some() {
-                exit_writer.write(AppExit::Success);
-            }
-        }
-    }
 }
