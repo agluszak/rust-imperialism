@@ -74,22 +74,27 @@ pub struct DiplomacyUIPlugin;
 impl Plugin for DiplomacyUIPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameMode::Diplomacy), setup_diplomacy_screen)
-            .add_systems(OnExit(GameMode::Diplomacy), hide_screen::<DiplomacyScreen>)
-            .add_systems(
-                Update,
-                (
-                    ensure_selection_valid,
-                    update_nation_buttons,
-                    handle_nation_selection,
-                    update_detail_panel,
-                    update_action_buttons,
-                    handle_action_buttons,
-                    update_pending_offers,
-                    handle_offer_response_buttons,
-                )
-                    .chain()
-                    .run_if(in_state(GameMode::Diplomacy)),
-            );
+            .add_systems(OnExit(GameMode::Diplomacy), hide_screen::<DiplomacyScreen>);
+
+        // Add systems individually since ParamSet breaks .chain()
+        // Systems will run in parallel where possible (Bevy handles scheduling)
+        app.add_systems(
+            Update,
+            (
+                ensure_selection_valid,
+                update_nation_buttons,
+                handle_nation_selection,
+                update_action_buttons,
+                handle_action_buttons,
+                update_pending_offers,
+                handle_offer_response_buttons,
+            )
+                .run_if(in_state(GameMode::Diplomacy)),
+        );
+
+        // Add detail panel update separately - can't use run_if with ParamSet
+        // State check is done inside the system
+        app.add_systems(Update, update_detail_panel);
     }
 }
 
@@ -679,32 +684,37 @@ fn handle_nation_selection(
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn update_detail_panel(
+    mode: Res<State<GameMode>>,
     selection: Res<DiplomacySelection>,
     state: Res<DiplomacyState>,
     ledger: Res<ForeignAidLedger>,
     player: Option<Res<PlayerNation>>,
     nation_ids: Query<&NationId>,
     names: Query<(&NationId, &Name)>,
-    mut name_text: Query<&mut Text, (With<SelectedNationNameText>, Without<DiplomacyNationButton>)>,
-    mut relation_text: Query<
-        &mut Text,
-        (With<SelectedRelationText>, Without<DiplomacyNationButton>),
-    >,
-    mut treaty_text: Query<&mut Text, (With<SelectedTreatyText>, Without<DiplomacyNationButton>)>,
-    mut aid_text: Query<&mut Text, (With<SelectedAidText>, Without<DiplomacyNationButton>)>,
+    mut text_queries: ParamSet<(
+        Query<&mut Text, (With<SelectedNationNameText>, Without<DiplomacyNationButton>)>,
+        Query<&mut Text, (With<SelectedRelationText>, Without<DiplomacyNationButton>)>,
+        Query<&mut Text, (With<SelectedTreatyText>, Without<DiplomacyNationButton>)>,
+        Query<&mut Text, (With<SelectedAidText>, Without<DiplomacyNationButton>)>,
+    )>,
 ) {
+    // Manual state check since we can't use run_if with ParamSet
+    if mode.get() != &GameMode::Diplomacy {
+        return;
+    }
     let Some(selected) = selection.selected else {
-        if let Ok(mut text) = name_text.single_mut() {
+        if let Ok(mut text) = text_queries.p0().single_mut() {
             text.0 = "No foreign nations selected".to_string();
         }
-        if let Ok(mut text) = relation_text.single_mut() {
+        if let Ok(mut text) = text_queries.p1().single_mut() {
             text.0 = "Relationship: --".to_string();
         }
-        if let Ok(mut text) = treaty_text.single_mut() {
+        if let Ok(mut text) = text_queries.p2().single_mut() {
             text.0 = "Treaties: none".to_string();
         }
-        if let Ok(mut text) = aid_text.single_mut() {
+        if let Ok(mut text) = text_queries.p3().single_mut() {
             text.0 = "Locked aid: none".to_string();
         }
         return;
@@ -718,12 +728,12 @@ fn update_detail_panel(
         .map(|(_, name)| name.0.clone())
         .unwrap_or_else(|| format!("Nation {}", selected.0));
 
-    if let Ok(mut text) = name_text.single_mut() {
+    if let Ok(mut text) = text_queries.p0().single_mut() {
         text.0 = selected_name.clone();
     }
 
     let relation = player_id.and_then(|pid| state.relation(pid, selected));
-    if let Ok(mut text) = relation_text.single_mut() {
+    if let Ok(mut text) = text_queries.p1().single_mut() {
         if let Some(relation) = relation {
             text.0 = format!(
                 "Relationship: {} ({})",
@@ -735,7 +745,7 @@ fn update_detail_panel(
         }
     }
 
-    if let Ok(mut text) = treaty_text.single_mut() {
+    if let Ok(mut text) = text_queries.p2().single_mut() {
         if let Some(relation) = relation {
             let mut flags = Vec::new();
             if relation.treaty.at_war {
@@ -761,7 +771,7 @@ fn update_detail_panel(
         }
     }
 
-    if let Ok(mut text) = aid_text.single_mut() {
+    if let Ok(mut text) = text_queries.p3().single_mut() {
         if let Some(player_id) = player_id {
             if let Some(grant) = ledger
                 .all()
