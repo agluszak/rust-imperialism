@@ -441,8 +441,8 @@ fn update_transport_ui_elements(
     demand_snapshot: Res<TransportDemandSnapshot>,
     mut slider_fills: Query<(&mut Node, &TransportSliderFill)>,
     mut slider_backgrounds: Query<(&mut BackgroundColor, &TransportSliderBackground)>,
-    mut stat_texts: Query<(&mut Text, &mut TextColor, &TransportStatsText)>,
-    mut labels: Query<(&mut TextColor, &TransportLabel)>,
+    mut stat_texts: Query<(&mut Text, &mut TextColor, &TransportStatsText), Without<TransportLabel>>,
+    mut labels: Query<(&mut TextColor, &TransportLabel), Without<TransportStatsText>>,
     mut capacity_text: Query<&mut Text, With<TransportCapacityText>>,
     mut capacity_fill: Query<&mut Node, With<TransportCapacityFill>>,
 ) {
