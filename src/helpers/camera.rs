@@ -5,9 +5,69 @@ use bevy::{
     ui::RelativeCursorPosition,
 };
 
+use crate::economy::{Capital, NationId, PlayerNation};
+use crate::map::TilePosExt;
 use crate::ui::ScrollableTerminal;
+use crate::ui::mode::GameMode;
 
-// A simple camera system for moving and zooming the camera.
+/// Plugin that handles camera setup and control
+pub struct CameraPlugin;
+
+impl Plugin for CameraPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Startup, setup).add_systems(
+            Update,
+            (
+                center_on_player_capital.run_if(resource_added::<PlayerNation>),
+                movement
+                    .after(crate::ui::handle_mouse_wheel_scroll)
+                    .run_if(in_state(GameMode::Map)),
+            ),
+        );
+    }
+}
+
+/// Set up the camera at startup
+fn setup(mut commands: Commands) {
+    commands.spawn((
+        Camera2d,
+        Projection::Orthographic(OrthographicProjection {
+            scale: 0.5,
+            ..OrthographicProjection::default_2d()
+        }),
+    ));
+}
+
+/// Center camera on player's capital when the game starts
+fn center_on_player_capital(
+    mut camera: Query<&mut Transform, With<Camera2d>>,
+    player_nation: Option<Res<PlayerNation>>,
+    capitals: Query<(&Capital, &NationId)>,
+) {
+    // Only run once when player nation is available
+    let Some(_player) = player_nation else {
+        return;
+    };
+
+    // Find player's capital
+    for (capital, _nation_id) in capitals.iter() {
+        // Check if this capital belongs to the player's nation by checking the entity
+        // Since we can't directly query the entity's nation, we'll use the first capital we find
+        // (which should be the player's based on setup order)
+        if let Ok(mut transform) = camera.single_mut() {
+            let capital_world_pos = capital.0.to_world_pos();
+            transform.translation.x = capital_world_pos.x;
+            transform.translation.y = capital_world_pos.y;
+            info!(
+                "Camera centered on capital at ({:.1}, {:.1})",
+                capital_world_pos.x, capital_world_pos.y
+            );
+            return;
+        }
+    }
+}
+
+/// Handle camera movement and zooming
 pub fn movement(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,

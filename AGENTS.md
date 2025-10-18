@@ -1,27 +1,32 @@
 # AGENTS.md
 
-This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. Last updated: **2025-10-17**.
+This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. Last updated: **2025-10-19**.
 
 **This is an economy-first, turn-based strategy game** inspired by Imperialism (1997). Built with Bevy 0.17 ECS, featuring hex-based maps, multi-nation economies, and a reservation-based resource allocation system.
 
 **Recent changes** (Oct 2025):
+- Plugin architecture: `EconomyPlugin`, `MapSetupPlugin`, `CameraPlugin` encapsulate system registration
+- Map module reorganized: all map-related files moved to `src/map/` with subdirectory structure
+- `lib.rs` simplified from 361 → 110 lines, now focused on app configuration only
+- Plugins defined in respective `mod.rs` files (not separate plugin files)
 - Allocation system refactored to atomic reservations (`Vec<ReservationId>` per allocation)
-- Major modules now use subdirectory structure: `economy/{transport,workforce}`, `ui/city`, `civilians/`
+- Major modules use subdirectory structure: `economy/{transport,workforce}`, `ui/city`, `civilians/`, `map/{rendering,province}`
 - Test organization standardized: inline for small tests, separate files for large test suites
 - All imports use explicit `crate::` paths (no `super::` in tests)
-- Zero clippy warnings, all tests passing
+- Zero clippy warnings, 74 unit tests + 3 integration tests passing
 
 **Key architectural decisions**:
 - Strict Input/Logic/Rendering separation via messages
 - Per-nation economy data as Components (not global Resources)
 - Resource allocation follows Imperialism's pre-allocation model (adjust during turn, commit at turn end)
+- Plugin-based architecture with each major subsystem in its own plugin
 
 ## Quick Reference
 
 **Build & Run:**
 ```bash
 cargo run              # Run game (debug)
-cargo test             # Run all tests
+cargo test             # Run all tests (74 unit + 3 integration)
 cargo clippy           # Lint checks
 ```
 
@@ -33,7 +38,8 @@ cargo clippy           # Lint checks
 **Where to find things:**
 - Game logic: `src/economy/`, `src/civilians/`
 - UI: `src/ui/city/`, `src/ui/{transport,market,diplomacy}.rs`
-- Systems registration: `src/lib.rs`
+- Plugin registration: `src/economy/mod.rs`, `src/map/mod.rs`, `src/helpers/camera.rs`
+- App setup: `src/lib.rs` (orchestrates plugins, no implementation)
 - Allocation system: `src/economy/allocation*.rs`, `ALLOCATION_DESIGN.md`
 - Project overview: `OVERVIEW.md` (Imperialism 1997 mechanics)
 
@@ -45,7 +51,7 @@ cargo clippy           # Lint checks
   - AppState (root): `MainMenu` (default), `InGame`
   - GameMode (sub-state under `InGame`): `Map` (default), `Transport`, `City`, `Market`, `Diplomacy`
 - Map: Procedural terrain (Perlin-based)
-- UI: HUD (Turn, Season/Year, Treasury), terminal log with scrollbar, sidebar mode buttons; each non-Map mode shows a fullscreen overlay with a “Back to Map” button
+- UI: HUD (Turn, Season/Year, Treasury), terminal log with scrollbar, sidebar mode buttons; each non-Map mode shows a fullscreen overlay with a "Back to Map" button
 - Economy scaffolding: Multi-nation ECS (per-nation `Treasury` and `Stockpile` components), simple Production (TextileMill), Transport events (roads toggling), minimal Market (fixed-price buy/sell of Cloth)
 
 Read @OVERVIEW.md to get a high-level overview of the Imperialism game.
@@ -53,7 +59,7 @@ Read @OVERVIEW.md to get a high-level overview of the Imperialism game.
 ## Current features (functional)
 
 - Main Menu
-  - Fullscreen UI with “New Game” (switches to `AppState::InGame`) and “Quit”
+  - Fullscreen UI with "New Game" (switches to `AppState::InGame`) and "Quit"
   - Gameplay UI spawns only when entering `InGame` (no map/HUD behind the menu)
 
 - Map Mode
@@ -101,27 +107,39 @@ Read @OVERVIEW.md to get a high-level overview of the Imperialism game.
 
 ```
 src/
-├── main.rs, lib.rs
+├── main.rs, lib.rs (orchestrates plugins)
 ├── assets.rs, bmp_loader.rs, constants.rs
 │
-├── tiles.rs, terrain_gen.rs, terrain_atlas.rs, tile_pos.rs
-├── province.rs, province_gen.rs, province_setup.rs
-├── border_rendering.rs, city_rendering.rs, transport_rendering.rs
+├── map/
+│   ├── mod.rs (MapSetupPlugin, tilemap creation, tile hover handlers)
+│   ├── tiles.rs, terrain_gen.rs, tile_pos.rs
+│   ├── province.rs, province_gen.rs, province_setup.rs
+│   └── rendering/
+│       ├── mod.rs
+│       ├── map_visual.rs, terrain_atlas.rs
+│       ├── border_rendering.rs, city_rendering.rs
+│       └── transport_rendering.rs
 │
-├── input.rs
-├── turn_system.rs
+├── helpers/
+│   ├── camera.rs (CameraPlugin, setup, movement, centering)
+│   └── picking.rs
+│
+├── input.rs (InputPlugin, tile click handlers)
+├── turn_system.rs (TurnSystemPlugin)
 │
 ├── civilians/
+│   ├── mod.rs (CivilianPlugin)
 │   ├── types.rs, commands.rs, jobs.rs
 │   ├── systems.rs, engineering.rs
 │   ├── rendering.rs, ui_components.rs
 │   └── tests.rs
 │
 ├── economy/
+│   ├── mod.rs (EconomyPlugin, system registration)
 │   ├── goods.rs, stockpile.rs, treasury.rs
 │   ├── calendar.rs, nation.rs
 │   ├── production.rs, technology.rs
-│   ├── allocation.rs, allocation_systems.rs, reservation.rs
+│   ├── allocation.rs, allocation_systems/, reservation.rs
 │   ├── transport/
 │   │   ├── types.rs, messages.rs, validation.rs
 │   │   ├── construction.rs, connectivity.rs, input.rs
@@ -132,7 +150,7 @@ src/
 │       └── mod.rs
 │
 └── ui/
-    ├── mod.rs, components.rs, setup.rs
+    ├── mod.rs (GameUIPlugin), components.rs, setup.rs
     ├── logging.rs, input.rs, status.rs
     ├── mode.rs, menu.rs
     ├── state/
@@ -148,11 +166,11 @@ src/
 ```
 
 **Key modules:**
-- **terrain/tiles**: Procedural generation, hex utilities, atlas building
-- **provinces**: Province generation (flood-fill), assignment to countries, border rendering
-- **civilians**: Unit types, multi-turn jobs, Engineer/Prospector logic
-- **economy**: Goods, per-nation Stockpile/Treasury, production, allocation system, transport network, workforce
-- **ui**: HUD, terminal log, mode overlays (City/Transport/Market/Diplomacy)
+- **map**: Tilemap setup, procedural generation, hex utilities, atlas building, provinces, borders, city rendering
+- **economy**: EconomyPlugin with all economy systems, per-nation Stockpile/Treasury, production, allocation, transport, workforce
+- **civilians**: CivilianPlugin, unit types, multi-turn jobs, Engineer/Prospector logic
+- **helpers/camera**: CameraPlugin with setup, movement, and positioning systems
+- **ui**: GameUIPlugin, HUD, terminal log, mode overlays (City/Transport/Market/Diplomacy)
 
 ## Important types
 
@@ -226,7 +244,7 @@ src/
 **Coverage:**
 - Unit tests: economy (goods, stockpile, allocation, workforce), turn system, UI state, civilians
 - Integration tests: turn transitions, tile properties, UI formatting, hex utilities
-- Run: `cargo test` (53 unit tests + 3 integration tests, all passing)
+- Run: `cargo test` (74 unit tests + 3 integration tests, all passing)
 
 ## Code Style & Conventions
 
@@ -236,15 +254,22 @@ src/
 - Group imports: standard library → external crates → crate modules
 
 **Module Organization:**
-- Subdirectories for complex modules: `economy/`, `civilians/`, `ui/city/`
+- Subdirectories for complex modules: `economy/`, `civilians/`, `ui/city/`, `map/`
 - Single files for simple modules: `treasury.rs`, `calendar.rs`
 - Public API via re-exports in `mod.rs`: `pub use submodule::Type;`
+- **Plugins always in `mod.rs`**: Plugin implementations belong in the module's `mod.rs`, not separate files
 
 **ECS Architecture:**
 - Per-nation data: Components on nation entities (`Stockpile`, `Treasury`, `Workforce`)
 - Global game state: Resources (`Calendar`, `TurnSystem`, `PlayerNation`)
 - Player input: Events/Messages (`PlaceImprovement`, `AdjustProduction`)
 - Three-layer separation: Input → Logic → Rendering (see Architecture section)
+
+**Plugin Pattern:**
+- Each major subsystem has its own plugin (e.g., `EconomyPlugin`, `MapSetupPlugin`, `CameraPlugin`)
+- Plugins defined in respective `mod.rs` files
+- `lib.rs` is minimal, just orchestrates plugins
+- System registration grouped logically within plugins
 
 **Testing:**
 - Follow standardized test organization patterns (see Testing section)
@@ -257,9 +282,11 @@ src/
 - Treat per-nation economy data as Components on nation entities; avoid global resources for these
 - Keep truly global concepts as Resources: app/game states, `Calendar`, terminal log
 - UI overlays for modes should be full-screen and include a "Back to Map" button to avoid input occlusion issues
-- When adding new systems, register them with appropriate run conditions:
-  - Example: economy systems run in `Update` while `in_state(AppState::InGame)`
-  - Mode-specific UI logic can run with `run_if(in_state(GameMode::Transport))`, etc.
+- When adding new systems:
+  - Register them in the appropriate plugin (`EconomyPlugin`, `MapSetupPlugin`, etc.)
+  - Use appropriate run conditions: `in_state(AppState::InGame)`, `in_state(GameMode::Transport)`, etc.
+  - Group related systems together with `.add_systems()`
+- When creating a new major subsystem, consider creating a new plugin in the module's `mod.rs`
 
 ## Architecture
 
@@ -279,6 +306,12 @@ User Input → Input Handler → Message
 - **Rendering Layer**: Reads state, spawns/updates visuals (never mutates game logic)
 - Messages (`MessageWriter`/`MessageReader`) decouple input from logic
 - Layers can coexist in same file but remain conceptually separate
+
+**Plugin Architecture:**
+- Each major subsystem (economy, map, camera, civilians, diplomacy, UI) has its own plugin
+- Plugins encapsulate system registration, keeping `lib.rs` clean
+- Plugins defined in their module's `mod.rs` for easy discovery
+- `lib.rs` acts as orchestrator: configures app, registers plugins, no implementation details
 
 ## Resource Allocation System
 
@@ -301,7 +334,7 @@ Next Turn → reset → start fresh
 - `finalize_allocations` - consume reservations at turn end
 - `reset_allocations` - release all reservations at turn start
 
-**See [ALLOCATION_DESIGN.md](ALLOCATION_DESIGN.md) for full details on implementation, UI patterns, and resource reservation mechanics.**
+**See [ALLOCATION_DESIGN.md](ai-docs/ALLOCATION_DESIGN.md) for full details on implementation, UI patterns, and resource reservation mechanics.**
 
 ## Roadmap (short)
 
@@ -330,6 +363,6 @@ Next Turn → reset → start fresh
 - 🔲 Minimal `Relation` per nation pair and two actions (Improve Relations, Trade Treaty)
 
 6) **Tests & cleanup**
+- ✅ Code organization and plugin architecture
 - 🔲 Add coverage for roads toggling, production math, market clearing
 - 🔲 Add tests for province generation and assignment
-- 🔲 Clear warnings (HexExt false positive)
