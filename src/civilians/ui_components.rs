@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::ui_widgets::{Activate, observe};
 
 use super::commands::{DeselectAllCivilians, GiveCivilianOrder, RescindOrders, SelectCivilian};
 use super::types::CivilianOrderKind;
@@ -9,25 +10,9 @@ use crate::ui::button_style::*;
 #[derive(Component)]
 pub struct EngineerOrdersPanel;
 
-/// Marker for Build Depot button
-#[derive(Component)]
-pub struct BuildDepotButton;
-
-/// Marker for Build Port button
-#[derive(Component)]
-pub struct BuildPortButton;
-
 /// Marker for resource improver orders UI panel (Farmer, Rancher, etc.)
 #[derive(Component)]
 pub struct ImproverOrdersPanel;
-
-/// Marker for Improve Tile button
-#[derive(Component)]
-pub struct ImproveTileButton;
-
-/// Marker for Rescind Orders button
-#[derive(Component)]
-pub struct RescindOrdersButton;
 
 /// Marker for rescind orders panel
 #[derive(Component)]
@@ -52,16 +37,16 @@ pub fn update_engineer_orders_ui(
     }
 
     // Handle selection events
-    let mut selected_engineer = None;
+    let mut selected_engineer_entity = None;
     for event in select_events.read() {
         if let Ok(civilian) = civilians.get(event.entity)
             && civilian.kind == CivilianKind::Engineer
         {
-            selected_engineer = Some(civilian);
+            selected_engineer_entity = Some(event.entity);
         }
     }
 
-    if let Some(_engineer) = selected_engineer {
+    if let Some(civilian_entity) = selected_engineer_entity {
         // Engineer is selected, ensure panel exists
         if existing_panel.is_empty() {
             info!("Creating Engineer orders panel");
@@ -93,7 +78,13 @@ pub fn update_engineer_orders_ui(
                             ..default()
                         },
                         BackgroundColor(NORMAL_BUTTON),
-                        BuildDepotButton,
+                        observe(move |_: On<Activate>, mut order_writer: MessageWriter<GiveCivilianOrder>| {
+                            info!("Build Depot button clicked for civilian {:?}", civilian_entity);
+                            order_writer.write(GiveCivilianOrder {
+                                entity: civilian_entity,
+                                order: CivilianOrderKind::BuildDepot,
+                            });
+                        }),
                         children![(
                             Text::new("Build Depot"),
                             TextFont {
@@ -110,7 +101,13 @@ pub fn update_engineer_orders_ui(
                             ..default()
                         },
                         BackgroundColor(NORMAL_BUTTON),
-                        BuildPortButton,
+                        observe(move |_: On<Activate>, mut order_writer: MessageWriter<GiveCivilianOrder>| {
+                            info!("Build Port button clicked for civilian {:?}", civilian_entity);
+                            order_writer.write(GiveCivilianOrder {
+                                entity: civilian_entity,
+                                order: CivilianOrderKind::BuildPort,
+                            });
+                        }),
                         children![(
                             Text::new("Build Port"),
                             TextFont {
@@ -127,41 +124,6 @@ pub fn update_engineer_orders_ui(
         // Non-engineer selected, remove panel if it exists
         for entity in existing_panel.iter() {
             commands.entity(entity).despawn();
-        }
-    }
-}
-
-/// Handle button clicks in Engineer orders UI
-pub fn handle_order_button_clicks(
-    interactions: Query<
-        (
-            &Interaction,
-            Option<&BuildDepotButton>,
-            Option<&BuildPortButton>,
-        ),
-        Changed<Interaction>,
-    >,
-    selected_civilian: Query<(Entity, &Civilian), With<Civilian>>,
-    mut order_writer: MessageWriter<GiveCivilianOrder>,
-) {
-    for (interaction, depot_button, port_button) in interactions.iter() {
-        if *interaction == Interaction::Pressed {
-            // Find selected civilian
-            if let Some((entity, _civilian)) = selected_civilian.iter().find(|(_, c)| c.selected) {
-                if depot_button.is_some() {
-                    info!("Build Depot button clicked for civilian {:?}", entity);
-                    order_writer.write(GiveCivilianOrder {
-                        entity,
-                        order: CivilianOrderKind::BuildDepot,
-                    });
-                } else if port_button.is_some() {
-                    info!("Build Port button clicked for civilian {:?}", entity);
-                    order_writer.write(GiveCivilianOrder {
-                        entity,
-                        order: CivilianOrderKind::BuildPort,
-                    });
-                }
-            }
         }
     }
 }
@@ -185,7 +147,7 @@ pub fn update_improver_orders_ui(
     }
 
     // Handle selection events
-    let mut selected_improver = None;
+    let mut selected_improver_data = None;
     for event in select_events.read() {
         if let Ok(civilian) = civilians.get(event.entity)
             && matches!(
@@ -197,14 +159,14 @@ pub fn update_improver_orders_ui(
                     | CivilianKind::Driller
             )
         {
-            selected_improver = Some(civilian);
+            selected_improver_data = Some((event.entity, civilian.kind));
         }
     }
 
-    if let Some(improver) = selected_improver {
+    if let Some((civilian_entity, civilian_kind)) = selected_improver_data {
         // Resource improver is selected, ensure panel exists
         if existing_panel.is_empty() {
-            let panel_title = format!("{:?} Orders", improver.kind);
+            let panel_title = format!("{:?} Orders", civilian_kind);
             info!("Creating {} orders panel", panel_title);
             commands.spawn((
                 Node {
@@ -234,7 +196,13 @@ pub fn update_improver_orders_ui(
                             ..default()
                         },
                         BackgroundColor(NORMAL_BUTTON),
-                        ImproveTileButton,
+                        observe(move |_: On<Activate>, mut order_writer: MessageWriter<GiveCivilianOrder>| {
+                            info!("Improve Tile button clicked for {:?}", civilian_kind);
+                            order_writer.write(GiveCivilianOrder {
+                                entity: civilian_entity,
+                                order: CivilianOrderKind::ImproveTile,
+                            });
+                        }),
                         children![(
                             Text::new("Improve Tile"),
                             TextFont {
@@ -274,14 +242,14 @@ pub fn update_rescind_orders_ui(
     }
 
     // Handle selection events - check if selected civilian has PreviousPosition
-    let mut selected_with_prev = None;
+    let mut selected_data = None;
     for event in select_events.read() {
         if let Ok(prev_pos) = civilians_with_prev.get(event.entity) {
-            selected_with_prev = Some(prev_pos);
+            selected_data = Some((event.entity, *prev_pos));
         }
     }
 
-    if let Some(prev_pos) = selected_with_prev {
+    if let Some((civilian_entity, prev_pos)) = selected_data {
         // Civilian is selected and has a previous position - show panel
         if existing_panel.is_empty() {
             // Create panel if it doesn't exist
@@ -318,7 +286,12 @@ pub fn update_rescind_orders_ui(
                         },
                         BackgroundColor(NORMAL_DANGER),
                         crate::ui::button_style::DangerButton,
-                        RescindOrdersButton,
+                        observe(move |_: On<Activate>, mut rescind_writer: MessageWriter<RescindOrders>| {
+                            info!("Rescind Orders button clicked for civilian {:?}", civilian_entity);
+                            rescind_writer.write(RescindOrders {
+                                entity: civilian_entity,
+                            });
+                        }),
                         children![(
                             Text::new("Rescind Orders"),
                             TextFont {
@@ -343,48 +316,6 @@ pub fn update_rescind_orders_ui(
         // Selected civilian without previous position, remove panel if it exists
         for entity in existing_panel.iter() {
             commands.entity(entity).despawn();
-        }
-    }
-}
-
-/// Handle button clicks in resource improver orders UI
-pub fn handle_improver_button_clicks(
-    interactions: Query<(&Interaction, &ImproveTileButton), Changed<Interaction>>,
-    selected_civilian: Query<(Entity, &Civilian), With<Civilian>>,
-    mut order_writer: MessageWriter<GiveCivilianOrder>,
-) {
-    for (interaction, _button) in interactions.iter() {
-        if *interaction == Interaction::Pressed {
-            // Find selected civilian
-            if let Some((entity, civilian)) = selected_civilian.iter().find(|(_, c)| c.selected) {
-                info!("Improve Tile button clicked for {:?}", civilian.kind);
-                order_writer.write(GiveCivilianOrder {
-                    entity,
-                    order: CivilianOrderKind::ImproveTile,
-                });
-            }
-        }
-    }
-}
-
-/// Handle button clicks in rescind orders UI
-pub fn handle_rescind_button_clicks(
-    interactions: Query<(&Interaction, &RescindOrdersButton), Changed<Interaction>>,
-    selected_civilians: Query<(Entity, &Civilian, &PreviousPosition), With<Civilian>>,
-    mut rescind_writer: MessageWriter<RescindOrders>,
-) {
-    for (interaction, _button) in interactions.iter() {
-        if *interaction == Interaction::Pressed {
-            // Find selected civilian with previous position
-            if let Some((entity, civilian, _prev)) =
-                selected_civilians.iter().find(|(_, c, _)| c.selected)
-            {
-                info!(
-                    "Rescind Orders button clicked for {:?} at ({}, {})",
-                    civilian.kind, civilian.position.x, civilian.position.y
-                );
-                rescind_writer.write(RescindOrders { entity });
-            }
         }
     }
 }

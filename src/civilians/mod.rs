@@ -52,9 +52,6 @@ impl Plugin for CivilianPlugin {
                     ui_components::update_engineer_orders_ui,
                     ui_components::update_improver_orders_ui,
                     ui_components::update_rescind_orders_ui,
-                    ui_components::handle_order_button_clicks,
-                    ui_components::handle_improver_button_clicks,
-                    ui_components::handle_rescind_button_clicks,
                     rendering::render_civilian_visuals,
                     rendering::update_civilian_visual_colors,
                 )

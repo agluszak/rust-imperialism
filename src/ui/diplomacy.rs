@@ -10,7 +10,7 @@ use super::button_style::{
 use super::generic_systems::hide_screen;
 use crate::diplomacy::{
     DiplomacySelection, DiplomacyState, DiplomaticOffer, DiplomaticOfferKind, DiplomaticOffers,
-    DiplomaticOrder, DiplomaticOrderKind, ForeignAidLedger, OfferId, resolve_offer_response,
+    DiplomaticOrder, DiplomaticOrderKind, ForeignAidLedger, resolve_offer_response,
 };
 use crate::economy::{Name, NationId, PlayerNation, Treasury};
 use crate::ui::logging::TerminalLogEvent;
@@ -48,12 +48,6 @@ struct DiplomacyActionButton {
 
 #[derive(Component)]
 struct PendingOffersContainer;
-
-#[derive(Component)]
-struct OfferResponseButton {
-    offer: OfferId,
-    accept: bool,
-}
 
 #[derive(Component)]
 struct PendingOfferList;
@@ -164,7 +158,6 @@ impl Plugin for DiplomacyUIPlugin {
                 update_nation_buttons,
                 update_action_buttons,
                 update_pending_offers,
-                handle_offer_response_buttons,
             )
                 .run_if(in_state(GameMode::Diplomacy)),
         );
@@ -1010,6 +1003,7 @@ fn update_pending_offers(
                             ..default()
                         },))
                         .with_children(|row| {
+                            let offer_id = offer.id;
                             row.spawn((
                                 Button,
                                 OldButton,
@@ -1018,11 +1012,26 @@ fn update_pending_offers(
                                     ..default()
                                 },
                                 BackgroundColor(NORMAL_ACCENT),
-                                OfferResponseButton {
-                                    offer: offer.id,
-                                    accept: true,
-                                },
                                 AccentButton,
+                                observe(move |_: On<Activate>,
+                                    mut offers: ResMut<DiplomaticOffers>,
+                                    mut state: ResMut<DiplomacyState>,
+                                    mut ledger: ResMut<ForeignAidLedger>,
+                                    nations: Query<(Entity, &NationId, &Name)>,
+                                    mut treasuries: Query<&mut Treasury>,
+                                    mut log: MessageWriter<TerminalLogEvent>| {
+                                    if let Some(offer) = offers.take(offer_id) {
+                                        resolve_offer_response(
+                                            offer,
+                                            true, // accept
+                                            &mut state,
+                                            &mut ledger,
+                                            &nations,
+                                            &mut treasuries,
+                                            &mut log,
+                                        );
+                                    }
+                                }),
                             ))
                             .with_children(|button| {
                                 button.spawn((
@@ -1043,11 +1052,26 @@ fn update_pending_offers(
                                     ..default()
                                 },
                                 BackgroundColor(NORMAL_DANGER),
-                                OfferResponseButton {
-                                    offer: offer.id,
-                                    accept: false,
-                                },
                                 DangerButton,
+                                observe(move |_: On<Activate>,
+                                    mut offers: ResMut<DiplomaticOffers>,
+                                    mut state: ResMut<DiplomacyState>,
+                                    mut ledger: ResMut<ForeignAidLedger>,
+                                    nations: Query<(Entity, &NationId, &Name)>,
+                                    mut treasuries: Query<&mut Treasury>,
+                                    mut log: MessageWriter<TerminalLogEvent>| {
+                                    if let Some(offer) = offers.take(offer_id) {
+                                        resolve_offer_response(
+                                            offer,
+                                            false, // decline
+                                            &mut state,
+                                            &mut ledger,
+                                            &nations,
+                                            &mut treasuries,
+                                            &mut log,
+                                        );
+                                    }
+                                }),
                             ))
                             .with_children(|button| {
                                 button.spawn((
@@ -1064,39 +1088,6 @@ fn update_pending_offers(
             }
         }
     });
-}
-
-fn handle_offer_response_buttons(
-    mut interactions: Query<
-        (&Interaction, &OfferResponseButton),
-        (Changed<Interaction>, With<Button>),
-    >,
-    mut offers: ResMut<DiplomaticOffers>,
-    mut state: ResMut<DiplomacyState>,
-    mut ledger: ResMut<ForeignAidLedger>,
-    nations: Query<(Entity, &NationId, &Name)>,
-    mut treasuries: Query<&mut Treasury>,
-    mut log: MessageWriter<TerminalLogEvent>,
-) {
-    for (interaction, button) in interactions.iter_mut() {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
-
-        let Some(offer) = offers.take(button.offer) else {
-            continue;
-        };
-
-        resolve_offer_response(
-            offer,
-            button.accept,
-            &mut state,
-            &mut ledger,
-            &nations,
-            &mut treasuries,
-            &mut log,
-        );
-    }
 }
 
 fn clear_children_recursive(entity: Entity, commands: &mut Commands, children: &Query<&Children>) {

@@ -18,4 +18,4 @@ pub use types::{
     BuildingDialog, CloseBuildingDialog, DialogCloseButton, DialogContentArea, DialogDragHandle,
     DialogDragState, DialogZIndexCounter, OpenBuildingDialog,
 };
-pub use window::{handle_dialog_close_buttons, spawn_dialog_frame, update_close_button_visuals};
+pub use window::{spawn_dialog_frame, update_close_button_visuals};

@@ -61,7 +61,6 @@ impl Plugin for CityUIPlugin {
                     // Dialog systems
                     dialogs::open_building_dialogs,
                     dialogs::close_building_dialogs,
-                    dialogs::handle_dialog_close_buttons,
                     dialogs::update_close_button_visuals,
                     // Dialog dragging
                     dialogs::start_dialog_drag,
@@ -83,10 +82,7 @@ impl Plugin for CityUIPlugin {
                 Update,
                 (
                     // Input handlers
-                    workforce::handle_hire_button_clicks,
                     workforce::spawn_hired_civilian,
-                    workforce::handle_recruit_workers_buttons,
-                    workforce::handle_train_worker_buttons,
                 )
                     .run_if(in_state(GameMode::City)),
             )

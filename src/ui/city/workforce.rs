@@ -1,25 +1,22 @@
 use bevy::prelude::*;
 
-use super::components::{
-    HireCivilian, HireCivilianButton, RecruitWorkersButton, TrainWorkerButton,
-};
+use super::components::HireCivilian;
 use crate::civilians::{Civilian, CivilianKind};
-use crate::economy::{Capital, PlayerNation, RecruitWorkers, TrainWorker, Treasury};
+use crate::economy::{Capital, PlayerNation, Treasury};
 use crate::tile_pos::TilePosExt;
 use crate::ui::logging::TerminalLogEvent;
 
-/// Handle hire civilian button clicks
-pub fn handle_hire_button_clicks(
-    interactions: Query<(&Interaction, &HireCivilianButton), Changed<Interaction>>,
-    mut hire_writer: MessageWriter<HireCivilian>,
-) {
-    for (interaction, button) in interactions.iter() {
-        if *interaction == Interaction::Pressed {
-            info!("Hire {:?} button clicked", button.0);
-            hire_writer.write(HireCivilian { kind: button.0 });
-        }
-    }
-}
+// Note: HireCivilianButton component exists but no UI currently spawns these buttons.
+// When hire buttons are added to the UI, they should use the observer pattern:
+//
+// let civilian_kind = CivilianKind::Engineer;
+// .spawn((
+//     Button,
+//     HireCivilianButton(civilian_kind),
+//     observe(move |_: On<Activate>, mut hire_writer: MessageWriter<HireCivilian>| {
+//         hire_writer.write(HireCivilian { kind: civilian_kind });
+//     }),
+// ))
 
 /// Spawn a hired civilian at a suitable location
 pub fn spawn_hired_civilian(
@@ -139,64 +136,4 @@ fn find_unoccupied_tile_near(
 /// Check if a tile is occupied by a civilian
 fn is_tile_occupied(pos: bevy_ecs_tilemap::prelude::TilePos, civilians: &Query<&Civilian>) -> bool {
     civilians.iter().any(|c| c.position == pos)
-}
-
-/// Handle recruit workers button clicks (Input Layer)
-pub fn handle_recruit_workers_buttons(
-    interactions: Query<(&Interaction, &RecruitWorkersButton), Changed<Interaction>>,
-    mut writer: MessageWriter<RecruitWorkers>,
-    player_nation: Option<Res<PlayerNation>>,
-    buttons: Query<Entity, With<RecruitWorkersButton>>,
-) {
-    // Debug: check if buttons exist
-    let button_count = buttons.iter().count();
-    if button_count > 0 {
-        trace!("Found {} recruit buttons in scene", button_count);
-    }
-
-    let Some(player_nation) = player_nation else {
-        warn!("No player nation found for recruitment");
-        return;
-    };
-
-    for (interaction, button) in interactions.iter() {
-        debug!("Recruit button interaction: {:?}", interaction);
-        if *interaction == Interaction::Pressed {
-            info!("Recruit {} workers button clicked", button.count);
-            writer.write(RecruitWorkers {
-                nation: player_nation.instance(),
-                count: button.count,
-            });
-        }
-    }
-}
-
-/// Handle train worker button clicks (Input Layer)
-pub fn handle_train_worker_buttons(
-    interactions: Query<(&Interaction, &TrainWorkerButton), Changed<Interaction>>,
-    mut writer: MessageWriter<TrainWorker>,
-    player_nation: Option<Res<PlayerNation>>,
-    buttons: Query<Entity, With<TrainWorkerButton>>,
-) {
-    // Debug: check if buttons exist
-    let button_count = buttons.iter().count();
-    if button_count > 0 {
-        trace!("Found {} train buttons in scene", button_count);
-    }
-
-    let Some(player_nation) = player_nation else {
-        warn!("No player nation found for training");
-        return;
-    };
-
-    for (interaction, button) in interactions.iter() {
-        debug!("Train button interaction: {:?}", interaction);
-        if *interaction == Interaction::Pressed {
-            info!("Train worker button clicked: {:?}", button.from_skill);
-            writer.write(TrainWorker {
-                nation: player_nation.instance(),
-                from_skill: button.from_skill,
-            });
-        }
-    }
 }

@@ -36,14 +36,6 @@ struct TransportLabel {
     commodity: TransportCommodity,
 }
 
-// Note: Fields are used in observer closure, but compiler doesn't detect this
-#[derive(Component)]
-#[allow(dead_code)]
-struct TransportSlider {
-    commodity: TransportCommodity,
-    nation: Entity,
-}
-
 #[derive(Component)]
 struct TransportSliderFill {
     commodity: TransportCommodity,
@@ -356,7 +348,6 @@ fn spawn_commodity_row(
                 Slider::default(),
                 SliderValue(0.0),
                 SliderRange::new(0.0, 100.0), // Will be updated dynamically
-                TransportSlider { commodity, nation },
                 TransportSliderBackground { commodity },
                 // Observer handles value changes
                 observe(move |value_change: On<ValueChange<f32>>, mut adjust_writer: MessageWriter<TransportAdjustAllocation>| {
