@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
-use crate::economy::{Calendar, Season};
+use crate::diplomacy::DiplomaticOffers;
+use crate::economy::{Calendar, NationId, PlayerNation, Season};
 use crate::ui::logging::TerminalLogEvent;
 
 #[derive(Resource, Debug, Clone)]
@@ -63,8 +64,22 @@ fn handle_turn_input(
     keys: Res<ButtonInput<KeyCode>>,
     mut turn_system: ResMut<TurnSystem>,
     mut log_writer: MessageWriter<TerminalLogEvent>,
+    offers: Option<Res<DiplomaticOffers>>,
+    player: Option<Res<PlayerNation>>,
+    nation_ids: Query<&NationId>,
 ) {
     if keys.just_pressed(KeyCode::Space) && turn_system.is_player_turn() {
+        if let (Some(offers), Some(player)) = (offers, player) {
+            if let Ok(player_id) = nation_ids.get(player.0) {
+                if offers.has_pending_for(*player_id) {
+                    log_writer.write(TerminalLogEvent {
+                        message: "Resolve pending diplomatic offers before ending the turn."
+                            .to_string(),
+                    });
+                    return;
+                }
+            }
+        }
         turn_system.end_player_turn();
         log_writer.write(TerminalLogEvent {
             message: format!("Player turn ended. Turn: {}", turn_system.current_turn),

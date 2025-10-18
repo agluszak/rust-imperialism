@@ -1,5 +1,12 @@
+use bevy::ecs::system::RunSystemOnce;
+use bevy::prelude::*;
+
+use super::handle_turn_input;
+use crate::diplomacy::{DiplomaticOffer, DiplomaticOfferKind, DiplomaticOffers};
+use crate::economy::{Name, NationId, PlayerNation, Treasury};
 use crate::test_utils::*;
 use crate::turn_system::{TurnPhase, TurnSystem};
+use crate::ui::logging::TerminalLogEvent;
 
 #[test]
 fn test_turn_system_default() {
@@ -104,4 +111,50 @@ fn test_turn_phase_copy() {
     let phase = TurnPhase::EnemyTurn;
     let copied = phase; // Should work because it implements Copy
     assert_eq!(phase, copied);
+}
+
+#[test]
+fn pending_offers_block_turn_end() {
+    let mut world = create_test_world();
+    world.init_resource::<Messages<TerminalLogEvent>>();
+    world.insert_resource(DiplomaticOffers::default());
+
+    let player_entity = world
+        .spawn((NationId(1), Name("Player".into()), Treasury::new(1_000)))
+        .id();
+    world.insert_resource(PlayerNation(player_entity));
+    world.spawn((NationId(2), Name("Foe".into()), Treasury::new(1_000)));
+
+    world
+        .resource_mut::<DiplomaticOffers>()
+        .push(DiplomaticOffer::new(
+            NationId(2),
+            NationId(1),
+            DiplomaticOfferKind::OfferPeace,
+        ));
+
+    world.insert_resource(ButtonInput::<KeyCode>::default());
+    world
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::Space);
+
+    let _ = world.run_system_once(
+        |keys: Res<ButtonInput<KeyCode>>,
+         turn_system: ResMut<TurnSystem>,
+         log: MessageWriter<TerminalLogEvent>,
+         offers: Res<DiplomaticOffers>,
+         player: Res<PlayerNation>,
+         nation_ids: Query<&NationId>| {
+            handle_turn_input(
+                keys,
+                turn_system,
+                log,
+                Some(offers),
+                Some(player),
+                nation_ids,
+            );
+        },
+    );
+
+    assert_eq!(world.resource::<TurnSystem>().phase, TurnPhase::PlayerTurn);
 }

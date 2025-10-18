@@ -6,6 +6,7 @@ use crate::civilians::{
     CivilianPlugin, advance_civilian_jobs, complete_improvement_jobs, reset_civilian_actions,
 };
 use crate::constants::{MAP_SIZE, TERRAIN_SEED, TILE_SIZE};
+use crate::diplomacy::DiplomacyPlugin;
 use crate::economy::allocation_systems;
 use crate::economy::production::{
     ConnectedProduction, calculate_connected_production, run_production,
@@ -44,6 +45,7 @@ pub mod city_rendering;
 pub mod civilians;
 pub mod constants;
 pub mod debug;
+pub mod diplomacy;
 pub mod economy;
 pub mod helpers;
 pub mod input;
@@ -328,6 +330,7 @@ pub fn app() -> App {
         TilemapBackend,
         // Game plugins (strategy baseline)
         TurnSystemPlugin,
+        DiplomacyPlugin,
         GameUIPlugin,
         InputPlugin,
         TransportRenderingPlugin,
