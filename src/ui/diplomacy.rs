@@ -83,7 +83,6 @@ impl Plugin for DiplomacyUIPlugin {
             (
                 ensure_selection_valid,
                 update_nation_buttons,
-                handle_nation_selection,
                 update_action_buttons,
                 handle_action_buttons,
                 update_pending_offers,
@@ -198,6 +197,7 @@ fn setup_diplomacy_screen(
                         ));
 
                         for (nation, name) in &foreign_nations {
+                            let nation_copy = *nation;
                             list.spawn((
                                 Button,
                                 Node {
@@ -205,8 +205,14 @@ fn setup_diplomacy_screen(
                                     ..default()
                                 },
                                 BackgroundColor(NORMAL_BUTTON),
-                                DiplomacyNationButton { nation: *nation },
+                                DiplomacyNationButton { nation: nation_copy },
                             ))
+                            .observe(
+                                move |_trigger: On<Pointer<Click>>,
+                                      mut selection: ResMut<DiplomacySelection>| {
+                                    selection.selected = Some(nation_copy);
+                                },
+                            )
                             .with_children(|button| {
                                 button.spawn((
                                     Text::new(name.clone()),
@@ -673,20 +679,9 @@ fn update_nation_buttons(
     }
 }
 
-fn handle_nation_selection(
-    mut selection: ResMut<DiplomacySelection>,
-    mut buttons: Query<(&Interaction, &DiplomacyNationButton), Changed<Interaction>>,
-) {
-    for (interaction, button) in buttons.iter_mut() {
-        if *interaction == Interaction::Pressed {
-            selection.selected = Some(button.nation);
-        }
-    }
-}
-
 #[allow(clippy::type_complexity)]
 fn update_detail_panel(
-    mode: Res<State<GameMode>>,
+    screen_query: Query<&Visibility, With<DiplomacyScreen>>,
     selection: Res<DiplomacySelection>,
     state: Res<DiplomacyState>,
     ledger: Res<ForeignAidLedger>,
@@ -700,8 +695,11 @@ fn update_detail_panel(
         Query<&mut Text, (With<SelectedAidText>, Without<DiplomacyNationButton>)>,
     )>,
 ) {
-    // Manual state check since we can't use run_if with ParamSet
-    if mode.get() != &GameMode::Diplomacy {
+    // Early exit if screen is not visible (not in Diplomacy mode)
+    let Ok(visibility) = screen_query.single() else {
+        return;
+    };
+    if *visibility != Visibility::Visible {
         return;
     }
     let Some(selected) = selection.selected else {
@@ -835,7 +833,7 @@ fn update_action_buttons(
         };
 
         *visibility = if show {
-            Visibility::Visible
+            Visibility::Inherited
         } else {
             Visibility::Hidden
         };

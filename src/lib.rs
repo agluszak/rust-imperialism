@@ -11,7 +11,7 @@ use crate::economy::allocation_systems;
 use crate::economy::production::{
     ConnectedProduction, calculate_connected_production, run_production,
 };
-use crate::economy::transport::{self, compute_rail_connectivity};
+use crate::economy::transport::{self, compute_rail_connectivity, RecomputeConnectivity};
 use crate::economy::workforce;
 use crate::economy::{Calendar, Capital, NationId, PlaceImprovement, PlayerNation, Rails, Roads};
 use crate::helpers::camera;
@@ -246,6 +246,7 @@ pub fn app() -> App {
     .insert_resource(Rails::default())
     .insert_resource(ConnectedProduction::default())
     .add_message::<PlaceImprovement>()
+    .add_message::<RecomputeConnectivity>()
     .add_systems(Startup, (setup_camera,))
     // Start loading terrain atlas at startup
     .add_systems(Startup, terrain_atlas::start_terrain_atlas_loading)
