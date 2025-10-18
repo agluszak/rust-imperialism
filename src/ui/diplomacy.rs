@@ -627,7 +627,15 @@ fn update_nation_buttons(
     player: Option<Res<PlayerNation>>,
     nation_ids: Query<&NationId>,
     names: Query<(&NationId, &Name)>,
-    mut buttons: Query<(&DiplomacyNationButton, &mut Text, &mut BackgroundColor)>,
+    mut buttons: Query<
+        (&DiplomacyNationButton, &mut Text, &mut BackgroundColor),
+        (
+            Without<SelectedNationNameText>,
+            Without<SelectedRelationText>,
+            Without<SelectedTreatyText>,
+            Without<SelectedAidText>,
+        ),
+    >,
 ) {
     let player_id = player.and_then(|p| nation_ids.get(*p.0).ok()).copied();
 
@@ -678,10 +686,13 @@ fn update_detail_panel(
     player: Option<Res<PlayerNation>>,
     nation_ids: Query<&NationId>,
     names: Query<(&NationId, &Name)>,
-    mut name_text: Query<&mut Text, With<SelectedNationNameText>>,
-    mut relation_text: Query<&mut Text, With<SelectedRelationText>>,
-    mut treaty_text: Query<&mut Text, With<SelectedTreatyText>>,
-    mut aid_text: Query<&mut Text, With<SelectedAidText>>,
+    mut name_text: Query<&mut Text, (With<SelectedNationNameText>, Without<DiplomacyNationButton>)>,
+    mut relation_text: Query<
+        &mut Text,
+        (With<SelectedRelationText>, Without<DiplomacyNationButton>),
+    >,
+    mut treaty_text: Query<&mut Text, (With<SelectedTreatyText>, Without<DiplomacyNationButton>)>,
+    mut aid_text: Query<&mut Text, (With<SelectedAidText>, Without<DiplomacyNationButton>)>,
 ) {
     let Some(selected) = selection.selected else {
         if let Ok(mut text) = name_text.single_mut() {
