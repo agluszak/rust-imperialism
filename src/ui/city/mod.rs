@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 // Re-exports for public API
 pub use components::*;
-pub use layout::{ensure_city_screen_visible, hide_city_screen};
+pub use layout::ensure_city_screen_visible;
 
 use crate::{
     economy::{RecruitWorkers, TrainWorker},
@@ -37,7 +37,10 @@ impl Plugin for CityUIPlugin {
             .add_message::<crate::economy::AdjustProduction>()
             .add_message::<crate::economy::AdjustMarketOrder>()
             .add_systems(OnEnter(GameMode::City), layout::ensure_city_screen_visible)
-            .add_systems(OnExit(GameMode::City), layout::hide_city_screen)
+            .add_systems(
+                OnExit(GameMode::City),
+                crate::ui::generic_systems::hide_screen::<components::CityScreen>,
+            )
             .add_systems(
                 Update,
                 (

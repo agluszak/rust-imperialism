@@ -2,6 +2,7 @@ use bevy::app::AppExit;
 use bevy::prelude::*;
 
 use super::button_style::*;
+use super::generic_systems::hide_screen;
 
 /// Root application state controlling whether we're in the Main Menu or the actual game
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default, Reflect)]
@@ -30,7 +31,7 @@ pub struct MenuUIPlugin;
 impl Plugin for MenuUIPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(AppState::MainMenu), ensure_main_menu_visible)
-            .add_systems(OnExit(AppState::MainMenu), hide_main_menu)
+            .add_systems(OnExit(AppState::MainMenu), hide_screen::<MainMenuRoot>)
             .add_systems(
                 Update,
                 handle_menu_buttons.run_if(in_state(AppState::MainMenu)),
@@ -117,11 +118,8 @@ fn ensure_main_menu_visible(
     ));
 }
 
-fn hide_main_menu(mut roots: Query<&mut Visibility, With<MainMenuRoot>>) {
-    if let Ok(mut vis) = roots.single_mut() {
-        *vis = Visibility::Hidden;
-    }
-}
+// Note: hide_main_menu replaced with generic hide_screen::<MainMenuRoot>
+// See src/ui/generic_systems.rs for the generic implementation
 
 fn handle_menu_buttons(
     mut interactions: Query<

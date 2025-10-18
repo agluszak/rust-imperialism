@@ -97,7 +97,7 @@ fn handle_road_placement(
     } else {
         let cost: i64 = 10;
         if let Some(player) = &player
-            && let Ok(mut treasury) = treasuries.get_mut(player.0)
+            && let Ok(mut treasury) = treasuries.get_mut(player.entity())
         {
             if treasury.total() >= cost {
                 treasury.subtract(cost);
@@ -151,7 +151,8 @@ fn handle_rail_construction(
     // Check terrain buildability for both endpoints
     if let Some(player) = &player {
         // Get player nation's technologies
-        let player_techs = nations.get(player.0).ok();
+        let player_entity = player.entity();
+        let player_techs = nations.get(player_entity).ok();
 
         // Check both tiles for terrain restrictions
         let mut can_build = true;
@@ -224,37 +225,39 @@ fn handle_rail_construction(
 
     // Start rail construction (takes 3 turns)
     let cost: i64 = 50;
-    if let Some(player) = &player
-        && let Ok(mut treasury) = treasuries.get_mut(player.0)
-    {
-        if treasury.total() >= cost {
-            treasury.subtract(cost);
+    if let Some(player) = &player {
+        let player_entity = player.entity();
 
-            // Use the engineer from the message, or a dummy entity if not provided
-            let engineer = e.engineer.unwrap_or(player.0);
+        if let Ok(mut treasury) = treasuries.get_mut(player_entity) {
+            if treasury.total() >= cost {
+                treasury.subtract(cost);
 
-            commands.spawn(RailConstruction {
-                from: edge.0,
-                to: edge.1,
-                turns_remaining: 3,
-                owner: player.0,
-                engineer,
-            });
+                // Use the engineer from the message, or a dummy entity if not provided
+                let engineer = e.engineer.unwrap_or(player_entity);
 
-            log_events.write(TerminalLogEvent {
-                message: format!(
-                    "Started rail construction from ({}, {}) to ({}, {}) for ${} (3 turns)",
-                    edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost
-                ),
-            });
-        } else {
-            log_events.write(TerminalLogEvent {
-                message: format!(
-                    "Not enough money to build rail (need ${}, have ${})",
-                    cost,
-                    treasury.total()
-                ),
-            });
+                commands.spawn(RailConstruction {
+                    from: edge.0,
+                    to: edge.1,
+                    turns_remaining: 3,
+                    owner: player_entity,
+                    engineer,
+                });
+
+                log_events.write(TerminalLogEvent {
+                    message: format!(
+                        "Started rail construction from ({}, {}) to ({}, {}) for ${} (3 turns)",
+                        edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost
+                    ),
+                });
+            } else {
+                log_events.write(TerminalLogEvent {
+                    message: format!(
+                        "Not enough money to build rail (need ${}, have ${})",
+                        cost,
+                        treasury.total()
+                    ),
+                });
+            }
         }
     }
 }
@@ -268,27 +271,29 @@ fn handle_depot_placement(
 ) {
     // Depot is placed on a single tile (use position 'a', ignore 'b')
     let cost: i64 = 100;
-    if let Some(player) = &player
-        && let Ok(mut treasury) = treasuries.get_mut(player.0)
-    {
-        if treasury.total() >= cost {
-            treasury.subtract(cost);
-            commands.spawn(Depot {
-                position: a,
-                owner: player.0,  // Set owner to player nation
-                connected: false, // Will be computed by connectivity system
-            });
-            log_events.write(TerminalLogEvent {
-                message: format!("Built depot at ({}, {}) for ${}", a.x, a.y, cost),
-            });
-        } else {
-            log_events.write(TerminalLogEvent {
-                message: format!(
-                    "Not enough money to build depot (need ${}, have ${})",
-                    cost,
-                    treasury.total()
-                ),
-            });
+    if let Some(player) = &player {
+        let player_entity = player.entity();
+
+        if let Ok(mut treasury) = treasuries.get_mut(player_entity) {
+            if treasury.total() >= cost {
+                treasury.subtract(cost);
+                commands.spawn(Depot {
+                    position: a,
+                    owner: player_entity, // Set owner to player nation
+                    connected: false,     // Will be computed by connectivity system
+                });
+                log_events.write(TerminalLogEvent {
+                    message: format!("Built depot at ({}, {}) for ${}", a.x, a.y, cost),
+                });
+            } else {
+                log_events.write(TerminalLogEvent {
+                    message: format!(
+                        "Not enough money to build depot (need ${}, have ${})",
+                        cost,
+                        treasury.total()
+                    ),
+                });
+            }
         }
     }
 }
@@ -336,28 +341,30 @@ fn handle_port_placement(
 
     // Port is placed on a single tile
     let cost: i64 = 150;
-    if let Some(player) = &player
-        && let Ok(mut treasury) = treasuries.get_mut(player.0)
-    {
-        if treasury.total() >= cost {
-            treasury.subtract(cost);
-            commands.spawn(Port {
-                position: a,
-                owner: player.0, // Set owner to player nation
-                connected: false,
-                is_river: false, // TODO: detect from terrain
-            });
-            log_events.write(TerminalLogEvent {
-                message: format!("Built port at ({}, {}) for ${}", a.x, a.y, cost),
-            });
-        } else {
-            log_events.write(TerminalLogEvent {
-                message: format!(
-                    "Not enough money to build port (need ${}, have ${})",
-                    cost,
-                    treasury.total()
-                ),
-            });
+    if let Some(player) = &player {
+        let player_entity = player.entity();
+
+        if let Ok(mut treasury) = treasuries.get_mut(player_entity) {
+            if treasury.total() >= cost {
+                treasury.subtract(cost);
+                commands.spawn(Port {
+                    position: a,
+                    owner: player_entity, // Set owner to player nation
+                    connected: false,
+                    is_river: false, // TODO: detect from terrain
+                });
+                log_events.write(TerminalLogEvent {
+                    message: format!("Built port at ({}, {}) for ${}", a.x, a.y, cost),
+                });
+            } else {
+                log_events.write(TerminalLogEvent {
+                    message: format!(
+                        "Not enough money to build port (need ${}, have ${})",
+                        cost,
+                        treasury.total()
+                    ),
+                });
+            }
         }
     }
 }

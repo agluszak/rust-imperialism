@@ -29,11 +29,13 @@ pub fn populate_special_dialog(
         return;
     };
 
-    let Ok(stockpile) = stockpiles.get(player.0) else {
+    let player_entity = player.entity();
+
+    let Ok(stockpile) = stockpiles.get(player_entity) else {
         return;
     };
 
-    let Ok(workforce) = workforces.get(player.0) else {
+    let Ok(workforce) = workforces.get(player_entity) else {
         return;
     };
 
@@ -45,7 +47,7 @@ pub fn populate_special_dialog(
                 // Calculate province count
                 let province_count = provinces
                     .iter()
-                    .filter(|p| p.owner == Some(player.0))
+                    .filter(|p| p.owner == Some(player_entity))
                     .count() as u32;
 
                 spawn_capitol_content(
@@ -53,8 +55,8 @@ pub fn populate_special_dialog(
                     content_entity,
                     stockpile,
                     province_count,
-                    recruitment_caps.get(player.0).ok(),
-                    recruitment_queues.get(player.0).ok(),
+                    recruitment_caps.get(player_entity).ok(),
+                    recruitment_queues.get(player_entity).ok(),
                 );
             }
             BuildingKind::TradeSchool => {
@@ -470,7 +472,9 @@ pub fn update_capitol_requirement_displays(
         return;
     };
 
-    let Ok(stockpile) = stockpile_query.get(player.0) else {
+    let player_entity = player.entity();
+
+    let Ok(stockpile) = stockpile_query.get(player_entity) else {
         return;
     };
 
@@ -504,22 +508,24 @@ pub fn update_capitol_capacity_display(
         return;
     };
 
-    let Ok(_queue) = recruitment_queue_query.get(player.0) else {
+    let player_entity = player.entity();
+
+    let Ok(_queue) = recruitment_queue_query.get(player_entity) else {
         return;
     };
 
     let province_count = provinces
         .iter()
-        .filter(|p| p.owner == Some(player.0))
+        .filter(|p| p.owner == Some(player_entity))
         .count() as u32;
 
     let upgraded = recruitment_cap_query
-        .get(player.0)
+        .get(player_entity)
         .map(|c| c.upgraded)
         .unwrap_or(false);
     let cap = calculate_recruitment_cap(province_count, upgraded);
     let queued = recruitment_queue_query
-        .get(player.0)
+        .get(player_entity)
         .map(|q| q.queued)
         .unwrap_or(0);
     let remaining = cap.saturating_sub(queued);
@@ -546,7 +552,9 @@ pub fn update_trade_school_workforce_display(
         return;
     };
 
-    let Ok(workforce) = workforce_query.get(player.0) else {
+    let player_entity = player.entity();
+
+    let Ok(workforce) = workforce_query.get(player_entity) else {
         return;
     };
 
@@ -583,7 +591,9 @@ pub fn update_trade_school_paper_display(
         return;
     };
 
-    let Ok(stockpile) = stockpile_query.get(player.0) else {
+    let player_entity = player.entity();
+
+    let Ok(stockpile) = stockpile_query.get(player_entity) else {
         return;
     };
 

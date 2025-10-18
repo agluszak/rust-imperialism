@@ -19,7 +19,7 @@ pub use allocation::{
 pub use calendar::{Calendar, Season};
 pub use goods::Good;
 pub use market::{MARKET_RESOURCES, market_price};
-pub use nation::{Capital, Name, NationColor, NationId, PlayerNation};
+pub use nation::{Capital, Name, NationColor, NationId, NationInstance, PlayerNation};
 pub use production::{Building, BuildingKind};
 pub use reservation::{ReservationId, ReservationSystem, ResourcePool};
 pub use stockpile::Stockpile;

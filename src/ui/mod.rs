@@ -2,6 +2,7 @@ pub mod button_style;
 pub mod city;
 pub mod components;
 pub mod diplomacy;
+pub mod generic_systems;
 pub mod input;
 pub mod logging;
 pub mod market;
@@ -40,8 +41,20 @@ impl Plugin for GameUIPlugin {
         // Spawn gameplay UI only when entering InGame state
         .add_systems(OnEnter(AppState::InGame), setup::setup_ui)
         // Show/hide Map UI based on GameMode
-        .add_systems(OnEnter(mode::GameMode::Map), setup::show_map_ui)
-        .add_systems(OnExit(mode::GameMode::Map), setup::hide_map_ui)
+        .add_systems(
+            OnEnter(mode::GameMode::Map),
+            (
+                generic_systems::show_screen::<components::GameplayUIRoot>,
+                generic_systems::show_screen::<components::MapTilemap>,
+            ),
+        )
+        .add_systems(
+            OnExit(mode::GameMode::Map),
+            (
+                generic_systems::hide_screen::<components::GameplayUIRoot>,
+                generic_systems::hide_screen::<components::MapTilemap>,
+            ),
+        )
         // Initialize terminal log messages once at startup
         .add_systems(Startup, logging::setup_terminal_log)
         .add_systems(

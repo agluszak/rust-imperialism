@@ -4,8 +4,8 @@ use bevy::ui_widgets::{ControlOrientation, CoreScrollbarThumb, Scrollbar};
 
 use crate::ui::button_style::*;
 use crate::ui::components::{
-    CalendarDisplay, GameplayUIRoot, MapTilemap, ScrollableTerminal, TerminalOutput,
-    TerminalWindow, TileInfoDisplay, TreasuryDisplay, TurnDisplay,
+    CalendarDisplay, GameplayUIRoot, ScrollableTerminal, TerminalOutput, TerminalWindow,
+    TileInfoDisplay, TreasuryDisplay, TurnDisplay,
 };
 
 pub fn setup_ui(mut commands: Commands) {
@@ -304,28 +304,7 @@ pub fn setup_ui(mut commands: Commands) {
         });
 }
 
-/// Show all Map UI elements (HUD, terminal, sidebar) and tilemap when entering Map mode
-pub fn show_map_ui(
-    mut ui_roots: Query<&mut Visibility, With<GameplayUIRoot>>,
-    mut tilemaps: Query<&mut Visibility, (With<MapTilemap>, Without<GameplayUIRoot>)>,
-) {
-    for mut vis in ui_roots.iter_mut() {
-        *vis = Visibility::Visible;
-    }
-    for mut vis in tilemaps.iter_mut() {
-        *vis = Visibility::Visible;
-    }
-}
-
-/// Hide all Map UI elements and tilemap when leaving Map mode (entering other modes)
-pub fn hide_map_ui(
-    mut ui_roots: Query<&mut Visibility, With<GameplayUIRoot>>,
-    mut tilemaps: Query<&mut Visibility, (With<MapTilemap>, Without<GameplayUIRoot>)>,
-) {
-    for mut vis in ui_roots.iter_mut() {
-        *vis = Visibility::Hidden;
-    }
-    for mut vis in tilemaps.iter_mut() {
-        *vis = Visibility::Hidden;
-    }
-}
+// Note: show_map_ui and hide_map_ui replaced with generic system tuples:
+// - show_screen::<GameplayUIRoot> + show_screen::<MapTilemap>
+// - hide_screen::<GameplayUIRoot> + hide_screen::<MapTilemap>
+// See src/ui/generic_systems.rs for the generic implementations

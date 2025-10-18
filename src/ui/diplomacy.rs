@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use super::button_style::{
     AccentButton, DangerButton, NORMAL_ACCENT, NORMAL_BUTTON, NORMAL_DANGER,
 };
+use super::generic_systems::hide_screen;
 use crate::diplomacy::{
     DiplomacySelection, DiplomacyState, DiplomaticOffer, DiplomaticOfferKind, DiplomaticOffers,
     DiplomaticOrder, DiplomaticOrderKind, ForeignAidLedger, OfferId, resolve_offer_response,
@@ -73,7 +74,7 @@ pub struct DiplomacyUIPlugin;
 impl Plugin for DiplomacyUIPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameMode::Diplomacy), setup_diplomacy_screen)
-            .add_systems(OnExit(GameMode::Diplomacy), hide_diplomacy_screen)
+            .add_systems(OnExit(GameMode::Diplomacy), hide_screen::<DiplomacyScreen>)
             .add_systems(
                 Update,
                 (
@@ -104,7 +105,7 @@ fn setup_diplomacy_screen(
         return;
     }
 
-    let player_entity = player.as_ref().map(|p| p.0);
+    let player_entity = player.as_ref().map(|p| *p.0);
 
     let mut foreign_nations: Vec<(NationId, String)> = nations
         .iter()
@@ -600,7 +601,7 @@ fn ensure_selection_valid(
     player: Option<Res<PlayerNation>>,
     nation_ids: Query<(Entity, &NationId)>,
 ) {
-    let player_entity = player.map(|p| p.0);
+    let player_entity = player.map(|p| *p.0);
     let mut available: Vec<NationId> = Vec::new();
     for (entity, nation) in nation_ids.iter() {
         if Some(entity) == player_entity {
@@ -628,7 +629,7 @@ fn update_nation_buttons(
     names: Query<(&NationId, &Name)>,
     mut buttons: Query<(&DiplomacyNationButton, &mut Text, &mut BackgroundColor)>,
 ) {
-    let player_id = player.and_then(|p| nation_ids.get(p.0).ok()).copied();
+    let player_id = player.and_then(|p| nation_ids.get(*p.0).ok()).copied();
 
     for (button, mut text, mut color) in buttons.iter_mut() {
         let label = names
@@ -698,7 +699,7 @@ fn update_detail_panel(
         return;
     };
 
-    let player_id = player.and_then(|p| nation_ids.get(p.0).ok()).copied();
+    let player_id = player.and_then(|p| nation_ids.get(*p.0).ok()).copied();
 
     let selected_name = names
         .iter()
@@ -782,7 +783,7 @@ fn update_action_buttons(
     };
 
     let player_id = if let Some(player) = player {
-        nation_ids.get(player.0).ok().copied()
+        nation_ids.get(*player.0).ok().copied()
     } else {
         None
     };
@@ -831,7 +832,7 @@ fn handle_action_buttons(
         return;
     };
 
-    let player_id = match player.and_then(|p| nation_ids.get(p.0).ok()).copied() {
+    let player_id = match player.and_then(|p| nation_ids.get(*p.0).ok()).copied() {
         Some(id) => id,
         None => return,
     };
@@ -920,7 +921,7 @@ fn update_pending_offers(
         return;
     };
 
-    let Ok(player_id) = nation_ids.get(player.0) else {
+    let Ok(player_id) = nation_ids.get(*player.0) else {
         return;
     };
 
@@ -1114,8 +1115,5 @@ fn format_name(names: &HashMap<NationId, String>, nation: NationId) -> String {
         .unwrap_or_else(|| format!("Nation {}", nation.0))
 }
 
-fn hide_diplomacy_screen(mut screens: Query<&mut Visibility, With<DiplomacyScreen>>) {
-    for mut visibility in screens.iter_mut() {
-        *visibility = Visibility::Hidden;
-    }
-}
+// Note: hide_diplomacy_screen replaced with generic hide_screen::<DiplomacyScreen>
+// See src/ui/generic_systems.rs for the generic implementation

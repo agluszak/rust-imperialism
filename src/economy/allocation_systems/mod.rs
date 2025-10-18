@@ -32,7 +32,7 @@ pub fn apply_production_adjustments(
 ) {
     for msg in messages.read() {
         let Ok((mut allocations, mut reservations, mut stockpile, mut workforce)) =
-            nations.get_mut(msg.nation)
+            nations.get_mut(msg.nation.entity())
         else {
             warn!("Cannot adjust production: nation not found");
             continue;
@@ -255,7 +255,8 @@ pub fn apply_recruitment_adjustments(
     recruitment_capacity: Query<&RecruitmentCapacity>,
 ) {
     for msg in messages.read() {
-        let Ok((mut allocations, mut reservations, mut stockpile)) = nations.get_mut(msg.nation)
+        let Ok((mut allocations, mut reservations, mut stockpile)) =
+            nations.get_mut(msg.nation.entity())
         else {
             warn!("Cannot adjust recruitment: nation not found");
             continue;
@@ -264,11 +265,11 @@ pub fn apply_recruitment_adjustments(
         // Calculate capacity cap
         let province_count = provinces
             .iter()
-            .filter(|p| p.owner == Some(msg.nation))
+            .filter(|p| p.owner == Some(msg.nation.entity()))
             .count() as u32;
 
         let capacity_upgraded = recruitment_capacity
-            .get(msg.nation)
+            .get(msg.nation.entity())
             .map(|c| c.upgraded)
             .unwrap_or(false);
 
@@ -356,7 +357,7 @@ pub fn apply_training_adjustments(
 ) {
     for msg in messages.read() {
         let Ok((mut allocations, mut reservations, mut stockpile, workforce, mut treasury)) =
-            nations.get_mut(msg.nation)
+            nations.get_mut(msg.nation.entity())
         else {
             warn!("Cannot adjust training: nation not found");
             continue;
@@ -446,7 +447,7 @@ pub fn apply_market_order_adjustments(
 ) {
     for msg in messages.read() {
         let Ok((mut allocations, mut reservations, mut stockpile, mut workforce, mut treasury)) =
-            nations.get_mut(msg.nation)
+            nations.get_mut(msg.nation.entity())
         else {
             warn!("Cannot adjust market orders: nation not found");
             continue;
@@ -567,7 +568,7 @@ pub fn apply_market_order_adjustments(
 /// Finalize allocations at turn end (when entering Processing phase)
 /// Consumes reservations and queues orders for execution
 pub fn finalize_allocations(
-    turn: Res<TurnSystem>,
+    _turn: Res<TurnSystem>,
     mut nations: Query<(
         &Allocations,
         &mut ReservationSystem,
@@ -579,12 +580,8 @@ pub fn finalize_allocations(
     )>,
     mut buildings: Query<&mut super::production::ProductionSettings>,
 ) {
-    use crate::turn_system::TurnPhase;
-
-    // Only run when transitioning to Processing
-    if turn.phase != TurnPhase::Processing {
-        return;
-    }
+    // Note: This system only runs when TurnSystem changes AND phase == Processing
+    // due to run_if conditions in lib.rs, so no need for phase check here
 
     for (
         allocations,
@@ -668,7 +665,7 @@ pub fn finalize_allocations(
 /// Reset allocations at start of PlayerTurn
 /// Releases all reservations and clears allocation structures
 pub fn reset_allocations(
-    turn: Res<TurnSystem>,
+    _turn: Res<TurnSystem>,
     mut nations: Query<(
         &mut Allocations,
         &mut ReservationSystem,
@@ -677,12 +674,8 @@ pub fn reset_allocations(
         &mut Treasury,
     )>,
 ) {
-    use crate::turn_system::TurnPhase;
-
-    // Only run at start of PlayerTurn
-    if turn.phase != TurnPhase::PlayerTurn {
-        return;
-    }
+    // Note: This system only runs when TurnSystem changes AND phase == PlayerTurn
+    // due to run_if conditions in lib.rs, so no need for phase check here
 
     for (mut allocations, mut reservations, mut stockpile, mut workforce, mut treasury) in
         nations.iter_mut()

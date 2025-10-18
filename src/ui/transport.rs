@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
 
 use super::button_style::*;
+use super::generic_systems::despawn_screen;
 use crate::economy::nation::PlayerNation;
 use crate::economy::production::ConnectedProduction;
 use crate::economy::{ImprovementKind, PlaceImprovement};
@@ -29,7 +30,10 @@ impl Plugin for TransportUIPlugin {
         app.init_resource::<TransportToolState>()
             .add_message::<TransportSelectTile>()
             .add_systems(OnEnter(GameMode::Transport), setup_transport_screen)
-            .add_systems(OnExit(GameMode::Transport), despawn_transport_screen)
+            .add_systems(
+                OnExit(GameMode::Transport),
+                despawn_screen::<TransportScreen>,
+            )
             .add_systems(
                 Update,
                 handle_transport_selection.run_if(in_state(GameMode::Transport)),
@@ -149,9 +153,5 @@ fn setup_transport_screen(
         });
 }
 
-/// Despawn the transport screen UI when exiting the transport game mode
-fn despawn_transport_screen(mut commands: Commands, query: Query<Entity, With<TransportScreen>>) {
-    for entity in query.iter() {
-        commands.entity(entity).despawn();
-    }
-}
+// Note: despawn_transport_screen replaced with generic despawn_screen::<TransportScreen>
+// See src/ui/generic_systems.rs for the generic implementation

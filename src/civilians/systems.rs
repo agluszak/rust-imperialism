@@ -5,10 +5,10 @@ use super::commands::{
     DeselectAllCivilians, DeselectCivilian, GiveCivilianOrder, RescindOrders, SelectCivilian,
 };
 use super::types::{
-    ActionTurn, Civilian, CivilianJob, CivilianOrder, CivilianOrderKind, CivilianVisual,
-    PreviousPosition,
+    ActionTurn, Civilian, CivilianJob, CivilianOrder, CivilianOrderKind, PreviousPosition,
 };
 use crate::economy::treasury::Treasury;
+use crate::rendering::MapVisualFor;
 use crate::province::{Province, TileProvince};
 use crate::turn_system::TurnSystem;
 use crate::ui::logging::TerminalLogEvent;
@@ -16,20 +16,20 @@ use crate::ui::logging::TerminalLogEvent;
 /// Handle clicks on civilian visuals to select them
 pub fn handle_civilian_click(
     trigger: On<Pointer<Click>>,
-    visuals: Query<&CivilianVisual>,
+    visuals: Query<&MapVisualFor>,
     mut writer: MessageWriter<SelectCivilian>,
 ) {
     info!(
         "handle_civilian_click triggered for entity {:?}",
         trigger.entity
     );
-    if let Ok(civilian_visual) = visuals.get(trigger.entity) {
+    if let Ok(visual_for) = visuals.get(trigger.entity) {
         info!(
             "Sending SelectCivilian message for entity {:?}",
-            civilian_visual.0
+            visual_for.0
         );
         writer.write(SelectCivilian {
-            entity: civilian_visual.0,
+            entity: visual_for.0,
         });
     }
 }

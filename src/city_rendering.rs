@@ -3,6 +3,7 @@ use bevy_ecs_tilemap::prelude::TilePos;
 
 use crate::assets::{capital_asset_path, town_asset_path};
 use crate::province::City;
+use crate::rendering::{MapVisual, MapVisualFor};
 use crate::tile_pos::TilePosExt;
 
 /// Plugin to render city sprites on the map
@@ -13,10 +14,6 @@ impl Plugin for CityRenderingPlugin {
         app.add_systems(Update, (render_city_visuals, update_city_visual_positions));
     }
 }
-
-/// Visual marker for city sprites
-#[derive(Component)]
-pub struct CityVisual(pub Entity); // Points to the City entity
 
 const CITY_SIZE: f32 = 64.0; // Match tile size
 
@@ -53,22 +50,24 @@ fn render_city_visuals(
                 ..default()
             },
             Transform::from_translation(pos.extend(2.0)), // Below civilians (z=3), above terrain
-            CityVisual(city_entity),
+            MapVisualFor(city_entity),                    // Relationship: sprite -> city
         ));
     }
 }
 
 /// Update city visual positions when their TilePos changes
+/// Uses relationship pattern for O(1) sprite lookups
 fn update_city_visual_positions(
-    cities: Query<(Entity, &TilePos), (With<City>, Changed<TilePos>)>,
-    mut visuals: Query<(&CityVisual, &mut Transform)>,
+    cities: Query<(&TilePos, Option<&MapVisual>), (With<City>, Changed<TilePos>)>,
+    mut visuals: Query<&mut Transform>,
 ) {
-    for (city_entity, tile_pos) in cities.iter() {
-        for (city_visual, mut transform) in visuals.iter_mut() {
-            if city_visual.0 == city_entity {
-                let pos = tile_pos.to_world_pos();
-                transform.translation = pos.extend(2.0);
-            }
+    for (tile_pos, visual) in cities.iter() {
+        // If city has a visual, update its position
+        if let Some(visual) = visual
+            && let Ok(mut transform) = visuals.get_mut(visual.entity())
+        {
+            let pos = tile_pos.to_world_pos();
+            transform.translation = pos.extend(2.0);
         }
     }
 }

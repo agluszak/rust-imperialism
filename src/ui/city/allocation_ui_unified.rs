@@ -27,7 +27,10 @@ pub fn handle_all_stepper_buttons(
         return;
     };
 
-    let Ok(alloc) = allocations.get(player.0) else {
+    let player_entity = player.entity();
+    let player_instance = player.instance();
+
+    let Ok(alloc) = allocations.get(player_entity) else {
         return;
     };
 
@@ -38,7 +41,7 @@ pub fn handle_all_stepper_buttons(
                     let current = alloc.recruitment_count() as u32;
                     let new_requested = (current as i32 + button.delta).max(0) as u32;
                     recruit_writer.write(AdjustRecruitment {
-                        nation: player.0,
+                        nation: player_instance,
                         requested: new_requested,
                     });
                     info!(
@@ -51,7 +54,7 @@ pub fn handle_all_stepper_buttons(
                     let current = alloc.training_count(from_skill) as u32;
                     let new_requested = (current as i32 + button.delta).max(0) as u32;
                     train_writer.write(AdjustTraining {
-                        nation: player.0,
+                        nation: player_instance,
                         from_skill,
                         requested: new_requested,
                     });
@@ -65,7 +68,7 @@ pub fn handle_all_stepper_buttons(
                     let current = alloc.production_count(building_entity, output_good) as u32;
                     let new_target = (current as i32 + button.delta).max(0) as u32;
                     prod_writer.write(AdjustProduction {
-                        nation: player.0,
+                        nation: player_instance,
                         building: building_entity,
                         output_good,
                         target_output: new_target,
@@ -81,7 +84,7 @@ pub fn handle_all_stepper_buttons(
                     let current = if alloc.has_buy_interest(good) { 1 } else { 0 };
                     let new_requested = if current == 0 { 1 } else { 0 };
                     market_writer.write(AdjustMarketOrder {
-                        nation: player.0,
+                        nation: player_instance,
                         good,
                         kind: MarketInterest::Buy,
                         requested: new_requested,
@@ -98,7 +101,7 @@ pub fn handle_all_stepper_buttons(
                     let current = alloc.market_sell_count(good) as u32;
                     let new_requested = (current as i32 + button.delta).max(0) as u32;
                     market_writer.write(AdjustMarketOrder {
-                        nation: player.0,
+                        nation: player_instance,
                         good,
                         kind: MarketInterest::Sell,
                         requested: new_requested,
@@ -134,7 +137,7 @@ pub fn update_all_stepper_displays(
         return;
     }
 
-    if let Ok(alloc) = allocations.get(player.0) {
+    if let Ok(alloc) = allocations.get(player.entity()) {
         for (mut text, display) in displays.iter_mut() {
             let allocated = match display.allocation_type {
                 AllocationType::Recruitment => alloc.recruitment_count(),
@@ -189,19 +192,21 @@ pub fn update_all_allocation_bars(
         return;
     }
 
-    let Ok(alloc) = allocations.get(player.0) else {
+    let player_entity = player.entity();
+
+    let Ok(alloc) = allocations.get(player_entity) else {
         return;
     };
 
-    let Ok(stockpile) = stockpiles.get(player.0) else {
+    let Ok(stockpile) = stockpiles.get(player_entity) else {
         return;
     };
 
-    let Ok(buildings_collection) = buildings_query.get(player.0) else {
+    let Ok(buildings_collection) = buildings_query.get(player_entity) else {
         return;
     };
 
-    let Ok(_treasury) = treasuries.get(player.0) else {
+    let Ok(_treasury) = treasuries.get(player_entity) else {
         return;
     };
 
@@ -322,7 +327,7 @@ pub fn update_all_allocation_summaries(
         return;
     }
 
-    if let Ok(alloc) = allocations.get(player.0) {
+    if let Ok(alloc) = allocations.get(player.entity()) {
         for (mut text, summary) in summaries.iter_mut() {
             text.0 = match summary.allocation_type {
                 AllocationType::Recruitment => {

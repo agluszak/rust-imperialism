@@ -62,16 +62,18 @@ pub fn spawn_warehouse_hud(commands: &mut Commands, parent_entity: Entity) {
 }
 
 /// Update warehouse stock display (Rendering Layer)
+/// Only runs when Stockpile component actually changes (reactive)
 pub fn update_warehouse_display(
     player_nation: Option<Res<PlayerNation>>,
-    stockpile_query: Query<&Stockpile>,
+    changed_stockpiles: Query<&Stockpile, Changed<Stockpile>>,
     mut stock_text: Query<&mut Text, With<WarehouseStockDisplay>>,
 ) {
     let Some(player) = player_nation else {
         return;
     };
 
-    let Ok(stockpile) = stockpile_query.get(player.0) else {
+    // Only update if the player's stockpile changed
+    let Ok(stockpile) = changed_stockpiles.get(player.entity()) else {
         return;
     };
 

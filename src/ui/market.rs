@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use super::button_style::*;
+use super::generic_systems::hide_screen;
 use crate::economy::{
     Allocations, Good, MARKET_RESOURCES, PlayerNation, Stockpile, Treasury, market_price,
 };
@@ -28,7 +29,7 @@ pub struct MarketUIPlugin;
 impl Plugin for MarketUIPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameMode::Market), ensure_market_screen_visible)
-            .add_systems(OnExit(GameMode::Market), hide_market_screen)
+            .add_systems(OnExit(GameMode::Market), hide_screen::<MarketScreen>)
             .add_systems(
                 Update,
                 (
@@ -229,7 +230,7 @@ fn update_market_treasury_text(
         return;
     }
 
-    let Ok(treasury) = treasuries.get(player.0) else {
+    let Ok(treasury) = treasuries.get(player.entity()) else {
         return;
     };
 
@@ -261,11 +262,13 @@ fn update_market_inventory_texts(
         return;
     }
 
-    let Ok(stockpile) = stockpiles.get(player.0) else {
+    let player_entity = player.entity();
+
+    let Ok(stockpile) = stockpiles.get(player_entity) else {
         return;
     };
 
-    let Ok(_allocations) = allocations.get(player.0) else {
+    let Ok(_allocations) = allocations.get(player_entity) else {
         return;
     };
 
@@ -276,8 +279,5 @@ fn update_market_inventory_texts(
     }
 }
 
-pub fn hide_market_screen(mut roots: Query<&mut Visibility, With<MarketScreen>>) {
-    for mut vis in roots.iter_mut() {
-        *vis = Visibility::Hidden;
-    }
-}
+// Note: hide_market_screen replaced with generic hide_screen::<MarketScreen>
+// See src/ui/generic_systems.rs for the generic implementation

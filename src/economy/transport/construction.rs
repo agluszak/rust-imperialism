@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use super::messages::RecomputeConnectivity;
 use super::types::{RailConstruction, Rails, ordered_edge};
 use crate::ui::logging::TerminalLogEvent;
 
@@ -10,6 +11,7 @@ pub fn advance_rail_construction(
     mut constructions: Query<(Entity, &mut RailConstruction)>,
     mut rails: ResMut<Rails>,
     mut log_events: MessageWriter<TerminalLogEvent>,
+    mut connectivity_events: MessageWriter<RecomputeConnectivity>,
 ) {
     for (entity, mut construction) in constructions.iter_mut() {
         construction.turns_remaining -= 1;
@@ -18,6 +20,9 @@ pub fn advance_rail_construction(
             // Construction complete!
             let edge = ordered_edge(construction.from, construction.to);
             rails.0.insert(edge);
+
+            // Trigger connectivity recomputation since topology changed
+            connectivity_events.write(RecomputeConnectivity);
 
             log_events.write(TerminalLogEvent {
                 message: format!(

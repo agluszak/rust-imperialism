@@ -122,7 +122,10 @@ fn pending_offers_block_turn_end() {
     let player_entity = world
         .spawn((NationId(1), Name("Player".into()), Treasury::new(1_000)))
         .id();
-    world.insert_resource(PlayerNation(player_entity));
+    world.flush();
+    let player_nation = PlayerNation::from_entity(&world, player_entity)
+        .expect("Failed to create PlayerNation");
+    world.insert_resource(player_nation);
     world.spawn((NationId(2), Name("Foe".into()), Treasury::new(1_000)));
 
     world

@@ -4,6 +4,7 @@ use super::super::goods::Good;
 use super::super::stockpile::Stockpile;
 use super::systems::calculate_recruitment_cap;
 use super::types::{RecruitmentCapacity, Workforce};
+use crate::economy::NationInstance;
 use crate::province::Province;
 use crate::turn_system::{TurnPhase, TurnSystem};
 use crate::ui::logging::TerminalLogEvent;
@@ -11,7 +12,7 @@ use crate::ui::logging::TerminalLogEvent;
 /// Message to queue recruitment of untrained workers at the Capitol
 #[derive(Message, Debug, Clone, Copy)]
 pub struct RecruitWorkers {
-    pub nation: Entity,
+    pub nation: NationInstance,
     pub count: u32,
 }
 
@@ -32,15 +33,15 @@ pub fn handle_recruitment(
     mut log_writer: MessageWriter<TerminalLogEvent>,
 ) {
     for event in events.read() {
-        if let Ok((mut queue, mut stockpile)) = nations.get_mut(event.nation) {
+        if let Ok((mut queue, mut stockpile)) = nations.get_mut(event.nation.entity()) {
             // Calculate recruitment cap (count provinces owned by this nation entity)
             let province_count = provinces
                 .iter()
-                .filter(|p| p.owner == Some(event.nation))
+                .filter(|p| p.owner == Some(event.nation.entity()))
                 .count() as u32;
 
             let capacity = recruitment_capacity
-                .get(event.nation)
+                .get(event.nation.entity())
                 .map(|c| c.upgraded)
                 .unwrap_or(false);
 

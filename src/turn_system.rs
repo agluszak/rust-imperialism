@@ -70,7 +70,7 @@ fn handle_turn_input(
 ) {
     if keys.just_pressed(KeyCode::Space) && turn_system.is_player_turn() {
         if let (Some(offers), Some(player)) = (offers, player) {
-            if let Ok(player_id) = nation_ids.get(player.0) {
+            if let Ok(player_id) = nation_ids.get(*player.0) {
                 if offers.has_pending_for(*player_id) {
                     log_writer.write(TerminalLogEvent {
                         message: "Resolve pending diplomatic offers before ending the turn."
