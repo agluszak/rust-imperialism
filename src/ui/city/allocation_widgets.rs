@@ -79,7 +79,10 @@ pub struct AllocationSummaryConfig {
 #[macro_export]
 macro_rules! spawn_allocation_stepper {
     ($parent:expr, $label:expr, $allocation_type:expr) => {{
+        use bevy::ui::widget::Button as OldButton;
+        use bevy::ui_widgets::Button;
         use $crate::ui::button_style::*;
+        use $crate::ui::city::allocation_ui_unified::adjust_allocation_on_click;
         use $crate::ui::city::allocation_widgets::{
             AllocationStepperButton, AllocationStepperDisplay,
         };
@@ -112,6 +115,7 @@ macro_rules! spawn_allocation_stepper {
                 // Only -1 button
                 row.spawn((
                     Button,
+                    OldButton,
                     Node {
                         padding: UiRect::all(Val::Px(10.0)),
                         border: UiRect::all(Val::Px(2.0)),
@@ -123,6 +127,7 @@ macro_rules! spawn_allocation_stepper {
                         allocation_type: $allocation_type,
                         delta: -1,
                     },
+                    adjust_allocation_on_click($allocation_type, -1),
                 ))
                 .with_children(|btn| {
                     btn.spawn((
@@ -156,6 +161,7 @@ macro_rules! spawn_allocation_stepper {
                 // Only +1 button
                 row.spawn((
                     Button,
+                    OldButton,
                     Node {
                         padding: UiRect::all(Val::Px(10.0)),
                         border: UiRect::all(Val::Px(2.0)),
@@ -167,6 +173,7 @@ macro_rules! spawn_allocation_stepper {
                         allocation_type: $allocation_type,
                         delta: 1,
                     },
+                    adjust_allocation_on_click($allocation_type, 1),
                 ))
                 .with_children(|btn| {
                     btn.spawn((

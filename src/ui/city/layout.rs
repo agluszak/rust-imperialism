@@ -1,7 +1,12 @@
 use bevy::prelude::*;
+use bevy::ui::widget::Button as OldButton;
+use bevy::ui_widgets::Button;
 
 use super::components::*;
-use crate::ui::{button_style::*, mode::{GameMode, switch_to_mode}};
+use crate::ui::{
+    button_style::*,
+    mode::{GameMode, switch_to_mode},
+};
 
 /// Ensure City screen is visible, creating it if needed
 pub fn ensure_city_screen_visible(
@@ -57,6 +62,7 @@ pub fn ensure_city_screen_visible(
         parent
             .spawn((
                 Button,
+                OldButton,
                 Node {
                     position_type: PositionType::Absolute,
                     top: Val::Px(16.0),

@@ -1,36 +1,37 @@
 use bevy::prelude::*;
+use bevy::ui_widgets::{Activate, observe};
 
+use crate::economy::production::BuildingKind;
 use crate::ui::button_style::*;
 use crate::ui::city::components::BuildingButton;
 use crate::ui::city::dialogs::OpenBuildingDialog;
 
-/// Handle building button clicks (Input Layer)
-/// Opens building dialogs when built buildings are clicked
-pub fn handle_building_button_clicks(
-    interactions: Query<(&Interaction, &BuildingButton), Changed<Interaction>>,
-    mut open_dialog_writer: MessageWriter<OpenBuildingDialog>,
-) {
-    for (interaction, button) in interactions.iter() {
-        if *interaction == Interaction::Pressed {
-            if let Some(building_entity) = button.building_entity {
-                // Open dialog for this building
-                open_dialog_writer.write(OpenBuildingDialog {
-                    building_entity,
-                    building_kind: button.building_kind,
-                });
-                info!(
-                    "Opening dialog for {:?} (entity: {:?})",
-                    button.building_kind, building_entity
-                );
-            } else {
-                info!(
-                    "Building button clicked but not built: {:?}",
-                    button.building_kind
-                );
-                // TODO Future: Show "not built" message or construction dialog
+/// Creates an observer that opens a building dialog when the button is activated
+/// Only opens the dialog if the building is actually built (building_entity is Some)
+pub fn open_building_on_click(building_kind: BuildingKind) -> impl Bundle {
+    observe(
+        move |activate: On<Activate>,
+              button_query: Query<&BuildingButton>,
+              mut open_dialog_writer: MessageWriter<OpenBuildingDialog>| {
+            let entity = activate.entity;
+            if let Ok(button) = button_query.get(entity) {
+                if let Some(building_entity) = button.building_entity {
+                    // Open dialog for this building
+                    open_dialog_writer.write(OpenBuildingDialog {
+                        building_entity,
+                        building_kind,
+                    });
+                    info!(
+                        "Opening dialog for {:?} (entity: {:?})",
+                        building_kind, building_entity
+                    );
+                } else {
+                    info!("Building button clicked but not built: {:?}", building_kind);
+                    // TODO Future: Show "not built" message or construction dialog
+                }
             }
-        }
-    }
+        },
+    )
 }
 
 /// Update building button visuals on hover (Rendering Layer)

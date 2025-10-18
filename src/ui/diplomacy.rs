@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
 use bevy::prelude::*;
+use bevy::ui::widget::Button as OldButton;
+use bevy::ui_widgets::{Activate, Button, observe};
 
 use super::button_style::{
     AccentButton, DangerButton, NORMAL_ACCENT, NORMAL_BUTTON, NORMAL_DANGER,
@@ -69,6 +71,83 @@ enum DiplomaticAction {
     CancelAid,
 }
 
+/// Creates an observer that executes a diplomatic action when the button is activated
+/// Reads current selection from DiplomacySelection resource and player ID from PlayerNation
+fn execute_diplomatic_action(action: DiplomaticAction) -> impl Bundle {
+    observe(
+        move |_activate: On<Activate>,
+              selection: Res<DiplomacySelection>,
+              player: Option<Res<PlayerNation>>,
+              nation_ids: Query<&NationId>,
+              mut orders: MessageWriter<DiplomaticOrder>| {
+            let Some(selected) = selection.selected else {
+                return;
+            };
+
+            let player_id = match player.and_then(|p| nation_ids.get(*p.0).ok()).copied() {
+                Some(id) => id,
+                None => return,
+            };
+
+            let order = match action {
+                DiplomaticAction::DeclareWar => DiplomaticOrder {
+                    actor: player_id,
+                    target: selected,
+                    kind: DiplomaticOrderKind::DeclareWar,
+                },
+                DiplomaticAction::OfferPeace => DiplomaticOrder {
+                    actor: player_id,
+                    target: selected,
+                    kind: DiplomaticOrderKind::OfferPeace,
+                },
+                DiplomaticAction::Consulate => DiplomaticOrder {
+                    actor: player_id,
+                    target: selected,
+                    kind: DiplomaticOrderKind::EstablishConsulate,
+                },
+                DiplomaticAction::Embassy => DiplomaticOrder {
+                    actor: player_id,
+                    target: selected,
+                    kind: DiplomaticOrderKind::OpenEmbassy,
+                },
+                DiplomaticAction::Pact => DiplomaticOrder {
+                    actor: player_id,
+                    target: selected,
+                    kind: DiplomaticOrderKind::SignNonAggressionPact,
+                },
+                DiplomaticAction::Alliance => DiplomaticOrder {
+                    actor: player_id,
+                    target: selected,
+                    kind: DiplomaticOrderKind::FormAlliance,
+                },
+                DiplomaticAction::AidOnce(amount) => DiplomaticOrder {
+                    actor: player_id,
+                    target: selected,
+                    kind: DiplomaticOrderKind::SendAid {
+                        amount,
+                        locked: false,
+                    },
+                },
+                DiplomaticAction::AidLocked(amount) => DiplomaticOrder {
+                    actor: player_id,
+                    target: selected,
+                    kind: DiplomaticOrderKind::SendAid {
+                        amount,
+                        locked: true,
+                    },
+                },
+                DiplomaticAction::CancelAid => DiplomaticOrder {
+                    actor: player_id,
+                    target: selected,
+                    kind: DiplomaticOrderKind::CancelAid,
+                },
+            };
+
+            orders.write(order);
+        },
+    )
+}
+
 pub struct DiplomacyUIPlugin;
 
 impl Plugin for DiplomacyUIPlugin {
@@ -84,7 +163,6 @@ impl Plugin for DiplomacyUIPlugin {
                 ensure_selection_valid,
                 update_nation_buttons,
                 update_action_buttons,
-                handle_action_buttons,
                 update_pending_offers,
                 handle_offer_response_buttons,
             )
@@ -299,6 +377,7 @@ fn setup_diplomacy_screen(
                             .with_children(|row| {
                                 row.spawn((
                                     Button,
+                                    OldButton,
                                     Node {
                                         padding: UiRect::all(Val::Px(8.0)),
                                         ..default()
@@ -309,6 +388,7 @@ fn setup_diplomacy_screen(
                                         target: NationId(0),
                                     },
                                     DangerButton,
+                                    execute_diplomatic_action(DiplomaticAction::DeclareWar),
                                 ))
                                 .with_children(|button| {
                                     button.spawn((
@@ -323,6 +403,7 @@ fn setup_diplomacy_screen(
 
                                 row.spawn((
                                     Button,
+                                    OldButton,
                                     Node {
                                         padding: UiRect::all(Val::Px(8.0)),
                                         ..default()
@@ -332,6 +413,7 @@ fn setup_diplomacy_screen(
                                         action: DiplomaticAction::OfferPeace,
                                         target: NationId(0),
                                     },
+                                    execute_diplomatic_action(DiplomaticAction::OfferPeace),
                                 ))
                                 .with_children(|button| {
                                     button.spawn((
@@ -355,6 +437,7 @@ fn setup_diplomacy_screen(
                             .with_children(|row| {
                                 row.spawn((
                                     Button,
+                                    OldButton,
                                     Node {
                                         padding: UiRect::all(Val::Px(8.0)),
                                         ..default()
@@ -365,6 +448,7 @@ fn setup_diplomacy_screen(
                                         target: NationId(0),
                                     },
                                     AccentButton,
+                                    execute_diplomatic_action(DiplomaticAction::Consulate),
                                 ))
                                 .with_children(|button| {
                                     button.spawn((
@@ -379,6 +463,7 @@ fn setup_diplomacy_screen(
 
                                 row.spawn((
                                     Button,
+                                    OldButton,
                                     Node {
                                         padding: UiRect::all(Val::Px(8.0)),
                                         ..default()
@@ -389,6 +474,7 @@ fn setup_diplomacy_screen(
                                         target: NationId(0),
                                     },
                                     AccentButton,
+                                    execute_diplomatic_action(DiplomaticAction::Embassy),
                                 ))
                                 .with_children(|button| {
                                     button.spawn((
@@ -403,6 +489,7 @@ fn setup_diplomacy_screen(
 
                                 row.spawn((
                                     Button,
+                                    OldButton,
                                     Node {
                                         padding: UiRect::all(Val::Px(8.0)),
                                         ..default()
@@ -412,6 +499,7 @@ fn setup_diplomacy_screen(
                                         action: DiplomaticAction::Pact,
                                         target: NationId(0),
                                     },
+                                    execute_diplomatic_action(DiplomaticAction::Pact),
                                 ))
                                 .with_children(|button| {
                                     button.spawn((
@@ -426,6 +514,7 @@ fn setup_diplomacy_screen(
 
                                 row.spawn((
                                     Button,
+                                    OldButton,
                                     Node {
                                         padding: UiRect::all(Val::Px(8.0)),
                                         ..default()
@@ -436,6 +525,7 @@ fn setup_diplomacy_screen(
                                         target: NationId(0),
                                     },
                                     AccentButton,
+                                    execute_diplomatic_action(DiplomaticAction::Alliance),
                                 ))
                                 .with_children(|button| {
                                     button.spawn((
@@ -459,6 +549,7 @@ fn setup_diplomacy_screen(
                             .with_children(|row| {
                                 row.spawn((
                                     Button,
+                                    OldButton,
                                     Node {
                                         padding: UiRect::all(Val::Px(8.0)),
                                         ..default()
@@ -469,6 +560,7 @@ fn setup_diplomacy_screen(
                                         target: NationId(0),
                                     },
                                     AccentButton,
+                                    execute_diplomatic_action(DiplomaticAction::AidOnce(500)),
                                 ))
                                 .with_children(|button| {
                                     button.spawn((
@@ -483,6 +575,7 @@ fn setup_diplomacy_screen(
 
                                 row.spawn((
                                     Button,
+                                    OldButton,
                                     Node {
                                         padding: UiRect::all(Val::Px(8.0)),
                                         ..default()
@@ -493,6 +586,7 @@ fn setup_diplomacy_screen(
                                         target: NationId(0),
                                     },
                                     AccentButton,
+                                    execute_diplomatic_action(DiplomaticAction::AidLocked(500)),
                                 ))
                                 .with_children(|button| {
                                     button.spawn((
@@ -507,6 +601,7 @@ fn setup_diplomacy_screen(
 
                                 row.spawn((
                                     Button,
+                                    OldButton,
                                     Node {
                                         padding: UiRect::all(Val::Px(8.0)),
                                         ..default()
@@ -516,6 +611,7 @@ fn setup_diplomacy_screen(
                                         action: DiplomaticAction::CancelAid,
                                         target: NationId(0),
                                     },
+                                    execute_diplomatic_action(DiplomaticAction::CancelAid),
                                 ))
                                 .with_children(|button| {
                                     button.spawn((
@@ -534,6 +630,7 @@ fn setup_diplomacy_screen(
             // Back button
             root.spawn((
                 Button,
+                OldButton,
                 Node {
                     position_type: PositionType::Absolute,
                     top: Val::Px(16.0),
@@ -840,89 +937,6 @@ fn update_action_buttons(
     }
 }
 
-fn handle_action_buttons(
-    selection: Res<DiplomacySelection>,
-    player: Option<Res<PlayerNation>>,
-    nation_ids: Query<&NationId>,
-    mut buttons: Query<(&Interaction, &DiplomacyActionButton), Changed<Interaction>>,
-    mut orders: MessageWriter<DiplomaticOrder>,
-) {
-    let Some(selected) = selection.selected else {
-        return;
-    };
-
-    let player_id = match player.and_then(|p| nation_ids.get(*p.0).ok()).copied() {
-        Some(id) => id,
-        None => return,
-    };
-
-    for (interaction, button) in buttons.iter_mut() {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
-
-        if button.target != selected {
-            continue;
-        }
-
-        let order = match button.action {
-            DiplomaticAction::DeclareWar => DiplomaticOrder {
-                actor: player_id,
-                target: selected,
-                kind: DiplomaticOrderKind::DeclareWar,
-            },
-            DiplomaticAction::OfferPeace => DiplomaticOrder {
-                actor: player_id,
-                target: selected,
-                kind: DiplomaticOrderKind::OfferPeace,
-            },
-            DiplomaticAction::Consulate => DiplomaticOrder {
-                actor: player_id,
-                target: selected,
-                kind: DiplomaticOrderKind::EstablishConsulate,
-            },
-            DiplomaticAction::Embassy => DiplomaticOrder {
-                actor: player_id,
-                target: selected,
-                kind: DiplomaticOrderKind::OpenEmbassy,
-            },
-            DiplomaticAction::Pact => DiplomaticOrder {
-                actor: player_id,
-                target: selected,
-                kind: DiplomaticOrderKind::SignNonAggressionPact,
-            },
-            DiplomaticAction::Alliance => DiplomaticOrder {
-                actor: player_id,
-                target: selected,
-                kind: DiplomaticOrderKind::FormAlliance,
-            },
-            DiplomaticAction::AidOnce(amount) => DiplomaticOrder {
-                actor: player_id,
-                target: selected,
-                kind: DiplomaticOrderKind::SendAid {
-                    amount,
-                    locked: false,
-                },
-            },
-            DiplomaticAction::AidLocked(amount) => DiplomaticOrder {
-                actor: player_id,
-                target: selected,
-                kind: DiplomaticOrderKind::SendAid {
-                    amount,
-                    locked: true,
-                },
-            },
-            DiplomaticAction::CancelAid => DiplomaticOrder {
-                actor: player_id,
-                target: selected,
-                kind: DiplomaticOrderKind::CancelAid,
-            },
-        };
-
-        orders.write(order);
-    }
-}
-
 fn update_pending_offers(
     offers: Res<DiplomaticOffers>,
     player: Option<Res<PlayerNation>>,
@@ -998,6 +1012,7 @@ fn update_pending_offers(
                         .with_children(|row| {
                             row.spawn((
                                 Button,
+                                OldButton,
                                 Node {
                                     padding: UiRect::all(Val::Px(6.0)),
                                     ..default()
@@ -1022,6 +1037,7 @@ fn update_pending_offers(
 
                             row.spawn((
                                 Button,
+                                OldButton,
                                 Node {
                                     padding: UiRect::all(Val::Px(6.0)),
                                     ..default()

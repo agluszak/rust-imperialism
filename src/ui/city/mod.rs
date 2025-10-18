@@ -57,7 +57,6 @@ impl Plugin for CityUIPlugin {
                 (
                     // Building grid systems
                     buildings::update_building_buttons,
-                    buildings::handle_building_button_clicks,
                     buildings::update_building_button_visuals,
                     // Dialog systems
                     dialogs::open_building_dialogs,
@@ -88,7 +87,6 @@ impl Plugin for CityUIPlugin {
                     workforce::spawn_hired_civilian,
                     workforce::handle_recruit_workers_buttons,
                     workforce::handle_train_worker_buttons,
-                    allocation_ui_unified::handle_all_stepper_buttons,
                 )
                     .run_if(in_state(GameMode::City)),
             )

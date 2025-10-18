@@ -1,6 +1,7 @@
 use bevy::app::AppExit;
 use bevy::prelude::*;
-use bevy::ui_widgets::{Activate, observe};
+use bevy::ui::widget::Button as OldButton;
+use bevy::ui_widgets::{Activate, Button, observe};
 
 use super::button_style::*;
 use super::generic_systems::hide_screen;
@@ -19,18 +20,14 @@ pub enum AppState {
 #[derive(Component)]
 pub struct MainMenuRoot;
 
-/// Creates an observer that starts a new game when button is activated
-pub fn start_new_game() -> impl Bundle {
-    observe(|_activate: On<Activate>, mut next_state: ResMut<NextState<AppState>>| {
-        next_state.set(AppState::InGame);
-    })
-}
-
 /// Creates an observer that quits the application when button is activated
 pub fn quit_game() -> impl Bundle {
-    observe(|_activate: On<Activate>, mut exit_writer: MessageWriter<AppExit>| {
-        exit_writer.write(AppExit::Success);
-    })
+    observe(
+        |_activate: On<Activate>, mut exit: MessageWriter<AppExit>| {
+            info!("Quit button activated - exiting application");
+            exit.write(AppExit::Success);
+        },
+    )
 }
 
 pub struct MenuUIPlugin;
@@ -84,13 +81,19 @@ fn ensure_main_menu_visible(
             ),
             (
                 Button,
+                OldButton,
                 Node {
                     padding: UiRect::axes(Val::Px(20.0), Val::Px(10.0)),
                     ..default()
                 },
                 BackgroundColor(NORMAL_ACCENT),
                 AccentButton,
-                start_new_game(),
+                observe(
+                    |_activate: On<Activate>, mut next_state: ResMut<NextState<AppState>>| {
+                        info!("New Game button activated - switching to InGame state");
+                        next_state.set(AppState::InGame);
+                    }
+                ),
                 children![(
                     Text::new("New Game"),
                     TextFont {
@@ -102,6 +105,7 @@ fn ensure_main_menu_visible(
             ),
             (
                 Button,
+                OldButton,
                 Node {
                     padding: UiRect::axes(Val::Px(20.0), Val::Px(10.0)),
                     ..default()

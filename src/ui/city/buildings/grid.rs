@@ -1,8 +1,11 @@
 use bevy::prelude::*;
+use bevy::ui::widget::Button as OldButton;
+use bevy::ui_widgets::Button;
 
 use crate::economy::PlayerNation;
 use crate::economy::production::{BuildingKind, Buildings};
 use crate::ui::button_style::*;
+use crate::ui::city::buildings::buttons::open_building_on_click;
 use crate::ui::city::components::{BuildingButton, BuildingGrid};
 
 /// Spawn the building grid (center area) (Rendering Layer)
@@ -54,6 +57,7 @@ pub fn spawn_building_grid(commands: &mut Commands, parent_entity: Entity) {
                         grid_container
                             .spawn((
                                 Button,
+                                OldButton,
                                 Node {
                                     width: Val::Percent(100.0),
                                     height: Val::Px(80.0),
@@ -69,6 +73,7 @@ pub fn spawn_building_grid(commands: &mut Commands, parent_entity: Entity) {
                                     building_entity: None,
                                     building_kind: kind,
                                 },
+                                open_building_on_click(kind),
                             ))
                             .with_children(|button| {
                                 button.spawn((

@@ -1,7 +1,10 @@
 use bevy::ecs::hierarchy::ChildSpawnerCommands;
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
-use bevy::ui_widgets::{Slider, SliderRange, SliderThumb, SliderValue, ValueChange, observe};
+use bevy::ui::widget::Button as OldButton;
+use bevy::ui_widgets::{
+    Button, Slider, SliderRange, SliderThumb, SliderValue, ValueChange, observe,
+};
 use bevy_ecs_tilemap::prelude::TilePos;
 
 use super::button_style::*;
@@ -263,6 +266,7 @@ fn setup_transport_screen(mut commands: Commands, player: Option<Res<PlayerNatio
 
             parent.spawn((
                 Button,
+                OldButton,
                 Node {
                     position_type: PositionType::Absolute,
                     top: Val::Px(24.0),

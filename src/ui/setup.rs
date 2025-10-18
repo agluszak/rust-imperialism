@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
-use bevy::ui_widgets::{ControlOrientation, CoreScrollbarThumb, Scrollbar};
+use bevy::ui::widget::Button as OldButton;
+use bevy::ui_widgets::{Button, ControlOrientation, CoreScrollbarThumb, Scrollbar};
 
 use crate::ui::button_style::*;
 use crate::ui::components::{
@@ -211,6 +212,7 @@ pub fn setup_ui(mut commands: Commands) {
             // Map Mode button
             sidebar.spawn((
                 Button,
+                OldButton,
                 Node {
                     padding: UiRect::all(Val::Px(6.0)),
                     ..default()
@@ -229,6 +231,7 @@ pub fn setup_ui(mut commands: Commands) {
             // Transport Mode button
             sidebar.spawn((
                 Button,
+                OldButton,
                 Node {
                     padding: UiRect::all(Val::Px(6.0)),
                     ..default()
@@ -247,6 +250,7 @@ pub fn setup_ui(mut commands: Commands) {
             // City Mode button
             sidebar.spawn((
                 Button,
+                OldButton,
                 Node {
                     padding: UiRect::all(Val::Px(6.0)),
                     ..default()
@@ -265,6 +269,7 @@ pub fn setup_ui(mut commands: Commands) {
             // Market Mode button
             sidebar.spawn((
                 Button,
+                OldButton,
                 Node {
                     padding: UiRect::all(Val::Px(6.0)),
                     ..default()
@@ -283,6 +288,7 @@ pub fn setup_ui(mut commands: Commands) {
             // Diplomacy Mode button
             sidebar.spawn((
                 Button,
+                OldButton,
                 Node {
                     padding: UiRect::all(Val::Px(6.0)),
                     ..default()

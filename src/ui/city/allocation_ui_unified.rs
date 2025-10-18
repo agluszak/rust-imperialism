@@ -1,8 +1,8 @@
 use bevy::prelude::*;
+use bevy::ui_widgets::{Activate, observe};
 
 use super::allocation_widgets::{
-    AllocationBar, AllocationStepperButton, AllocationStepperDisplay, AllocationSummary,
-    AllocationType,
+    AllocationBar, AllocationStepperDisplay, AllocationSummary, AllocationType,
 };
 use crate::economy::{
     AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, Allocations,
@@ -13,46 +13,44 @@ use crate::economy::{
 // Input Layer: Unified stepper button handler
 // ============================================================================
 
-/// Handle ALL stepper button clicks (recruitment, training, production)
-pub fn handle_all_stepper_buttons(
-    interactions: Query<(&Interaction, &AllocationStepperButton), Changed<Interaction>>,
-    player_nation: Option<Res<PlayerNation>>,
-    allocations: Query<&Allocations>,
-    mut recruit_writer: MessageWriter<AdjustRecruitment>,
-    mut train_writer: MessageWriter<AdjustTraining>,
-    mut prod_writer: MessageWriter<AdjustProduction>,
-    mut market_writer: MessageWriter<AdjustMarketOrder>,
-) {
-    let Some(player) = player_nation else {
-        return;
-    };
+/// Creates an observer that adjusts allocation when a stepper button is activated
+pub fn adjust_allocation_on_click(allocation_type: AllocationType, delta: i32) -> impl Bundle {
+    observe(
+        move |_activate: On<Activate>,
+              player_nation: Option<Res<PlayerNation>>,
+              allocations: Query<&Allocations>,
+              mut recruit_writer: MessageWriter<AdjustRecruitment>,
+              mut train_writer: MessageWriter<AdjustTraining>,
+              mut prod_writer: MessageWriter<AdjustProduction>,
+              mut market_writer: MessageWriter<AdjustMarketOrder>| {
+            let Some(player) = player_nation else {
+                return;
+            };
 
-    let player_entity = player.entity();
-    let player_instance = player.instance();
+            let player_entity = player.entity();
+            let player_instance = player.instance();
 
-    let Ok(alloc) = allocations.get(player_entity) else {
-        return;
-    };
+            let Ok(alloc) = allocations.get(player_entity) else {
+                return;
+            };
 
-    for (interaction, button) in interactions.iter() {
-        if *interaction == Interaction::Pressed {
-            match button.allocation_type {
+            match allocation_type {
                 AllocationType::Recruitment => {
                     let current = alloc.recruitment_count() as u32;
-                    let new_requested = (current as i32 + button.delta).max(0) as u32;
+                    let new_requested = (current as i32 + delta).max(0) as u32;
                     recruit_writer.write(AdjustRecruitment {
                         nation: player_instance,
                         requested: new_requested,
                     });
                     info!(
                         "Recruitment: {} → {} (delta: {})",
-                        current, new_requested, button.delta
+                        current, new_requested, delta
                     );
                 }
 
                 AllocationType::Training(from_skill) => {
                     let current = alloc.training_count(from_skill) as u32;
-                    let new_requested = (current as i32 + button.delta).max(0) as u32;
+                    let new_requested = (current as i32 + delta).max(0) as u32;
                     train_writer.write(AdjustTraining {
                         nation: player_instance,
                         from_skill,
@@ -60,13 +58,13 @@ pub fn handle_all_stepper_buttons(
                     });
                     info!(
                         "Training ({:?}): {} → {} (delta: {})",
-                        from_skill, current, new_requested, button.delta
+                        from_skill, current, new_requested, delta
                     );
                 }
 
                 AllocationType::Production(building_entity, output_good) => {
                     let current = alloc.production_count(building_entity, output_good) as u32;
-                    let new_target = (current as i32 + button.delta).max(0) as u32;
+                    let new_target = (current as i32 + delta).max(0) as u32;
                     prod_writer.write(AdjustProduction {
                         nation: player_instance,
                         building: building_entity,
@@ -75,7 +73,7 @@ pub fn handle_all_stepper_buttons(
                     });
                     info!(
                         "Production ({:?}): {} → {} (delta: {})",
-                        output_good, current, new_target, button.delta
+                        output_good, current, new_target, delta
                     );
                 }
 
@@ -99,7 +97,7 @@ pub fn handle_all_stepper_buttons(
 
                 AllocationType::MarketSell(good) => {
                     let current = alloc.market_sell_count(good) as u32;
-                    let new_requested = (current as i32 + button.delta).max(0) as u32;
+                    let new_requested = (current as i32 + delta).max(0) as u32;
                     market_writer.write(AdjustMarketOrder {
                         nation: player_instance,
                         good,
@@ -108,12 +106,12 @@ pub fn handle_all_stepper_buttons(
                     });
                     info!(
                         "Market sell ({:?}): {} → {} (delta: {})",
-                        good, current, new_requested, button.delta
+                        good, current, new_requested, delta
                     );
                 }
             }
-        }
-    }
+        },
+    )
 }
 
 // ============================================================================

@@ -21,7 +21,9 @@ pub enum GameMode {
 
 /// Creates an observer that switches to the specified mode when button is activated
 pub fn switch_to_mode(mode: GameMode) -> impl Bundle {
-    observe(move |_activate: On<Activate>, mut next_state: ResMut<NextState<GameMode>>| {
-        next_state.set(mode.clone());
-    })
+    observe(
+        move |_activate: On<Activate>, mut next_state: ResMut<NextState<GameMode>>| {
+            next_state.set(mode.clone());
+        },
+    )
 }

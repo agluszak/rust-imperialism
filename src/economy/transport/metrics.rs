@@ -128,10 +128,7 @@ pub fn update_transport_demand_snapshot(
                 }
             }
             if supply > 0 {
-                entries
-                    .entry(*commodity)
-                    .or_default()
-                    .supply = supply;
+                entries.entry(*commodity).or_default().supply = supply;
             }
         }
     }
@@ -145,10 +142,7 @@ pub fn update_transport_demand_snapshot(
                 1 => TransportCommodity::Fruit,
                 _ => TransportCommodity::Meat,
             };
-            entries
-                .entry(commodity)
-                .or_default()
-                .demand += 1;
+            entries.entry(commodity).or_default().demand += 1;
         }
     }
 
@@ -185,10 +179,7 @@ pub fn update_transport_demand_snapshot(
 
             for (good, amount_per_unit) in inputs {
                 if let Some(commodity) = TransportCommodity::from_good(good) {
-                    entries
-                        .entry(commodity)
-                        .or_default()
-                        .demand += amount_per_unit * units;
+                    entries.entry(commodity).or_default().demand += amount_per_unit * units;
                 }
             }
         }

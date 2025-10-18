@@ -1,4 +1,6 @@
 use bevy::prelude::*;
+use bevy::ui::widget::Button as OldButton;
+use bevy::ui_widgets::Button;
 
 use super::button_style::*;
 use super::generic_systems::hide_screen;
@@ -6,8 +8,7 @@ use crate::economy::{
     Allocations, Good, MARKET_RESOURCES, PlayerNation, Stockpile, Treasury, market_price,
 };
 use crate::ui::city::allocation_ui_unified::{
-    handle_all_stepper_buttons, update_all_allocation_bars, update_all_allocation_summaries,
-    update_all_stepper_displays,
+    update_all_allocation_bars, update_all_allocation_summaries, update_all_stepper_displays,
 };
 use crate::ui::city::allocation_widgets::AllocationType;
 use crate::ui::mode::{GameMode, switch_to_mode};
@@ -33,7 +34,6 @@ impl Plugin for MarketUIPlugin {
             .add_systems(
                 Update,
                 (
-                    handle_all_stepper_buttons,
                     update_all_stepper_displays,
                     update_all_allocation_bars,
                     update_all_allocation_summaries,
@@ -191,6 +191,7 @@ pub fn ensure_market_screen_visible(
             parent
                 .spawn((
                     Button,
+                    OldButton,
                     Node {
                         position_type: PositionType::Absolute,
                         top: Val::Px(16.0),
