@@ -7,7 +7,7 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 
-use crate::tiles::TerrainType;
+use crate::map::tiles::TerrainType;
 use crate::turn_system::TurnSystem;
 use crate::ui::state::UIState;
 
@@ -105,7 +105,7 @@ pub fn advance_turns(world: &mut World, phases: usize) {
 
 /// Asserts that two tile positions are adjacent (distance = 1)
 pub fn assert_adjacent(pos1: TilePos, pos2: TilePos) {
-    use crate::tile_pos::TilePosExt;
+    use crate::map::tile_pos::TilePosExt;
     let hex1 = pos1.to_hex();
     let hex2 = pos2.to_hex();
     let distance = hex1.distance_to(hex2);

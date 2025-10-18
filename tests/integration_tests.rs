@@ -47,7 +47,7 @@ fn test_ui_state() {
 #[test]
 fn test_hex_coordinates() {
     use bevy_ecs_tilemap::prelude::TilePos;
-    use rust_imperialism::tile_pos::TilePosExt;
+    use rust_imperialism::map::TilePosExt;
 
     let pos1 = TilePos { x: 1, y: 1 };
     let pos2 = TilePos { x: 2, y: 1 };

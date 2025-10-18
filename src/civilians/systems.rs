@@ -8,8 +8,8 @@ use super::types::{
     ActionTurn, Civilian, CivilianJob, CivilianOrder, CivilianOrderKind, PreviousPosition,
 };
 use crate::economy::treasury::Treasury;
-use crate::province::{Province, TileProvince};
-use crate::rendering::MapVisualFor;
+use crate::map::province::{Province, TileProvince};
+use crate::map::rendering::MapVisualFor;
 use crate::turn_system::TurnSystem;
 use crate::ui::logging::TerminalLogEvent;
 

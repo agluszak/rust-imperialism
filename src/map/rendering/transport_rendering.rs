@@ -4,8 +4,8 @@ use bevy_ecs_tilemap::prelude::TilePos;
 use crate::assets;
 use crate::civilians::{Civilian, CivilianKind};
 use crate::economy::{Depot, Port, Rails, Roads};
-use crate::rendering::{MapVisual, MapVisualFor};
-use crate::tile_pos::TilePosExt;
+use crate::map::rendering::{MapVisual, MapVisualFor};
+use crate::map::tile_pos::TilePosExt;
 use crate::ui::menu::AppState;
 use crate::ui::mode::GameMode;
 

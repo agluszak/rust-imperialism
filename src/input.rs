@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 
 use crate::civilians::{Civilian, CivilianKind, CivilianOrderKind, GiveCivilianOrder};
-use crate::tile_pos::TilePosExt;
+use crate::map::tile_pos::TilePosExt;
 
 pub struct InputPlugin;
 

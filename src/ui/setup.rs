@@ -209,25 +209,6 @@ pub fn setup_ui(mut commands: Commands) {
         ))
         .with_children(|sidebar| {
             use crate::ui::mode::{GameMode, switch_to_mode};
-            // Map Mode button
-            sidebar.spawn((
-                Button,
-                OldButton,
-                Node {
-                    padding: UiRect::all(Val::Px(6.0)),
-                    ..default()
-                },
-                BackgroundColor(NORMAL_BUTTON),
-                switch_to_mode(GameMode::Map),
-                children![(
-                    Text::new("Map"),
-                    TextFont {
-                        font_size: 16.0,
-                        ..default()
-                    },
-                    TextColor(Color::srgb(0.9, 0.9, 1.0)),
-                )],
-            ));
             // Transport Mode button
             sidebar.spawn((
                 Button,
@@ -306,8 +287,3 @@ pub fn setup_ui(mut commands: Commands) {
             ));
         });
 }
-
-// Note: show_map_ui and hide_map_ui replaced with generic system tuples:
-// - show_screen::<GameplayUIRoot> + show_screen::<MapTilemap>
-// - hide_screen::<GameplayUIRoot> + hide_screen::<MapTilemap>
-// See src/ui/generic_systems.rs for the generic implementations

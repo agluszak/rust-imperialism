@@ -212,7 +212,7 @@ mod tests {
     use crate::economy::nation::{NationId, PlayerNation};
     use crate::economy::reservation::ReservationSystem;
     use crate::economy::transport::{Rails, Roads};
-    use crate::province_setup::ProvincesGenerated;
+    use crate::map::province_setup::ProvincesGenerated;
     use crate::save::{
         GameSavePlugin, LoadGameCompleted, LoadGameRequest, SaveGameCompleted, SaveGameRequest,
     };

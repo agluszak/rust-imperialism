@@ -4,8 +4,8 @@ use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
 use super::messages::PlaceImprovement;
 use super::types::{Depot, ImprovementKind, Port, RailConstruction, Rails, Roads, ordered_edge};
 use super::validation::{are_adjacent, can_build_rail_on_terrain};
-use crate::tile_pos::{HexExt, TilePosExt};
-use crate::tiles::TerrainType;
+use crate::map::tile_pos::{HexExt, TilePosExt};
+use crate::map::tiles::TerrainType;
 use crate::ui::logging::TerminalLogEvent;
 
 use super::super::{nation::PlayerNation, technology::Technologies, treasury::Treasury};

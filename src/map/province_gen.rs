@@ -2,9 +2,9 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
 use std::collections::{HashSet, VecDeque};
 
-use crate::province::{Province, ProvinceId, TileProvince};
-use crate::tile_pos::{HexExt, TilePosExt};
-use crate::tiles::TerrainType;
+use crate::map::province::{Province, ProvinceId, TileProvince};
+use crate::map::tile_pos::{HexExt, TilePosExt};
+use crate::map::tiles::TerrainType;
 
 const MIN_PROVINCE_SIZE: usize = 15;
 const MAX_PROVINCE_SIZE: usize = 20;

@@ -4,7 +4,7 @@
 //! (converted from original BMP files with transparency)
 
 use crate::civilians::CivilianKind;
-use crate::tiles::TerrainType;
+use crate::map::tiles::TerrainType;
 
 /// Get the asset path for a terrain type (loads BMP directly)
 pub fn terrain_asset_path(terrain: TerrainType) -> &'static str {

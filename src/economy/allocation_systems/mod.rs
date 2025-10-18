@@ -12,7 +12,7 @@ use super::{
     treasury::Treasury,
     workforce::{RecruitmentCapacity, types::*},
 };
-use crate::{province::Province, turn_system::TurnSystem};
+use crate::{map::province::Province, turn_system::TurnSystem};
 
 // ============================================================================
 // Production Adjustment System (Unit-by-Unit Reservations)

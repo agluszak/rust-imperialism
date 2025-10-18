@@ -2,9 +2,9 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
 
 use crate::assets::{capital_asset_path, town_asset_path};
-use crate::province::City;
-use crate::rendering::{MapVisual, MapVisualFor};
-use crate::tile_pos::TilePosExt;
+use crate::map::province::City;
+use crate::map::rendering::{MapVisual, MapVisualFor};
+use crate::map::tile_pos::TilePosExt;
 
 /// Plugin to render city sprites on the map
 pub struct CityRenderingPlugin;

@@ -10,10 +10,10 @@ use crate::economy::{
     Workforce,
     production::{Buildings, ProductionSettings},
 };
-use crate::province::{City, Province, ProvinceId};
-use crate::province_gen::generate_provinces;
-use crate::tile_pos::TilePosExt; // HexExt used for trait methods: to_hex(), distance_to()
-use crate::tiles::TerrainType;
+use crate::map::province::{City, Province, ProvinceId};
+use crate::map::province_gen::generate_provinces;
+use crate::map::tile_pos::TilePosExt; // HexExt used for trait methods: to_hex(), distance_to()
+use crate::map::tiles::TerrainType;
 
 /// Resource to track if provinces have been generated
 #[derive(Resource)]

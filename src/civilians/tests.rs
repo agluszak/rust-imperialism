@@ -4,7 +4,7 @@ use crate::civilians::types::{
     Civilian, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind, JobType,
 };
 use crate::economy::transport::{PlaceImprovement, Rails, ordered_edge};
-use crate::province::{Province, ProvinceId, TileProvince};
+use crate::map::province::{Province, ProvinceId, TileProvince};
 use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};

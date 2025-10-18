@@ -1,4 +1,4 @@
-use crate::tiles::TerrainType;
+use crate::map::tiles::TerrainType;
 use noise::{NoiseFn, Perlin};
 
 pub struct TerrainGenerator {

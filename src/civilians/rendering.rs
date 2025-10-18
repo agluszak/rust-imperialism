@@ -4,8 +4,8 @@ use bevy::prelude::*;
 use super::systems::handle_civilian_click;
 use super::types::{Civilian, CivilianJob};
 use crate::assets::civilian_asset_path;
-use crate::rendering::{MapVisual, MapVisualFor};
-use crate::tile_pos::TilePosExt;
+use crate::map::rendering::{MapVisual, MapVisualFor};
+use crate::map::tile_pos::TilePosExt;
 
 const ENGINEER_SIZE: f32 = 64.0; // Match tile size
 const ENGINEER_SELECTED_COLOR: Color = Color::srgb(1.0, 0.8, 0.0); // Yellow/gold tint for selected units

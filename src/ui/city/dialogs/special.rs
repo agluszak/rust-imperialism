@@ -5,7 +5,7 @@ use crate::economy::workforce::calculate_recruitment_cap;
 use crate::economy::{
     Good, PlayerNation, RecruitmentCapacity, RecruitmentQueue, Stockpile, WorkerSkill, Workforce,
 };
-use crate::province::Province;
+use crate::map::province::Province;
 use crate::ui::city::allocation_widgets::AllocationType;
 use crate::ui::city::components::{
     CapitolCapacityDisplay, CapitolRequirementDisplay, TradeSchoolPaperDisplay,

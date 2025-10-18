@@ -4,8 +4,8 @@ use std::iter;
 
 use crate::{
     economy::transport::{Depot, Port},
+    map::tile_pos::{HexExt, TilePosExt},
     resources::{ResourceType, TileResource},
-    tile_pos::{HexExt, TilePosExt},
 };
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
 

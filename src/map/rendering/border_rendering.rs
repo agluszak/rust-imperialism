@@ -2,8 +2,8 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::{TileStorage, TilemapSize};
 
 use crate::economy::NationColor;
-use crate::province::{Province, TileProvince};
-use crate::tile_pos::{HexExt, TilePosExt};
+use crate::map::province::{Province, TileProvince};
+use crate::map::tile_pos::{HexExt, TilePosExt};
 
 /// Plugin to render province and nation borders
 pub struct BorderRenderingPlugin;

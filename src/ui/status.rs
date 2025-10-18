@@ -3,9 +3,9 @@ use bevy_ecs_tilemap::prelude::TileStorage;
 
 use crate::civilians::{Civilian, CivilianKind};
 use crate::economy::{Calendar, Name, PlayerNation, Technologies, Technology, Treasury};
-use crate::province::{City, Province, TileProvince};
-use crate::tiles::TerrainType;
-use crate::transport_rendering::HoveredTile;
+use crate::map::province::{City, Province, TileProvince};
+use crate::map::rendering::transport_rendering::HoveredTile;
+use crate::map::tiles::TerrainType;
 use crate::ui::components::{CalendarDisplay, TileInfoDisplay, TreasuryDisplay, TurnDisplay};
 use crate::ui::state::{UIState, UIStateUpdated};
 

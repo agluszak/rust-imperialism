@@ -9,7 +9,7 @@ use super::types::{
 };
 use crate::economy::transport::{Rails, ordered_edge};
 use crate::economy::{ImprovementKind, PlaceImprovement};
-use crate::province::{Province, TileProvince};
+use crate::map::province::{Province, TileProvince};
 use crate::resources::{DevelopmentLevel, TileResource};
 use crate::turn_system::TurnSystem;
 use crate::ui::logging::TerminalLogEvent;

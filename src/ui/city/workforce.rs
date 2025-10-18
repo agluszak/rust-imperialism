@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use super::components::HireCivilian;
 use crate::civilians::{Civilian, CivilianKind};
 use crate::economy::{Capital, PlayerNation, Treasury};
-use crate::tile_pos::TilePosExt;
+use crate::map::tile_pos::TilePosExt;
 use crate::ui::logging::TerminalLogEvent;
 
 // Note: HireCivilianButton component exists but no UI currently spawns these buttons.
@@ -105,7 +105,7 @@ fn find_unoccupied_tile_near(
     tile_storage_query: &Query<&bevy_ecs_tilemap::prelude::TileStorage>,
     civilians: &Query<&Civilian>,
 ) -> Option<bevy_ecs_tilemap::prelude::TilePos> {
-    use crate::tile_pos::HexExt;
+    use crate::map::tile_pos::HexExt;
 
     let center_hex = center.to_hex();
 

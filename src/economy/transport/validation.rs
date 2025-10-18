@@ -1,7 +1,7 @@
 use bevy_ecs_tilemap::prelude::TilePos;
 
-use crate::tile_pos::TilePosExt;
-use crate::tiles::TerrainType;
+use crate::map::tile_pos::TilePosExt;
+use crate::map::tiles::TerrainType;
 
 use super::super::technology::{Technologies, Technology};
 
