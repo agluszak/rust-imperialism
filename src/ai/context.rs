@@ -424,7 +424,7 @@ mod tests {
 
         {
             let mut demand = app.world_mut().resource_mut::<TransportDemandSnapshot>();
-            let entries = demand.nations.entry(nation).or_insert_with(HashMap::new);
+            let entries = demand.nations.entry(nation).or_default();
             entries.insert(
                 TransportCommodity::Steel,
                 DemandEntry {

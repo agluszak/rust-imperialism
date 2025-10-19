@@ -51,6 +51,7 @@ impl Plugin for CivilianPlugin {
                 (
                     systems::handle_civilian_commands,
                     systems::execute_move_orders,
+                    systems::execute_skip_and_sleep_orders,
                     engineering::execute_engineer_orders,
                     engineering::execute_prospector_orders,
                     engineering::execute_civilian_improvement_orders,

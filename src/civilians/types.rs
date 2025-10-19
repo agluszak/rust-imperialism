@@ -137,24 +137,34 @@ impl CivilianKind {
             order: CivilianOrderKind::BuildPort,
             execution: CivilianOrderExecution::StartJob(JobType::BuildingPort),
         };
+        // Note: These definitions use placeholder coordinates (0,0) - actual coordinates
+        // are provided when the order is created from UI input or AI logic
         const IMPROVE_TILE_ORDER: CivilianOrderDefinition = CivilianOrderDefinition {
             label: "Improve Tile",
-            order: CivilianOrderKind::ImproveTile,
+            order: CivilianOrderKind::ImproveTile {
+                to: TilePos { x: 0, y: 0 },
+            },
             execution: CivilianOrderExecution::StartJob(JobType::ImprovingTile),
         };
         const MINE_TILE_ORDER: CivilianOrderDefinition = CivilianOrderDefinition {
             label: "Develop Mine",
-            order: CivilianOrderKind::Mine,
+            order: CivilianOrderKind::Mine {
+                to: TilePos { x: 0, y: 0 },
+            },
             execution: CivilianOrderExecution::StartJob(JobType::Mining),
         };
         const DRILL_TILE_ORDER: CivilianOrderDefinition = CivilianOrderDefinition {
             label: "Drill Well",
-            order: CivilianOrderKind::ImproveTile,
+            order: CivilianOrderKind::ImproveTile {
+                to: TilePos { x: 0, y: 0 },
+            },
             execution: CivilianOrderExecution::StartJob(JobType::Drilling),
         };
         const PROSPECT_ORDER: CivilianOrderDefinition = CivilianOrderDefinition {
             label: "Prospect Tile",
-            order: CivilianOrderKind::Prospect,
+            order: CivilianOrderKind::Prospect {
+                to: TilePos { x: 0, y: 0 },
+            },
             execution: CivilianOrderExecution::StartJob(JobType::Prospecting),
         };
         const ENGINEER_ORDERS: &[CivilianOrderDefinition] = &[BUILD_DEPOT_ORDER, BUILD_PORT_ORDER];
@@ -245,15 +255,16 @@ impl CivilianKind {
         self.definition().show_orders_panel
     }
 
-    /// Returns the order kind to issue when clicking the civilian's current tile
-    pub fn default_tile_action_order(&self) -> Option<CivilianOrderKind> {
+    /// Returns the order kind to issue when clicking a tile
+    /// The returned function takes a target tile position
+    pub fn default_tile_action_order(&self, to: TilePos) -> Option<CivilianOrderKind> {
         match self {
-            CivilianKind::Prospector => Some(CivilianOrderKind::Prospect),
-            CivilianKind::Miner => Some(CivilianOrderKind::Mine),
+            CivilianKind::Prospector => Some(CivilianOrderKind::Prospect { to }),
+            CivilianKind::Miner => Some(CivilianOrderKind::Mine { to }),
             CivilianKind::Farmer
             | CivilianKind::Rancher
             | CivilianKind::Forester
-            | CivilianKind::Driller => Some(CivilianOrderKind::ImproveTile),
+            | CivilianKind::Driller => Some(CivilianOrderKind::ImproveTile { to }),
             _ => None,
         }
     }
@@ -338,15 +349,17 @@ pub struct ActionTurn(pub u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
 pub enum CivilianOrderKind {
-    BuildRail { to: TilePos }, // Build rail to adjacent tile
-    BuildDepot,                // Build depot at current position
-    BuildPort,                 // Build port at current position
-    Move { to: TilePos },      // Move to target tile
-    Prospect,                  // Reveal minerals at current tile (Prospector)
-    Mine,                      // Upgrade mine at current tile (Miner)
-    ImproveTile,               // Improve resource at current tile (Farmer/Rancher/Forester/Driller)
-    BuildFarm,                 // Build farm on grain/fruit/cotton tile (Farmer)
-    BuildOrchard,              // Build orchard on fruit tile (Farmer)
+    BuildRail { to: TilePos },    // Build rail to adjacent tile
+    BuildDepot,                   // Build depot at current position
+    BuildPort,                    // Build port at current position
+    Move { to: TilePos },         // Move to target tile (no other action)
+    Prospect { to: TilePos },     // Move to tile and reveal minerals (Prospector)
+    Mine { to: TilePos },         // Move to tile and upgrade mine (Miner)
+    ImproveTile { to: TilePos }, // Move to tile and improve resource (Farmer/Rancher/Forester/Driller)
+    BuildFarm { to: TilePos },   // Move to tile and build farm on grain/fruit/cotton (Farmer)
+    BuildOrchard { to: TilePos }, // Move to tile and build orchard on fruit (Farmer)
+    SkipTurn,                    // Skip only this turn, then become available again
+    Sleep,                       // Keep skipping turns until explicitly woken up (rescinded)
 }
 
 impl MapEntities for Civilian {

@@ -275,58 +275,56 @@ pub fn execute_prospector_orders(
             continue;
         }
 
-        // Check territory ownership
-        let has_territory_access = tile_storage_query
-            .iter()
-            .next()
-            .map(|tile_storage| {
-                tile_owned_by_nation(
-                    civilian.position,
-                    civilian.owner,
-                    tile_storage,
-                    &tile_provinces,
-                    &provinces,
-                )
-            })
-            .unwrap_or(false);
+        if let CivilianOrderKind::Prospect { to } = order.target {
+            // Check territory ownership of target tile
+            let has_territory_access = tile_storage_query
+                .iter()
+                .next()
+                .map(|tile_storage| {
+                    tile_owned_by_nation(
+                        to,
+                        civilian.owner,
+                        tile_storage,
+                        &tile_provinces,
+                        &provinces,
+                    )
+                })
+                .unwrap_or(false);
 
-        if !has_territory_access {
-            log_events.write(TerminalLogEvent {
-                message: format!(
-                    "Prospector cannot act at ({}, {}): tile not owned by your nation",
-                    civilian.position.x, civilian.position.y
-                ),
-            });
-            commands.entity(entity).remove::<CivilianOrder>();
-            continue;
-        }
+            if !has_territory_access {
+                log_events.write(TerminalLogEvent {
+                    message: format!(
+                        "Prospector cannot act at ({}, {}): tile not owned by your nation",
+                        to.x, to.y
+                    ),
+                });
+                commands.entity(entity).remove::<CivilianOrder>();
+                continue;
+            }
 
-        if let CivilianOrderKind::Prospect = order.target {
             // Find tile entity and check for hidden mineral
             if let Some(tile_storage) = tile_storage_query.iter().next()
-                && let Some(tile_entity) = tile_storage.get(&civilian.position)
+                && let Some(tile_entity) = tile_storage.get(&to)
             {
                 if let Ok(resource) = tile_resources.get(tile_entity) {
                     if !resource.requires_prospecting() {
                         log_events.write(TerminalLogEvent {
-                            message: format!(
-                                "No mineral deposits at ({}, {})",
-                                civilian.position.x, civilian.position.y
-                            ),
+                            message: format!("No mineral deposits at ({}, {})", to.x, to.y),
                         });
                     } else if prospecting_knowledge.is_discovered_by(tile_entity, civilian.owner) {
                         log_events.write(TerminalLogEvent {
-                            message: format!(
-                                "No hidden minerals at ({}, {})",
-                                civilian.position.x, civilian.position.y
-                            ),
+                            message: format!("No hidden minerals at ({}, {})", to.x, to.y),
                         });
                     } else {
                         // Store previous position for potential undo
                         let previous_pos = civilian.position;
+
+                        // Move to target tile
+                        civilian.position = to;
+
                         let job_type = civilian
                             .kind
-                            .order_definition(&CivilianOrderKind::Prospect)
+                            .order_definition(&order.target)
                             .and_then(|definition| definition.execution.job_type())
                             .unwrap_or(JobType::Prospecting);
 
@@ -334,7 +332,7 @@ pub fn execute_prospector_orders(
                             CivilianJob {
                                 job_type,
                                 turns_remaining: job_type.duration(),
-                                target: civilian.position,
+                                target: to,
                             },
                             PreviousPosition(previous_pos),
                             ActionTurn(turn.current_turn),
@@ -342,8 +340,8 @@ pub fn execute_prospector_orders(
 
                         log_events.write(TerminalLogEvent {
                             message: format!(
-                                "Prospector began surveying {:?} at ({}, {})",
-                                resource.resource_type, civilian.position.x, civilian.position.y
+                                "Prospector moved to ({}, {}) and began surveying {:?}",
+                                to.x, to.y, resource.resource_type
                             ),
                         });
                         civilian.has_moved = true;
@@ -351,10 +349,7 @@ pub fn execute_prospector_orders(
                     }
                 } else {
                     log_events.write(TerminalLogEvent {
-                        message: format!(
-                            "No mineral deposits at ({}, {})",
-                            civilian.position.x, civilian.position.y
-                        ),
+                        message: format!("No mineral deposits at ({}, {})", to.x, to.y),
                     });
                 }
             }
@@ -390,13 +385,25 @@ pub fn execute_civilian_improvement_orders(
             continue;
         };
 
-        // Check territory ownership
+        // Extract target position from order
+        let target_pos = match order.target {
+            CivilianOrderKind::ImproveTile { to }
+            | CivilianOrderKind::Mine { to }
+            | CivilianOrderKind::BuildFarm { to }
+            | CivilianOrderKind::BuildOrchard { to } => to,
+            _ => {
+                // Not an improvement order
+                continue;
+            }
+        };
+
+        // Check territory ownership of target tile
         let has_territory_access = tile_storage_query
             .iter()
             .next()
             .map(|tile_storage| {
                 tile_owned_by_nation(
-                    civilian.position,
+                    target_pos,
                     civilian.owner,
                     tile_storage,
                     &tile_provinces,
@@ -409,101 +416,96 @@ pub fn execute_civilian_improvement_orders(
             log_events.write(TerminalLogEvent {
                 message: format!(
                     "{:?} cannot act at ({}, {}): tile not owned by your nation",
-                    civilian.kind, civilian.position.x, civilian.position.y
+                    civilian.kind, target_pos.x, target_pos.y
                 ),
             });
             commands.entity(entity).remove::<CivilianOrder>();
             continue;
         }
 
-        if matches!(
-            order.target,
-            CivilianOrderKind::ImproveTile | CivilianOrderKind::Mine
-        ) {
-            // Find tile entity and validate resource
-            if let Some(tile_storage) = tile_storage_query.iter().next()
-                && let Some(tile_entity) = tile_storage.get(&civilian.position)
-            {
-                if let Ok(resource) = tile_resources.get(tile_entity) {
-                    if resource.requires_prospecting()
-                        && !prospecting_knowledge.is_discovered_by(tile_entity, civilian.owner)
-                    {
-                        log_events.write(TerminalLogEvent {
-                            message: format!(
-                                "{:?} must have this tile prospected before improving it",
-                                civilian.kind
-                            ),
-                        });
-                        commands.entity(entity).remove::<CivilianOrder>();
-                        continue;
-                    }
-
-                    if !resource.discovered {
-                        log_events.write(TerminalLogEvent {
-                            message: format!(
-                                "{:?} must have this tile prospected before improving it",
-                                civilian.kind
-                            ),
-                        });
-                        commands.entity(entity).remove::<CivilianOrder>();
-                        continue;
-                    }
-
-                    let can_improve = resource_predicate(resource);
-
-                    if can_improve && resource.development < DevelopmentLevel::Lv3 {
-                        // Store previous position for potential undo
-                        let previous_pos = civilian.position;
-
-                        // Start improvement job
-                        commands.entity(entity).insert((
-                            CivilianJob {
-                                job_type,
-                                turns_remaining: job_type.duration(),
-                                target: civilian.position,
-                            },
-                            PreviousPosition(previous_pos),
-                            ActionTurn(turn.current_turn),
-                        ));
-
-                        log_events.write(TerminalLogEvent {
-                            message: format!(
-                                "{:?} started improving {:?} at ({}, {}) - {} turns remaining",
-                                civilian.kind,
-                                resource.resource_type,
-                                civilian.position.x,
-                                civilian.position.y,
-                                job_type.duration()
-                            ),
-                        });
-                        civilian.has_moved = true;
-                        deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
-                    } else if !can_improve {
-                        log_events.write(TerminalLogEvent {
-                            message: format!(
-                                "{:?} cannot improve {:?} at ({}, {})",
-                                civilian.kind,
-                                resource.resource_type,
-                                civilian.position.x,
-                                civilian.position.y
-                            ),
-                        });
-                    } else if resource.development >= DevelopmentLevel::Lv3 {
-                        log_events.write(TerminalLogEvent {
-                            message: format!(
-                                "Resource already at max development at ({}, {})",
-                                civilian.position.x, civilian.position.y
-                            ),
-                        });
-                    }
-                } else {
+        // Find tile entity and validate resource
+        if let Some(tile_storage) = tile_storage_query.iter().next()
+            && let Some(tile_entity) = tile_storage.get(&target_pos)
+        {
+            if let Ok(resource) = tile_resources.get(tile_entity) {
+                if resource.requires_prospecting()
+                    && !prospecting_knowledge.is_discovered_by(tile_entity, civilian.owner)
+                {
                     log_events.write(TerminalLogEvent {
                         message: format!(
-                            "No improvable resource at ({}, {})",
-                            civilian.position.x, civilian.position.y
+                            "{:?} must have this tile prospected before improving it",
+                            civilian.kind
+                        ),
+                    });
+                    commands.entity(entity).remove::<CivilianOrder>();
+                    continue;
+                }
+
+                if !resource.discovered {
+                    log_events.write(TerminalLogEvent {
+                        message: format!(
+                            "{:?} must have this tile prospected before improving it",
+                            civilian.kind
+                        ),
+                    });
+                    commands.entity(entity).remove::<CivilianOrder>();
+                    continue;
+                }
+
+                let can_improve = resource_predicate(resource);
+
+                if can_improve && resource.development < DevelopmentLevel::Lv3 {
+                    // Store previous position for potential undo
+                    let previous_pos = civilian.position;
+
+                    // Move to target tile
+                    civilian.position = target_pos;
+
+                    // Start improvement job
+                    commands.entity(entity).insert((
+                        CivilianJob {
+                            job_type,
+                            turns_remaining: job_type.duration(),
+                            target: target_pos,
+                        },
+                        PreviousPosition(previous_pos),
+                        ActionTurn(turn.current_turn),
+                    ));
+
+                    log_events.write(TerminalLogEvent {
+                        message: format!(
+                            "{:?} moved to ({}, {}) and started improving {:?} - {} turns remaining",
+                            civilian.kind,
+                            target_pos.x,
+                            target_pos.y,
+                            resource.resource_type,
+                            job_type.duration()
+                        ),
+                    });
+                    civilian.has_moved = true;
+                    deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
+                } else if !can_improve {
+                    log_events.write(TerminalLogEvent {
+                        message: format!(
+                            "{:?} cannot improve {:?} at ({}, {})",
+                            civilian.kind, resource.resource_type, target_pos.x, target_pos.y
+                        ),
+                    });
+                } else if resource.development >= DevelopmentLevel::Lv3 {
+                    log_events.write(TerminalLogEvent {
+                        message: format!(
+                            "Resource already at max development at ({}, {})",
+                            target_pos.x, target_pos.y
                         ),
                     });
                 }
+            } else {
+                log_events.write(TerminalLogEvent {
+                    message: format!(
+                        "No improvable resource at ({}, {})",
+                        target_pos.x, target_pos.y
+                    ),
+                });
             }
         }
 

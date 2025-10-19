@@ -95,10 +95,39 @@ pub fn update_civilian_orders_ui(
                         BackgroundColor(NORMAL_BUTTON),
                     ))
                     .observe(
-                        move |_: On<Activate>, mut order_writer: MessageWriter<CivilianCommand>| {
+                        move |_: On<Activate>,
+                              mut order_writer: MessageWriter<CivilianCommand>,
+                              civilians: Query<&Civilian>| {
+                            // Get the civilian's current position to use as the target
+                            let target_pos = civilians
+                                .get(civilian_entity)
+                                .map(|c| c.position)
+                                .unwrap_or(bevy_ecs_tilemap::prelude::TilePos { x: 0, y: 0 });
+
+                            // Update order coordinates with actual target position
+                            use super::types::CivilianOrderKind;
+                            let actual_order = match order_kind {
+                                CivilianOrderKind::Prospect { .. } => {
+                                    CivilianOrderKind::Prospect { to: target_pos }
+                                }
+                                CivilianOrderKind::Mine { .. } => {
+                                    CivilianOrderKind::Mine { to: target_pos }
+                                }
+                                CivilianOrderKind::ImproveTile { .. } => {
+                                    CivilianOrderKind::ImproveTile { to: target_pos }
+                                }
+                                CivilianOrderKind::BuildFarm { .. } => {
+                                    CivilianOrderKind::BuildFarm { to: target_pos }
+                                }
+                                CivilianOrderKind::BuildOrchard { .. } => {
+                                    CivilianOrderKind::BuildOrchard { to: target_pos }
+                                }
+                                other => other, // Orders without coordinates remain unchanged
+                            };
+
                             order_writer.write(CivilianCommand {
                                 civilian: civilian_entity,
-                                order: order_kind,
+                                order: actual_order,
                             });
                         },
                     )

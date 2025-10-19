@@ -130,7 +130,7 @@ pub fn handle_civilian_selection(
 pub fn handle_civilian_commands(
     mut commands: Commands,
     mut events: MessageReader<CivilianCommand>,
-    civilians: Query<(&Civilian, Option<&CivilianJob>)>,
+    civilians: Query<(&Civilian, Option<&CivilianJob>, Option<&CivilianOrder>)>,
     tile_storage_query: Query<&TileStorage>,
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
@@ -140,7 +140,7 @@ pub fn handle_civilian_commands(
     let tile_storage = tile_storage_query.iter().next();
 
     for command in events.read() {
-        let (civilian, job) = match civilians.get(command.civilian) {
+        let (civilian, job, existing_order) = match civilians.get(command.civilian) {
             Ok(values) => values,
             Err(_) => {
                 rejection_writer.write(CivilianCommandRejected {
@@ -162,6 +162,7 @@ pub fn handle_civilian_commands(
         match validate_command(
             civilian,
             job,
+            existing_order,
             &command.order,
             tile_storage,
             &tile_provinces,
@@ -258,6 +259,38 @@ pub fn execute_move_orders(
     }
 }
 
+/// Execute SkipTurn and Sleep orders
+pub fn execute_skip_and_sleep_orders(
+    mut commands: Commands,
+    mut civilians: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
+    mut log_events: MessageWriter<TerminalLogEvent>,
+) {
+    for (entity, mut civilian, order) in civilians.iter_mut() {
+        match order.target {
+            CivilianOrderKind::SkipTurn => {
+                // Skip this turn only - remove order so they're available next turn
+                civilian.has_moved = true;
+                log_events.write(TerminalLogEvent {
+                    message: format!(
+                        "{:?} at ({}, {}) is skipping this turn",
+                        civilian.kind, civilian.position.x, civilian.position.y
+                    ),
+                });
+                commands.entity(entity).remove::<CivilianOrder>();
+            }
+            CivilianOrderKind::Sleep => {
+                // Keep sleeping - mark as moved but keep order so it persists
+                civilian.has_moved = true;
+                // Don't remove order - it persists until rescinded
+                // Note: No log message to avoid spam every turn
+            }
+            _ => {
+                // Not a skip/sleep order, ignore
+            }
+        }
+    }
+}
+
 /// Handle rescind orders - undo a civilian's action this turn
 pub fn handle_rescind_orders(
     mut commands: Commands,
@@ -327,10 +360,11 @@ pub fn handle_rescind_orders(
                 });
             }
 
-            // Remove job and action tracking components
+            // Remove job, order, and action tracking components
             commands
                 .entity(event.entity)
                 .remove::<CivilianJob>()
+                .remove::<CivilianOrder>()
                 .remove::<PreviousPosition>()
                 .remove::<ActionTurn>();
         }

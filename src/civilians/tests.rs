@@ -1,17 +1,18 @@
-use crate::civilians::commands::DeselectCivilian;
+use crate::civilians::commands::{DeselectCivilian, RescindOrders};
 use crate::civilians::engineering::{
     execute_civilian_improvement_orders, execute_engineer_orders, execute_prospector_orders,
 };
 use crate::civilians::jobs::complete_improvement_jobs;
 use crate::civilians::types::{
     Civilian, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind, JobType,
-    ProspectingKnowledge,
+    PreviousPosition, ProspectingKnowledge,
 };
 use crate::economy::transport::{PlaceImprovement, Rails, ordered_edge};
 use crate::map::province::{Province, ProvinceId, TileProvince};
 use crate::resources::{DevelopmentLevel, ResourceType, TileResource};
+use crate::turn_system::{TurnPhase, TurnSystem};
 use crate::ui::logging::TerminalLogEvent;
-use bevy::ecs::system::RunSystemOnce;
+use bevy::ecs::system::{RunSystemOnce, SystemState};
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
 
@@ -189,7 +190,8 @@ fn test_prospector_metadata_has_prospect_action() {
     assert_eq!(definition.display_name, "Prospector");
     assert_eq!(definition.orders.len(), 1);
     let order = &definition.orders[0];
-    assert_eq!(order.order, CivilianOrderKind::Prospect);
+    // Check that it's a Prospect order (ignoring the placeholder coordinates)
+    assert!(matches!(order.order, CivilianOrderKind::Prospect { .. }));
     assert_eq!(order.execution.job_type(), Some(JobType::Prospecting));
 }
 
@@ -203,19 +205,23 @@ fn test_only_engineer_requests_orders_panel() {
 
 #[test]
 fn test_default_tile_action_orders() {
+    let tile_pos = TilePos { x: 5, y: 10 };
     assert_eq!(
-        CivilianKind::Prospector.default_tile_action_order(),
-        Some(CivilianOrderKind::Prospect)
+        CivilianKind::Prospector.default_tile_action_order(tile_pos),
+        Some(CivilianOrderKind::Prospect { to: tile_pos })
     );
     assert_eq!(
-        CivilianKind::Miner.default_tile_action_order(),
-        Some(CivilianOrderKind::Mine)
+        CivilianKind::Miner.default_tile_action_order(tile_pos),
+        Some(CivilianOrderKind::Mine { to: tile_pos })
     );
     assert_eq!(
-        CivilianKind::Farmer.default_tile_action_order(),
-        Some(CivilianOrderKind::ImproveTile)
+        CivilianKind::Farmer.default_tile_action_order(tile_pos),
+        Some(CivilianOrderKind::ImproveTile { to: tile_pos })
     );
-    assert_eq!(CivilianKind::Engineer.default_tile_action_order(), None);
+    assert_eq!(
+        CivilianKind::Engineer.default_tile_action_order(tile_pos),
+        None
+    );
 }
 
 #[test]
@@ -234,8 +240,9 @@ fn test_miner_predicate_accepts_minerals_only() {
 
 #[test]
 fn test_miner_supports_mine_order() {
+    let tile_pos = TilePos { x: 0, y: 0 };
     assert!(
-        CivilianKind::Miner.supports_order(&CivilianOrderKind::Mine),
+        CivilianKind::Miner.supports_order(&CivilianOrderKind::Mine { to: tile_pos }),
         "Miner should support Mine order"
     );
     assert!(
@@ -283,7 +290,7 @@ fn test_prospector_starts_prospecting_job() {
                 has_moved: false,
             },
             CivilianOrder {
-                target: CivilianOrderKind::Prospect,
+                target: CivilianOrderKind::Prospect { to: tile_pos },
             },
         ))
         .id();
@@ -398,7 +405,7 @@ fn miner_requires_discovery_before_mining() {
                 has_moved: false,
             },
             CivilianOrder {
-                target: CivilianOrderKind::Mine,
+                target: CivilianOrderKind::Mine { to: tile_pos },
             },
         ))
         .id();
@@ -467,7 +474,7 @@ fn new_owner_must_reprospect_before_mining() {
                 has_moved: false,
             },
             CivilianOrder {
-                target: CivilianOrderKind::Prospect,
+                target: CivilianOrderKind::Prospect { to: tile_pos },
             },
         ))
         .id();
@@ -519,7 +526,7 @@ fn new_owner_must_reprospect_before_mining() {
                 has_moved: false,
             },
             CivilianOrder {
-                target: CivilianOrderKind::Mine,
+                target: CivilianOrderKind::Mine { to: tile_pos },
             },
         ))
         .id();
@@ -530,6 +537,420 @@ fn new_owner_must_reprospect_before_mining() {
     assert!(
         world.get::<CivilianJob>(miner).is_none(),
         "New owner should not be able to start mining without prospecting"
+    );
+}
+
+#[test]
+fn test_cannot_assign_order_if_order_already_exists() {
+    use super::order_validation::validate_command;
+    use crate::messages::civilians::CivilianCommandError;
+
+    let mut world = World::new();
+    let mut storage = TileStorage::empty(TilemapSize { x: 4, y: 4 });
+    let province_id = ProvinceId(1);
+    world.spawn(Province {
+        id: province_id,
+        owner: Some(Entity::PLACEHOLDER),
+        tiles: vec![],
+        city_tile: TilePos { x: 0, y: 0 },
+    });
+    let tile_entity = world.spawn(TileProvince { province_id }).id();
+    let tile_pos = TilePos { x: 1, y: 1 };
+    storage.set(&tile_pos, tile_entity);
+    let storage_entity = world.spawn(storage).id();
+
+    let civilian = Civilian {
+        kind: CivilianKind::Farmer,
+        position: tile_pos,
+        owner: Entity::PLACEHOLDER,
+        selected: false,
+        has_moved: false,
+    };
+
+    // Create an existing order
+    let existing_order = CivilianOrder {
+        target: CivilianOrderKind::ImproveTile { to: tile_pos },
+    };
+
+    let tile_pos = TilePos { x: 1, y: 1 };
+    let order = CivilianOrderKind::ImproveTile { to: tile_pos };
+
+    let mut state: SystemState<(Query<&TileStorage>, Query<&TileProvince>, Query<&Province>)> =
+        SystemState::new(&mut world);
+    let (storage_query, tile_provinces, provinces) = state.get(&world);
+    let storage = storage_query
+        .get(storage_entity)
+        .expect("missing tile storage");
+
+    // Should reject because an order already exists
+    let result = validate_command(
+        &civilian,
+        None,
+        Some(&existing_order),
+        &order,
+        Some(storage),
+        &tile_provinces,
+        &provinces,
+    );
+
+    assert_eq!(
+        result,
+        Err(CivilianCommandError::AlreadyActed),
+        "Should reject when civilian already has an order"
+    );
+}
+
+#[test]
+fn test_can_assign_order_when_no_existing_order() {
+    use super::order_validation::validate_command;
+
+    let mut world = World::new();
+    let mut storage = TileStorage::empty(TilemapSize { x: 4, y: 4 });
+    let province_id = ProvinceId(1);
+    world.spawn(Province {
+        id: province_id,
+        owner: Some(Entity::PLACEHOLDER),
+        tiles: vec![],
+        city_tile: TilePos { x: 0, y: 0 },
+    });
+    let tile_entity = world.spawn(TileProvince { province_id }).id();
+    let tile_pos = TilePos { x: 1, y: 1 };
+    storage.set(&tile_pos, tile_entity);
+    let storage_entity = world.spawn(storage).id();
+
+    let civilian = Civilian {
+        kind: CivilianKind::Farmer,
+        position: tile_pos,
+        owner: Entity::PLACEHOLDER,
+        selected: false,
+        has_moved: false,
+    };
+
+    let tile_pos = TilePos { x: 1, y: 1 };
+    let order = CivilianOrderKind::ImproveTile { to: tile_pos };
+
+    let mut state: SystemState<(Query<&TileStorage>, Query<&TileProvince>, Query<&Province>)> =
+        SystemState::new(&mut world);
+    let (storage_query, tile_provinces, provinces) = state.get(&world);
+    let storage = storage_query
+        .get(storage_entity)
+        .expect("missing tile storage");
+
+    // Should succeed because no existing order or job
+    let result = validate_command(
+        &civilian,
+        None,
+        None,
+        &order,
+        Some(storage),
+        &tile_provinces,
+        &provinces,
+    );
+
+    assert!(
+        result.is_ok(),
+        "Should allow order when no existing order or job"
+    );
+}
+
+#[test]
+fn test_rescind_orders_removes_civilian_order_component() {
+    use super::systems::handle_rescind_orders;
+    use super::types::{ActionTurn, PreviousPosition};
+    use crate::economy::treasury::Treasury;
+
+    let mut world = World::new();
+
+    // Setup turn system
+    world.insert_resource(TurnSystem {
+        current_turn: 1,
+        phase: TurnPhase::PlayerTurn,
+    });
+
+    // Initialize message resources
+    world.init_resource::<Messages<RescindOrders>>();
+    world.init_resource::<Messages<TerminalLogEvent>>();
+
+    // Create a nation with treasury
+    let nation = world.spawn(Treasury::new(1000)).id();
+
+    // Create a civilian with an order and previous position
+    let tile_pos = TilePos { x: 5, y: 5 };
+    let prev_pos = TilePos { x: 4, y: 4 };
+    let civilian_entity = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Farmer,
+                position: tile_pos,
+                owner: nation,
+                selected: false,
+                has_moved: false,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::ImproveTile { to: tile_pos },
+            },
+            PreviousPosition(prev_pos),
+            ActionTurn(1),
+        ))
+        .id();
+
+    // Send rescind orders message
+    {
+        let mut state: SystemState<MessageWriter<RescindOrders>> = SystemState::new(&mut world);
+        let mut writer = state.get_mut(&mut world);
+        writer.write(RescindOrders {
+            entity: civilian_entity,
+        });
+    }
+
+    // Run the rescind orders system
+    let _ = world.run_system_once(handle_rescind_orders);
+
+    // Verify the CivilianOrder component was removed
+    assert!(
+        world.get::<CivilianOrder>(civilian_entity).is_none(),
+        "CivilianOrder should be removed after rescinding"
+    );
+
+    // Verify other components were also removed
+    assert!(
+        world.get::<PreviousPosition>(civilian_entity).is_none(),
+        "PreviousPosition should be removed after rescinding"
+    );
+    assert!(
+        world.get::<ActionTurn>(civilian_entity).is_none(),
+        "ActionTurn should be removed after rescinding"
+    );
+
+    // Verify the civilian was restored to previous position
+    let civilian = world.get::<Civilian>(civilian_entity).unwrap();
+    assert_eq!(
+        civilian.position, prev_pos,
+        "Civilian should be at previous position"
+    );
+    assert!(
+        !civilian.has_moved,
+        "has_moved should be false after rescinding"
+    );
+}
+
+#[test]
+fn test_rescind_orders_removes_civilian_job_and_order() {
+    use super::systems::handle_rescind_orders;
+    use super::types::{ActionTurn, CivilianJob, JobType, PreviousPosition};
+    use crate::economy::treasury::Treasury;
+
+    let mut world = World::new();
+
+    // Setup turn system
+    world.insert_resource(TurnSystem {
+        current_turn: 1,
+        phase: TurnPhase::PlayerTurn,
+    });
+
+    // Initialize message resources
+    world.init_resource::<Messages<RescindOrders>>();
+    world.init_resource::<Messages<TerminalLogEvent>>();
+
+    // Create a nation with treasury
+    let nation = world.spawn(Treasury::new(1000)).id();
+
+    // Create a civilian with both a job and an order
+    let tile_pos = TilePos { x: 5, y: 5 };
+    let prev_pos = TilePos { x: 4, y: 4 };
+    let civilian_entity = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Engineer,
+                position: tile_pos,
+                owner: nation,
+                selected: false,
+                has_moved: true,
+            },
+            CivilianJob {
+                job_type: JobType::BuildingRail,
+                turns_remaining: 2,
+                target: tile_pos,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::BuildRail { to: tile_pos },
+            },
+            PreviousPosition(prev_pos),
+            ActionTurn(1),
+        ))
+        .id();
+
+    // Send rescind orders message
+    {
+        let mut state: SystemState<MessageWriter<RescindOrders>> = SystemState::new(&mut world);
+        let mut writer = state.get_mut(&mut world);
+        writer.write(RescindOrders {
+            entity: civilian_entity,
+        });
+    }
+
+    // Run the rescind orders system
+    let _ = world.run_system_once(handle_rescind_orders);
+
+    // Verify both CivilianJob and CivilianOrder were removed
+    assert!(
+        world.get::<CivilianJob>(civilian_entity).is_none(),
+        "CivilianJob should be removed after rescinding"
+    );
+    assert!(
+        world.get::<CivilianOrder>(civilian_entity).is_none(),
+        "CivilianOrder should be removed after rescinding"
+    );
+
+    // Verify the civilian state
+    let civilian = world.get::<Civilian>(civilian_entity).unwrap();
+    assert_eq!(
+        civilian.position, prev_pos,
+        "Civilian should be at previous position"
+    );
+    assert!(
+        !civilian.has_moved,
+        "has_moved should be false after rescinding"
+    );
+
+    // Verify refund was given
+    let treasury = world.get::<Treasury>(nation).unwrap();
+    assert_eq!(treasury.total(), 1050, "Should refund BuildRail cost (50)");
+}
+
+#[test]
+fn test_skip_turn_removes_order_after_one_turn() {
+    use super::systems::execute_skip_and_sleep_orders;
+
+    let mut world = World::new();
+    world.init_resource::<Messages<TerminalLogEvent>>();
+
+    let tile_pos = TilePos { x: 5, y: 5 };
+    let civilian_entity = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Farmer,
+                position: tile_pos,
+                owner: Entity::PLACEHOLDER,
+                selected: false,
+                has_moved: false,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::SkipTurn,
+            },
+        ))
+        .id();
+
+    // Execute the skip/sleep system
+    let _ = world.run_system_once(execute_skip_and_sleep_orders);
+
+    // Verify the order was removed (SkipTurn is one-time)
+    assert!(
+        world.get::<CivilianOrder>(civilian_entity).is_none(),
+        "SkipTurn order should be removed after execution"
+    );
+
+    // Verify civilian was marked as has_moved
+    let civilian = world.get::<Civilian>(civilian_entity).unwrap();
+    assert!(
+        civilian.has_moved,
+        "Civilian should be marked as has_moved after skipping"
+    );
+}
+
+#[test]
+fn test_sleep_order_persists_across_turns() {
+    use super::systems::execute_skip_and_sleep_orders;
+
+    let mut world = World::new();
+    world.init_resource::<Messages<TerminalLogEvent>>();
+
+    let tile_pos = TilePos { x: 5, y: 5 };
+    let civilian_entity = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Farmer,
+                position: tile_pos,
+                owner: Entity::PLACEHOLDER,
+                selected: false,
+                has_moved: false,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::Sleep,
+            },
+        ))
+        .id();
+
+    // Execute the skip/sleep system
+    let _ = world.run_system_once(execute_skip_and_sleep_orders);
+
+    // Verify the order persists (Sleep continues until rescinded)
+    assert!(
+        world.get::<CivilianOrder>(civilian_entity).is_some(),
+        "Sleep order should persist after execution"
+    );
+
+    // Verify civilian was marked as has_moved
+    let civilian = world.get::<Civilian>(civilian_entity).unwrap();
+    assert!(
+        civilian.has_moved,
+        "Civilian should be marked as has_moved while sleeping"
+    );
+}
+
+#[test]
+fn test_rescind_wakes_sleeping_civilian() {
+    use super::systems::handle_rescind_orders;
+
+    let mut world = World::new();
+    world.insert_resource(TurnSystem {
+        current_turn: 1,
+        phase: TurnPhase::PlayerTurn,
+    });
+    world.init_resource::<Messages<RescindOrders>>();
+    world.init_resource::<Messages<TerminalLogEvent>>();
+
+    let tile_pos = TilePos { x: 5, y: 5 };
+    let prev_pos = TilePos { x: 5, y: 5 }; // Same position (no move)
+    let civilian_entity = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Farmer,
+                position: tile_pos,
+                owner: Entity::PLACEHOLDER,
+                selected: false,
+                has_moved: true, // Sleeping civilians are marked as moved
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::Sleep,
+            },
+            PreviousPosition(prev_pos),
+        ))
+        .id();
+
+    // Send rescind orders message to wake up the civilian
+    {
+        let mut state: SystemState<MessageWriter<RescindOrders>> = SystemState::new(&mut world);
+        let mut writer = state.get_mut(&mut world);
+        writer.write(RescindOrders {
+            entity: civilian_entity,
+        });
+    }
+
+    // Run the rescind orders system
+    let _ = world.run_system_once(handle_rescind_orders);
+
+    // Verify the Sleep order was removed (civilian is awake)
+    assert!(
+        world.get::<CivilianOrder>(civilian_entity).is_none(),
+        "Sleep order should be removed when rescinded"
+    );
+
+    // Verify civilian is no longer marked as has_moved
+    let civilian = world.get::<Civilian>(civilian_entity).unwrap();
+    assert!(
+        !civilian.has_moved,
+        "Civilian should be available for action after waking"
     );
 }
 
@@ -569,7 +990,7 @@ fn miner_respects_max_development_level() {
                 has_moved: false,
             },
             CivilianOrder {
-                target: CivilianOrderKind::Mine,
+                target: CivilianOrderKind::Mine { to: tile_pos },
             },
         ))
         .id();
@@ -627,7 +1048,7 @@ fn farmer_starts_improvement_job_on_visible_resource() {
                 has_moved: false,
             },
             CivilianOrder {
-                target: CivilianOrderKind::ImproveTile,
+                target: CivilianOrderKind::ImproveTile { to: tile_pos },
             },
         ))
         .id();

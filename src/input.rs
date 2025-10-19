@@ -35,7 +35,7 @@ pub fn handle_tile_click(
 
     // If the unit is stationary and supports a tile action, trigger it directly
     if distance == 0 {
-        if let Some(order) = civilian.kind.default_tile_action_order() {
+        if let Some(order) = civilian.kind.default_tile_action_order(*clicked_pos) {
             order_writer.write(CivilianCommand {
                 civilian: civilian_entity,
                 order,
@@ -56,15 +56,27 @@ pub fn handle_tile_click(
             order: CivilianOrderKind::BuildRail { to: *clicked_pos },
         });
     } else if distance >= 1 {
-        // For all civilians (including Engineer at distance > 1): move to tile
-        info!(
-            "Clicked tile ({}, {}) with {:?}, sending Move order",
-            clicked_pos.x, clicked_pos.y, civilian.kind
-        );
-
-        order_writer.write(CivilianCommand {
-            civilian: civilian_entity,
-            order: CivilianOrderKind::Move { to: *clicked_pos },
-        });
+        // For civilians that support tile actions (farmers, prospectors, miners, etc.),
+        // send their default action order to move-and-improve
+        // For others (Engineers at distance > 1), just move
+        if let Some(action_order) = civilian.kind.default_tile_action_order(*clicked_pos) {
+            info!(
+                "Clicked tile ({}, {}) with {:?}, sending move-and-improve order",
+                clicked_pos.x, clicked_pos.y, civilian.kind
+            );
+            order_writer.write(CivilianCommand {
+                civilian: civilian_entity,
+                order: action_order,
+            });
+        } else {
+            info!(
+                "Clicked tile ({}, {}) with {:?}, sending Move order",
+                clicked_pos.x, clicked_pos.y, civilian.kind
+            );
+            order_writer.write(CivilianCommand {
+                civilian: civilian_entity,
+                order: CivilianOrderKind::Move { to: *clicked_pos },
+            });
+        }
     }
 }
