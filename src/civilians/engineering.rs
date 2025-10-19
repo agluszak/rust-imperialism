@@ -314,9 +314,7 @@ pub fn execute_prospector_orders(
                                 civilian.position.x, civilian.position.y
                             ),
                         });
-                    } else if prospecting_knowledge
-                        .is_discovered_by(tile_entity, civilian.owner)
-                    {
+                    } else if prospecting_knowledge.is_discovered_by(tile_entity, civilian.owner) {
                         log_events.write(TerminalLogEvent {
                             message: format!(
                                 "No hidden minerals at ({}, {})",

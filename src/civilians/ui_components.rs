@@ -94,12 +94,14 @@ pub fn update_civilian_orders_ui(
                         },
                         BackgroundColor(NORMAL_BUTTON),
                     ))
-                    .observe(move |_: On<Activate>, mut order_writer: MessageWriter<CivilianCommand>| {
-                        order_writer.write(CivilianCommand {
-                            civilian: civilian_entity,
-                            order: order_kind,
-                        });
-                    })
+                    .observe(
+                        move |_: On<Activate>, mut order_writer: MessageWriter<CivilianCommand>| {
+                            order_writer.write(CivilianCommand {
+                                civilian: civilian_entity,
+                                order: order_kind,
+                            });
+                        },
+                    )
                     .with_children(|button_parent| {
                         button_parent.spawn((
                             Text::new(label),

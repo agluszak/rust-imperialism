@@ -218,18 +218,18 @@ impl AiTransportSnapshot {
             }
         }
 
-        if let Some(demand) = demand {
-            if let Some(entries) = demand.nations.get(&nation) {
-                for commodity in TransportCommodity::ORDERED {
-                    if let Some(DemandEntry { supply, demand }) = entries.get(&commodity) {
-                        if *supply > 0 || *demand > 0 {
-                            snapshot.demand.push(AiTransportDemand {
-                                commodity,
-                                supply: *supply,
-                                demand: *demand,
-                            });
-                        }
-                    }
+        if let Some(demand) = demand
+            && let Some(entries) = demand.nations.get(&nation)
+        {
+            for commodity in TransportCommodity::ORDERED {
+                if let Some(DemandEntry { supply, demand }) = entries.get(&commodity)
+                    && (*supply > 0 || *demand > 0)
+                {
+                    snapshot.demand.push(AiTransportDemand {
+                        commodity,
+                        supply: *supply,
+                        demand: *demand,
+                    });
                 }
             }
         }

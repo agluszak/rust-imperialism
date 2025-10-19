@@ -424,7 +424,6 @@ fn miner_requires_discovery_before_mining() {
         !resource.discovered,
         "Prospecting should still be required before mining"
     );
-
 }
 
 #[test]
@@ -556,9 +555,7 @@ fn miner_respects_max_development_level() {
     let mut resource = TileResource::hidden_mineral(ResourceType::Iron);
     resource.discovered = true;
     resource.development = DevelopmentLevel::Lv3;
-    let tile_entity = world
-        .spawn((TileProvince { province_id }, resource))
-        .id();
+    let tile_entity = world.spawn((TileProvince { province_id }, resource)).id();
     tile_storage.set(&tile_pos, tile_entity);
     world.spawn(tile_storage);
 

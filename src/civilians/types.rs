@@ -15,17 +15,14 @@ pub struct ProspectingKnowledge {
 impl ProspectingKnowledge {
     /// Record that `nation` has successfully prospected `tile`
     pub fn mark_discovered(&mut self, tile: Entity, nation: Entity) -> bool {
-        self.discoveries
-            .entry(tile)
-            .or_default()
-            .insert(nation)
+        self.discoveries.entry(tile).or_default().insert(nation)
     }
 
     /// Returns true if `nation` has prospected `tile`
     pub fn is_discovered_by(&self, tile: Entity, nation: Entity) -> bool {
         self.discoveries
             .get(&tile)
-            .map_or(false, |nations| nations.contains(&nation))
+            .is_some_and(|nations| nations.contains(&nation))
     }
 
     /// Forget all prospecting knowledge about `tile`

@@ -349,17 +349,16 @@ pub(crate) fn boost_capital_food_tiles(world: &mut World, capital_pos: TilePos) 
     }
 
     for (tile_entity, pos) in target_tiles {
-        if let Some(mut resource) = world.get_mut::<TileResource>(tile_entity) {
-            if resource.discovered
-                && resource.improvable_by_farmer()
-                && resource.development == DevelopmentLevel::Lv0
-            {
-                resource.development = DevelopmentLevel::Lv1;
-                debug!(
-                    "Auto-improved {:?} near capital at ({}, {})",
-                    resource.resource_type, pos.x, pos.y
-                );
-            }
+        if let Some(mut resource) = world.get_mut::<TileResource>(tile_entity)
+            && resource.discovered
+            && resource.improvable_by_farmer()
+            && resource.development == DevelopmentLevel::Lv0
+        {
+            resource.development = DevelopmentLevel::Lv1;
+            debug!(
+                "Auto-improved {:?} near capital at ({}, {})",
+                resource.resource_type, pos.x, pos.y
+            );
         }
     }
 }
@@ -464,9 +463,7 @@ mod tests {
 
         let mut tile_storage = TileStorage::empty(TilemapSize { x: 3, y: 3 });
         let capital_pos = TilePos { x: 1, y: 1 };
-        let capital_tile = world
-            .spawn(TileResource::visible(ResourceType::Grain))
-            .id();
+        let capital_tile = world.spawn(TileResource::visible(ResourceType::Grain)).id();
         tile_storage.set(&capital_pos, capital_tile);
 
         let neighbor_pos = TilePos { x: 1, y: 2 };
