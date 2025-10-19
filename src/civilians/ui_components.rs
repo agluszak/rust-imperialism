@@ -20,13 +20,12 @@ pub fn update_civilian_orders_ui(
     mut deselect_all_events: MessageReader<DeselectAllCivilians>,
     civilians: Query<&Civilian>,
     existing_panel: Query<Entity, With<CivilianOrdersPanel>>,
-    children_query: Query<&Children>,
 ) {
     // Handle deselect-all first (always hides panel)
     if !deselect_all_events.is_empty() {
         deselect_all_events.clear();
         for entity in existing_panel.iter() {
-            despawn_with_children(&mut commands, entity, &children_query);
+            commands.entity(entity).despawn();
         }
         return;
     }
@@ -50,7 +49,7 @@ pub fn update_civilian_orders_ui(
 
     if selection_changed {
         for entity in existing_panel.iter() {
-            despawn_with_children(&mut commands, entity, &children_query);
+            commands.entity(entity).despawn();
         }
     }
 
@@ -113,19 +112,6 @@ pub fn update_civilian_orders_ui(
             }
         });
     }
-}
-
-fn despawn_with_children(
-    commands: &mut Commands,
-    entity: Entity,
-    children_query: &Query<&Children>,
-) {
-    if let Ok(children) = children_query.get(entity) {
-        for child in children.iter() {
-            despawn_with_children(commands, child, children_query);
-        }
-    }
-    commands.entity(entity).despawn();
 }
 
 /// Update UI for rescind orders panel based on selection messages
