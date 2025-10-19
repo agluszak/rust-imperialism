@@ -75,6 +75,7 @@ pub struct CivilianKindDefinition {
     pub orders: &'static [CivilianOrderDefinition],
     pub resource_predicate: Option<ResourcePredicate>,
     pub improvement_job: Option<JobType>,
+    pub show_orders_panel: bool,
 }
 
 /// Type of civilian unit
@@ -137,48 +138,56 @@ impl CivilianKind {
             orders: ENGINEER_ORDERS,
             resource_predicate: None,
             improvement_job: None,
+            show_orders_panel: true,
         };
         const FARMER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
             display_name: "Farmer",
             orders: FARMER_ORDERS,
             resource_predicate: Some(TileResource::improvable_by_farmer),
             improvement_job: Some(JobType::ImprovingTile),
+            show_orders_panel: false,
         };
         const RANCHER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
             display_name: "Rancher",
             orders: RANCHER_ORDERS,
             resource_predicate: Some(TileResource::improvable_by_rancher),
             improvement_job: Some(JobType::ImprovingTile),
+            show_orders_panel: false,
         };
         const FORESTER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
             display_name: "Forester",
             orders: FORESTER_ORDERS,
             resource_predicate: Some(TileResource::improvable_by_forester),
             improvement_job: Some(JobType::ImprovingTile),
+            show_orders_panel: false,
         };
         const MINER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
             display_name: "Miner",
             orders: MINER_ORDERS,
             resource_predicate: Some(TileResource::improvable_by_miner),
             improvement_job: Some(JobType::Mining),
+            show_orders_panel: false,
         };
         const DRILLER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
             display_name: "Driller",
             orders: DRILLER_ORDERS,
             resource_predicate: Some(TileResource::improvable_by_driller),
             improvement_job: Some(JobType::Drilling),
+            show_orders_panel: false,
         };
         const PROSPECTOR_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
             display_name: "Prospector",
             orders: PROSPECTOR_ORDERS,
             resource_predicate: None,
             improvement_job: None,
+            show_orders_panel: false,
         };
         const DEVELOPER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
             display_name: "Developer",
             orders: EMPTY_ORDERS,
             resource_predicate: None,
             improvement_job: None,
+            show_orders_panel: false,
         };
 
         match self {
@@ -196,6 +205,24 @@ impl CivilianKind {
     /// Returns true if the civilian can improve tile resources
     pub fn supports_improvements(&self) -> bool {
         self.definition().improvement_job.is_some()
+    }
+
+    /// Returns true if the civilian should show an orders panel when selected
+    pub fn shows_orders_panel(&self) -> bool {
+        self.definition().show_orders_panel
+    }
+
+    /// Returns the order kind to issue when clicking the civilian's current tile
+    pub fn default_tile_action_order(&self) -> Option<CivilianOrderKind> {
+        match self {
+            CivilianKind::Prospector => Some(CivilianOrderKind::Prospect),
+            CivilianKind::Miner => Some(CivilianOrderKind::Mine),
+            CivilianKind::Farmer
+            | CivilianKind::Rancher
+            | CivilianKind::Forester
+            | CivilianKind::Driller => Some(CivilianOrderKind::ImproveTile),
+            _ => None,
+        }
     }
 
     /// Get the resource predicate used to validate improvements

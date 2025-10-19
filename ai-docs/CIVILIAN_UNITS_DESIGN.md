@@ -21,11 +21,11 @@ This replaces the scattered `matches!` checks and manual UI panels with generic 
 
 ## Systems Impacted
 1. **UI (`ui_components.rs`)**
-   - Replace specialized Engineer/Improver panels with a single `CivilianOrdersPanel` that reads button descriptors from the selected unit's definition. This keeps UI logic consistent and makes future units trivial to add.
+   - Panels remain metadata-driven but are only shown for units whose definitions request them (currently Engineers, who must pick between rails/depots/ports). Other civilians trigger their default tile action directly from the map, matching the original game's flow while staying extensible for AI.
 2. **Order Execution (`engineering.rs`)**
    - Update the improvement system to consult `resource_predicate` instead of hard-coded matches, ensuring Miners, Ranchers, and Foresters automatically inherit the correct validation rules. Prospector orders remain immediate but benefit from shared button plumbing.
 3. **Types (`types.rs`)**
-   - Add metadata structs and helper methods. Provide utility methods like `supports_improvements()` derived from metadata for reuse in systems and UI.
+   - Add metadata structs and helper methods. Provide utility methods like `supports_improvements()` and `default_tile_action_order()` derived from metadata for reuse in systems, UI, and future AI logic.
 4. **Spawning (`map/province_setup.rs`)**
    - Spawn a starter roster (Engineer, Prospector, Farmer, Miner, Rancher, Forester) for the player near the capital so the new functionality is immediately accessible.
 5. **Rendering**

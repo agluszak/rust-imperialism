@@ -33,6 +33,17 @@ pub fn handle_tile_click(
     let clicked_hex = clicked_pos.to_hex();
     let distance = civilian_hex.distance_to(clicked_hex);
 
+    // If the unit is stationary and supports a tile action, trigger it directly
+    if distance == 0 {
+        if let Some(order) = civilian.kind.default_tile_action_order() {
+            order_writer.write(GiveCivilianOrder {
+                entity: civilian_entity,
+                order,
+            });
+        }
+        return;
+    }
+
     // Special handling for Engineer: adjacent click = build rail
     if civilian.kind == CivilianKind::Engineer && distance == 1 {
         info!(

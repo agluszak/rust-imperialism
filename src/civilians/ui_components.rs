@@ -40,7 +40,7 @@ pub fn update_civilian_orders_ui(
 
         if let Ok(civilian) = civilians.get(event.entity) {
             let definition = civilian.kind.definition();
-            if !definition.orders.is_empty() {
+            if definition.show_orders_panel && !definition.orders.is_empty() {
                 panel_request = Some((event.entity, definition.display_name, definition.orders));
             } else {
                 panel_request = None; // Selected unit has no actionable buttons

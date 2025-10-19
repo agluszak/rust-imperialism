@@ -189,6 +189,31 @@ fn test_prospector_metadata_has_prospect_action() {
 }
 
 #[test]
+fn test_only_engineer_requests_orders_panel() {
+    assert!(CivilianKind::Engineer.shows_orders_panel());
+    assert!(!CivilianKind::Prospector.shows_orders_panel());
+    assert!(!CivilianKind::Miner.shows_orders_panel());
+    assert!(!CivilianKind::Farmer.shows_orders_panel());
+}
+
+#[test]
+fn test_default_tile_action_orders() {
+    assert_eq!(
+        CivilianKind::Prospector.default_tile_action_order(),
+        Some(CivilianOrderKind::Prospect)
+    );
+    assert_eq!(
+        CivilianKind::Miner.default_tile_action_order(),
+        Some(CivilianOrderKind::Mine)
+    );
+    assert_eq!(
+        CivilianKind::Farmer.default_tile_action_order(),
+        Some(CivilianOrderKind::ImproveTile)
+    );
+    assert_eq!(CivilianKind::Engineer.default_tile_action_order(), None);
+}
+
+#[test]
 fn test_miner_predicate_accepts_minerals_only() {
     let predicate = CivilianKind::Miner
         .improvement_predicate()
