@@ -160,10 +160,21 @@ pub struct TransportCapacity {
     pub nations: HashMap<Entity, CapacitySnapshot>,
 }
 
-#[derive(Default, Debug, Clone, Copy)]
+pub const BASE_TRANSPORT_CAPACITY: u32 = 8;
+
+#[derive(Debug, Clone, Copy)]
 pub struct CapacitySnapshot {
     pub total: u32,
     pub used: u32,
+}
+
+impl Default for CapacitySnapshot {
+    fn default() -> Self {
+        Self {
+            total: BASE_TRANSPORT_CAPACITY,
+            used: 0,
+        }
+    }
 }
 
 /// Desired allocations per nation and commodity.
