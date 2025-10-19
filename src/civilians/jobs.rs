@@ -49,27 +49,49 @@ pub fn complete_improvement_jobs(
             continue;
         }
 
-        // Only process improvement jobs
-        if job.job_type != JobType::ImprovingTile {
-            continue;
-        }
-
-        // Find tile entity and complete improvement
-        if let Some(tile_storage) = tile_storage_query.iter().next()
-            && let Some(tile_entity) = tile_storage.get(&job.target)
-            && let Ok(mut resource) = tile_resources.get_mut(tile_entity)
-            && resource.improve()
-        {
-            log_events.write(TerminalLogEvent {
-                message: format!(
-                    "{:?} completed improving {:?} at ({}, {}) to level {:?}",
-                    civilian.kind,
-                    resource.resource_type,
-                    job.target.x,
-                    job.target.y,
-                    resource.development
-                ),
-            });
+        match job.job_type {
+            JobType::ImprovingTile | JobType::Mining | JobType::Drilling => {
+                // Find tile entity and complete improvement
+                if let Some(tile_storage) = tile_storage_query.iter().next()
+                    && let Some(tile_entity) = tile_storage.get(&job.target)
+                    && let Ok(mut resource) = tile_resources.get_mut(tile_entity)
+                    && resource.improve()
+                {
+                    let action = match job.job_type {
+                        JobType::Mining => "mining",
+                        JobType::Drilling => "drilling",
+                        _ => "improving",
+                    };
+                    log_events.write(TerminalLogEvent {
+                        message: format!(
+                            "{:?} completed {} {:?} at ({}, {}) to level {:?}",
+                            civilian.kind,
+                            action,
+                            resource.resource_type,
+                            job.target.x,
+                            job.target.y,
+                            resource.development
+                        ),
+                    });
+                }
+            }
+            JobType::Prospecting => {
+                if let Some(tile_storage) = tile_storage_query.iter().next()
+                    && let Some(tile_entity) = tile_storage.get(&job.target)
+                    && let Ok(mut resource) = tile_resources.get_mut(tile_entity)
+                {
+                    if !resource.discovered {
+                        resource.discovered = true;
+                        log_events.write(TerminalLogEvent {
+                            message: format!(
+                                "Prospector discovered {:?} at ({}, {})!",
+                                resource.resource_type, job.target.x, job.target.y
+                            ),
+                        });
+                    }
+                }
+            }
+            _ => {}
         }
     }
 }

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::ui_widgets::{Activate, observe};
 
 use super::commands::{DeselectAllCivilians, GiveCivilianOrder, RescindOrders, SelectCivilian};
-use super::types::{Civilian, PreviousPosition};
+use super::types::{Civilian, CivilianOrderDefinition, PreviousPosition};
 use crate::ui::button_style::*;
 
 /// Marker for civilian orders UI panel
@@ -32,23 +32,16 @@ pub fn update_civilian_orders_ui(
     }
 
     let mut selection_changed = false;
-    let mut panel_request: Option<(
-        Entity,
-        &'static str,
-        &'static [super::types::CivilianActionButton],
-    )> = None;
+    let mut panel_request: Option<(Entity, &'static str, &'static [CivilianOrderDefinition])> =
+        None;
 
     for event in select_events.read() {
         selection_changed = true;
 
         if let Ok(civilian) = civilians.get(event.entity) {
             let definition = civilian.kind.definition();
-            if !definition.action_buttons.is_empty() {
-                panel_request = Some((
-                    event.entity,
-                    definition.display_name,
-                    definition.action_buttons,
-                ));
+            if !definition.orders.is_empty() {
+                panel_request = Some((event.entity, definition.display_name, definition.orders));
             } else {
                 panel_request = None; // Selected unit has no actionable buttons
             }

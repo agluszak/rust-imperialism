@@ -265,7 +265,7 @@ pub fn execute_prospector_orders(
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
-    mut tile_resources: Query<&mut TileResource>,
+    tile_resources: Query<&TileResource>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (entity, mut civilian, order) in prospectors.iter_mut() {
@@ -305,24 +305,34 @@ pub fn execute_prospector_orders(
             if let Some(tile_storage) = tile_storage_query.iter().next()
                 && let Some(tile_entity) = tile_storage.get(&civilian.position)
             {
-                if let Ok(mut resource) = tile_resources.get_mut(tile_entity) {
+                if let Ok(resource) = tile_resources.get(tile_entity) {
                     if !resource.discovered {
                         // Store previous position for potential undo
                         let previous_pos = civilian.position;
+                        let job_type = civilian
+                            .kind
+                            .order_definition(&CivilianOrderKind::Prospect)
+                            .and_then(|definition| definition.execution.job_type())
+                            .unwrap_or(JobType::Prospecting);
 
-                        resource.discovered = true;
+                        commands.entity(entity).insert((
+                            CivilianJob {
+                                job_type,
+                                turns_remaining: job_type.duration(),
+                                target: civilian.position,
+                            },
+                            PreviousPosition(previous_pos),
+                            ActionTurn(turn.current_turn),
+                        ));
+
                         log_events.write(TerminalLogEvent {
                             message: format!(
-                                "Prospector discovered {:?} at ({}, {})!",
+                                "Prospector began surveying {:?} at ({}, {})",
                                 resource.resource_type, civilian.position.x, civilian.position.y
                             ),
                         });
                         civilian.has_moved = true;
-                        deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
-                        commands.entity(entity).insert((
-                            PreviousPosition(previous_pos),
-                            ActionTurn(turn.current_turn),
-                        ));
+                        deselect_writer.write(DeselectCivilian { entity });
                     } else {
                         log_events.write(TerminalLogEvent {
                             message: format!(
@@ -367,6 +377,9 @@ pub fn execute_civilian_improvement_orders(
         let Some(resource_predicate) = civilian.kind.improvement_predicate() else {
             continue;
         };
+        let Some(job_type) = civilian.kind.improvement_job() else {
+            continue;
+        };
 
         // Check territory ownership
         let has_territory_access = tile_storage_query
@@ -394,7 +407,10 @@ pub fn execute_civilian_improvement_orders(
             continue;
         }
 
-        if let CivilianOrderKind::ImproveTile = order.target {
+        if matches!(
+            order.target,
+            CivilianOrderKind::ImproveTile | CivilianOrderKind::Mine
+        ) {
             // Find tile entity and validate resource
             if let Some(tile_storage) = tile_storage_query.iter().next()
                 && let Some(tile_entity) = tile_storage.get(&civilian.position)
@@ -407,7 +423,6 @@ pub fn execute_civilian_improvement_orders(
                         let previous_pos = civilian.position;
 
                         // Start improvement job
-                        let job_type = JobType::ImprovingTile;
                         commands.entity(entity).insert((
                             CivilianJob {
                                 job_type,

@@ -8,19 +8,73 @@ use crate::resources::TileResource;
 /// Resource predicate used to validate whether a civilian can improve a tile
 pub type ResourcePredicate = fn(&TileResource) -> bool;
 
-/// Descriptor for an action button that appears in the civilian orders UI
+/// Describes the type of multi-turn job a civilian can perform
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
+pub enum JobType {
+    BuildingRail,
+    BuildingDepot,
+    BuildingPort,
+    Mining,
+    Drilling,
+    Prospecting,
+    ImprovingTile,
+}
+
+impl JobType {
+    /// Get the number of turns required for this job type
+    pub fn duration(&self) -> u32 {
+        match self {
+            JobType::BuildingRail => 3,
+            JobType::BuildingDepot => 2,
+            JobType::BuildingPort => 2,
+            JobType::Mining => 2,
+            JobType::Drilling => 3,
+            JobType::Prospecting => 1,
+            JobType::ImprovingTile => 2,
+        }
+    }
+}
+
+/// How an order is executed once issued
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CivilianOrderExecution {
+    /// Order completes immediately with no persistent job
+    Instant,
+    /// Order starts a job with a fixed duration
+    StartJob(JobType),
+}
+
+impl CivilianOrderExecution {
+    pub fn job_type(&self) -> Option<JobType> {
+        match self {
+            CivilianOrderExecution::Instant => None,
+            CivilianOrderExecution::StartJob(job_type) => Some(*job_type),
+        }
+    }
+}
+
+/// Descriptor for an order that appears in the civilian UI and is available to logic/AI
 #[derive(Debug, Clone, Copy)]
-pub struct CivilianActionButton {
+pub struct CivilianOrderDefinition {
     pub label: &'static str,
     pub order: CivilianOrderKind,
+    pub execution: CivilianOrderExecution,
+}
+
+impl CivilianOrderDefinition {
+    /// Returns true if this definition represents the same order variant as `other`
+    pub fn matches(&self, other: &CivilianOrderKind) -> bool {
+        std::mem::discriminant(&self.order) == std::mem::discriminant(other)
+    }
 }
 
 /// Static metadata describing how a civilian behaves in the UI and systems
 #[derive(Debug, Clone, Copy)]
 pub struct CivilianKindDefinition {
     pub display_name: &'static str,
-    pub action_buttons: &'static [CivilianActionButton],
+    pub orders: &'static [CivilianOrderDefinition],
     pub resource_predicate: Option<ResourcePredicate>,
+    pub improvement_job: Option<JobType>,
 }
 
 /// Type of civilian unit
@@ -39,68 +93,92 @@ pub enum CivilianKind {
 impl CivilianKind {
     /// Lookup table for civilian metadata
     pub fn definition(&self) -> &'static CivilianKindDefinition {
-        // Static button descriptors reused across definitions
-        const IMPROVE_TILE_BUTTON: CivilianActionButton = CivilianActionButton {
+        const BUILD_DEPOT_ORDER: CivilianOrderDefinition = CivilianOrderDefinition {
+            label: "Build Depot",
+            order: CivilianOrderKind::BuildDepot,
+            execution: CivilianOrderExecution::StartJob(JobType::BuildingDepot),
+        };
+        const BUILD_PORT_ORDER: CivilianOrderDefinition = CivilianOrderDefinition {
+            label: "Build Port",
+            order: CivilianOrderKind::BuildPort,
+            execution: CivilianOrderExecution::StartJob(JobType::BuildingPort),
+        };
+        const IMPROVE_TILE_ORDER: CivilianOrderDefinition = CivilianOrderDefinition {
             label: "Improve Tile",
             order: CivilianOrderKind::ImproveTile,
+            execution: CivilianOrderExecution::StartJob(JobType::ImprovingTile),
         };
-        const PROSPECT_BUTTON: CivilianActionButton = CivilianActionButton {
+        const MINE_TILE_ORDER: CivilianOrderDefinition = CivilianOrderDefinition {
+            label: "Develop Mine",
+            order: CivilianOrderKind::Mine,
+            execution: CivilianOrderExecution::StartJob(JobType::Mining),
+        };
+        const DRILL_TILE_ORDER: CivilianOrderDefinition = CivilianOrderDefinition {
+            label: "Drill Well",
+            order: CivilianOrderKind::ImproveTile,
+            execution: CivilianOrderExecution::StartJob(JobType::Drilling),
+        };
+        const PROSPECT_ORDER: CivilianOrderDefinition = CivilianOrderDefinition {
             label: "Prospect Tile",
             order: CivilianOrderKind::Prospect,
+            execution: CivilianOrderExecution::StartJob(JobType::Prospecting),
         };
-        const ENGINEER_ACTIONS: &[CivilianActionButton] = &[
-            CivilianActionButton {
-                label: "Build Depot",
-                order: CivilianOrderKind::BuildDepot,
-            },
-            CivilianActionButton {
-                label: "Build Port",
-                order: CivilianOrderKind::BuildPort,
-            },
-        ];
-        const IMPROVER_ACTIONS: &[CivilianActionButton] = &[IMPROVE_TILE_BUTTON];
-        const PROSPECTOR_ACTIONS: &[CivilianActionButton] = &[PROSPECT_BUTTON];
-        const EMPTY_ACTIONS: &[CivilianActionButton] = &[];
+        const ENGINEER_ORDERS: &[CivilianOrderDefinition] = &[BUILD_DEPOT_ORDER, BUILD_PORT_ORDER];
+        const FARMER_ORDERS: &[CivilianOrderDefinition] = &[IMPROVE_TILE_ORDER];
+        const RANCHER_ORDERS: &[CivilianOrderDefinition] = &[IMPROVE_TILE_ORDER];
+        const FORESTER_ORDERS: &[CivilianOrderDefinition] = &[IMPROVE_TILE_ORDER];
+        const MINER_ORDERS: &[CivilianOrderDefinition] = &[MINE_TILE_ORDER];
+        const DRILLER_ORDERS: &[CivilianOrderDefinition] = &[DRILL_TILE_ORDER];
+        const PROSPECTOR_ORDERS: &[CivilianOrderDefinition] = &[PROSPECT_ORDER];
+        const EMPTY_ORDERS: &[CivilianOrderDefinition] = &[];
 
         const ENGINEER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
             display_name: "Engineer",
-            action_buttons: ENGINEER_ACTIONS,
+            orders: ENGINEER_ORDERS,
             resource_predicate: None,
+            improvement_job: None,
         };
         const FARMER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
             display_name: "Farmer",
-            action_buttons: IMPROVER_ACTIONS,
+            orders: FARMER_ORDERS,
             resource_predicate: Some(TileResource::improvable_by_farmer),
+            improvement_job: Some(JobType::ImprovingTile),
         };
         const RANCHER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
             display_name: "Rancher",
-            action_buttons: IMPROVER_ACTIONS,
+            orders: RANCHER_ORDERS,
             resource_predicate: Some(TileResource::improvable_by_rancher),
+            improvement_job: Some(JobType::ImprovingTile),
         };
         const FORESTER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
             display_name: "Forester",
-            action_buttons: IMPROVER_ACTIONS,
+            orders: FORESTER_ORDERS,
             resource_predicate: Some(TileResource::improvable_by_forester),
+            improvement_job: Some(JobType::ImprovingTile),
         };
         const MINER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
             display_name: "Miner",
-            action_buttons: IMPROVER_ACTIONS,
+            orders: MINER_ORDERS,
             resource_predicate: Some(TileResource::improvable_by_miner),
+            improvement_job: Some(JobType::Mining),
         };
         const DRILLER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
             display_name: "Driller",
-            action_buttons: IMPROVER_ACTIONS,
+            orders: DRILLER_ORDERS,
             resource_predicate: Some(TileResource::improvable_by_driller),
+            improvement_job: Some(JobType::Drilling),
         };
         const PROSPECTOR_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
             display_name: "Prospector",
-            action_buttons: PROSPECTOR_ACTIONS,
+            orders: PROSPECTOR_ORDERS,
             resource_predicate: None,
+            improvement_job: None,
         };
         const DEVELOPER_DEFINITION: CivilianKindDefinition = CivilianKindDefinition {
             display_name: "Developer",
-            action_buttons: EMPTY_ACTIONS,
+            orders: EMPTY_ORDERS,
             resource_predicate: None,
+            improvement_job: None,
         };
 
         match self {
@@ -117,12 +195,41 @@ impl CivilianKind {
 
     /// Returns true if the civilian can improve tile resources
     pub fn supports_improvements(&self) -> bool {
-        self.definition().resource_predicate.is_some()
+        self.definition().improvement_job.is_some()
     }
 
     /// Get the resource predicate used to validate improvements
     pub fn improvement_predicate(&self) -> Option<ResourcePredicate> {
         self.definition().resource_predicate
+    }
+
+    /// Get the job type started when issuing an improvement order
+    pub fn improvement_job(&self) -> Option<JobType> {
+        self.definition().improvement_job
+    }
+
+    /// All orders that the civilian exposes to the UI/AI
+    pub fn available_orders(&self) -> &'static [CivilianOrderDefinition] {
+        self.definition().orders
+    }
+
+    /// Return the order definition matching `order`, if available
+    pub fn order_definition(
+        &self,
+        order: &CivilianOrderKind,
+    ) -> Option<&'static CivilianOrderDefinition> {
+        self.available_orders()
+            .iter()
+            .find(|definition| definition.matches(order))
+    }
+
+    /// Determine if this civilian supports a specific order kind
+    pub fn supports_order(&self, order: &CivilianOrderKind) -> bool {
+        match order {
+            CivilianOrderKind::Move { .. } => true,
+            CivilianOrderKind::BuildRail { .. } => *self == CivilianKind::Engineer,
+            _ => self.order_definition(order).is_some(),
+        }
     }
 }
 
@@ -151,30 +258,6 @@ pub struct CivilianJob {
     pub job_type: JobType,
     pub turns_remaining: u32,
     pub target: TilePos, // Where the job is happening
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
-pub enum JobType {
-    BuildingRail,
-    BuildingDepot,
-    BuildingPort,
-    Mining,
-    Prospecting,
-    ImprovingTile,
-}
-
-impl JobType {
-    /// Get the number of turns required for this job type
-    pub fn duration(&self) -> u32 {
-        match self {
-            JobType::BuildingRail => 3,
-            JobType::BuildingDepot => 2,
-            JobType::BuildingPort => 2,
-            JobType::Mining => 2,
-            JobType::Prospecting => 1,
-            JobType::ImprovingTile => 2,
-        }
-    }
 }
 
 /// Visual marker for civilian unit sprites

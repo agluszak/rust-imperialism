@@ -142,7 +142,7 @@ pub fn handle_civilian_orders(
             }
 
             // Only allow orders if unit hasn't moved this turn
-            if !civilian.has_moved {
+            if !civilian.has_moved && civilian.kind.supports_order(&event.order) {
                 // Add order component
                 commands.entity(event.entity).insert(CivilianOrder {
                     target: event.order,

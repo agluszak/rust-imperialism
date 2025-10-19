@@ -1,11 +1,13 @@
 use crate::civilians::commands::DeselectCivilian;
-use crate::civilians::engineering::execute_engineer_orders;
+use crate::civilians::engineering::{execute_engineer_orders, execute_prospector_orders};
+use crate::civilians::jobs::complete_improvement_jobs;
 use crate::civilians::types::{
     Civilian, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind, JobType,
 };
 use crate::economy::transport::{PlaceImprovement, Rails, ordered_edge};
 use crate::map::province::{Province, ProvinceId, TileProvince};
 use crate::resources::{ResourceType, TileResource};
+use crate::ui::logging::TerminalLogEvent;
 use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
@@ -17,7 +19,7 @@ fn test_engineer_does_not_start_job_on_existing_rail() {
     world.init_resource::<crate::turn_system::TurnSystem>();
 
     // Initialize event resources that the system uses
-    world.init_resource::<Messages<crate::ui::logging::TerminalLogEvent>>();
+    world.init_resource::<Messages<TerminalLogEvent>>();
     world.init_resource::<Messages<PlaceImprovement>>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
@@ -96,7 +98,7 @@ fn test_engineer_starts_job_on_new_rail() {
     world.init_resource::<crate::turn_system::TurnSystem>();
 
     // Initialize event resources that the system uses
-    world.init_resource::<Messages<crate::ui::logging::TerminalLogEvent>>();
+    world.init_resource::<Messages<TerminalLogEvent>>();
     world.init_resource::<Messages<PlaceImprovement>>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
@@ -180,11 +182,10 @@ fn test_engineer_starts_job_on_new_rail() {
 fn test_prospector_metadata_has_prospect_action() {
     let definition = CivilianKind::Prospector.definition();
     assert_eq!(definition.display_name, "Prospector");
-    assert_eq!(definition.action_buttons.len(), 1);
-    assert_eq!(
-        definition.action_buttons[0].order,
-        CivilianOrderKind::Prospect
-    );
+    assert_eq!(definition.orders.len(), 1);
+    let order = &definition.orders[0];
+    assert_eq!(order.order, CivilianOrderKind::Prospect);
+    assert_eq!(order.execution.job_type(), Some(JobType::Prospecting));
 }
 
 #[test]
@@ -199,4 +200,130 @@ fn test_miner_predicate_accepts_minerals_only() {
 
     let timber = TileResource::visible(ResourceType::Timber);
     assert!(!predicate(&timber));
+}
+
+#[test]
+fn test_miner_supports_mine_order() {
+    assert!(
+        CivilianKind::Miner.supports_order(&CivilianOrderKind::Mine),
+        "Miner should support Mine order"
+    );
+    assert!(
+        !CivilianKind::Miner.supports_order(&CivilianOrderKind::BuildDepot),
+        "Miner should not support BuildDepot"
+    );
+}
+
+#[test]
+fn test_prospector_starts_prospecting_job() {
+    let mut world = World::new();
+    world.init_resource::<crate::turn_system::TurnSystem>();
+
+    world.init_resource::<Messages<TerminalLogEvent>>();
+    world.init_resource::<Messages<DeselectCivilian>>();
+
+    let nation = world.spawn_empty().id();
+    let province_id = ProvinceId(1);
+    world.spawn(Province {
+        id: province_id,
+        owner: Some(nation),
+        tiles: vec![TilePos { x: 0, y: 0 }],
+        city_tile: TilePos { x: 0, y: 0 },
+    });
+
+    let mut tile_storage = TileStorage::empty(TilemapSize { x: 3, y: 3 });
+    let tile_pos = TilePos { x: 0, y: 0 };
+    let tile_entity = world
+        .spawn((
+            TileProvince { province_id },
+            TileResource::hidden_mineral(ResourceType::Coal),
+        ))
+        .id();
+    tile_storage.set(&tile_pos, tile_entity);
+    world.spawn(tile_storage);
+
+    let prospector = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Prospector,
+                position: tile_pos,
+                owner: nation,
+                selected: false,
+                has_moved: false,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::Prospect,
+            },
+        ))
+        .id();
+
+    let _ = world.run_system_once(execute_prospector_orders);
+    world.flush();
+
+    let job = world
+        .get::<CivilianJob>(prospector)
+        .expect("Prospector should have job");
+    assert_eq!(job.job_type, JobType::Prospecting);
+    assert_eq!(job.turns_remaining, JobType::Prospecting.duration());
+
+    let resource = world
+        .get::<TileResource>(tile_entity)
+        .expect("Tile should have resource");
+    assert!(
+        !resource.discovered,
+        "Resource should remain hidden until job completes"
+    );
+}
+
+#[test]
+fn test_prospecting_job_reveals_resource_on_completion() {
+    let mut world = World::new();
+    world.init_resource::<Messages<TerminalLogEvent>>();
+
+    let mut tile_storage = TileStorage::empty(TilemapSize { x: 3, y: 3 });
+    let tile_pos = TilePos { x: 0, y: 0 };
+    let tile_entity = world
+        .spawn((
+            TileResource::hidden_mineral(ResourceType::Coal),
+            TileProvince {
+                province_id: ProvinceId(1),
+            },
+        ))
+        .id();
+    tile_storage.set(&tile_pos, tile_entity);
+    world.spawn(tile_storage);
+
+    let owner = world.spawn_empty().id();
+
+    let prospector = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Prospector,
+                position: tile_pos,
+                owner,
+                selected: false,
+                has_moved: true,
+            },
+            CivilianJob {
+                job_type: JobType::Prospecting,
+                turns_remaining: 0,
+                target: tile_pos,
+            },
+        ))
+        .id();
+
+    let _ = world.run_system_once(complete_improvement_jobs);
+
+    let resource = world
+        .get::<TileResource>(tile_entity)
+        .expect("Tile should have resource");
+    assert!(
+        resource.discovered,
+        "Prospecting job should reveal resource"
+    );
+
+    assert!(
+        world.get::<CivilianJob>(prospector).is_some(),
+        "complete_improvement_jobs should not remove job components"
+    );
 }

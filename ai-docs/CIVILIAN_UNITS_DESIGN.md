@@ -7,13 +7,15 @@
 
 ## Design Overview
 We will describe each civilian type with a static definition that drives:
-- Available action buttons (e.g. Prospect, Improve Tile, Build Depot/Port).
+- Available orders (e.g. Prospect, Improve Tile, Build Depot/Port) alongside their execution semantics (instant vs. job-based).
 - Whether the unit can improve tile resources and, if so, the predicate that validates eligible resources.
+- Which job archetype the unit starts when performing an improvement, exposing durations for future AI planning.
 
 `CivilianKind::definition()` will return a `CivilianKindDefinition` containing:
 - `display_name`: panel heading text.
-- `action_buttons`: collection of `CivilianActionButton { label, order }` used to build UI.
+- `orders`: collection of `CivilianOrderDefinition { label, order, execution }` used to build UI and AI decision-making.
 - `resource_predicate`: optional function pointer `fn(&TileResource) -> bool` used by improvement systems to validate tiles.
+- `improvement_job`: optional `JobType` value describing the multi-turn job started when the unit improves a tile.
 
 This replaces the scattered `matches!` checks and manual UI panels with generic logic that works for any unit type described in the metadata.
 
