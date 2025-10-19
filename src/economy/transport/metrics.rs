@@ -4,10 +4,11 @@ use std::collections::HashMap;
 use crate::economy::{
     allocation::Allocations,
     goods::Good,
+    nation::NationId,
     production::{BuildingKind, Buildings, ProductionChoice},
     transport::{
-        AllocationSlot, CapacitySnapshot, DemandEntry, TransportAllocations, TransportCapacity,
-        TransportCommodity, TransportDemandSnapshot,
+        AllocationSlot, BASE_TRANSPORT_CAPACITY, CapacitySnapshot, DemandEntry,
+        TransportAllocations, TransportCapacity, TransportCommodity, TransportDemandSnapshot,
     },
     workforce::Workforce,
 };
@@ -24,26 +25,31 @@ pub fn update_transport_capacity(
     mut capacity: ResMut<TransportCapacity>,
     depots: Query<&Depot>,
     ports: Query<&Port>,
+    nations: Query<Entity, With<NationId>>,
 ) {
-    let mut totals: HashMap<Entity, CapacitySnapshot> = HashMap::new();
+    let mut totals: HashMap<Entity, u32> = HashMap::new();
+
+    for nation in nations.iter() {
+        totals.insert(nation, BASE_TRANSPORT_CAPACITY);
+    }
 
     for depot in depots.iter().filter(|d| d.connected) {
-        let entry = totals.entry(depot.owner).or_default();
-        entry.total += DEPOT_CAPACITY;
+        let entry = totals.entry(depot.owner).or_insert(BASE_TRANSPORT_CAPACITY);
+        *entry += DEPOT_CAPACITY;
     }
 
     for port in ports.iter().filter(|p| p.connected) {
-        let entry = totals.entry(port.owner).or_default();
-        entry.total += PORT_CAPACITY;
+        let entry = totals.entry(port.owner).or_insert(BASE_TRANSPORT_CAPACITY);
+        *entry += PORT_CAPACITY;
     }
 
     capacity
         .nations
         .retain(|nation, _| totals.contains_key(nation));
 
-    for (nation, totals_snapshot) in totals {
+    for (nation, total_capacity) in totals {
         let snapshot = capacity.snapshot_mut(nation);
-        snapshot.total = totals_snapshot.total;
+        snapshot.total = total_capacity;
         snapshot.used = snapshot.used.min(snapshot.total);
     }
 }

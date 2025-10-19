@@ -102,6 +102,33 @@ impl TransportCommodity {
         }
     }
 
+    /// Icon glyph used for compact UI displays.
+    pub fn icon(self) -> &'static str {
+        use TransportCommodity::*;
+        match self {
+            Grain => "🌾",
+            Fruit => "🍎",
+            Fiber => "🧵",
+            Meat => "🥩",
+            Timber => "🪵",
+            Coal => "⛏️",
+            Iron => "⚙️",
+            Precious => "💎",
+            Oil => "🛢️",
+            Fabric => "🧶",
+            Lumber => "🪚",
+            Paper => "📄",
+            Steel => "🔩",
+            Fuel => "⛽",
+            Clothing => "👗",
+            Furniture => "🪑",
+            Hardware => "🛠️",
+            Armaments => "⚔️",
+            CannedFood => "🥫",
+            Horses => "🐎",
+        }
+    }
+
     /// Ordering used for UI layout: resources → materials → goods.
     pub const ORDERED: [TransportCommodity; 20] = [
         TransportCommodity::Grain,
@@ -133,10 +160,21 @@ pub struct TransportCapacity {
     pub nations: HashMap<Entity, CapacitySnapshot>,
 }
 
-#[derive(Default, Debug, Clone, Copy)]
+pub const BASE_TRANSPORT_CAPACITY: u32 = 8;
+
+#[derive(Debug, Clone, Copy)]
 pub struct CapacitySnapshot {
     pub total: u32,
     pub used: u32,
+}
+
+impl Default for CapacitySnapshot {
+    fn default() -> Self {
+        Self {
+            total: BASE_TRANSPORT_CAPACITY,
+            used: 0,
+        }
+    }
 }
 
 /// Desired allocations per nation and commodity.

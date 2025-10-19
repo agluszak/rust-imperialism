@@ -1,15 +1,15 @@
 use bevy::prelude::*;
-use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
+use bevy_ecs_tilemap::prelude::TileStorage;
 
-use super::commands::{
-    DeselectAllCivilians, DeselectCivilian, GiveCivilianOrder, RescindOrders, SelectCivilian,
-};
+use super::commands::{DeselectAllCivilians, DeselectCivilian, RescindOrders, SelectCivilian};
 use super::types::{
     ActionTurn, Civilian, CivilianJob, CivilianOrder, CivilianOrderKind, PreviousPosition,
 };
+use crate::civilians::order_validation::validate_command;
 use crate::economy::treasury::Treasury;
 use crate::map::province::{Province, TileProvince};
 use crate::map::rendering::MapVisualFor;
+use crate::messages::civilians::{CivilianCommand, CivilianCommandError, CivilianCommandRejected};
 use crate::turn_system::TurnSystem;
 use crate::ui::logging::TerminalLogEvent;
 
@@ -126,51 +126,103 @@ pub fn handle_civilian_selection(
     }
 }
 
-/// Handle civilian order events
-pub fn handle_civilian_orders(
+/// Handle civilian command events and validate them before attaching orders
+pub fn handle_civilian_commands(
     mut commands: Commands,
-    mut events: MessageReader<GiveCivilianOrder>,
-    civilians: Query<&Civilian>,
-    active_jobs: Query<&CivilianJob>,
+    mut events: MessageReader<CivilianCommand>,
+    civilians: Query<(&Civilian, Option<&CivilianJob>)>,
+    tile_storage_query: Query<&TileStorage>,
+    tile_provinces: Query<&TileProvince>,
+    provinces: Query<&Province>,
+    mut rejection_writer: MessageWriter<CivilianCommandRejected>,
+    mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
-    for event in events.read() {
-        if let Ok(civilian) = civilians.get(event.entity) {
-            // Check if civilian has an active job
-            if active_jobs.get(event.entity).is_ok() {
-                info!("Civilian {:?} has active job, ignoring order", event.entity);
+    let tile_storage = tile_storage_query.iter().next();
+
+    for command in events.read() {
+        let (civilian, job) = match civilians.get(command.civilian) {
+            Ok(values) => values,
+            Err(_) => {
+                rejection_writer.write(CivilianCommandRejected {
+                    civilian: command.civilian,
+                    order: command.order,
+                    reason: CivilianCommandError::MissingCivilian,
+                });
+                log_rejection(
+                    &mut log_events,
+                    None,
+                    command.civilian,
+                    command.order,
+                    CivilianCommandError::MissingCivilian,
+                );
                 continue;
             }
+        };
 
-            // Only allow orders if unit hasn't moved this turn
-            if !civilian.has_moved && civilian.kind.supports_order(&event.order) {
-                // Add order component
-                commands.entity(event.entity).insert(CivilianOrder {
-                    target: event.order,
+        match validate_command(
+            civilian,
+            job,
+            &command.order,
+            tile_storage,
+            &tile_provinces,
+            &provinces,
+        ) {
+            Ok(()) => {
+                commands.entity(command.civilian).insert(CivilianOrder {
+                    target: command.order,
                 });
+            }
+            Err(reason) => {
+                rejection_writer.write(CivilianCommandRejected {
+                    civilian: command.civilian,
+                    order: command.order,
+                    reason,
+                });
+                log_rejection(
+                    &mut log_events,
+                    Some((command.civilian, civilian)),
+                    command.civilian,
+                    command.order,
+                    reason,
+                );
             }
         }
     }
 }
 
-/// Check if a tile belongs to a specific nation
-pub fn tile_owned_by_nation(
-    tile_pos: TilePos,
-    nation_entity: Entity,
-    tile_storage: &TileStorage,
-    tile_provinces: &Query<&TileProvince>,
-    provinces: &Query<&Province>,
-) -> bool {
-    if let Some(tile_entity) = tile_storage.get(&tile_pos)
-        && let Ok(tile_province) = tile_provinces.get(tile_entity)
-    {
-        // Find the province entity with this ProvinceId
-        for province in provinces.iter() {
-            if province.id == tile_province.province_id {
-                return province.owner == Some(nation_entity);
-            }
-        }
-    }
-    false
+fn log_rejection(
+    log_events: &mut MessageWriter<TerminalLogEvent>,
+    civilian_data: Option<(Entity, &Civilian)>,
+    civilian_entity: Entity,
+    order: CivilianOrderKind,
+    reason: CivilianCommandError,
+) {
+    let message = match (civilian_data, reason) {
+        (Some((_, civilian)), CivilianCommandError::MissingTargetTile(pos)) => format!(
+            "{:?} at ({}, {}) order {:?} rejected: target tile ({}, {}) not found",
+            civilian.kind, civilian.position.x, civilian.position.y, order, pos.x, pos.y
+        ),
+        (Some((_, civilian)), other) => format!(
+            "{:?} at ({}, {}) order {:?} rejected: {}",
+            civilian.kind,
+            civilian.position.x,
+            civilian.position.y,
+            order,
+            other.describe()
+        ),
+        (None, CivilianCommandError::MissingTargetTile(pos)) => format!(
+            "Order {:?} for {:?} rejected: target tile ({}, {}) not found",
+            order, civilian_entity, pos.x, pos.y
+        ),
+        (None, other) => format!(
+            "Order {:?} for {:?} rejected: {}",
+            order,
+            civilian_entity,
+            other.describe()
+        ),
+    };
+
+    log_events.write(TerminalLogEvent { message });
 }
 
 /// Execute Move orders for all civilian types
@@ -179,39 +231,10 @@ pub fn execute_move_orders(
     mut civilians: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
     mut deselect_writer: MessageWriter<DeselectCivilian>,
     turn: Res<TurnSystem>,
-    tile_storage_query: Query<&TileStorage>,
-    tile_provinces: Query<&TileProvince>,
-    provinces: Query<&Province>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (entity, mut civilian, order) in civilians.iter_mut() {
         if let CivilianOrderKind::Move { to } = order.target {
-            // Check if target tile is owned by the civilian's nation
-            let target_owned = tile_storage_query
-                .iter()
-                .next()
-                .map(|tile_storage| {
-                    tile_owned_by_nation(
-                        to,
-                        civilian.owner,
-                        tile_storage,
-                        &tile_provinces,
-                        &provinces,
-                    )
-                })
-                .unwrap_or(false);
-
-            if !target_owned {
-                log_events.write(TerminalLogEvent {
-                    message: format!(
-                        "{:?} cannot move to ({}, {}): tile not owned by your nation",
-                        civilian.kind, to.x, to.y
-                    ),
-                });
-                commands.entity(entity).remove::<CivilianOrder>();
-                continue;
-            }
-
             // Store previous position for potential undo
             let previous_pos = civilian.position;
 

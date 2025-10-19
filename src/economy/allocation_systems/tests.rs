@@ -1,13 +1,19 @@
+use bevy::ecs::system::SystemState;
+use bevy::prelude::{Query, ResMut, World};
+
 use crate::economy::{
     allocation::Allocations,
-    allocation_systems::calculate_inputs_for_one_unit,
+    allocation_systems::{calculate_inputs_for_one_unit, execute_queued_production_orders},
     goods::Good,
+    nation::{NationId, NationInstance},
     production::{Building, BuildingKind, Buildings},
     reservation::ReservationSystem,
     stockpile::Stockpile,
     treasury::Treasury,
     workforce::Workforce,
 };
+use crate::messages::AdjustProduction;
+use crate::orders::OrdersQueue;
 
 /// Test the intelligent input selection logic for Textile Mill
 #[test]
@@ -528,4 +534,77 @@ fn test_market_orders_mutually_exclusive() {
     assert!(!allocations.has_buy_interest(Good::Cotton));
     assert_eq!(allocations.market_sell_count(Good::Cotton), 2);
     assert_eq!(stockpile.get_available(Good::Cotton), 98); // 2 reserved for selling
+}
+
+#[test]
+fn execute_queued_production_orders_apply_and_clear() {
+    let mut world = World::new();
+    world.insert_resource(OrdersQueue::default());
+
+    let building_entity = world.spawn((Buildings::with_all_initial(),)).id();
+
+    let nation_entity = world
+        .spawn((
+            NationId(1),
+            Allocations::default(),
+            ReservationSystem::default(),
+            Stockpile::default(),
+            Workforce::new(),
+            Treasury::new(0),
+        ))
+        .id();
+
+    {
+        let mut stockpile = world
+            .get_mut::<Stockpile>(nation_entity)
+            .expect("stockpile not found");
+        stockpile.add(Good::Cotton, 10);
+        stockpile.add(Good::Wool, 10);
+    }
+
+    {
+        let mut workforce = world
+            .get_mut::<Workforce>(nation_entity)
+            .expect("workforce not found");
+        workforce.add_untrained(5);
+        workforce.update_labor_pool();
+    }
+
+    let nation_instance = NationInstance::from_entity(world.entity(nation_entity))
+        .expect("failed to build nation instance");
+
+    world
+        .resource_mut::<OrdersQueue>()
+        .queue_production(AdjustProduction {
+            nation: nation_instance,
+            building: building_entity,
+            output_good: Good::Fabric,
+            target_output: 2,
+        });
+
+    let mut system_state = SystemState::<(
+        ResMut<OrdersQueue>,
+        Query<(
+            &mut Allocations,
+            &mut ReservationSystem,
+            &mut Stockpile,
+            &mut Workforce,
+        )>,
+        Query<&Buildings>,
+    )>::new(&mut world);
+
+    {
+        let (orders, nations, buildings) = system_state.get_mut(&mut world);
+        execute_queued_production_orders(orders, nations, buildings);
+    }
+    system_state.apply(&mut world);
+
+    let allocations = world
+        .get::<Allocations>(nation_entity)
+        .expect("allocations not found");
+    assert_eq!(
+        allocations.production_count(building_entity, Good::Fabric),
+        2
+    );
+    assert!(world.resource::<OrdersQueue>().is_empty());
 }

@@ -32,10 +32,10 @@ impl Plugin for CityUIPlugin {
             .add_message::<TrainWorker>()
             .add_message::<dialogs::OpenBuildingDialog>()
             .add_message::<dialogs::CloseBuildingDialog>()
-            .add_message::<crate::economy::AdjustRecruitment>()
-            .add_message::<crate::economy::AdjustTraining>()
-            .add_message::<crate::economy::AdjustProduction>()
-            .add_message::<crate::economy::AdjustMarketOrder>()
+            .add_message::<crate::messages::AdjustRecruitment>()
+            .add_message::<crate::messages::AdjustTraining>()
+            .add_message::<crate::messages::AdjustProduction>()
+            .add_message::<crate::messages::AdjustMarketOrder>()
             .add_systems(OnEnter(GameMode::City), layout::ensure_city_screen_visible)
             .add_systems(
                 OnExit(GameMode::City),

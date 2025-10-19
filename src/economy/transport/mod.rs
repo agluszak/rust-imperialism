@@ -5,8 +5,8 @@ pub use types::{Depot, ImprovementKind, Port, RailConstruction, Rails, Roads, or
 // Transport state (capacity, allocations, demand)
 pub mod state;
 pub use state::{
-    AllocationSlot, CapacitySnapshot, DemandEntry, NationAllocations, TransportAllocations,
-    TransportCapacity, TransportCommodity, TransportDemandSnapshot,
+    AllocationSlot, BASE_TRANSPORT_CAPACITY, CapacitySnapshot, DemandEntry, NationAllocations,
+    TransportAllocations, TransportCapacity, TransportCommodity, TransportDemandSnapshot,
 };
 
 // Derived metrics and logic

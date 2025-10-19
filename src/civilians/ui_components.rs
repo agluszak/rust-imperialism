@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 use bevy::ui_widgets::{Activate, observe};
 
-use super::commands::{DeselectAllCivilians, GiveCivilianOrder, RescindOrders, SelectCivilian};
+use super::commands::{DeselectAllCivilians, RescindOrders, SelectCivilian};
 use super::types::{Civilian, CivilianOrderDefinition, PreviousPosition};
+use crate::messages::civilians::CivilianCommand;
 use crate::ui::button_style::*;
 
 /// Marker for civilian orders UI panel
@@ -93,9 +94,9 @@ pub fn update_civilian_orders_ui(
                         },
                         BackgroundColor(NORMAL_BUTTON),
                     ))
-                    .observe(move |_: On<Activate>, mut order_writer: MessageWriter<GiveCivilianOrder>| {
-                        order_writer.write(GiveCivilianOrder {
-                            entity: civilian_entity,
+                    .observe(move |_: On<Activate>, mut order_writer: MessageWriter<CivilianCommand>| {
+                        order_writer.write(CivilianCommand {
+                            civilian: civilian_entity,
                             order: order_kind,
                         });
                     })

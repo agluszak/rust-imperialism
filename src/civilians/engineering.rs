@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
 
 use super::commands::DeselectCivilian;
-use super::systems::tile_owned_by_nation;
+use super::order_validation::tile_owned_by_nation;
 use super::types::{
     ActionTurn, Civilian, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind, JobType,
     PreviousPosition, ProspectingKnowledge,

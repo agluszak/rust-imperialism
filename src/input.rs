@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 
-use crate::civilians::{Civilian, CivilianKind, CivilianOrderKind, GiveCivilianOrder};
+use crate::civilians::{Civilian, CivilianCommand, CivilianKind, CivilianOrderKind};
 use crate::map::tile_pos::TilePosExt;
 
 pub struct InputPlugin;
@@ -17,7 +17,7 @@ pub fn handle_tile_click(
     trigger: On<Pointer<Click>>,
     tile_positions: Query<&TilePos>,
     civilians: Query<(Entity, &Civilian)>,
-    mut order_writer: MessageWriter<GiveCivilianOrder>,
+    mut order_writer: MessageWriter<CivilianCommand>,
 ) {
     // Get the clicked tile position
     let Ok(clicked_pos) = tile_positions.get(trigger.entity) else {
@@ -36,8 +36,8 @@ pub fn handle_tile_click(
     // If the unit is stationary and supports a tile action, trigger it directly
     if distance == 0 {
         if let Some(order) = civilian.kind.default_tile_action_order() {
-            order_writer.write(GiveCivilianOrder {
-                entity: civilian_entity,
+            order_writer.write(CivilianCommand {
+                civilian: civilian_entity,
                 order,
             });
         }
@@ -51,8 +51,8 @@ pub fn handle_tile_click(
             clicked_pos.x, clicked_pos.y
         );
 
-        order_writer.write(GiveCivilianOrder {
-            entity: civilian_entity,
+        order_writer.write(CivilianCommand {
+            civilian: civilian_entity,
             order: CivilianOrderKind::BuildRail { to: *clicked_pos },
         });
     } else if distance >= 1 {
@@ -62,8 +62,8 @@ pub fn handle_tile_click(
             clicked_pos.x, clicked_pos.y, civilian.kind
         );
 
-        order_writer.write(GiveCivilianOrder {
-            entity: civilian_entity,
+        order_writer.write(CivilianCommand {
+            civilian: civilian_entity,
             order: CivilianOrderKind::Move { to: *clicked_pos },
         });
     }
