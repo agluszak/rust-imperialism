@@ -10,7 +10,8 @@ use super::button_style::{
 use super::generic_systems::hide_screen;
 use crate::diplomacy::{
     DiplomacySelection, DiplomacyState, DiplomaticOffer, DiplomaticOfferKind, DiplomaticOffers,
-    DiplomaticOrder, DiplomaticOrderKind, ForeignAidLedger, resolve_offer_response,
+    DiplomaticOrder, DiplomaticOrderKind, DiplomaticRelation, ForeignAidLedger, RelationshipBand,
+    TradePolicy, TradePolicyLedger, resolve_offer_response,
 };
 use crate::economy::{Name, NationId, PlayerNation, Treasury};
 use crate::ui::logging::TerminalLogEvent;
@@ -41,6 +42,12 @@ struct SelectedTreatyText;
 struct SelectedAidText;
 
 #[derive(Component)]
+struct SelectedRelationSummaryText;
+
+#[derive(Component)]
+struct SelectedTradePolicyText;
+
+#[derive(Component)]
 struct DiplomacyActionButton {
     action: DiplomaticAction,
     target: NationId,
@@ -63,6 +70,10 @@ enum DiplomaticAction {
     AidOnce(i32),
     AidLocked(i32),
     CancelAid,
+    Subsidy(u8),
+    CancelSubsidy,
+    Boycott,
+    LiftBoycott,
 }
 
 /// Creates an observer that executes a diplomatic action when the button is activated
@@ -134,6 +145,26 @@ fn execute_diplomatic_action(action: DiplomaticAction) -> impl Bundle {
                     actor: player_id,
                     target: selected,
                     kind: DiplomaticOrderKind::CancelAid,
+                },
+                DiplomaticAction::Subsidy(percent) => DiplomaticOrder {
+                    actor: player_id,
+                    target: selected,
+                    kind: DiplomaticOrderKind::SetTradeSubsidy { percent },
+                },
+                DiplomaticAction::CancelSubsidy => DiplomaticOrder {
+                    actor: player_id,
+                    target: selected,
+                    kind: DiplomaticOrderKind::ClearTradeSubsidy,
+                },
+                DiplomaticAction::Boycott => DiplomaticOrder {
+                    actor: player_id,
+                    target: selected,
+                    kind: DiplomaticOrderKind::SetTradeBoycott,
+                },
+                DiplomaticAction::LiftBoycott => DiplomaticOrder {
+                    actor: player_id,
+                    target: selected,
+                    kind: DiplomaticOrderKind::LiftTradeBoycott,
                 },
             };
 
@@ -341,6 +372,16 @@ fn setup_diplomacy_screen(
                         ));
 
                         detail.spawn((
+                            Text::new("Standing: unknown"),
+                            TextFont {
+                                font_size: 14.0,
+                                ..default()
+                            },
+                            TextColor(Color::srgb(0.78, 0.82, 0.88)),
+                            SelectedRelationSummaryText,
+                        ));
+
+                        detail.spawn((
                             Text::new("Treaties: none"),
                             TextFont {
                                 font_size: 14.0,
@@ -358,6 +399,16 @@ fn setup_diplomacy_screen(
                             },
                             TextColor(Color::srgb(0.78, 0.82, 0.88)),
                             SelectedAidText,
+                        ));
+
+                        detail.spawn((
+                            Text::new("Trade policy: neutral"),
+                            TextFont {
+                                font_size: 14.0,
+                                ..default()
+                            },
+                            TextColor(Color::srgb(0.78, 0.82, 0.88)),
+                            SelectedTradePolicyText,
                         ));
 
                         // War / peace actions
@@ -411,6 +462,148 @@ fn setup_diplomacy_screen(
                                 .with_children(|button| {
                                     button.spawn((
                                         Text::new("Offer Peace".to_string()),
+                                        TextFont {
+                                            font_size: 14.0,
+                                            ..default()
+                                        },
+                                        TextColor(Color::srgb(0.92, 0.95, 1.0)),
+                                    ));
+                                });
+                            });
+
+                        detail
+                            .spawn((Node {
+                                flex_direction: FlexDirection::Row,
+                                column_gap: Val::Px(8.0),
+                                ..default()
+                            },))
+                            .with_children(|row| {
+                                row.spawn((
+                                    Button,
+                                    OldButton,
+                                    Node {
+                                        padding: UiRect::all(Val::Px(8.0)),
+                                        ..default()
+                                    },
+                                    BackgroundColor(NORMAL_BUTTON),
+                                    DiplomacyActionButton {
+                                        action: DiplomaticAction::Subsidy(5),
+                                        target: NationId(0),
+                                    },
+                                    execute_diplomatic_action(DiplomaticAction::Subsidy(5)),
+                                ))
+                                .with_children(|button| {
+                                    button.spawn((
+                                        Text::new("Grant 5% Subsidy".to_string()),
+                                        TextFont {
+                                            font_size: 14.0,
+                                            ..default()
+                                        },
+                                        TextColor(Color::srgb(0.92, 0.95, 1.0)),
+                                    ));
+                                });
+
+                                row.spawn((
+                                    Button,
+                                    OldButton,
+                                    Node {
+                                        padding: UiRect::all(Val::Px(8.0)),
+                                        ..default()
+                                    },
+                                    BackgroundColor(NORMAL_BUTTON),
+                                    DiplomacyActionButton {
+                                        action: DiplomaticAction::Subsidy(10),
+                                        target: NationId(0),
+                                    },
+                                    execute_diplomatic_action(DiplomaticAction::Subsidy(10)),
+                                ))
+                                .with_children(|button| {
+                                    button.spawn((
+                                        Text::new("Grant 10% Subsidy".to_string()),
+                                        TextFont {
+                                            font_size: 14.0,
+                                            ..default()
+                                        },
+                                        TextColor(Color::srgb(0.92, 0.95, 1.0)),
+                                    ));
+                                });
+
+                                row.spawn((
+                                    Button,
+                                    OldButton,
+                                    Node {
+                                        padding: UiRect::all(Val::Px(8.0)),
+                                        ..default()
+                                    },
+                                    BackgroundColor(NORMAL_BUTTON),
+                                    DiplomacyActionButton {
+                                        action: DiplomaticAction::CancelSubsidy,
+                                        target: NationId(0),
+                                    },
+                                    execute_diplomatic_action(DiplomaticAction::CancelSubsidy),
+                                ))
+                                .with_children(|button| {
+                                    button.spawn((
+                                        Text::new("Cancel Subsidy".to_string()),
+                                        TextFont {
+                                            font_size: 14.0,
+                                            ..default()
+                                        },
+                                        TextColor(Color::srgb(0.92, 0.95, 1.0)),
+                                    ));
+                                });
+                            });
+
+                        detail
+                            .spawn((Node {
+                                flex_direction: FlexDirection::Row,
+                                column_gap: Val::Px(8.0),
+                                ..default()
+                            },))
+                            .with_children(|row| {
+                                row.spawn((
+                                    Button,
+                                    OldButton,
+                                    Node {
+                                        padding: UiRect::all(Val::Px(8.0)),
+                                        ..default()
+                                    },
+                                    BackgroundColor(NORMAL_DANGER),
+                                    DiplomacyActionButton {
+                                        action: DiplomaticAction::Boycott,
+                                        target: NationId(0),
+                                    },
+                                    DangerButton,
+                                    execute_diplomatic_action(DiplomaticAction::Boycott),
+                                ))
+                                .with_children(|button| {
+                                    button.spawn((
+                                        Text::new("Impose Boycott".to_string()),
+                                        TextFont {
+                                            font_size: 14.0,
+                                            ..default()
+                                        },
+                                        TextColor(Color::srgb(0.92, 0.95, 1.0)),
+                                    ));
+                                });
+
+                                row.spawn((
+                                    Button,
+                                    OldButton,
+                                    Node {
+                                        padding: UiRect::all(Val::Px(8.0)),
+                                        ..default()
+                                    },
+                                    BackgroundColor(NORMAL_BUTTON),
+                                    DiplomacyActionButton {
+                                        action: DiplomaticAction::LiftBoycott,
+                                        target: NationId(0),
+                                    },
+                                    execute_diplomatic_action(DiplomaticAction::LiftBoycott),
+                                ))
+                                .with_children(|button| {
+                                    button.spawn((
+                                        Text::new("Lift Boycott".to_string()),
                                         TextFont {
                                             font_size: 14.0,
                                             ..default()
@@ -733,6 +926,7 @@ fn update_nation_buttons(
         (
             Without<SelectedNationNameText>,
             Without<SelectedRelationText>,
+            Without<SelectedRelationSummaryText>,
             Without<SelectedTreatyText>,
             Without<SelectedAidText>,
         ),
@@ -775,14 +969,29 @@ fn update_detail_panel(
     selection: Res<DiplomacySelection>,
     state: Res<DiplomacyState>,
     ledger: Res<ForeignAidLedger>,
+    trade_policies: Res<TradePolicyLedger>,
     player: Option<Res<PlayerNation>>,
     nation_ids: Query<&NationId>,
     names: Query<(&NationId, &Name)>,
     mut text_queries: ParamSet<(
         Query<&mut Text, (With<SelectedNationNameText>, Without<DiplomacyNationButton>)>,
         Query<&mut Text, (With<SelectedRelationText>, Without<DiplomacyNationButton>)>,
+        Query<
+            &mut Text,
+            (
+                With<SelectedRelationSummaryText>,
+                Without<DiplomacyNationButton>,
+            ),
+        >,
         Query<&mut Text, (With<SelectedTreatyText>, Without<DiplomacyNationButton>)>,
         Query<&mut Text, (With<SelectedAidText>, Without<DiplomacyNationButton>)>,
+        Query<
+            &mut Text,
+            (
+                With<SelectedTradePolicyText>,
+                Without<DiplomacyNationButton>,
+            ),
+        >,
     )>,
 ) {
     // Early exit if screen is not visible (not in Diplomacy mode)
@@ -800,10 +1009,16 @@ fn update_detail_panel(
             text.0 = "Relationship: --".to_string();
         }
         if let Ok(mut text) = text_queries.p2().single_mut() {
-            text.0 = "Treaties: none".to_string();
+            text.0 = "Standing: unknown".to_string();
         }
         if let Ok(mut text) = text_queries.p3().single_mut() {
+            text.0 = "Treaties: none".to_string();
+        }
+        if let Ok(mut text) = text_queries.p4().single_mut() {
             text.0 = "Locked aid: none".to_string();
+        }
+        if let Ok(mut text) = text_queries.p5().single_mut() {
+            text.0 = "Trade policy: neutral".to_string();
         }
         return;
     };
@@ -835,6 +1050,14 @@ fn update_detail_panel(
 
     if let Ok(mut text) = text_queries.p2().single_mut() {
         if let Some(relation) = relation {
+            text.0 = format!("Standing: {}", relation_summary(relation));
+        } else {
+            text.0 = "Standing: unknown".to_string();
+        }
+    }
+
+    if let Ok(mut text) = text_queries.p3().single_mut() {
+        if let Some(relation) = relation {
             let mut flags = Vec::new();
             if relation.treaty.at_war {
                 flags.push("At war");
@@ -859,7 +1082,7 @@ fn update_detail_panel(
         }
     }
 
-    if let Ok(mut text) = text_queries.p3().single_mut() {
+    if let Ok(mut text) = text_queries.p4().single_mut() {
         if let Some(player_id) = player_id {
             if let Some(grant) = ledger
                 .all()
@@ -874,12 +1097,33 @@ fn update_detail_panel(
             text.0 = "Locked aid: unavailable".to_string();
         }
     }
+
+    if let Ok(mut text) = text_queries.p5().single_mut() {
+        if let Some(player_id) = player_id {
+            let policy = trade_policies.policy(player_id, selected);
+            text.0 = format!("Trade policy: {}", policy.description());
+        } else {
+            text.0 = "Trade policy: unknown".to_string();
+        }
+    }
+}
+
+fn relation_summary(relation: &DiplomaticRelation) -> &'static str {
+    match relation.band() {
+        RelationshipBand::Hostile => "Open hostility — expect reprisals.",
+        RelationshipBand::Unfriendly => "Tense — diplomats exchange harsh words.",
+        RelationshipBand::Neutral => "Even — neither warm nor cold.",
+        RelationshipBand::Cordial => "Cordial — polite and improving ties.",
+        RelationshipBand::Warm => "Warm — strong mutual goodwill.",
+        RelationshipBand::Allied => "Allied — steadfast partners in policy.",
+    }
 }
 
 fn update_action_buttons(
     selection: Res<DiplomacySelection>,
     state: Res<DiplomacyState>,
     ledger: Res<ForeignAidLedger>,
+    trade_policies: Res<TradePolicyLedger>,
     player: Option<Res<PlayerNation>>,
     nation_ids: Query<&NationId>,
     mut buttons: Query<(&mut DiplomacyActionButton, &mut Visibility)>,
@@ -907,6 +1151,7 @@ fn update_action_buttons(
             *visibility = Visibility::Hidden;
             continue;
         };
+        let policy = trade_policies.policy(player_id, selected);
 
         let show = match button.action {
             DiplomaticAction::DeclareWar => !relation.treaty.at_war,
@@ -916,10 +1161,26 @@ fn update_action_buttons(
                 relation.treaty.consulate && !relation.treaty.embassy && !relation.treaty.at_war
             }
             DiplomaticAction::Pact => relation.treaty.embassy && !relation.treaty.at_war,
-            DiplomaticAction::Alliance => relation.treaty.embassy && !relation.treaty.at_war,
+            DiplomaticAction::Alliance => {
+                relation.treaty.embassy && !relation.treaty.at_war && relation.score >= 40
+            }
             DiplomaticAction::AidOnce(_) => !relation.treaty.at_war,
             DiplomaticAction::AidLocked(_) => !relation.treaty.at_war,
             DiplomaticAction::CancelAid => ledger.has_recurring(player_id, selected),
+            DiplomaticAction::Subsidy(_) => {
+                relation.treaty.consulate
+                    && !relation.treaty.at_war
+                    && !matches!(policy, TradePolicy::Boycott)
+            }
+            DiplomaticAction::CancelSubsidy => matches!(policy, TradePolicy::Subsidy(_)),
+            DiplomaticAction::Boycott => {
+                relation.treaty.consulate
+                    && !relation.treaty.at_war
+                    && !matches!(policy, TradePolicy::Boycott)
+            }
+            DiplomaticAction::LiftBoycott => {
+                !relation.treaty.at_war && matches!(policy, TradePolicy::Boycott)
+            }
         };
 
         *visibility = if show {
@@ -1017,6 +1278,7 @@ fn update_pending_offers(
                                     mut offers: ResMut<DiplomaticOffers>,
                                     mut state: ResMut<DiplomacyState>,
                                     mut ledger: ResMut<ForeignAidLedger>,
+                                    mut trade_policies: ResMut<TradePolicyLedger>,
                                     nations: Query<(Entity, &NationId, &Name)>,
                                     mut treasuries: Query<&mut Treasury>,
                                     mut log: MessageWriter<TerminalLogEvent>| {
@@ -1026,6 +1288,7 @@ fn update_pending_offers(
                                             true, // accept
                                             &mut state,
                                             &mut ledger,
+                                            &mut trade_policies,
                                             &nations,
                                             &mut treasuries,
                                             &mut log,
@@ -1057,6 +1320,7 @@ fn update_pending_offers(
                                     mut offers: ResMut<DiplomaticOffers>,
                                     mut state: ResMut<DiplomacyState>,
                                     mut ledger: ResMut<ForeignAidLedger>,
+                                    mut trade_policies: ResMut<TradePolicyLedger>,
                                     nations: Query<(Entity, &NationId, &Name)>,
                                     mut treasuries: Query<&mut Treasury>,
                                     mut log: MessageWriter<TerminalLogEvent>| {
@@ -1066,6 +1330,7 @@ fn update_pending_offers(
                                             false, // decline
                                             &mut state,
                                             &mut ledger,
+                                            &mut trade_policies,
                                             &nations,
                                             &mut treasuries,
                                             &mut log,

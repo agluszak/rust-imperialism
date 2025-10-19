@@ -195,6 +195,64 @@ impl ForeignAidLedger {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TradePolicy {
+    Neutral,
+    Subsidy(u8),
+    Boycott,
+}
+
+impl TradePolicy {
+    pub fn description(&self) -> String {
+        match self {
+            TradePolicy::Neutral => "Neutral".to_string(),
+            TradePolicy::Subsidy(percent) => format!("Subsidy ({}%)", percent),
+            TradePolicy::Boycott => "Boycott".to_string(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+struct TradePolicyKey {
+    from: NationId,
+    to: NationId,
+}
+
+impl TradePolicyKey {
+    fn new(from: NationId, to: NationId) -> Self {
+        Self { from, to }
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct TradePolicyLedger {
+    policies: HashMap<TradePolicyKey, TradePolicy>,
+}
+
+impl TradePolicyLedger {
+    pub fn policy(&self, from: NationId, to: NationId) -> TradePolicy {
+        self.policies
+            .get(&TradePolicyKey::new(from, to))
+            .copied()
+            .unwrap_or(TradePolicy::Neutral)
+    }
+
+    pub fn set_subsidy(&mut self, from: NationId, to: NationId, percent: u8) {
+        let percent = percent.clamp(1, 50);
+        self.policies
+            .insert(TradePolicyKey::new(from, to), TradePolicy::Subsidy(percent));
+    }
+
+    pub fn set_boycott(&mut self, from: NationId, to: NationId) {
+        self.policies
+            .insert(TradePolicyKey::new(from, to), TradePolicy::Boycott);
+    }
+
+    pub fn clear(&mut self, from: NationId, to: NationId) {
+        self.policies.remove(&TradePolicyKey::new(from, to));
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct OfferId(u32);
 
@@ -288,6 +346,10 @@ pub enum DiplomaticOrderKind {
     FormAlliance,
     SendAid { amount: i32, locked: bool },
     CancelAid,
+    SetTradeSubsidy { percent: u8 },
+    ClearTradeSubsidy,
+    SetTradeBoycott,
+    LiftTradeBoycott,
 }
 
 /// Tracks UI selection state for diplomacy mode.
@@ -303,6 +365,7 @@ impl Plugin for DiplomacyPlugin {
         app.init_resource::<DiplomacyState>()
             .init_resource::<ForeignAidLedger>()
             .init_resource::<DiplomaticOffers>()
+            .init_resource::<TradePolicyLedger>()
             .init_resource::<DiplomacySelection>()
             .add_message::<DiplomaticOrder>()
             .add_systems(
@@ -334,11 +397,12 @@ fn process_diplomatic_orders(
     mut state: ResMut<DiplomacyState>,
     mut ledger: ResMut<ForeignAidLedger>,
     mut offers: ResMut<DiplomaticOffers>,
+    mut trade_policies: ResMut<TradePolicyLedger>,
     nations: Query<(Entity, &NationId, &Name)>,
     mut treasuries: Query<&mut Treasury>,
     mut log: MessageWriter<TerminalLogEvent>,
 ) {
-    let (id_to_entity, id_to_name) = collect_nation_lookup(&nations);
+    let (id_to_entity, id_to_name, nation_ids) = collect_nation_lookup(&nations);
 
     for order in orders.read() {
         if order.actor == order.target {
@@ -383,6 +447,53 @@ fn process_diplomatic_orders(
                         display_name(&id_to_name, order.target)
                     ),
                 });
+
+                // Other nations react based on their opinion of the target
+                let mut approvals: Vec<String> = Vec::new();
+                let mut condemnations: Vec<String> = Vec::new();
+                for other in nation_ids.iter().copied() {
+                    if other == order.actor || other == order.target {
+                        continue;
+                    }
+
+                    let Some(opinion) = state.relation(other, order.target) else {
+                        continue;
+                    };
+                    let delta = war_reaction_delta(opinion.score);
+                    if delta == 0 {
+                        continue;
+                    }
+
+                    state.adjust_score(order.actor, other, delta);
+                    let name = display_name(&id_to_name, other);
+                    if delta > 0 {
+                        approvals.push(format!("{} (+{})", name, delta));
+                    } else {
+                        condemnations.push(format!("{} ({})", name, delta));
+                    }
+                }
+
+                if !approvals.is_empty() {
+                    log.write(TerminalLogEvent {
+                        message: format!(
+                            "Nations pleased by the war on {}: {}.",
+                            display_name(&id_to_name, order.target),
+                            approvals.join(", ")
+                        ),
+                    });
+                }
+                if !condemnations.is_empty() {
+                    log.write(TerminalLogEvent {
+                        message: format!(
+                            "Nations angered by the war on {}: {}.",
+                            display_name(&id_to_name, order.target),
+                            condemnations.join(", ")
+                        ),
+                    });
+                }
+
+                trade_policies.set_boycott(order.actor, order.target);
+                trade_policies.set_boycott(order.target, order.actor);
             }
             DiplomaticOrderKind::OfferPeace => {
                 let at_war = state
@@ -723,6 +834,117 @@ fn process_diplomatic_orders(
                     });
                 }
             }
+            DiplomaticOrderKind::SetTradeSubsidy { percent } => {
+                if *percent == 0 {
+                    continue;
+                }
+                let relation = state.relation(order.actor, order.target).cloned();
+                let Some(relation) = relation else { continue };
+                if relation.treaty.at_war {
+                    log.write(TerminalLogEvent {
+                        message: format!(
+                            "Cannot subsidise trade while at war with {}.",
+                            display_name(&id_to_name, order.target)
+                        ),
+                    });
+                    continue;
+                }
+                if !relation.treaty.consulate {
+                    log.write(TerminalLogEvent {
+                        message: format!(
+                            "A consulate in {} is required before setting trade subsidies.",
+                            display_name(&id_to_name, order.target)
+                        ),
+                    });
+                    continue;
+                }
+
+                trade_policies.set_subsidy(order.actor, order.target, *percent);
+                log.write(TerminalLogEvent {
+                    message: format!(
+                        "{} granted a {}% trade subsidy to {}.",
+                        display_name(&id_to_name, order.actor),
+                        percent,
+                        display_name(&id_to_name, order.target)
+                    ),
+                });
+            }
+            DiplomaticOrderKind::ClearTradeSubsidy => {
+                let current = trade_policies.policy(order.actor, order.target);
+                if matches!(current, TradePolicy::Subsidy(_)) {
+                    trade_policies.clear(order.actor, order.target);
+                    state.adjust_score(order.actor, order.target, -2);
+                    log.write(TerminalLogEvent {
+                        message: format!(
+                            "{} cancelled its trade subsidy with {}.",
+                            display_name(&id_to_name, order.actor),
+                            display_name(&id_to_name, order.target)
+                        ),
+                    });
+                }
+            }
+            DiplomaticOrderKind::SetTradeBoycott => {
+                let relation = state.relation(order.actor, order.target).cloned();
+                let Some(relation) = relation else { continue };
+                if relation.treaty.at_war {
+                    log.write(TerminalLogEvent {
+                        message: format!(
+                            "{} is already at war with {}. Trade is halted.",
+                            display_name(&id_to_name, order.actor),
+                            display_name(&id_to_name, order.target)
+                        ),
+                    });
+                    trade_policies.set_boycott(order.actor, order.target);
+                    continue;
+                }
+                if !relation.treaty.consulate {
+                    log.write(TerminalLogEvent {
+                        message: format!(
+                            "A consulate in {} is required before ordering a boycott.",
+                            display_name(&id_to_name, order.target)
+                        ),
+                    });
+                    continue;
+                }
+
+                trade_policies.set_boycott(order.actor, order.target);
+                state.adjust_score(order.actor, order.target, -6);
+                log.write(TerminalLogEvent {
+                    message: format!(
+                        "{} imposed a trade boycott on {}.",
+                        display_name(&id_to_name, order.actor),
+                        display_name(&id_to_name, order.target)
+                    ),
+                });
+            }
+            DiplomaticOrderKind::LiftTradeBoycott => {
+                let relation = state.relation(order.actor, order.target).cloned();
+                let Some(relation) = relation else { continue };
+                if relation.treaty.at_war {
+                    log.write(TerminalLogEvent {
+                        message: format!(
+                            "Cannot lift a boycott while at war with {}.",
+                            display_name(&id_to_name, order.target)
+                        ),
+                    });
+                    continue;
+                }
+
+                if matches!(
+                    trade_policies.policy(order.actor, order.target),
+                    TradePolicy::Boycott
+                ) {
+                    trade_policies.clear(order.actor, order.target);
+                    state.adjust_score(order.actor, order.target, 2);
+                    log.write(TerminalLogEvent {
+                        message: format!(
+                            "{} lifted the trade boycott on {}.",
+                            display_name(&id_to_name, order.actor),
+                            display_name(&id_to_name, order.target)
+                        ),
+                    });
+                }
+            }
         }
     }
 }
@@ -732,11 +954,12 @@ pub fn resolve_offer_response(
     accept: bool,
     state: &mut DiplomacyState,
     ledger: &mut ForeignAidLedger,
+    trade_policies: &mut TradePolicyLedger,
     nations: &Query<(Entity, &NationId, &Name)>,
     treasuries: &mut Query<&mut Treasury>,
     log: &mut MessageWriter<TerminalLogEvent>,
 ) {
-    let (id_to_entity, id_to_name) = collect_nation_lookup(nations);
+    let (id_to_entity, id_to_name, _) = collect_nation_lookup(nations);
 
     if accept {
         match offer.kind {
@@ -745,6 +968,8 @@ pub fn resolve_offer_response(
                     t.at_war = false;
                     t.non_aggression_pact = false;
                 });
+                trade_policies.clear(offer.from, offer.to);
+                trade_policies.clear(offer.to, offer.from);
                 state.adjust_score(offer.from, offer.to, 15);
                 log.write(TerminalLogEvent {
                     message: format!(
@@ -879,7 +1104,7 @@ fn apply_recurring_aid(
     mut treasuries: Query<&mut Treasury>,
     mut log: MessageWriter<TerminalLogEvent>,
 ) {
-    let (id_to_entity, id_to_name) = collect_nation_lookup(&nations);
+    let (id_to_entity, id_to_name, _) = collect_nation_lookup(&nations);
 
     let grants = ledger.all().to_vec();
     for grant in grants {
@@ -945,6 +1170,16 @@ fn decay_relationships(mut state: ResMut<DiplomacyState>) {
     }
 }
 
+fn war_reaction_delta(opinion_of_target: i32) -> i32 {
+    match opinion_of_target {
+        ..=-60 => 12,
+        -59..=-21 => 6,
+        -20..=20 => 0,
+        21..=60 => -6,
+        _ => -12,
+    }
+}
+
 fn display_name(names: &HashMap<NationId, String>, nation: NationId) -> String {
     names
         .get(&nation)
@@ -954,14 +1189,20 @@ fn display_name(names: &HashMap<NationId, String>, nation: NationId) -> String {
 
 fn collect_nation_lookup(
     nations: &Query<(Entity, &NationId, &Name)>,
-) -> (HashMap<NationId, Entity>, HashMap<NationId, String>) {
+) -> (
+    HashMap<NationId, Entity>,
+    HashMap<NationId, String>,
+    Vec<NationId>,
+) {
     let mut id_to_entity: HashMap<NationId, Entity> = HashMap::new();
     let mut id_to_name: HashMap<NationId, String> = HashMap::new();
+    let mut ids: Vec<NationId> = Vec::new();
     for (entity, nation_id, name) in nations.iter() {
         id_to_entity.insert(*nation_id, entity);
         id_to_name.insert(*nation_id, name.0.clone());
+        ids.push(*nation_id);
     }
-    (id_to_entity, id_to_name)
+    (id_to_entity, id_to_name, ids)
 }
 
 #[cfg(test)]

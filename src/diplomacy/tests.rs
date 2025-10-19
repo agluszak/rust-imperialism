@@ -3,8 +3,8 @@ use bevy::prelude::*;
 
 use super::{
     DiplomacyState, DiplomaticOffer, DiplomaticOfferKind, DiplomaticOffers, DiplomaticOrder,
-    DiplomaticOrderKind, ForeignAidLedger, apply_recurring_aid, decay_relationships,
-    process_diplomatic_orders, resolve_offer_response, sync_diplomatic_pairs,
+    DiplomaticOrderKind, ForeignAidLedger, TradePolicy, TradePolicyLedger, apply_recurring_aid,
+    decay_relationships, process_diplomatic_orders, resolve_offer_response, sync_diplomatic_pairs,
 };
 use crate::economy::{Name, NationId, Treasury};
 use crate::turn_system::{TurnPhase, TurnSystem};
@@ -18,6 +18,7 @@ fn setup_world() -> World {
     world.insert_resource(DiplomacyState::default());
     world.insert_resource(ForeignAidLedger::default());
     world.insert_resource(DiplomaticOffers::default());
+    world.insert_resource(TradePolicyLedger::default());
     world
 }
 
@@ -214,6 +215,61 @@ fn embassy_requires_consulate_and_relations() {
 }
 
 #[test]
+fn declare_war_shifts_world_opinion() {
+    let mut world = setup_world();
+
+    world.spawn((NationId(1), Name("Empire".into()), Treasury::new(1_000)));
+    world.spawn((NationId(2), Name("Rival".into()), Treasury::new(1_000)));
+    world.spawn((NationId(3), Name("Friend".into()), Treasury::new(1_000)));
+    world.spawn((NationId(4), Name("Foe".into()), Treasury::new(1_000)));
+
+    world.resource_mut::<TurnSystem>().phase = TurnPhase::Processing;
+    let _ = world.run_system_once(sync_diplomatic_pairs);
+
+    // Friend admires the rival, foe despises them
+    {
+        let mut state = world.resource_mut::<DiplomacyState>();
+        state.adjust_score(NationId(3), NationId(2), 60);
+        state.adjust_score(NationId(4), NationId(2), -70);
+    }
+
+    {
+        let mut messages = world.resource_mut::<Messages<DiplomaticOrder>>();
+        messages.write(DiplomaticOrder {
+            actor: NationId(1),
+            target: NationId(2),
+            kind: DiplomaticOrderKind::DeclareWar,
+        });
+    }
+
+    let _ = world.run_system_once(process_diplomatic_orders);
+
+    let state = world.resource::<DiplomacyState>();
+    let relation_with_friend = state
+        .relation(NationId(1), NationId(3))
+        .expect("friend relation")
+        .score;
+    let relation_with_foe = state
+        .relation(NationId(1), NationId(4))
+        .expect("foe relation")
+        .score;
+    let war_state = state
+        .relation(NationId(1), NationId(2))
+        .expect("war relation")
+        .treaty
+        .at_war;
+
+    assert!(war_state, "war flag should be set against rival");
+    assert!(
+        relation_with_friend < 0,
+        "friend of rival should dislike us"
+    );
+    assert!(relation_with_foe > 0, "enemy of rival should appreciate us");
+    assert!(relation_with_friend <= -6);
+    assert!(relation_with_foe >= 6);
+}
+
+#[test]
 fn offer_peace_creates_pending_offer() {
     let mut world = setup_world();
 
@@ -266,6 +322,7 @@ fn accepting_peace_offer_sets_peace() {
     let _ = world.run_system_once(
         move |mut state: ResMut<DiplomacyState>,
               mut ledger: ResMut<ForeignAidLedger>,
+              mut trade_policies: ResMut<TradePolicyLedger>,
               nations: Query<(Entity, &NationId, &Name)>,
               mut treasuries: Query<&mut Treasury>,
               mut log: MessageWriter<TerminalLogEvent>| {
@@ -274,6 +331,7 @@ fn accepting_peace_offer_sets_peace() {
                 true,
                 &mut state,
                 &mut ledger,
+                &mut trade_policies,
                 &nations,
                 &mut treasuries,
                 &mut log,
@@ -318,6 +376,7 @@ fn accepting_locked_aid_creates_grant() {
     let _ = world.run_system_once(
         move |mut state: ResMut<DiplomacyState>,
               mut ledger: ResMut<ForeignAidLedger>,
+              mut trade_policies: ResMut<TradePolicyLedger>,
               nations: Query<(Entity, &NationId, &Name)>,
               mut treasuries: Query<&mut Treasury>,
               mut log: MessageWriter<TerminalLogEvent>| {
@@ -326,6 +385,7 @@ fn accepting_locked_aid_creates_grant() {
                 true,
                 &mut state,
                 &mut ledger,
+                &mut trade_policies,
                 &nations,
                 &mut treasuries,
                 &mut log,
@@ -342,4 +402,165 @@ fn accepting_locked_aid_creates_grant() {
             .resource::<ForeignAidLedger>()
             .has_recurring(NationId(1), NationId(2))
     );
+}
+
+#[test]
+fn trade_subsidy_requires_consulate() {
+    let mut world = setup_world();
+
+    world.spawn((NationId(1), Name("Empire".into()), Treasury::new(10_000)));
+    world.spawn((NationId(2), Name("Partner".into()), Treasury::new(0)));
+
+    world.resource_mut::<TurnSystem>().phase = TurnPhase::Processing;
+    let _ = world.run_system_once(sync_diplomatic_pairs);
+
+    {
+        let mut messages = world.resource_mut::<Messages<DiplomaticOrder>>();
+        messages.write(DiplomaticOrder {
+            actor: NationId(1),
+            target: NationId(2),
+            kind: DiplomaticOrderKind::SetTradeSubsidy { percent: 5 },
+        });
+    }
+
+    let _ = world.run_system_once(process_diplomatic_orders);
+
+    assert!(matches!(
+        world
+            .resource::<TradePolicyLedger>()
+            .policy(NationId(1), NationId(2)),
+        TradePolicy::Neutral
+    ));
+
+    world
+        .resource_mut::<DiplomacyState>()
+        .set_treaty(NationId(1), NationId(2), |t| {
+            t.consulate = true;
+        });
+
+    {
+        let mut messages = world.resource_mut::<Messages<DiplomaticOrder>>();
+        messages.write(DiplomaticOrder {
+            actor: NationId(1),
+            target: NationId(2),
+            kind: DiplomaticOrderKind::SetTradeSubsidy { percent: 5 },
+        });
+    }
+
+    let _ = world.run_system_once(process_diplomatic_orders);
+
+    assert!(matches!(
+        world
+            .resource::<TradePolicyLedger>()
+            .policy(NationId(1), NationId(2)),
+        TradePolicy::Subsidy(percent) if percent == 5
+    ));
+}
+
+#[test]
+fn declare_war_imposes_boycott_policy() {
+    let mut world = setup_world();
+
+    world.spawn((NationId(1), Name("Empire".into()), Treasury::new(1_000)));
+    world.spawn((NationId(2), Name("Rival".into()), Treasury::new(1_000)));
+
+    world.resource_mut::<TurnSystem>().phase = TurnPhase::Processing;
+    let _ = world.run_system_once(sync_diplomatic_pairs);
+
+    {
+        let mut messages = world.resource_mut::<Messages<DiplomaticOrder>>();
+        messages.write(DiplomaticOrder {
+            actor: NationId(1),
+            target: NationId(2),
+            kind: DiplomaticOrderKind::DeclareWar,
+        });
+    }
+
+    let _ = world.run_system_once(process_diplomatic_orders);
+
+    let ledger = world.resource::<TradePolicyLedger>();
+    assert!(matches!(
+        ledger.policy(NationId(1), NationId(2)),
+        TradePolicy::Boycott
+    ));
+    assert!(matches!(
+        ledger.policy(NationId(2), NationId(1)),
+        TradePolicy::Boycott
+    ));
+}
+
+#[test]
+fn lifting_boycott_requires_peace() {
+    let mut world = setup_world();
+
+    world.spawn((NationId(1), Name("Empire".into()), Treasury::new(5_000)));
+    world.spawn((NationId(2), Name("Neighbor".into()), Treasury::new(5_000)));
+
+    world.resource_mut::<TurnSystem>().phase = TurnPhase::Processing;
+    let _ = world.run_system_once(sync_diplomatic_pairs);
+
+    world
+        .resource_mut::<DiplomacyState>()
+        .set_treaty(NationId(1), NationId(2), |t| {
+            t.consulate = true;
+        });
+
+    {
+        let mut messages = world.resource_mut::<Messages<DiplomaticOrder>>();
+        messages.write(DiplomaticOrder {
+            actor: NationId(1),
+            target: NationId(2),
+            kind: DiplomaticOrderKind::SetTradeBoycott,
+        });
+    }
+
+    let _ = world.run_system_once(process_diplomatic_orders);
+
+    world
+        .resource_mut::<DiplomacyState>()
+        .set_treaty(NationId(1), NationId(2), |t| {
+            t.at_war = true;
+        });
+
+    {
+        let mut messages = world.resource_mut::<Messages<DiplomaticOrder>>();
+        messages.write(DiplomaticOrder {
+            actor: NationId(1),
+            target: NationId(2),
+            kind: DiplomaticOrderKind::LiftTradeBoycott,
+        });
+    }
+
+    let _ = world.run_system_once(process_diplomatic_orders);
+
+    assert!(matches!(
+        world
+            .resource::<TradePolicyLedger>()
+            .policy(NationId(1), NationId(2)),
+        TradePolicy::Boycott
+    ));
+
+    world
+        .resource_mut::<DiplomacyState>()
+        .set_treaty(NationId(1), NationId(2), |t| {
+            t.at_war = false;
+        });
+
+    {
+        let mut messages = world.resource_mut::<Messages<DiplomaticOrder>>();
+        messages.write(DiplomaticOrder {
+            actor: NationId(1),
+            target: NationId(2),
+            kind: DiplomaticOrderKind::LiftTradeBoycott,
+        });
+    }
+
+    let _ = world.run_system_once(process_diplomatic_orders);
+
+    assert!(matches!(
+        world
+            .resource::<TradePolicyLedger>()
+            .policy(NationId(1), NationId(2)),
+        TradePolicy::Neutral
+    ));
 }
