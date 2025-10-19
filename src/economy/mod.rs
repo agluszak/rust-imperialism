@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::orders::OrdersQueue;
 use crate::turn_system::{TurnPhase, TurnSystem};
 use crate::ui::menu::AppState;
 
@@ -17,10 +18,10 @@ pub mod transport;
 pub mod treasury;
 pub mod workforce;
 
-pub use allocation::{
-    AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, Allocations,
-    MarketInterest,
+pub use crate::messages::{
+    AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, MarketInterest,
 };
+pub use allocation::Allocations;
 pub use calendar::{Calendar, Season};
 pub use goods::Good;
 pub use market::{MARKET_RESOURCES, market_price};
@@ -52,7 +53,8 @@ impl Plugin for EconomyPlugin {
             .insert_resource(production::ConnectedProduction::default())
             .insert_resource(transport::TransportCapacity::default())
             .insert_resource(transport::TransportAllocations::default())
-            .insert_resource(transport::TransportDemandSnapshot::default());
+            .insert_resource(transport::TransportDemandSnapshot::default())
+            .insert_resource(OrdersQueue::default());
 
         // Register messages
         app.add_message::<transport::PlaceImprovement>()
@@ -92,6 +94,21 @@ impl Plugin for EconomyPlugin {
                 allocation_systems::apply_production_adjustments,
                 allocation_systems::apply_market_order_adjustments,
             )
+                .in_set(EconomySet),
+        );
+
+        app.add_systems(
+            Update,
+            (
+                allocation_systems::execute_queued_production_orders,
+                allocation_systems::execute_queued_recruitment_orders,
+                allocation_systems::execute_queued_training_orders,
+                allocation_systems::execute_queued_market_orders,
+            )
+                .chain()
+                .run_if(resource_changed::<TurnSystem>)
+                .run_if(|turn_system: Res<TurnSystem>| turn_system.phase == TurnPhase::Processing)
+                .before(allocation_systems::finalize_allocations)
                 .in_set(EconomySet),
         );
 

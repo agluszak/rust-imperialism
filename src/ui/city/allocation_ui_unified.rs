@@ -4,9 +4,9 @@ use bevy::ui_widgets::{Activate, observe};
 use super::allocation_widgets::{
     AllocationBar, AllocationStepperDisplay, AllocationSummary, AllocationType,
 };
-use crate::economy::{
-    AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, Allocations,
-    MarketInterest, PlayerNation, Stockpile, Treasury,
+use crate::economy::{Allocations, PlayerNation, Stockpile, Treasury};
+use crate::messages::{
+    AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, MarketInterest,
 };
 
 // ============================================================================

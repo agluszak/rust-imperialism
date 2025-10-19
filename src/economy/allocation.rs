@@ -2,13 +2,6 @@ use bevy::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 use super::{goods::Good, reservation::ReservationId, workforce::WorkerSkill};
-use crate::economy::NationInstance;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum MarketInterest {
-    Buy,
-    Sell,
-}
 
 /// Per-nation component tracking all resource allocations via reservation IDs
 /// Each reservation represents ONE unit of output/worker/etc.
@@ -63,43 +56,4 @@ impl Allocations {
     pub fn market_sell_count(&self, good: Good) -> usize {
         self.market_sells.get(&good).map(|v| v.len()).unwrap_or(0)
     }
-}
-
-// ============================================================================
-// Messages (Input Layer)
-// ============================================================================
-
-/// Player adjusts recruitment allocation (Capitol building)
-#[derive(Message, Debug, Clone, Copy)]
-pub struct AdjustRecruitment {
-    pub nation: NationInstance,
-    pub requested: u32,
-}
-
-/// Player adjusts training allocation (Trade School)
-#[derive(Message, Debug, Clone, Copy)]
-pub struct AdjustTraining {
-    pub nation: NationInstance,
-    pub from_skill: WorkerSkill,
-    pub requested: u32,
-}
-
-/// Player adjusts production allocation (mills/factories)
-#[derive(Message, Debug, Clone, Copy)]
-pub struct AdjustProduction {
-    pub nation: NationInstance,
-    pub building: Entity,
-    pub output_good: Good, // Which output to adjust (Paper, Lumber, etc.)
-    pub target_output: u32,
-}
-
-/// Player adjusts market buy/sell allocation
-/// For Buy: requested > 0 sets buy interest, requested == 0 clears it
-/// For Sell: requested is the actual quantity to allocate
-#[derive(Message, Debug, Clone, Copy)]
-pub struct AdjustMarketOrder {
-    pub nation: NationInstance,
-    pub good: Good,
-    pub kind: MarketInterest,
-    pub requested: u32,
 }

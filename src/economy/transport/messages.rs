@@ -1,18 +1,1 @@
-use bevy::prelude::*;
-use bevy_ecs_tilemap::prelude::TilePos;
-
-use super::types::ImprovementKind;
-
-/// Message to place a transport improvement
-#[derive(Message, Debug, Clone, Copy)]
-pub struct PlaceImprovement {
-    pub a: TilePos,
-    pub b: TilePos,
-    pub kind: ImprovementKind,
-    pub engineer: Option<Entity>, // Engineer entity building this (for tracking construction)
-}
-
-/// Message to trigger rail network connectivity recomputation
-/// Sent when topology changes (rails added, depots/ports added/removed)
-#[derive(Message, Debug, Clone, Copy)]
-pub struct RecomputeConnectivity;
+pub use crate::messages::transport::{PlaceImprovement, RecomputeConnectivity};

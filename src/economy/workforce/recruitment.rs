@@ -4,17 +4,10 @@ use super::super::goods::Good;
 use super::super::stockpile::Stockpile;
 use super::systems::calculate_recruitment_cap;
 use super::types::{RecruitmentCapacity, Workforce};
-use crate::economy::NationInstance;
 use crate::map::province::Province;
+use crate::messages::workforce::RecruitWorkers;
 use crate::turn_system::{TurnPhase, TurnSystem};
 use crate::ui::logging::TerminalLogEvent;
-
-/// Message to queue recruitment of untrained workers at the Capitol
-#[derive(Message, Debug, Clone, Copy)]
-pub struct RecruitWorkers {
-    pub nation: NationInstance,
-    pub count: u32,
-}
 
 /// Component tracking queued recruitment orders for a nation
 #[derive(Component, Debug, Clone, Default)]

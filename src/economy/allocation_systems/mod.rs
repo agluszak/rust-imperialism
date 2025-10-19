@@ -1,10 +1,7 @@
 use bevy::prelude::*;
 
 use super::{
-    allocation::{
-        AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, Allocations,
-        MarketInterest,
-    },
+    allocation::Allocations,
     goods::Good,
     production::{BuildingKind, Buildings},
     reservation::ReservationSystem,
@@ -12,7 +9,14 @@ use super::{
     treasury::Treasury,
     workforce::{RecruitmentCapacity, types::*},
 };
-use crate::{map::province::Province, turn_system::TurnSystem};
+use crate::{
+    map::province::Province,
+    messages::{
+        AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, MarketInterest,
+    },
+    orders::OrdersQueue,
+    turn_system::TurnSystem,
+};
 
 // ============================================================================
 // Production Adjustment System (Unit-by-Unit Reservations)
@@ -22,163 +26,10 @@ use crate::{map::province::Province, turn_system::TurnSystem};
 /// Each +1 adds one ReservationId, each -1 removes one
 pub fn apply_production_adjustments(
     mut messages: MessageReader<AdjustProduction>,
-    mut nations: Query<(
-        &mut Allocations,
-        &mut ReservationSystem,
-        &mut Stockpile,
-        &mut Workforce,
-    )>,
-    buildings_query: Query<&Buildings>,
+    mut orders: ResMut<OrdersQueue>,
 ) {
     for msg in messages.read() {
-        let Ok((mut allocations, mut reservations, mut stockpile, mut workforce)) =
-            nations.get_mut(msg.nation.entity())
-        else {
-            warn!("Cannot adjust production: nation not found");
-            continue;
-        };
-
-        // Get the buildings collection and find the matching building for this output
-        let Ok(buildings_collection) = buildings_query.get(msg.building) else {
-            warn!("Cannot adjust production: buildings not found");
-            continue;
-        };
-
-        // Infer building kind from output_good
-        let building_kind = match msg.output_good {
-            Good::Fabric => BuildingKind::TextileMill,
-            Good::Paper | Good::Lumber => BuildingKind::LumberMill,
-            Good::Steel => BuildingKind::SteelMill,
-            Good::CannedFood => BuildingKind::FoodProcessingCenter,
-            _ => {
-                warn!(
-                    "Cannot determine building for output good: {:?}",
-                    msg.output_good
-                );
-                continue;
-            }
-        };
-
-        let Some(building) = buildings_collection.get(building_kind) else {
-            warn!(
-                "Cannot adjust production: building kind not found: {:?}",
-                building_kind
-            );
-            continue;
-        };
-
-        let key = (msg.building, msg.output_good);
-        let current_count = allocations.production_count(msg.building, msg.output_good);
-
-        // Calculate total current production for this building across ALL outputs
-        let mut total_building_production = 0u32;
-        for ((entity, _output), res_ids) in allocations.production.iter() {
-            if *entity == msg.building {
-                total_building_production += res_ids.len() as u32;
-            }
-        }
-
-        // Calculate remaining capacity (excluding current allocation for this specific output)
-        let current_count_u32 = current_count as u32;
-        let other_outputs = total_building_production - current_count_u32;
-        let remaining_capacity = building.capacity.saturating_sub(other_outputs);
-
-        // Cap target at remaining capacity
-        let target = msg.target_output.min(remaining_capacity) as usize;
-
-        // Decrease: remove reservations
-        if target < current_count {
-            let to_remove = current_count - target;
-            let vec = allocations.production.entry(key).or_default();
-
-            for _ in 0..to_remove {
-                if let Some(res_id) = vec.pop() {
-                    reservations.release(
-                        res_id,
-                        &mut stockpile,
-                        &mut workforce,
-                        &mut Treasury::new(0),
-                    );
-                }
-            }
-
-            debug!(
-                "Production decreased: {:?} {:?} {} → {}",
-                building.kind, msg.output_good, current_count, target
-            );
-        }
-        // Increase: try to add reservations one by one
-        else if target > current_count {
-            let to_add = target - current_count;
-
-            let vec = allocations.production.entry(key).or_default();
-            let mut added = 0;
-
-            for _ in 0..to_add {
-                // Calculate inputs per unit dynamically (checks stockpile availability)
-                let inputs_per_unit =
-                    calculate_inputs_for_one_unit(building.kind, msg.output_good, &stockpile);
-
-                debug!(
-                    "Attempting to reserve for {:?} {:?}: inputs={:?}, labor=1, available_labor={}, labor_pool={:?}",
-                    building.kind,
-                    msg.output_good,
-                    &inputs_per_unit,
-                    workforce.available_labor(),
-                    workforce.labor_pool
-                );
-
-                // Try to reserve for ONE unit
-                if let Some(res_id) = reservations.try_reserve(
-                    inputs_per_unit.clone(),
-                    1, // 1 labor per unit
-                    0, // no money
-                    &mut stockpile,
-                    &mut workforce,
-                    &mut Treasury::new(0),
-                ) {
-                    vec.push(res_id);
-                    added += 1;
-                    debug!("Reservation successful");
-                } else {
-                    // Can't reserve more, stop trying
-                    debug!(
-                        "Reservation failed - stockpile: [{}], workforce: untrained={}, trained={}, expert={}, labor_pool.available={}",
-                        inputs_per_unit
-                            .iter()
-                            .map(|(g, amt)| format!(
-                                "{:?}={}/{}",
-                                g,
-                                stockpile.get_available(*g),
-                                amt
-                            ))
-                            .collect::<Vec<_>>()
-                            .join(", "),
-                        workforce.untrained_count(),
-                        workforce.trained_count(),
-                        workforce.expert_count(),
-                        workforce.labor_pool.available()
-                    );
-                    break;
-                }
-            }
-
-            if added > 0 {
-                debug!(
-                    "Production increased: {:?} {:?} {} → {} ({} added)",
-                    building.kind,
-                    msg.output_good,
-                    current_count,
-                    current_count + added,
-                    added
-                );
-            } else if to_add > 0 {
-                debug!(
-                    "Production increase failed: {:?} {:?} - insufficient resources",
-                    building.kind, msg.output_good
-                );
-            }
-        }
+        orders.queue_production(*msg);
     }
 }
 
@@ -250,93 +101,10 @@ pub(crate) fn calculate_inputs_for_one_unit(
 /// Apply recruitment allocation adjustments using unit-by-unit reservations
 pub fn apply_recruitment_adjustments(
     mut messages: MessageReader<AdjustRecruitment>,
-    mut nations: Query<(&mut Allocations, &mut ReservationSystem, &mut Stockpile)>,
-    provinces: Query<&Province>,
-    recruitment_capacity: Query<&RecruitmentCapacity>,
+    mut orders: ResMut<OrdersQueue>,
 ) {
     for msg in messages.read() {
-        let Ok((mut allocations, mut reservations, mut stockpile)) =
-            nations.get_mut(msg.nation.entity())
-        else {
-            warn!("Cannot adjust recruitment: nation not found");
-            continue;
-        };
-
-        // Calculate capacity cap
-        let province_count = provinces
-            .iter()
-            .filter(|p| p.owner == Some(msg.nation.entity()))
-            .count() as u32;
-
-        let capacity_upgraded = recruitment_capacity
-            .get(msg.nation.entity())
-            .map(|c| c.upgraded)
-            .unwrap_or(false);
-
-        let capacity_cap = if capacity_upgraded {
-            province_count / 3
-        } else {
-            province_count / 4
-        };
-
-        let current_count = allocations.recruitment_count();
-        let target = msg.requested.min(capacity_cap) as usize;
-
-        // Decrease: remove reservations
-        if target < current_count {
-            let to_remove = current_count - target;
-
-            for _ in 0..to_remove {
-                if let Some(res_id) = allocations.recruitment.pop() {
-                    reservations.release(
-                        res_id,
-                        &mut stockpile,
-                        &mut Workforce::new(),
-                        &mut Treasury::new(0),
-                    );
-                }
-            }
-
-            debug!("Recruitment decreased: {} → {}", current_count, target);
-        }
-        // Increase: try to add reservations
-        else if target > current_count {
-            let to_add = target - current_count;
-
-            // Each worker needs: 1 CannedFood, 1 Clothing, 1 Furniture
-            let inputs = vec![
-                (Good::CannedFood, 1),
-                (Good::Clothing, 1),
-                (Good::Furniture, 1),
-            ];
-
-            let mut added = 0;
-
-            for _ in 0..to_add {
-                if let Some(res_id) = reservations.try_reserve(
-                    inputs.clone(),
-                    0, // no labor
-                    0, // no money
-                    &mut stockpile,
-                    &mut Workforce::new(),
-                    &mut Treasury::new(0),
-                ) {
-                    allocations.recruitment.push(res_id);
-                    added += 1;
-                } else {
-                    break;
-                }
-            }
-
-            if added > 0 {
-                debug!(
-                    "Recruitment increased: {} → {} ({} added)",
-                    current_count,
-                    current_count + added,
-                    added
-                );
-            }
-        }
+        orders.queue_recruitment(*msg);
     }
 }
 
@@ -347,86 +115,10 @@ pub fn apply_recruitment_adjustments(
 /// Apply training allocation adjustments using unit-by-unit reservations
 pub fn apply_training_adjustments(
     mut messages: MessageReader<AdjustTraining>,
-    mut nations: Query<(
-        &mut Allocations,
-        &mut ReservationSystem,
-        &mut Stockpile,
-        &Workforce,
-        &mut Treasury,
-    )>,
+    mut orders: ResMut<OrdersQueue>,
 ) {
     for msg in messages.read() {
-        let Ok((mut allocations, mut reservations, mut stockpile, workforce, mut treasury)) =
-            nations.get_mut(msg.nation.entity())
-        else {
-            warn!("Cannot adjust training: nation not found");
-            continue;
-        };
-
-        // Calculate worker cap
-        let worker_cap = workforce.count_by_skill(msg.from_skill);
-
-        let current_count = allocations.training_count(msg.from_skill);
-        let target = msg.requested.min(worker_cap) as usize;
-
-        // Decrease: remove reservations
-        if target < current_count {
-            let to_remove = current_count - target;
-            let vec = allocations.training.entry(msg.from_skill).or_default();
-
-            for _ in 0..to_remove {
-                if let Some(res_id) = vec.pop() {
-                    reservations.release(
-                        res_id,
-                        &mut stockpile,
-                        &mut Workforce::new(),
-                        &mut treasury,
-                    );
-                }
-            }
-
-            debug!(
-                "Training decreased: {:?} {} → {}",
-                msg.from_skill, current_count, target
-            );
-        }
-        // Increase: try to add reservations
-        else if target > current_count {
-            let to_add = target - current_count;
-
-            // Each training needs: 1 Paper, $100
-            let inputs = vec![(Good::Paper, 1)];
-            const TRAINING_COST: u32 = 100;
-
-            let vec = allocations.training.entry(msg.from_skill).or_default();
-            let mut added = 0;
-
-            for _ in 0..to_add {
-                if let Some(res_id) = reservations.try_reserve(
-                    inputs.clone(),
-                    0,             // no labor
-                    TRAINING_COST, // $100
-                    &mut stockpile,
-                    &mut Workforce::new(),
-                    &mut treasury,
-                ) {
-                    vec.push(res_id);
-                    added += 1;
-                } else {
-                    break;
-                }
-            }
-
-            if added > 0 {
-                debug!(
-                    "Training increased: {:?} {} → {} ({} added)",
-                    msg.from_skill,
-                    current_count,
-                    current_count + added,
-                    added
-                );
-            }
-        }
+        orders.queue_training(*msg);
     }
 }
 
@@ -437,6 +129,348 @@ pub fn apply_training_adjustments(
 /// Apply market buy/sell allocation adjustments using reservations
 pub fn apply_market_order_adjustments(
     mut messages: MessageReader<AdjustMarketOrder>,
+    mut orders: ResMut<OrdersQueue>,
+) {
+    for msg in messages.read() {
+        orders.queue_market(*msg);
+    }
+}
+
+pub fn execute_queued_production_orders(
+    mut orders: ResMut<OrdersQueue>,
+    mut nations: Query<(
+        &mut Allocations,
+        &mut ReservationSystem,
+        &mut Stockpile,
+        &mut Workforce,
+    )>,
+    buildings_query: Query<&Buildings>,
+) {
+    let queued = orders.take_production();
+    if queued.is_empty() {
+        return;
+    }
+
+    for order in queued {
+        process_production_adjustment(order, &mut nations, &buildings_query);
+    }
+}
+
+fn process_production_adjustment(
+    msg: AdjustProduction,
+    nations: &mut Query<(
+        &mut Allocations,
+        &mut ReservationSystem,
+        &mut Stockpile,
+        &mut Workforce,
+    )>,
+    buildings_query: &Query<&Buildings>,
+) {
+    let Ok((mut allocations, mut reservations, mut stockpile, mut workforce)) =
+        nations.get_mut(msg.nation.entity())
+    else {
+        warn!("Cannot adjust production: nation not found");
+        return;
+    };
+
+    let Ok(buildings_collection) = buildings_query.get(msg.building) else {
+        warn!("Cannot adjust production: buildings not found");
+        return;
+    };
+
+    let building_kind = match msg.output_good {
+        Good::Fabric => BuildingKind::TextileMill,
+        Good::Paper | Good::Lumber => BuildingKind::LumberMill,
+        Good::Steel => BuildingKind::SteelMill,
+        Good::CannedFood => BuildingKind::FoodProcessingCenter,
+        _ => {
+            warn!(
+                "Cannot determine building for output good: {:?}",
+                msg.output_good
+            );
+            return;
+        }
+    };
+
+    let Some(building) = buildings_collection.get(building_kind) else {
+        warn!(
+            "Cannot adjust production: building kind not found: {:?}",
+            building_kind
+        );
+        return;
+    };
+
+    let key = (msg.building, msg.output_good);
+    let current_count = allocations.production_count(msg.building, msg.output_good);
+
+    let mut total_building_production = 0u32;
+    for ((entity, _output), res_ids) in allocations.production.iter() {
+        if *entity == msg.building {
+            total_building_production += res_ids.len() as u32;
+        }
+    }
+
+    let current_count_u32 = current_count as u32;
+    let other_outputs = total_building_production.saturating_sub(current_count_u32);
+    let remaining_capacity = building.capacity.saturating_sub(other_outputs);
+
+    let target = msg.target_output.min(remaining_capacity) as usize;
+
+    if target < current_count {
+        let to_remove = current_count - target;
+        let vec = allocations.production.entry(key).or_default();
+
+        for _ in 0..to_remove {
+            if let Some(res_id) = vec.pop() {
+                reservations.release(
+                    res_id,
+                    &mut stockpile,
+                    &mut workforce,
+                    &mut Treasury::new(0),
+                );
+            }
+        }
+
+        debug!(
+            "Production decreased: {:?} {:?} {} → {}",
+            building.kind, msg.output_good, current_count, target
+        );
+    } else if target > current_count {
+        let to_add = target - current_count;
+        let vec = allocations.production.entry(key).or_default();
+        let mut added = 0;
+
+        for _ in 0..to_add {
+            let inputs_per_unit =
+                calculate_inputs_for_one_unit(building.kind, msg.output_good, &stockpile);
+
+            if let Some(res_id) = reservations.try_reserve(
+                inputs_per_unit.clone(),
+                1,
+                0,
+                &mut stockpile,
+                &mut workforce,
+                &mut Treasury::new(0),
+            ) {
+                vec.push(res_id);
+                added += 1;
+            } else {
+                break;
+            }
+        }
+
+        if added > 0 {
+            debug!(
+                "Production increased: {:?} {:?} {} → {} ({} added)",
+                building.kind,
+                msg.output_good,
+                current_count,
+                current_count + added,
+                added
+            );
+        } else if to_add > 0 {
+            debug!(
+                "Production increase failed: {:?} {:?} - insufficient resources",
+                building.kind, msg.output_good
+            );
+        }
+    }
+}
+
+pub fn execute_queued_recruitment_orders(
+    mut orders: ResMut<OrdersQueue>,
+    mut nations: Query<(&mut Allocations, &mut ReservationSystem, &mut Stockpile)>,
+    provinces: Query<&Province>,
+    recruitment_capacity: Query<&RecruitmentCapacity>,
+) {
+    let queued = orders.take_recruitment();
+    if queued.is_empty() {
+        return;
+    }
+
+    for order in queued {
+        process_recruitment_adjustment(order, &mut nations, &provinces, &recruitment_capacity);
+    }
+}
+
+fn process_recruitment_adjustment(
+    msg: AdjustRecruitment,
+    nations: &mut Query<(&mut Allocations, &mut ReservationSystem, &mut Stockpile)>,
+    provinces: &Query<&Province>,
+    recruitment_capacity: &Query<&RecruitmentCapacity>,
+) {
+    let Ok((mut allocations, mut reservations, mut stockpile)) =
+        nations.get_mut(msg.nation.entity())
+    else {
+        warn!("Cannot adjust recruitment: nation not found");
+        return;
+    };
+
+    let province_count = provinces
+        .iter()
+        .filter(|p| p.owner == Some(msg.nation.entity()))
+        .count() as u32;
+
+    let capacity_upgraded = recruitment_capacity
+        .get(msg.nation.entity())
+        .map(|c| c.upgraded)
+        .unwrap_or(false);
+
+    let capacity_cap = if capacity_upgraded {
+        province_count / 3
+    } else {
+        province_count / 4
+    };
+
+    let current_count = allocations.recruitment_count();
+    let target = msg.requested.min(capacity_cap) as usize;
+
+    if target < current_count {
+        let to_remove = current_count - target;
+
+        for _ in 0..to_remove {
+            if let Some(res_id) = allocations.recruitment.pop() {
+                reservations.release(
+                    res_id,
+                    &mut stockpile,
+                    &mut Workforce::new(),
+                    &mut Treasury::new(0),
+                );
+            }
+        }
+
+        debug!("Recruitment decreased: {} → {}", current_count, target);
+    } else if target > current_count {
+        let to_add = target - current_count;
+
+        let inputs = vec![
+            (Good::CannedFood, 1),
+            (Good::Clothing, 1),
+            (Good::Furniture, 1),
+        ];
+
+        let mut added = 0;
+
+        for _ in 0..to_add {
+            if let Some(res_id) = reservations.try_reserve(
+                inputs.clone(),
+                0,
+                0,
+                &mut stockpile,
+                &mut Workforce::new(),
+                &mut Treasury::new(0),
+            ) {
+                allocations.recruitment.push(res_id);
+                added += 1;
+            } else {
+                break;
+            }
+        }
+
+        if added > 0 {
+            debug!(
+                "Recruitment increased: {} → {} ({} added)",
+                current_count,
+                current_count + added,
+                added
+            );
+        }
+    }
+}
+
+pub fn execute_queued_training_orders(
+    mut orders: ResMut<OrdersQueue>,
+    mut nations: Query<(
+        &mut Allocations,
+        &mut ReservationSystem,
+        &mut Stockpile,
+        &Workforce,
+        &mut Treasury,
+    )>,
+) {
+    let queued = orders.take_training();
+    if queued.is_empty() {
+        return;
+    }
+
+    for order in queued {
+        process_training_adjustment(order, &mut nations);
+    }
+}
+
+fn process_training_adjustment(
+    msg: AdjustTraining,
+    nations: &mut Query<(
+        &mut Allocations,
+        &mut ReservationSystem,
+        &mut Stockpile,
+        &Workforce,
+        &mut Treasury,
+    )>,
+) {
+    let Ok((mut allocations, mut reservations, mut stockpile, workforce, mut treasury)) =
+        nations.get_mut(msg.nation.entity())
+    else {
+        warn!("Cannot adjust training: nation not found");
+        return;
+    };
+
+    let worker_cap = workforce.count_by_skill(msg.from_skill);
+    let current_count = allocations.training_count(msg.from_skill);
+    let target = msg.requested.min(worker_cap) as usize;
+
+    if target < current_count {
+        let to_remove = current_count - target;
+        let vec = allocations.training.entry(msg.from_skill).or_default();
+
+        for _ in 0..to_remove {
+            if let Some(res_id) = vec.pop() {
+                reservations.release(res_id, &mut stockpile, &mut Workforce::new(), &mut treasury);
+            }
+        }
+
+        debug!(
+            "Training decreased: {:?} {} → {}",
+            msg.from_skill, current_count, target
+        );
+    } else if target > current_count {
+        let to_add = target - current_count;
+        let inputs = vec![(Good::Paper, 1)];
+        const TRAINING_COST: u32 = 100;
+
+        let vec = allocations.training.entry(msg.from_skill).or_default();
+        let mut added = 0;
+
+        for _ in 0..to_add {
+            if let Some(res_id) = reservations.try_reserve(
+                inputs.clone(),
+                0,
+                TRAINING_COST,
+                &mut stockpile,
+                &mut Workforce::new(),
+                &mut treasury,
+            ) {
+                vec.push(res_id);
+                added += 1;
+            } else {
+                break;
+            }
+        }
+
+        if added > 0 {
+            debug!(
+                "Training increased: {:?} {} → {} ({} added)",
+                msg.from_skill,
+                current_count,
+                current_count + added,
+                added
+            );
+        }
+    }
+}
+
+pub fn execute_queued_market_orders(
+    mut orders: ResMut<OrdersQueue>,
     mut nations: Query<(
         &mut Allocations,
         &mut ReservationSystem,
@@ -445,116 +479,105 @@ pub fn apply_market_order_adjustments(
         &mut Treasury,
     )>,
 ) {
-    for msg in messages.read() {
-        let Ok((mut allocations, mut reservations, mut stockpile, mut workforce, mut treasury)) =
-            nations.get_mut(msg.nation.entity())
-        else {
-            warn!("Cannot adjust market orders: nation not found");
-            continue;
-        };
+    let queued = orders.take_market();
+    if queued.is_empty() {
+        return;
+    }
 
-        match msg.kind {
-            MarketInterest::Buy => {
-                // Buy orders are just interest flags (no quantities or reservations)
-                let wants_to_buy = msg.requested > 0;
+    for order in queued {
+        process_market_adjustment(order, &mut nations);
+    }
+}
 
-                if wants_to_buy {
-                    // Clear any existing sell orders for this good (can't buy and sell simultaneously)
-                    if let Some(sell_orders) = allocations.market_sells.get_mut(&msg.good) {
-                        let cleared_count = sell_orders.len();
-                        while let Some(res_id) = sell_orders.pop() {
-                            reservations.release(
-                                res_id,
-                                &mut stockpile,
-                                &mut workforce,
-                                &mut treasury,
-                            );
-                        }
-                        if cleared_count > 0 {
-                            debug!(
-                                "Cleared {} sell orders for {:?} (switching to buy interest)",
-                                cleared_count, msg.good
-                            );
-                        }
+fn process_market_adjustment(
+    msg: AdjustMarketOrder,
+    nations: &mut Query<(
+        &mut Allocations,
+        &mut ReservationSystem,
+        &mut Stockpile,
+        &mut Workforce,
+        &mut Treasury,
+    )>,
+) {
+    let Ok((mut allocations, mut reservations, mut stockpile, mut workforce, mut treasury)) =
+        nations.get_mut(msg.nation.entity())
+    else {
+        warn!("Cannot adjust market orders: nation not found");
+        return;
+    };
+
+    match msg.kind {
+        MarketInterest::Buy => {
+            let wants_to_buy = msg.requested > 0;
+
+            if wants_to_buy {
+                if let Some(sell_orders) = allocations.market_sells.get_mut(&msg.good) {
+                    let cleared_count = sell_orders.len();
+                    while let Some(res_id) = sell_orders.pop() {
+                        reservations.release(res_id, &mut stockpile, &mut workforce, &mut treasury);
                     }
-
-                    // Set buy interest flag
-                    if allocations.market_buy_interest.insert(msg.good) {
-                        debug!("Set buy interest for {:?}", msg.good);
-                    }
-                } else {
-                    // Clear buy interest flag
-                    if allocations.market_buy_interest.remove(&msg.good) {
-                        debug!("Cleared buy interest for {:?}", msg.good);
+                    if cleared_count > 0 {
+                        debug!(
+                            "Cleared {} sell orders for {:?} (switching to buy interest)",
+                            cleared_count, msg.good
+                        );
                     }
                 }
+
+                if allocations.market_buy_interest.insert(msg.good) {
+                    debug!("Set buy interest for {:?}", msg.good);
+                }
+            } else if allocations.market_buy_interest.remove(&msg.good) {
+                debug!("Cleared buy interest for {:?}", msg.good);
+            }
+        }
+
+        MarketInterest::Sell => {
+            let target = msg.requested as usize;
+
+            if target > 0 && allocations.market_buy_interest.remove(&msg.good) {
+                debug!("Cleared buy interest for {:?}", msg.good);
             }
 
-            MarketInterest::Sell => {
-                let target = msg.requested as usize;
+            let vec = allocations.market_sells.entry(msg.good).or_default();
+            let current_count = vec.len();
 
-                // Clear any existing buy interest for this good (can't buy and sell simultaneously)
-                if target > 0 && allocations.market_buy_interest.remove(&msg.good) {
-                    debug!(
-                        "Cleared buy interest for {:?} (switching to sell)",
-                        msg.good
-                    );
+            if target < current_count {
+                let to_remove = current_count - target;
+
+                for _ in 0..to_remove {
+                    if let Some(res_id) = vec.pop() {
+                        reservations.release(res_id, &mut stockpile, &mut workforce, &mut treasury);
+                    }
+                }
+            } else if target > current_count {
+                let to_add = target - current_count;
+                let mut added = 0;
+
+                for _ in 0..to_add {
+                    if let Some(res_id) = reservations.try_reserve(
+                        vec![(msg.good, 1)],
+                        0,
+                        0,
+                        &mut stockpile,
+                        &mut workforce,
+                        &mut treasury,
+                    ) {
+                        vec.push(res_id);
+                        added += 1;
+                    } else {
+                        break;
+                    }
                 }
 
-                let orders = allocations.market_sells.entry(msg.good).or_default();
-                let current = orders.len();
-
-                if target < current {
-                    let to_remove = current - target;
-                    for _ in 0..to_remove {
-                        if let Some(res_id) = orders.pop() {
-                            reservations.release(
-                                res_id,
-                                &mut stockpile,
-                                &mut workforce,
-                                &mut treasury,
-                            );
-                        }
-                    }
-
+                if added > 0 {
                     debug!(
-                        "Market sell decreased: {:?} {} → {}",
-                        msg.good, current, target
+                        "Sell orders increased: {:?} {} → {} ({} added)",
+                        msg.good,
+                        current_count,
+                        current_count + added,
+                        added
                     );
-                } else if target > current {
-                    let to_add = target - current;
-                    let mut added = 0;
-
-                    for _ in 0..to_add {
-                        if let Some(res_id) = reservations.try_reserve(
-                            vec![(msg.good, 1)],
-                            0,
-                            0,
-                            &mut stockpile,
-                            &mut workforce,
-                            &mut treasury,
-                        ) {
-                            orders.push(res_id);
-                            added += 1;
-                        } else {
-                            break;
-                        }
-                    }
-
-                    if added > 0 {
-                        debug!(
-                            "Market sell increased: {:?} {} → {} ({} added)",
-                            msg.good,
-                            current,
-                            current + added,
-                            added
-                        );
-                    } else if to_add > 0 {
-                        debug!(
-                            "Market sell increase blocked: {:?} – insufficient stock",
-                            msg.good
-                        );
-                    }
                 }
             }
         }

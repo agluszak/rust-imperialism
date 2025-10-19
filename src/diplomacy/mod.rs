@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 
 use crate::economy::{Name, NationId, Treasury};
+pub use crate::messages::diplomacy::{DiplomaticOrder, DiplomaticOrderKind};
 use crate::turn_system::{TurnPhase, TurnSystem};
 use crate::ui::logging::TerminalLogEvent;
 use crate::ui::menu::AppState;
@@ -268,26 +269,6 @@ impl DiplomaticOffers {
     pub fn is_empty(&self) -> bool {
         self.pending.is_empty()
     }
-}
-
-/// Orders issued during the player turn.
-#[derive(Message, Debug, Clone)]
-pub struct DiplomaticOrder {
-    pub actor: NationId,
-    pub target: NationId,
-    pub kind: DiplomaticOrderKind,
-}
-
-#[derive(Debug, Clone)]
-pub enum DiplomaticOrderKind {
-    DeclareWar,
-    OfferPeace,
-    EstablishConsulate,
-    OpenEmbassy,
-    SignNonAggressionPact,
-    FormAlliance,
-    SendAid { amount: i32, locked: bool },
-    CancelAid,
 }
 
 /// Tracks UI selection state for diplomacy mode.

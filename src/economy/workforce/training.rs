@@ -3,17 +3,10 @@ use bevy::prelude::*;
 use super::super::goods::Good;
 use super::super::stockpile::Stockpile;
 use super::types::{WorkerSkill, Workforce};
-use crate::economy::NationInstance;
 use crate::economy::treasury::Treasury;
+use crate::messages::workforce::TrainWorker;
 use crate::turn_system::{TurnPhase, TurnSystem};
 use crate::ui::logging::TerminalLogEvent;
-
-/// Message to queue training of a worker at the Trade School
-#[derive(Message, Debug, Clone, Copy)]
-pub struct TrainWorker {
-    pub nation: NationInstance,
-    pub from_skill: WorkerSkill,
-}
 
 /// Component tracking queued training orders for a nation
 #[derive(Component, Debug, Clone, Default)]

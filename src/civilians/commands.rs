@@ -1,18 +1,9 @@
 use bevy::prelude::*;
 
-use super::types::CivilianOrderKind;
-
 /// Message: Player selects a civilian unit
 #[derive(Message, Debug, Clone, Copy)]
 pub struct SelectCivilian {
     pub entity: Entity,
-}
-
-/// Message: Player gives an order to selected civilian
-#[derive(Message, Debug, Clone, Copy)]
-pub struct GiveCivilianOrder {
-    pub entity: Entity,
-    pub order: CivilianOrderKind,
 }
 
 /// Message: Deselect a specific civilian
