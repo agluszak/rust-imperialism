@@ -63,6 +63,18 @@ impl TileResource {
         }
     }
 
+    /// Returns true if this resource type must be prospected by each nation
+    pub fn requires_prospecting(&self) -> bool {
+        matches!(
+            self.resource_type,
+            ResourceType::Coal
+                | ResourceType::Iron
+                | ResourceType::Gold
+                | ResourceType::Gems
+                | ResourceType::Oil
+        )
+    }
+
     /// Create a new mineral resource (hidden until discovered)
     pub fn hidden_mineral(resource_type: ResourceType) -> Self {
         Self {

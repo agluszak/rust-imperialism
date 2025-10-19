@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TileStorage;
 
-use super::types::{ActionTurn, Civilian, CivilianJob, JobType, PreviousPosition};
+use super::types::{ActionTurn, Civilian, CivilianJob, JobType, PreviousPosition, ProspectingKnowledge};
 use crate::{resources::TileResource, ui::logging::TerminalLogEvent};
 
 /// Reset civilian movement at start of player turn
@@ -41,6 +41,7 @@ pub fn complete_improvement_jobs(
     civilians_with_jobs: Query<(&Civilian, &CivilianJob)>,
     tile_storage_query: Query<&TileStorage>,
     mut tile_resources: Query<&mut TileResource>,
+    mut prospecting_knowledge: ResMut<ProspectingKnowledge>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (civilian, job) in civilians_with_jobs.iter() {
@@ -80,11 +81,24 @@ pub fn complete_improvement_jobs(
                     && let Some(tile_entity) = tile_storage.get(&job.target)
                     && let Ok(mut resource) = tile_resources.get_mut(tile_entity)
                 {
+                    if resource.requires_prospecting() {
+                        prospecting_knowledge.mark_discovered(tile_entity, civilian.owner);
+                    }
+
                     if !resource.discovered {
                         resource.discovered = true;
                         log_events.write(TerminalLogEvent {
                             message: format!(
                                 "Prospector discovered {:?} at ({}, {})!",
+                                resource.resource_type, job.target.x, job.target.y
+                            ),
+                        });
+                    } else if resource.requires_prospecting()
+                        && prospecting_knowledge.is_discovered_by(tile_entity, civilian.owner)
+                    {
+                        log_events.write(TerminalLogEvent {
+                            message: format!(
+                                "Prospector confirmed {:?} at ({}, {})",
                                 resource.resource_type, job.target.x, job.target.y
                             ),
                         });

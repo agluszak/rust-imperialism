@@ -5,7 +5,7 @@ use super::commands::DeselectCivilian;
 use super::systems::tile_owned_by_nation;
 use super::types::{
     ActionTurn, Civilian, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind, JobType,
-    PreviousPosition,
+    PreviousPosition, ProspectingKnowledge,
 };
 use crate::economy::transport::{Rails, ordered_edge};
 use crate::economy::{ImprovementKind, PlaceImprovement};
@@ -266,6 +266,7 @@ pub fn execute_prospector_orders(
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
     tile_resources: Query<&TileResource>,
+    prospecting_knowledge: Res<ProspectingKnowledge>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (entity, mut civilian, order) in prospectors.iter_mut() {
@@ -306,7 +307,23 @@ pub fn execute_prospector_orders(
                 && let Some(tile_entity) = tile_storage.get(&civilian.position)
             {
                 if let Ok(resource) = tile_resources.get(tile_entity) {
-                    if !resource.discovered {
+                    if !resource.requires_prospecting() {
+                        log_events.write(TerminalLogEvent {
+                            message: format!(
+                                "No mineral deposits at ({}, {})",
+                                civilian.position.x, civilian.position.y
+                            ),
+                        });
+                    } else if prospecting_knowledge
+                        .is_discovered_by(tile_entity, civilian.owner)
+                    {
+                        log_events.write(TerminalLogEvent {
+                            message: format!(
+                                "No hidden minerals at ({}, {})",
+                                civilian.position.x, civilian.position.y
+                            ),
+                        });
+                    } else {
                         // Store previous position for potential undo
                         let previous_pos = civilian.position;
                         let job_type = civilian
@@ -333,13 +350,6 @@ pub fn execute_prospector_orders(
                         });
                         civilian.has_moved = true;
                         deselect_writer.write(DeselectCivilian { entity });
-                    } else {
-                        log_events.write(TerminalLogEvent {
-                            message: format!(
-                                "No hidden minerals at ({}, {})",
-                                civilian.position.x, civilian.position.y
-                            ),
-                        });
                     }
                 } else {
                     log_events.write(TerminalLogEvent {
@@ -366,6 +376,7 @@ pub fn execute_civilian_improvement_orders(
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
     tile_resources: Query<&TileResource>,
+    prospecting_knowledge: Res<ProspectingKnowledge>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (entity, mut civilian, order) in civilians.iter_mut() {
@@ -416,6 +427,19 @@ pub fn execute_civilian_improvement_orders(
                 && let Some(tile_entity) = tile_storage.get(&civilian.position)
             {
                 if let Ok(resource) = tile_resources.get(tile_entity) {
+                    if resource.requires_prospecting()
+                        && !prospecting_knowledge.is_discovered_by(tile_entity, civilian.owner)
+                    {
+                        log_events.write(TerminalLogEvent {
+                            message: format!(
+                                "{:?} must have this tile prospected before improving it",
+                                civilian.kind
+                            ),
+                        });
+                        commands.entity(entity).remove::<CivilianOrder>();
+                        continue;
+                    }
+
                     if !resource.discovered {
                         log_events.write(TerminalLogEvent {
                             message: format!(

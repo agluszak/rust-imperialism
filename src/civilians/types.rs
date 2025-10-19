@@ -2,8 +2,44 @@ use bevy::ecs::entity::{EntityMapper, MapEntities};
 use bevy::ecs::reflect::ReflectMapEntities;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
+use std::collections::{HashMap, HashSet};
 
 use crate::resources::TileResource;
+
+/// Tracks which nations have successfully prospected each mineral tile
+#[derive(Resource, Default, Debug)]
+pub struct ProspectingKnowledge {
+    discoveries: HashMap<Entity, HashSet<Entity>>,
+}
+
+impl ProspectingKnowledge {
+    /// Record that `nation` has successfully prospected `tile`
+    pub fn mark_discovered(&mut self, tile: Entity, nation: Entity) -> bool {
+        self.discoveries
+            .entry(tile)
+            .or_default()
+            .insert(nation)
+    }
+
+    /// Returns true if `nation` has prospected `tile`
+    pub fn is_discovered_by(&self, tile: Entity, nation: Entity) -> bool {
+        self.discoveries
+            .get(&tile)
+            .map_or(false, |nations| nations.contains(&nation))
+    }
+
+    /// Forget all prospecting knowledge about `tile`
+    pub fn forget_tile(&mut self, tile: Entity) {
+        self.discoveries.remove(&tile);
+    }
+
+    /// Remove any prospecting knowledge held by `nation`
+    pub fn forget_nation(&mut self, nation: Entity) {
+        for nations in self.discoveries.values_mut() {
+            nations.remove(&nation);
+        }
+    }
+}
 
 /// Resource predicate used to validate whether a civilian can improve a tile
 pub type ResourcePredicate = fn(&TileResource) -> bool;

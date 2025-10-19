@@ -5,6 +5,7 @@ use crate::civilians::engineering::{
 use crate::civilians::jobs::complete_improvement_jobs;
 use crate::civilians::types::{
     Civilian, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind, JobType,
+    ProspectingKnowledge,
 };
 use crate::economy::transport::{PlaceImprovement, Rails, ordered_edge};
 use crate::map::province::{Province, ProvinceId, TileProvince};
@@ -19,6 +20,7 @@ fn test_engineer_does_not_start_job_on_existing_rail() {
     let mut world = World::new();
     world.init_resource::<Rails>();
     world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<ProspectingKnowledge>();
 
     // Initialize event resources that the system uses
     world.init_resource::<Messages<TerminalLogEvent>>();
@@ -98,6 +100,7 @@ fn test_engineer_starts_job_on_new_rail() {
     let mut world = World::new();
     world.init_resource::<Rails>();
     world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<ProspectingKnowledge>();
 
     // Initialize event resources that the system uses
     world.init_resource::<Messages<TerminalLogEvent>>();
@@ -245,6 +248,7 @@ fn test_miner_supports_mine_order() {
 fn test_prospector_starts_prospecting_job() {
     let mut world = World::new();
     world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<ProspectingKnowledge>();
 
     world.init_resource::<Messages<TerminalLogEvent>>();
     world.init_resource::<Messages<DeselectCivilian>>();
@@ -306,6 +310,7 @@ fn test_prospector_starts_prospecting_job() {
 fn test_prospecting_job_reveals_resource_on_completion() {
     let mut world = World::new();
     world.init_resource::<Messages<TerminalLogEvent>>();
+    world.init_resource::<ProspectingKnowledge>();
 
     let mut tile_storage = TileStorage::empty(TilemapSize { x: 3, y: 3 });
     let tile_pos = TilePos { x: 0, y: 0 };
@@ -359,6 +364,7 @@ fn test_prospecting_job_reveals_resource_on_completion() {
 fn miner_requires_discovery_before_mining() {
     let mut world = World::new();
     world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<ProspectingKnowledge>();
     world.init_resource::<Messages<TerminalLogEvent>>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
@@ -422,9 +428,117 @@ fn miner_requires_discovery_before_mining() {
 }
 
 #[test]
+fn new_owner_must_reprospect_before_mining() {
+    let mut world = World::new();
+    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<ProspectingKnowledge>();
+    world.init_resource::<Messages<TerminalLogEvent>>();
+    world.init_resource::<Messages<DeselectCivilian>>();
+
+    let nation_a = world.spawn_empty().id();
+    let nation_b = world.spawn_empty().id();
+    let province_id = ProvinceId(42);
+    let province_entity = world
+        .spawn(Province {
+            id: province_id,
+            owner: Some(nation_a),
+            tiles: vec![TilePos { x: 0, y: 0 }],
+            city_tile: TilePos { x: 0, y: 0 },
+        })
+        .id();
+
+    let mut tile_storage = TileStorage::empty(TilemapSize { x: 3, y: 3 });
+    let tile_pos = TilePos { x: 0, y: 0 };
+    let tile_entity = world
+        .spawn((
+            TileProvince { province_id },
+            TileResource::hidden_mineral(ResourceType::Coal),
+        ))
+        .id();
+    tile_storage.set(&tile_pos, tile_entity);
+    world.spawn(tile_storage);
+
+    let prospector = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Prospector,
+                position: tile_pos,
+                owner: nation_a,
+                selected: false,
+                has_moved: false,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::Prospect,
+            },
+        ))
+        .id();
+
+    let _ = world.run_system_once(execute_prospector_orders);
+    world.flush();
+
+    {
+        let mut job = world
+            .get_mut::<CivilianJob>(prospector)
+            .expect("Prospector should have started a job");
+        job.turns_remaining = 0;
+    }
+
+    let _ = world.run_system_once(complete_improvement_jobs);
+
+    {
+        let knowledge = world.resource::<ProspectingKnowledge>();
+        assert!(
+            knowledge.is_discovered_by(tile_entity, nation_a),
+            "Original owner should record the discovery"
+        );
+        assert!(
+            !knowledge.is_discovered_by(tile_entity, nation_b),
+            "New owner should not have discovery yet"
+        );
+    }
+
+    assert!(
+        world
+            .get::<TileResource>(tile_entity)
+            .expect("Tile resource component")
+            .discovered,
+        "Prospecting should reveal the deposit globally"
+    );
+
+    world
+        .get_mut::<Province>(province_entity)
+        .expect("Province component")
+        .owner = Some(nation_b);
+
+    let miner = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Miner,
+                position: tile_pos,
+                owner: nation_b,
+                selected: false,
+                has_moved: false,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::Mine,
+            },
+        ))
+        .id();
+
+    let _ = world.run_system_once(execute_civilian_improvement_orders);
+    world.flush();
+
+    assert!(
+        world.get::<CivilianJob>(miner).is_none(),
+        "New owner should not be able to start mining without prospecting"
+    );
+}
+
+#[test]
 fn miner_respects_max_development_level() {
     let mut world = World::new();
     world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<ProspectingKnowledge>();
     world.init_resource::<Messages<TerminalLogEvent>>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
@@ -482,6 +596,7 @@ fn miner_respects_max_development_level() {
 fn farmer_starts_improvement_job_on_visible_resource() {
     let mut world = World::new();
     world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<ProspectingKnowledge>();
     world.init_resource::<Messages<TerminalLogEvent>>();
     world.init_resource::<Messages<DeselectCivilian>>();
 

@@ -25,7 +25,8 @@ pub struct CivilianPlugin;
 
 impl Plugin for CivilianPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<SelectCivilian>()
+        app.init_resource::<crate::civilians::types::ProspectingKnowledge>()
+            .add_message::<SelectCivilian>()
             .add_message::<GiveCivilianOrder>()
             .add_message::<DeselectCivilian>()
             .add_message::<DeselectAllCivilians>()
