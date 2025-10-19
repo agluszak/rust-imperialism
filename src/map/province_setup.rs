@@ -12,8 +12,9 @@ use crate::economy::{
 };
 use crate::map::province::{City, Province, ProvinceId};
 use crate::map::province_gen::generate_provinces;
-use crate::map::tile_pos::TilePosExt; // HexExt used for trait methods: to_hex(), distance_to()
+use crate::map::tile_pos::{HexExt, TilePosExt}; // Trait methods: to_hex(), distance_to()
 use crate::map::tiles::TerrainType;
+use crate::resources::{DevelopmentLevel, TileResource};
 
 /// Resource to track if provinces have been generated
 #[derive(Resource)]
@@ -243,22 +244,47 @@ pub fn assign_provinces_to_countries(
         }
     }
 
-    // Spawn an Engineer for the player near their capital
+    // Spawn starter civilian roster for the player clustered around the capital
     if let Some(player_entity) = country_entities.first()
         && let Some(player_capital) = province_list.first()
     {
-        let engineer_pos = player_capital.2; // Use capital tile for now
-        commands.spawn(Civilian {
-            kind: CivilianKind::Engineer,
-            position: engineer_pos,
-            owner: *player_entity,
-            selected: false,
-            has_moved: false,
-        });
-        info!(
-            "Spawned Engineer for player at ({}, {})",
-            engineer_pos.x, engineer_pos.y
-        );
+        let capital_pos = player_capital.2;
+        let capital_hex = capital_pos.to_hex();
+        let mut spawn_positions = Vec::new();
+        spawn_positions.push(capital_pos);
+
+        for neighbor in capital_hex.all_neighbors() {
+            if let Some(tile_pos) = neighbor.to_tile_pos() {
+                spawn_positions.push(tile_pos);
+            }
+            if spawn_positions.len() >= 6 {
+                break;
+            }
+        }
+
+        while spawn_positions.len() < 6 {
+            spawn_positions.push(capital_pos);
+        }
+
+        let starter_units = [
+            CivilianKind::Engineer,
+            CivilianKind::Prospector,
+            CivilianKind::Farmer,
+            CivilianKind::Miner,
+            CivilianKind::Rancher,
+            CivilianKind::Forester,
+        ];
+
+        for (kind, pos) in starter_units.iter().zip(spawn_positions.iter()) {
+            commands.spawn(Civilian {
+                kind: *kind,
+                position: *pos,
+                owner: *player_entity,
+                selected: false,
+                has_moved: false,
+            });
+            info!("Spawned {:?} for player at ({}, {})", kind, pos.x, pos.y);
+        }
     }
 
     info!("Province assignment complete!");
@@ -293,7 +319,48 @@ fn assign_province_to_country(
     // If this is a capital, add Capital component to the country
     if is_capital {
         commands.entity(country_entity).insert(Capital(city_tile));
+        let capital_tile = city_tile;
+        commands.queue(move |world: &mut World| {
+            boost_capital_food_tiles(world, capital_tile);
+        });
         info!("Set capital at ({}, {})", city_tile.x, city_tile.y);
+    }
+}
+
+pub(crate) fn boost_capital_food_tiles(world: &mut World, capital_pos: TilePos) {
+    let mut tile_storage_query = world.query::<&TileStorage>();
+    let Some(tile_storage) = tile_storage_query.iter(world).next() else {
+        return;
+    };
+
+    let mut target_tiles = Vec::new();
+    let mut positions = Vec::with_capacity(7);
+    positions.push(capital_pos);
+    for neighbor in capital_pos.to_hex().all_neighbors() {
+        if let Some(tile_pos) = neighbor.to_tile_pos() {
+            positions.push(tile_pos);
+        }
+    }
+
+    for pos in positions {
+        if let Some(tile_entity) = tile_storage.get(&pos) {
+            target_tiles.push((tile_entity, pos));
+        }
+    }
+
+    for (tile_entity, pos) in target_tiles {
+        if let Some(mut resource) = world.get_mut::<TileResource>(tile_entity) {
+            if resource.discovered
+                && resource.improvable_by_farmer()
+                && resource.development == DevelopmentLevel::Lv0
+            {
+                resource.development = DevelopmentLevel::Lv1;
+                debug!(
+                    "Auto-improved {:?} near capital at ({}, {})",
+                    resource.resource_type, pos.x, pos.y
+                );
+            }
+        }
     }
 }
 
@@ -381,4 +448,57 @@ fn get_connected_provinces(
     }
 
     connected
+}
+
+#[cfg(test)]
+mod tests {
+    use bevy::prelude::*;
+    use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
+
+    use crate::map::province_setup::boost_capital_food_tiles;
+    use crate::resources::{DevelopmentLevel, ResourceType, TileResource};
+
+    #[test]
+    fn capital_adjacent_food_tiles_start_at_level_one() {
+        let mut world = World::new();
+
+        let mut tile_storage = TileStorage::empty(TilemapSize { x: 3, y: 3 });
+        let capital_pos = TilePos { x: 1, y: 1 };
+        let capital_tile = world
+            .spawn(TileResource::visible(ResourceType::Grain))
+            .id();
+        tile_storage.set(&capital_pos, capital_tile);
+
+        let neighbor_pos = TilePos { x: 1, y: 2 };
+        let neighbor_tile = world
+            .spawn(TileResource::visible(ResourceType::Cotton))
+            .id();
+        tile_storage.set(&neighbor_pos, neighbor_tile);
+
+        let mineral_pos = TilePos { x: 0, y: 0 };
+        let mineral_tile = world
+            .spawn(TileResource::hidden_mineral(ResourceType::Coal))
+            .id();
+        tile_storage.set(&mineral_pos, mineral_tile);
+
+        world.spawn(tile_storage);
+
+        boost_capital_food_tiles(&mut world, capital_pos);
+
+        let capital_resource = world
+            .get::<TileResource>(capital_tile)
+            .expect("capital tile should have resource");
+        assert_eq!(capital_resource.development, DevelopmentLevel::Lv1);
+
+        let neighbor_resource = world
+            .get::<TileResource>(neighbor_tile)
+            .expect("neighbor tile should have resource");
+        assert_eq!(neighbor_resource.development, DevelopmentLevel::Lv1);
+
+        let mineral_resource = world
+            .get::<TileResource>(mineral_tile)
+            .expect("mineral tile should have resource");
+        assert_eq!(mineral_resource.development, DevelopmentLevel::Lv0);
+        assert!(!mineral_resource.discovered);
+    }
 }

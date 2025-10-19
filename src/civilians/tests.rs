@@ -1,10 +1,16 @@
 use crate::civilians::commands::DeselectCivilian;
-use crate::civilians::engineering::execute_engineer_orders;
+use crate::civilians::engineering::{
+    execute_civilian_improvement_orders, execute_engineer_orders, execute_prospector_orders,
+};
+use crate::civilians::jobs::complete_improvement_jobs;
 use crate::civilians::types::{
     Civilian, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind, JobType,
+    ProspectingKnowledge,
 };
 use crate::economy::transport::{PlaceImprovement, Rails, ordered_edge};
 use crate::map::province::{Province, ProvinceId, TileProvince};
+use crate::resources::{DevelopmentLevel, ResourceType, TileResource};
+use crate::ui::logging::TerminalLogEvent;
 use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
@@ -14,9 +20,10 @@ fn test_engineer_does_not_start_job_on_existing_rail() {
     let mut world = World::new();
     world.init_resource::<Rails>();
     world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<ProspectingKnowledge>();
 
     // Initialize event resources that the system uses
-    world.init_resource::<Messages<crate::ui::logging::TerminalLogEvent>>();
+    world.init_resource::<Messages<TerminalLogEvent>>();
     world.init_resource::<Messages<PlaceImprovement>>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
@@ -93,9 +100,10 @@ fn test_engineer_starts_job_on_new_rail() {
     let mut world = World::new();
     world.init_resource::<Rails>();
     world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<ProspectingKnowledge>();
 
     // Initialize event resources that the system uses
-    world.init_resource::<Messages<crate::ui::logging::TerminalLogEvent>>();
+    world.init_resource::<Messages<TerminalLogEvent>>();
     world.init_resource::<Messages<PlaceImprovement>>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
@@ -172,5 +180,473 @@ fn test_engineer_starts_job_on_new_rail() {
     assert_eq!(
         job.target, target_pos,
         "Job target should be the target position"
+    );
+}
+
+#[test]
+fn test_prospector_metadata_has_prospect_action() {
+    let definition = CivilianKind::Prospector.definition();
+    assert_eq!(definition.display_name, "Prospector");
+    assert_eq!(definition.orders.len(), 1);
+    let order = &definition.orders[0];
+    assert_eq!(order.order, CivilianOrderKind::Prospect);
+    assert_eq!(order.execution.job_type(), Some(JobType::Prospecting));
+}
+
+#[test]
+fn test_only_engineer_requests_orders_panel() {
+    assert!(CivilianKind::Engineer.shows_orders_panel());
+    assert!(!CivilianKind::Prospector.shows_orders_panel());
+    assert!(!CivilianKind::Miner.shows_orders_panel());
+    assert!(!CivilianKind::Farmer.shows_orders_panel());
+}
+
+#[test]
+fn test_default_tile_action_orders() {
+    assert_eq!(
+        CivilianKind::Prospector.default_tile_action_order(),
+        Some(CivilianOrderKind::Prospect)
+    );
+    assert_eq!(
+        CivilianKind::Miner.default_tile_action_order(),
+        Some(CivilianOrderKind::Mine)
+    );
+    assert_eq!(
+        CivilianKind::Farmer.default_tile_action_order(),
+        Some(CivilianOrderKind::ImproveTile)
+    );
+    assert_eq!(CivilianKind::Engineer.default_tile_action_order(), None);
+}
+
+#[test]
+fn test_miner_predicate_accepts_minerals_only() {
+    let predicate = CivilianKind::Miner
+        .improvement_predicate()
+        .expect("Miner should have improvement predicate");
+
+    let mut coal = TileResource::hidden_mineral(ResourceType::Coal);
+    coal.discovered = true;
+    assert!(predicate(&coal));
+
+    let timber = TileResource::visible(ResourceType::Timber);
+    assert!(!predicate(&timber));
+}
+
+#[test]
+fn test_miner_supports_mine_order() {
+    assert!(
+        CivilianKind::Miner.supports_order(&CivilianOrderKind::Mine),
+        "Miner should support Mine order"
+    );
+    assert!(
+        !CivilianKind::Miner.supports_order(&CivilianOrderKind::BuildDepot),
+        "Miner should not support BuildDepot"
+    );
+}
+
+#[test]
+fn test_prospector_starts_prospecting_job() {
+    let mut world = World::new();
+    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<ProspectingKnowledge>();
+
+    world.init_resource::<Messages<TerminalLogEvent>>();
+    world.init_resource::<Messages<DeselectCivilian>>();
+
+    let nation = world.spawn_empty().id();
+    let province_id = ProvinceId(1);
+    world.spawn(Province {
+        id: province_id,
+        owner: Some(nation),
+        tiles: vec![TilePos { x: 0, y: 0 }],
+        city_tile: TilePos { x: 0, y: 0 },
+    });
+
+    let mut tile_storage = TileStorage::empty(TilemapSize { x: 3, y: 3 });
+    let tile_pos = TilePos { x: 0, y: 0 };
+    let tile_entity = world
+        .spawn((
+            TileProvince { province_id },
+            TileResource::hidden_mineral(ResourceType::Coal),
+        ))
+        .id();
+    tile_storage.set(&tile_pos, tile_entity);
+    world.spawn(tile_storage);
+
+    let prospector = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Prospector,
+                position: tile_pos,
+                owner: nation,
+                selected: false,
+                has_moved: false,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::Prospect,
+            },
+        ))
+        .id();
+
+    let _ = world.run_system_once(execute_prospector_orders);
+    world.flush();
+
+    let job = world
+        .get::<CivilianJob>(prospector)
+        .expect("Prospector should have job");
+    assert_eq!(job.job_type, JobType::Prospecting);
+    assert_eq!(job.turns_remaining, JobType::Prospecting.duration());
+
+    let resource = world
+        .get::<TileResource>(tile_entity)
+        .expect("Tile should have resource");
+    assert!(
+        !resource.discovered,
+        "Resource should remain hidden until job completes"
+    );
+}
+
+#[test]
+fn test_prospecting_job_reveals_resource_on_completion() {
+    let mut world = World::new();
+    world.init_resource::<Messages<TerminalLogEvent>>();
+    world.init_resource::<ProspectingKnowledge>();
+
+    let mut tile_storage = TileStorage::empty(TilemapSize { x: 3, y: 3 });
+    let tile_pos = TilePos { x: 0, y: 0 };
+    let tile_entity = world
+        .spawn((
+            TileResource::hidden_mineral(ResourceType::Coal),
+            TileProvince {
+                province_id: ProvinceId(1),
+            },
+        ))
+        .id();
+    tile_storage.set(&tile_pos, tile_entity);
+    world.spawn(tile_storage);
+
+    let owner = world.spawn_empty().id();
+
+    let prospector = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Prospector,
+                position: tile_pos,
+                owner,
+                selected: false,
+                has_moved: true,
+            },
+            CivilianJob {
+                job_type: JobType::Prospecting,
+                turns_remaining: 0,
+                target: tile_pos,
+            },
+        ))
+        .id();
+
+    let _ = world.run_system_once(complete_improvement_jobs);
+
+    let resource = world
+        .get::<TileResource>(tile_entity)
+        .expect("Tile should have resource");
+    assert!(
+        resource.discovered,
+        "Prospecting job should reveal resource"
+    );
+
+    assert!(
+        world.get::<CivilianJob>(prospector).is_some(),
+        "complete_improvement_jobs should not remove job components"
+    );
+}
+
+#[test]
+fn miner_requires_discovery_before_mining() {
+    let mut world = World::new();
+    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<ProspectingKnowledge>();
+    world.init_resource::<Messages<TerminalLogEvent>>();
+    world.init_resource::<Messages<DeselectCivilian>>();
+
+    let nation = world.spawn_empty().id();
+    let province_id = ProvinceId(5);
+    world.spawn(Province {
+        id: province_id,
+        owner: Some(nation),
+        tiles: vec![TilePos { x: 0, y: 0 }],
+        city_tile: TilePos { x: 0, y: 0 },
+    });
+
+    let mut tile_storage = TileStorage::empty(TilemapSize { x: 3, y: 3 });
+    let tile_pos = TilePos { x: 0, y: 0 };
+    let tile_entity = world
+        .spawn((
+            TileProvince { province_id },
+            TileResource::hidden_mineral(ResourceType::Coal),
+        ))
+        .id();
+    tile_storage.set(&tile_pos, tile_entity);
+    world.spawn(tile_storage);
+
+    let miner = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Miner,
+                position: tile_pos,
+                owner: nation,
+                selected: false,
+                has_moved: false,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::Mine,
+            },
+        ))
+        .id();
+
+    let _ = world.run_system_once(execute_civilian_improvement_orders);
+    world.flush();
+
+    assert!(
+        world.get::<CivilianJob>(miner).is_none(),
+        "Miner should not start a job on undiscovered deposits"
+    );
+
+    let civilian = world.get::<Civilian>(miner).unwrap();
+    assert!(
+        !civilian.has_moved,
+        "Miner should remain ready to act after failing to start work"
+    );
+
+    let resource = world
+        .get::<TileResource>(tile_entity)
+        .expect("Tile should retain its resource");
+    assert!(
+        !resource.discovered,
+        "Prospecting should still be required before mining"
+    );
+
+}
+
+#[test]
+fn new_owner_must_reprospect_before_mining() {
+    let mut world = World::new();
+    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<ProspectingKnowledge>();
+    world.init_resource::<Messages<TerminalLogEvent>>();
+    world.init_resource::<Messages<DeselectCivilian>>();
+
+    let nation_a = world.spawn_empty().id();
+    let nation_b = world.spawn_empty().id();
+    let province_id = ProvinceId(42);
+    let province_entity = world
+        .spawn(Province {
+            id: province_id,
+            owner: Some(nation_a),
+            tiles: vec![TilePos { x: 0, y: 0 }],
+            city_tile: TilePos { x: 0, y: 0 },
+        })
+        .id();
+
+    let mut tile_storage = TileStorage::empty(TilemapSize { x: 3, y: 3 });
+    let tile_pos = TilePos { x: 0, y: 0 };
+    let tile_entity = world
+        .spawn((
+            TileProvince { province_id },
+            TileResource::hidden_mineral(ResourceType::Coal),
+        ))
+        .id();
+    tile_storage.set(&tile_pos, tile_entity);
+    world.spawn(tile_storage);
+
+    let prospector = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Prospector,
+                position: tile_pos,
+                owner: nation_a,
+                selected: false,
+                has_moved: false,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::Prospect,
+            },
+        ))
+        .id();
+
+    let _ = world.run_system_once(execute_prospector_orders);
+    world.flush();
+
+    {
+        let mut job = world
+            .get_mut::<CivilianJob>(prospector)
+            .expect("Prospector should have started a job");
+        job.turns_remaining = 0;
+    }
+
+    let _ = world.run_system_once(complete_improvement_jobs);
+
+    {
+        let knowledge = world.resource::<ProspectingKnowledge>();
+        assert!(
+            knowledge.is_discovered_by(tile_entity, nation_a),
+            "Original owner should record the discovery"
+        );
+        assert!(
+            !knowledge.is_discovered_by(tile_entity, nation_b),
+            "New owner should not have discovery yet"
+        );
+    }
+
+    assert!(
+        world
+            .get::<TileResource>(tile_entity)
+            .expect("Tile resource component")
+            .discovered,
+        "Prospecting should reveal the deposit globally"
+    );
+
+    world
+        .get_mut::<Province>(province_entity)
+        .expect("Province component")
+        .owner = Some(nation_b);
+
+    let miner = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Miner,
+                position: tile_pos,
+                owner: nation_b,
+                selected: false,
+                has_moved: false,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::Mine,
+            },
+        ))
+        .id();
+
+    let _ = world.run_system_once(execute_civilian_improvement_orders);
+    world.flush();
+
+    assert!(
+        world.get::<CivilianJob>(miner).is_none(),
+        "New owner should not be able to start mining without prospecting"
+    );
+}
+
+#[test]
+fn miner_respects_max_development_level() {
+    let mut world = World::new();
+    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<ProspectingKnowledge>();
+    world.init_resource::<Messages<TerminalLogEvent>>();
+    world.init_resource::<Messages<DeselectCivilian>>();
+
+    let nation = world.spawn_empty().id();
+    let province_id = ProvinceId(6);
+    world.spawn(Province {
+        id: province_id,
+        owner: Some(nation),
+        tiles: vec![TilePos { x: 0, y: 0 }],
+        city_tile: TilePos { x: 0, y: 0 },
+    });
+
+    let mut tile_storage = TileStorage::empty(TilemapSize { x: 3, y: 3 });
+    let tile_pos = TilePos { x: 0, y: 0 };
+    let mut resource = TileResource::hidden_mineral(ResourceType::Iron);
+    resource.discovered = true;
+    resource.development = DevelopmentLevel::Lv3;
+    let tile_entity = world
+        .spawn((TileProvince { province_id }, resource))
+        .id();
+    tile_storage.set(&tile_pos, tile_entity);
+    world.spawn(tile_storage);
+
+    let miner = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Miner,
+                position: tile_pos,
+                owner: nation,
+                selected: false,
+                has_moved: false,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::Mine,
+            },
+        ))
+        .id();
+
+    let _ = world.run_system_once(execute_civilian_improvement_orders);
+    world.flush();
+
+    assert!(
+        world.get::<CivilianJob>(miner).is_none(),
+        "Miner should not start a job on fully developed deposits"
+    );
+
+    let civilian = world.get::<Civilian>(miner).unwrap();
+    assert!(
+        !civilian.has_moved,
+        "Miner should not consume its action on a maxed resource"
+    );
+}
+
+#[test]
+fn farmer_starts_improvement_job_on_visible_resource() {
+    let mut world = World::new();
+    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<ProspectingKnowledge>();
+    world.init_resource::<Messages<TerminalLogEvent>>();
+    world.init_resource::<Messages<DeselectCivilian>>();
+
+    let nation = world.spawn_empty().id();
+    let province_id = ProvinceId(7);
+    world.spawn(Province {
+        id: province_id,
+        owner: Some(nation),
+        tiles: vec![TilePos { x: 0, y: 0 }],
+        city_tile: TilePos { x: 0, y: 0 },
+    });
+
+    let mut tile_storage = TileStorage::empty(TilemapSize { x: 3, y: 3 });
+    let tile_pos = TilePos { x: 0, y: 0 };
+    let tile_entity = world
+        .spawn((
+            TileProvince { province_id },
+            TileResource::visible(ResourceType::Grain),
+        ))
+        .id();
+    tile_storage.set(&tile_pos, tile_entity);
+    world.spawn(tile_storage);
+
+    let farmer = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Farmer,
+                position: tile_pos,
+                owner: nation,
+                selected: false,
+                has_moved: false,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::ImproveTile,
+            },
+        ))
+        .id();
+
+    let _ = world.run_system_once(execute_civilian_improvement_orders);
+    world.flush();
+
+    let job = world
+        .get::<CivilianJob>(farmer)
+        .expect("Farmer should start an improvement job");
+    assert_eq!(job.job_type, JobType::ImprovingTile);
+    assert_eq!(job.turns_remaining, JobType::ImprovingTile.duration());
+
+    let civilian = world.get::<Civilian>(farmer).unwrap();
+    assert!(
+        civilian.has_moved,
+        "Farmer should consume its action when starting an improvement"
     );
 }

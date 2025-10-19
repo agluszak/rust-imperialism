@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::iter;
 
 use crate::{
+    civilians::types::ProspectingKnowledge,
     economy::transport::{Depot, Port},
     map::tile_pos::{HexExt, TilePosExt},
     resources::{ResourceType, TileResource},
@@ -26,6 +27,7 @@ pub fn calculate_connected_production(
     connected_ports: Query<&Port>,
     tile_storage: Query<&TileStorage>,
     tile_resources: Query<&TileResource>,
+    prospecting_knowledge: Res<ProspectingKnowledge>,
 ) {
     // Clear previous turn's data
     production.0.clear();
@@ -51,6 +53,11 @@ pub fn calculate_connected_production(
                     && resource.discovered
                     && resource.get_output() > 0
                 {
+                    if resource.requires_prospecting()
+                        && !prospecting_knowledge.is_discovered_by(tile_entity, owner)
+                    {
+                        continue;
+                    }
                     let nation_production = production.0.entry(owner).or_default();
                     let entry = nation_production.entry(resource.resource_type).or_default();
                     entry.0 += 1; // Increment improvement count

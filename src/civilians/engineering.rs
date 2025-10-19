@@ -5,7 +5,7 @@ use super::commands::DeselectCivilian;
 use super::order_validation::tile_owned_by_nation;
 use super::types::{
     ActionTurn, Civilian, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind, JobType,
-    PreviousPosition,
+    PreviousPosition, ProspectingKnowledge,
 };
 use crate::economy::transport::{Rails, ordered_edge};
 use crate::economy::{ImprovementKind, PlaceImprovement};
@@ -265,7 +265,8 @@ pub fn execute_prospector_orders(
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
-    mut tile_resources: Query<&mut TileResource>,
+    tile_resources: Query<&TileResource>,
+    prospecting_knowledge: Res<ProspectingKnowledge>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (entity, mut civilian, order) in prospectors.iter_mut() {
@@ -305,31 +306,50 @@ pub fn execute_prospector_orders(
             if let Some(tile_storage) = tile_storage_query.iter().next()
                 && let Some(tile_entity) = tile_storage.get(&civilian.position)
             {
-                if let Ok(mut resource) = tile_resources.get_mut(tile_entity) {
-                    if !resource.discovered {
-                        // Store previous position for potential undo
-                        let previous_pos = civilian.position;
-
-                        resource.discovered = true;
+                if let Ok(resource) = tile_resources.get(tile_entity) {
+                    if !resource.requires_prospecting() {
                         log_events.write(TerminalLogEvent {
                             message: format!(
-                                "Prospector discovered {:?} at ({}, {})!",
-                                resource.resource_type, civilian.position.x, civilian.position.y
+                                "No mineral deposits at ({}, {})",
+                                civilian.position.x, civilian.position.y
                             ),
                         });
-                        civilian.has_moved = true;
-                        deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
-                        commands.entity(entity).insert((
-                            PreviousPosition(previous_pos),
-                            ActionTurn(turn.current_turn),
-                        ));
-                    } else {
+                    } else if prospecting_knowledge
+                        .is_discovered_by(tile_entity, civilian.owner)
+                    {
                         log_events.write(TerminalLogEvent {
                             message: format!(
                                 "No hidden minerals at ({}, {})",
                                 civilian.position.x, civilian.position.y
                             ),
                         });
+                    } else {
+                        // Store previous position for potential undo
+                        let previous_pos = civilian.position;
+                        let job_type = civilian
+                            .kind
+                            .order_definition(&CivilianOrderKind::Prospect)
+                            .and_then(|definition| definition.execution.job_type())
+                            .unwrap_or(JobType::Prospecting);
+
+                        commands.entity(entity).insert((
+                            CivilianJob {
+                                job_type,
+                                turns_remaining: job_type.duration(),
+                                target: civilian.position,
+                            },
+                            PreviousPosition(previous_pos),
+                            ActionTurn(turn.current_turn),
+                        ));
+
+                        log_events.write(TerminalLogEvent {
+                            message: format!(
+                                "Prospector began surveying {:?} at ({}, {})",
+                                resource.resource_type, civilian.position.x, civilian.position.y
+                            ),
+                        });
+                        civilian.has_moved = true;
+                        deselect_writer.write(DeselectCivilian { entity });
                     }
                 } else {
                     log_events.write(TerminalLogEvent {
@@ -355,23 +375,22 @@ pub fn execute_civilian_improvement_orders(
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
-    tile_resources: Query<&mut TileResource>,
+    tile_resources: Query<&TileResource>,
+    prospecting_knowledge: Res<ProspectingKnowledge>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (entity, mut civilian, order) in civilians.iter_mut() {
-        // Check if this is a resource-improving civilian
-        let is_improver = matches!(
-            civilian.kind,
-            CivilianKind::Farmer
-                | CivilianKind::Rancher
-                | CivilianKind::Forester
-                | CivilianKind::Driller
-                | CivilianKind::Miner
-        );
-
-        if !is_improver {
+        // Only process civilians that support tile improvements
+        if !civilian.kind.supports_improvements() {
             continue;
         }
+
+        let Some(resource_predicate) = civilian.kind.improvement_predicate() else {
+            continue;
+        };
+        let Some(job_type) = civilian.kind.improvement_job() else {
+            continue;
+        };
 
         // Check territory ownership
         let has_territory_access = tile_storage_query
@@ -399,28 +418,46 @@ pub fn execute_civilian_improvement_orders(
             continue;
         }
 
-        if let CivilianOrderKind::ImproveTile = order.target {
+        if matches!(
+            order.target,
+            CivilianOrderKind::ImproveTile | CivilianOrderKind::Mine
+        ) {
             // Find tile entity and validate resource
             if let Some(tile_storage) = tile_storage_query.iter().next()
                 && let Some(tile_entity) = tile_storage.get(&civilian.position)
             {
                 if let Ok(resource) = tile_resources.get(tile_entity) {
-                    // Check if this civilian can improve this resource
-                    let can_improve = match civilian.kind {
-                        CivilianKind::Farmer => resource.improvable_by_farmer(),
-                        CivilianKind::Rancher => resource.improvable_by_rancher(),
-                        CivilianKind::Forester => resource.improvable_by_forester(),
-                        CivilianKind::Miner => resource.improvable_by_miner(),
-                        CivilianKind::Driller => resource.improvable_by_driller(),
-                        _ => false,
-                    };
+                    if resource.requires_prospecting()
+                        && !prospecting_knowledge.is_discovered_by(tile_entity, civilian.owner)
+                    {
+                        log_events.write(TerminalLogEvent {
+                            message: format!(
+                                "{:?} must have this tile prospected before improving it",
+                                civilian.kind
+                            ),
+                        });
+                        commands.entity(entity).remove::<CivilianOrder>();
+                        continue;
+                    }
+
+                    if !resource.discovered {
+                        log_events.write(TerminalLogEvent {
+                            message: format!(
+                                "{:?} must have this tile prospected before improving it",
+                                civilian.kind
+                            ),
+                        });
+                        commands.entity(entity).remove::<CivilianOrder>();
+                        continue;
+                    }
+
+                    let can_improve = resource_predicate(resource);
 
                     if can_improve && resource.development < DevelopmentLevel::Lv3 {
                         // Store previous position for potential undo
                         let previous_pos = civilian.position;
 
                         // Start improvement job
-                        let job_type = JobType::ImprovingTile;
                         commands.entity(entity).insert((
                             CivilianJob {
                                 job_type,
@@ -443,18 +480,21 @@ pub fn execute_civilian_improvement_orders(
                         });
                         civilian.has_moved = true;
                         deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
+                    } else if !can_improve {
+                        log_events.write(TerminalLogEvent {
+                            message: format!(
+                                "{:?} cannot improve {:?} at ({}, {})",
+                                civilian.kind,
+                                resource.resource_type,
+                                civilian.position.x,
+                                civilian.position.y
+                            ),
+                        });
                     } else if resource.development >= DevelopmentLevel::Lv3 {
                         log_events.write(TerminalLogEvent {
                             message: format!(
                                 "Resource already at max development at ({}, {})",
                                 civilian.position.x, civilian.position.y
-                            ),
-                        });
-                    } else {
-                        log_events.write(TerminalLogEvent {
-                            message: format!(
-                                "{:?} cannot improve {:?}",
-                                civilian.kind, resource.resource_type
                             ),
                         });
                     }

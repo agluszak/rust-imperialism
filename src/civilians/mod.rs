@@ -29,7 +29,8 @@ pub struct CivilianPlugin;
 
 impl Plugin for CivilianPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<SelectCivilian>()
+        app.init_resource::<crate::civilians::types::ProspectingKnowledge>()
+            .add_message::<SelectCivilian>()
             .add_message::<CivilianCommand>()
             .add_message::<CivilianCommandRejected>()
             .add_message::<DeselectCivilian>()
@@ -54,8 +55,7 @@ impl Plugin for CivilianPlugin {
                     engineering::execute_prospector_orders,
                     engineering::execute_civilian_improvement_orders,
                     systems::handle_rescind_orders,
-                    ui_components::update_engineer_orders_ui,
-                    ui_components::update_improver_orders_ui,
+                    ui_components::update_civilian_orders_ui,
                     ui_components::update_rescind_orders_ui,
                     rendering::render_civilian_visuals,
                     rendering::update_civilian_visual_colors,

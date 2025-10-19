@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TileStorage;
 
-use super::types::{ActionTurn, Civilian, CivilianJob, JobType, PreviousPosition};
+use super::types::{ActionTurn, Civilian, CivilianJob, JobType, PreviousPosition, ProspectingKnowledge};
 use crate::{resources::TileResource, ui::logging::TerminalLogEvent};
 
 /// Reset civilian movement at start of player turn
@@ -41,6 +41,7 @@ pub fn complete_improvement_jobs(
     civilians_with_jobs: Query<(&Civilian, &CivilianJob)>,
     tile_storage_query: Query<&TileStorage>,
     mut tile_resources: Query<&mut TileResource>,
+    mut prospecting_knowledge: ResMut<ProspectingKnowledge>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (civilian, job) in civilians_with_jobs.iter() {
@@ -49,27 +50,62 @@ pub fn complete_improvement_jobs(
             continue;
         }
 
-        // Only process improvement jobs
-        if job.job_type != JobType::ImprovingTile {
-            continue;
-        }
+        match job.job_type {
+            JobType::ImprovingTile | JobType::Mining | JobType::Drilling => {
+                // Find tile entity and complete improvement
+                if let Some(tile_storage) = tile_storage_query.iter().next()
+                    && let Some(tile_entity) = tile_storage.get(&job.target)
+                    && let Ok(mut resource) = tile_resources.get_mut(tile_entity)
+                    && resource.improve()
+                {
+                    let action = match job.job_type {
+                        JobType::Mining => "mining",
+                        JobType::Drilling => "drilling",
+                        _ => "improving",
+                    };
+                    log_events.write(TerminalLogEvent {
+                        message: format!(
+                            "{:?} completed {} {:?} at ({}, {}) to level {:?}",
+                            civilian.kind,
+                            action,
+                            resource.resource_type,
+                            job.target.x,
+                            job.target.y,
+                            resource.development
+                        ),
+                    });
+                }
+            }
+            JobType::Prospecting => {
+                if let Some(tile_storage) = tile_storage_query.iter().next()
+                    && let Some(tile_entity) = tile_storage.get(&job.target)
+                    && let Ok(mut resource) = tile_resources.get_mut(tile_entity)
+                {
+                    if resource.requires_prospecting() {
+                        prospecting_knowledge.mark_discovered(tile_entity, civilian.owner);
+                    }
 
-        // Find tile entity and complete improvement
-        if let Some(tile_storage) = tile_storage_query.iter().next()
-            && let Some(tile_entity) = tile_storage.get(&job.target)
-            && let Ok(mut resource) = tile_resources.get_mut(tile_entity)
-            && resource.improve()
-        {
-            log_events.write(TerminalLogEvent {
-                message: format!(
-                    "{:?} completed improving {:?} at ({}, {}) to level {:?}",
-                    civilian.kind,
-                    resource.resource_type,
-                    job.target.x,
-                    job.target.y,
-                    resource.development
-                ),
-            });
+                    if !resource.discovered {
+                        resource.discovered = true;
+                        log_events.write(TerminalLogEvent {
+                            message: format!(
+                                "Prospector discovered {:?} at ({}, {})!",
+                                resource.resource_type, job.target.x, job.target.y
+                            ),
+                        });
+                    } else if resource.requires_prospecting()
+                        && prospecting_knowledge.is_discovered_by(tile_entity, civilian.owner)
+                    {
+                        log_events.write(TerminalLogEvent {
+                            message: format!(
+                                "Prospector confirmed {:?} at ({}, {})",
+                                resource.resource_type, job.target.x, job.target.y
+                            ),
+                        });
+                    }
+                }
+            }
+            _ => {}
         }
     }
 }
