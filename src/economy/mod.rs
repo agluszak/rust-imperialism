@@ -89,10 +89,13 @@ impl Plugin for EconomyPlugin {
                 workforce::execute_training_orders,
                 workforce::handle_recruitment,
                 workforce::handle_training,
-                allocation_systems::apply_recruitment_adjustments,
-                allocation_systems::apply_training_adjustments,
-                allocation_systems::apply_production_adjustments,
-                allocation_systems::apply_market_order_adjustments,
+                (
+                    allocation_systems::apply_recruitment_adjustments,
+                    allocation_systems::apply_training_adjustments,
+                    allocation_systems::apply_production_adjustments,
+                    allocation_systems::apply_market_order_adjustments,
+                )
+                    .chain(),
             )
                 .in_set(EconomySet),
         );
@@ -100,14 +103,13 @@ impl Plugin for EconomyPlugin {
         app.add_systems(
             Update,
             (
-                allocation_systems::execute_queued_production_orders,
                 allocation_systems::execute_queued_recruitment_orders,
                 allocation_systems::execute_queued_training_orders,
+                allocation_systems::execute_queued_production_orders,
                 allocation_systems::execute_queued_market_orders,
             )
                 .chain()
-                .run_if(resource_changed::<TurnSystem>)
-                .run_if(|turn_system: Res<TurnSystem>| turn_system.phase == TurnPhase::Processing)
+                .run_if(|orders: Res<OrdersQueue>| !orders.is_empty())
                 .before(allocation_systems::finalize_allocations)
                 .in_set(EconomySet),
         );
