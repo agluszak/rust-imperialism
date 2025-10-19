@@ -3,10 +3,12 @@ use bevy_ecs_tilemap::prelude::TilePos;
 use std::collections::HashMap;
 
 use crate::economy::allocation::Allocations;
+use crate::economy::nation::NationId;
 use crate::economy::production::{Buildings, ConnectedProduction};
 use crate::economy::transport::{
     apply_transport_allocations, update_transport_capacity, update_transport_demand_snapshot,
     TransportAllocations, TransportCapacity, TransportCommodity, TransportDemandSnapshot,
+    BASE_TRANSPORT_CAPACITY,
 };
 use crate::economy::workforce::Workforce;
 use crate::resources::ResourceType;
@@ -17,7 +19,7 @@ fn capacity_totals_respect_connected_improvements() {
     let mut app = App::new();
     app.init_resource::<TransportCapacity>();
 
-    let nation = app.world_mut().spawn_empty().id();
+    let nation = app.world_mut().spawn(NationId(1)).id();
 
     app.world_mut().spawn(Depot {
         position: TilePos { x: 0, y: 0 },
@@ -43,8 +45,8 @@ fn capacity_totals_respect_connected_improvements() {
 
     let capacity = app.world().resource::<TransportCapacity>();
     let snapshot = capacity.snapshot(nation);
-    // Depot contributes 6, port contributes 8 => 14 total
-    assert_eq!(snapshot.total, 14);
+    // Base 8 + depot 6 + port 8 => 22 total
+    assert_eq!(snapshot.total, BASE_TRANSPORT_CAPACITY + 6 + 8);
     assert_eq!(snapshot.used, 0);
 }
 
@@ -55,7 +57,7 @@ fn allocation_granted_values_clamp_to_total_capacity() {
     app.init_resource::<TransportAllocations>();
     app.add_systems(Update, apply_transport_allocations);
 
-    let nation = app.world_mut().spawn_empty().id();
+    let nation = app.world_mut().spawn(NationId(1)).id();
 
     {
         let mut capacity = app.world_mut().resource_mut::<TransportCapacity>();
