@@ -38,4 +38,8 @@ This replaces the scattered `matches!` checks and manual UI panels with generic 
 2. **Miner** opens mines and upgrades them, following the resource development table (Lv0→Lv3 output).【F:manual_text.txt†L1014-L1036】
 3. **Rancher** and **Forester** improve livestock/wool and timber resources respectively, boosting output across development levels.【F:manual_text.txt†L1037-L1073】
 
+## Manual Alignment
+- Miners refuse to work undiscovered deposits, prompting players to send prospectors first in line with the manual’s guidance.【F:manual_text.txt†L1026-L1033】
+- Farms and orchards bordering a capital begin at Level I so the opening economy matches the manual’s expectation of improved capital-adjacent food tiles.【F:manual_text.txt†L1053-L1058】
+
 By encoding these relationships in metadata, the same systems can schedule improvement jobs, render UI, and validate actions without further branching, satisfying the request for generic civilian management.

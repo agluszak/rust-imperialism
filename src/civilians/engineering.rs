@@ -416,6 +416,17 @@ pub fn execute_civilian_improvement_orders(
                 && let Some(tile_entity) = tile_storage.get(&civilian.position)
             {
                 if let Ok(resource) = tile_resources.get(tile_entity) {
+                    if !resource.discovered {
+                        log_events.write(TerminalLogEvent {
+                            message: format!(
+                                "{:?} must have this tile prospected before improving it",
+                                civilian.kind
+                            ),
+                        });
+                        commands.entity(entity).remove::<CivilianOrder>();
+                        continue;
+                    }
+
                     let can_improve = resource_predicate(resource);
 
                     if can_improve && resource.development < DevelopmentLevel::Lv3 {
@@ -445,18 +456,21 @@ pub fn execute_civilian_improvement_orders(
                         });
                         civilian.has_moved = true;
                         deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
+                    } else if !can_improve {
+                        log_events.write(TerminalLogEvent {
+                            message: format!(
+                                "{:?} cannot improve {:?} at ({}, {})",
+                                civilian.kind,
+                                resource.resource_type,
+                                civilian.position.x,
+                                civilian.position.y
+                            ),
+                        });
                     } else if resource.development >= DevelopmentLevel::Lv3 {
                         log_events.write(TerminalLogEvent {
                             message: format!(
                                 "Resource already at max development at ({}, {})",
                                 civilian.position.x, civilian.position.y
-                            ),
-                        });
-                    } else {
-                        log_events.write(TerminalLogEvent {
-                            message: format!(
-                                "{:?} cannot improve {:?}",
-                                civilian.kind, resource.resource_type
                             ),
                         });
                     }
