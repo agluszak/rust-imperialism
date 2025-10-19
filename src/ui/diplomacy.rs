@@ -10,7 +10,8 @@ use super::button_style::{
 use super::generic_systems::hide_screen;
 use crate::diplomacy::{
     DiplomacySelection, DiplomacyState, DiplomaticOffer, DiplomaticOfferKind, DiplomaticOffers,
-    DiplomaticOrder, DiplomaticOrderKind, ForeignAidLedger, resolve_offer_response,
+    DiplomaticOrder, DiplomaticOrderKind, DiplomaticRelation, ForeignAidLedger, RelationshipBand,
+    resolve_offer_response,
 };
 use crate::economy::{Name, NationId, PlayerNation, Treasury};
 use crate::ui::logging::TerminalLogEvent;
@@ -39,6 +40,9 @@ struct SelectedTreatyText;
 
 #[derive(Component)]
 struct SelectedAidText;
+
+#[derive(Component)]
+struct SelectedRelationSummaryText;
 
 #[derive(Component)]
 struct DiplomacyActionButton {
@@ -338,6 +342,16 @@ fn setup_diplomacy_screen(
                             },
                             TextColor(Color::srgb(0.82, 0.88, 0.95)),
                             SelectedRelationText,
+                        ));
+
+                        detail.spawn((
+                            Text::new("Standing: unknown"),
+                            TextFont {
+                                font_size: 14.0,
+                                ..default()
+                            },
+                            TextColor(Color::srgb(0.78, 0.82, 0.88)),
+                            SelectedRelationSummaryText,
                         ));
 
                         detail.spawn((
@@ -733,6 +747,7 @@ fn update_nation_buttons(
         (
             Without<SelectedNationNameText>,
             Without<SelectedRelationText>,
+            Without<SelectedRelationSummaryText>,
             Without<SelectedTreatyText>,
             Without<SelectedAidText>,
         ),
@@ -781,6 +796,13 @@ fn update_detail_panel(
     mut text_queries: ParamSet<(
         Query<&mut Text, (With<SelectedNationNameText>, Without<DiplomacyNationButton>)>,
         Query<&mut Text, (With<SelectedRelationText>, Without<DiplomacyNationButton>)>,
+        Query<
+            &mut Text,
+            (
+                With<SelectedRelationSummaryText>,
+                Without<DiplomacyNationButton>,
+            ),
+        >,
         Query<&mut Text, (With<SelectedTreatyText>, Without<DiplomacyNationButton>)>,
         Query<&mut Text, (With<SelectedAidText>, Without<DiplomacyNationButton>)>,
     )>,
@@ -800,9 +822,12 @@ fn update_detail_panel(
             text.0 = "Relationship: --".to_string();
         }
         if let Ok(mut text) = text_queries.p2().single_mut() {
-            text.0 = "Treaties: none".to_string();
+            text.0 = "Standing: unknown".to_string();
         }
         if let Ok(mut text) = text_queries.p3().single_mut() {
+            text.0 = "Treaties: none".to_string();
+        }
+        if let Ok(mut text) = text_queries.p4().single_mut() {
             text.0 = "Locked aid: none".to_string();
         }
         return;
@@ -835,6 +860,14 @@ fn update_detail_panel(
 
     if let Ok(mut text) = text_queries.p2().single_mut() {
         if let Some(relation) = relation {
+            text.0 = format!("Standing: {}", relation_summary(relation));
+        } else {
+            text.0 = "Standing: unknown".to_string();
+        }
+    }
+
+    if let Ok(mut text) = text_queries.p3().single_mut() {
+        if let Some(relation) = relation {
             let mut flags = Vec::new();
             if relation.treaty.at_war {
                 flags.push("At war");
@@ -859,7 +892,7 @@ fn update_detail_panel(
         }
     }
 
-    if let Ok(mut text) = text_queries.p3().single_mut() {
+    if let Ok(mut text) = text_queries.p4().single_mut() {
         if let Some(player_id) = player_id {
             if let Some(grant) = ledger
                 .all()
@@ -873,6 +906,17 @@ fn update_detail_panel(
         } else {
             text.0 = "Locked aid: unavailable".to_string();
         }
+    }
+}
+
+fn relation_summary(relation: &DiplomaticRelation) -> &'static str {
+    match relation.band() {
+        RelationshipBand::Hostile => "Open hostility — expect reprisals.",
+        RelationshipBand::Unfriendly => "Tense — diplomats exchange harsh words.",
+        RelationshipBand::Neutral => "Even — neither warm nor cold.",
+        RelationshipBand::Cordial => "Cordial — polite and improving ties.",
+        RelationshipBand::Warm => "Warm — strong mutual goodwill.",
+        RelationshipBand::Allied => "Allied — steadfast partners in policy.",
     }
 }
 
@@ -1128,6 +1172,21 @@ fn describe_offer(offer: &DiplomaticOffer, names: &HashMap<NationId, String>) ->
                     "{} offers a one-time aid payment of ${}.",
                     format_name(names, offer.from),
                     amount
+                )
+            }
+        }
+        DiplomaticOfferKind::JoinWar { enemy, defensive } => {
+            if *defensive {
+                format!(
+                    "{} invokes your alliance against {}.",
+                    format_name(names, offer.from),
+                    format_name(names, *enemy)
+                )
+            } else {
+                format!(
+                    "{} requests support in their war on {}.",
+                    format_name(names, offer.from),
+                    format_name(names, *enemy)
                 )
             }
         }

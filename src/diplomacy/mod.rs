@@ -158,6 +158,14 @@ impl DiplomacyState {
             })
             .collect()
     }
+
+    pub fn adjust_all_relations(&mut self, nation: NationId, delta: i32) {
+        for (pair, relation) in self.relations.iter_mut() {
+            if pair.contains(nation) {
+                relation.score = (relation.score + delta).clamp(-100, 100);
+            }
+        }
+    }
 }
 
 /// Representation of a recurring aid payment.
@@ -229,6 +237,7 @@ pub enum DiplomaticOfferKind {
     Alliance,
     NonAggressionPact,
     ForeignAid { amount: i32, locked: bool },
+    JoinWar { enemy: NationId, defensive: bool },
 }
 
 #[derive(Resource, Default)]
@@ -338,7 +347,7 @@ fn process_diplomatic_orders(
     mut treasuries: Query<&mut Treasury>,
     mut log: MessageWriter<TerminalLogEvent>,
 ) {
-    let (id_to_entity, id_to_name) = collect_nation_lookup(&nations);
+    let (id_to_entity, id_to_name, nation_ids) = collect_nation_lookup(&nations);
 
     for order in orders.read() {
         if order.actor == order.target {
@@ -376,6 +385,7 @@ fn process_diplomatic_orders(
                 });
                 state.adjust_score(order.actor, order.target, -40);
                 ledger.cancel(order.actor, order.target);
+                ledger.cancel(order.target, order.actor);
                 log.write(TerminalLogEvent {
                     message: format!(
                         "{} has declared war on {}!",
@@ -383,6 +393,69 @@ fn process_diplomatic_orders(
                         display_name(&id_to_name, order.target)
                     ),
                 });
+
+                // Other nations react based on their opinion of the target
+                let mut approvals: Vec<String> = Vec::new();
+                let mut condemnations: Vec<String> = Vec::new();
+                for other in nation_ids.iter().copied() {
+                    if other == order.actor || other == order.target {
+                        continue;
+                    }
+
+                    let Some(opinion) = state.relation(other, order.target) else {
+                        continue;
+                    };
+                    let delta = war_reaction_delta(opinion.score);
+                    if delta == 0 {
+                        continue;
+                    }
+
+                    state.adjust_score(order.actor, other, delta);
+                    let name = display_name(&id_to_name, other);
+                    if delta > 0 {
+                        approvals.push(format!("{} (+{})", name, delta));
+                    } else {
+                        condemnations.push(format!("{} ({})", name, delta));
+                    }
+                }
+
+                if !approvals.is_empty() {
+                    log.write(TerminalLogEvent {
+                        message: format!(
+                            "Nations pleased by the war on {}: {}.",
+                            display_name(&id_to_name, order.target),
+                            approvals.join(", ")
+                        ),
+                    });
+                }
+                if !condemnations.is_empty() {
+                    log.write(TerminalLogEvent {
+                        message: format!(
+                            "Nations angered by the war on {}: {}.",
+                            display_name(&id_to_name, order.target),
+                            condemnations.join(", ")
+                        ),
+                    });
+                }
+
+                queue_alliance_calls(
+                    &mut state,
+                    &mut offers,
+                    &mut log,
+                    &id_to_name,
+                    order.target,
+                    order.actor,
+                    true,
+                );
+                queue_alliance_calls(
+                    &mut state,
+                    &mut offers,
+                    &mut log,
+                    &id_to_name,
+                    order.actor,
+                    order.target,
+                    false,
+                );
             }
             DiplomaticOrderKind::OfferPeace => {
                 let at_war = state
@@ -579,13 +652,14 @@ fn process_diplomatic_orders(
                     continue;
                 }
 
-                state.set_treaty(order.actor, order.target, |t| {
-                    t.non_aggression_pact = true;
-                });
-                state.adjust_score(order.actor, order.target, 8);
+                offers.push(DiplomaticOffer::new(
+                    order.actor,
+                    order.target,
+                    DiplomaticOfferKind::NonAggressionPact,
+                ));
                 log.write(TerminalLogEvent {
                     message: format!(
-                        "{} signed a non-aggression pact with {}.",
+                        "{} proposed a non-aggression pact to {}.",
                         display_name(&id_to_name, order.actor),
                         display_name(&id_to_name, order.target)
                     ),
@@ -736,7 +810,7 @@ pub fn resolve_offer_response(
     treasuries: &mut Query<&mut Treasury>,
     log: &mut MessageWriter<TerminalLogEvent>,
 ) {
-    let (id_to_entity, id_to_name) = collect_nation_lookup(nations);
+    let (id_to_entity, id_to_name, _) = collect_nation_lookup(nations);
 
     if accept {
         match offer.kind {
@@ -825,6 +899,30 @@ pub fn resolve_offer_response(
                     ),
                 });
             }
+            DiplomaticOfferKind::JoinWar { enemy, defensive } => {
+                state.set_treaty(offer.to, enemy, |t| {
+                    t.at_war = true;
+                    t.non_aggression_pact = false;
+                    t.alliance = false;
+                });
+                state.adjust_score(offer.to, enemy, -40);
+                ledger.cancel(offer.to, enemy);
+                ledger.cancel(enemy, offer.to);
+                state.adjust_score(offer.to, offer.from, 6);
+                log.write(TerminalLogEvent {
+                    message: format!(
+                        "{} joined {} in war against {}{}.",
+                        display_name(&id_to_name, offer.to),
+                        display_name(&id_to_name, offer.from),
+                        display_name(&id_to_name, enemy),
+                        if defensive {
+                            " (honouring alliance)"
+                        } else {
+                            ""
+                        }
+                    ),
+                });
+            }
         }
     } else {
         match offer.kind {
@@ -868,7 +966,83 @@ pub fn resolve_offer_response(
                     ),
                 });
             }
+            DiplomaticOfferKind::JoinWar { enemy, defensive } => {
+                if defensive {
+                    state.set_treaty(offer.from, offer.to, |t| {
+                        t.alliance = false;
+                        t.non_aggression_pact = false;
+                    });
+                    state.adjust_all_relations(offer.to, -10);
+                    state.adjust_score(offer.from, offer.to, -10);
+                    log.write(TerminalLogEvent {
+                        message: format!(
+                            "{} refused to defend {} against {}. Alliance dissolved and reputation suffered.",
+                            display_name(&id_to_name, offer.to),
+                            display_name(&id_to_name, offer.from),
+                            display_name(&id_to_name, enemy)
+                        ),
+                    });
+                } else {
+                    log.write(TerminalLogEvent {
+                        message: format!(
+                            "{} declined to join {}'s war against {}.",
+                            display_name(&id_to_name, offer.to),
+                            display_name(&id_to_name, offer.from),
+                            display_name(&id_to_name, enemy)
+                        ),
+                    });
+                }
+            }
         }
+    }
+}
+
+fn queue_alliance_calls(
+    state: &mut DiplomacyState,
+    offers: &mut ResMut<DiplomaticOffers>,
+    log: &mut MessageWriter<TerminalLogEvent>,
+    names: &HashMap<NationId, String>,
+    belligerent: NationId,
+    enemy: NationId,
+    defensive: bool,
+) {
+    let allies: Vec<NationId> = state
+        .relations_for(belligerent)
+        .into_iter()
+        .filter_map(|(ally, relation)| {
+            if relation.treaty.alliance
+                && ally != enemy
+                && !state
+                    .relation(ally, enemy)
+                    .map(|r| r.treaty.at_war)
+                    .unwrap_or(false)
+            {
+                Some(ally)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    for ally in allies {
+        offers.push(DiplomaticOffer::new(
+            belligerent,
+            ally,
+            DiplomaticOfferKind::JoinWar { enemy, defensive },
+        ));
+        log.write(TerminalLogEvent {
+            message: format!(
+                "{} called upon {} to {} {}.",
+                display_name(names, belligerent),
+                display_name(names, ally),
+                if defensive {
+                    "defend against"
+                } else {
+                    "join the war on"
+                },
+                display_name(names, enemy)
+            ),
+        });
     }
 }
 
@@ -879,7 +1053,7 @@ fn apply_recurring_aid(
     mut treasuries: Query<&mut Treasury>,
     mut log: MessageWriter<TerminalLogEvent>,
 ) {
-    let (id_to_entity, id_to_name) = collect_nation_lookup(&nations);
+    let (id_to_entity, id_to_name, _) = collect_nation_lookup(&nations);
 
     let grants = ledger.all().to_vec();
     for grant in grants {
@@ -945,6 +1119,16 @@ fn decay_relationships(mut state: ResMut<DiplomacyState>) {
     }
 }
 
+fn war_reaction_delta(opinion_of_target: i32) -> i32 {
+    match opinion_of_target {
+        ..=-60 => 12,
+        -59..=-21 => 6,
+        -20..=20 => 0,
+        21..=60 => -6,
+        _ => -12,
+    }
+}
+
 fn display_name(names: &HashMap<NationId, String>, nation: NationId) -> String {
     names
         .get(&nation)
@@ -954,14 +1138,20 @@ fn display_name(names: &HashMap<NationId, String>, nation: NationId) -> String {
 
 fn collect_nation_lookup(
     nations: &Query<(Entity, &NationId, &Name)>,
-) -> (HashMap<NationId, Entity>, HashMap<NationId, String>) {
+) -> (
+    HashMap<NationId, Entity>,
+    HashMap<NationId, String>,
+    Vec<NationId>,
+) {
     let mut id_to_entity: HashMap<NationId, Entity> = HashMap::new();
     let mut id_to_name: HashMap<NationId, String> = HashMap::new();
+    let mut ids: Vec<NationId> = Vec::new();
     for (entity, nation_id, name) in nations.iter() {
         id_to_entity.insert(*nation_id, entity);
         id_to_name.insert(*nation_id, name.0.clone());
+        ids.push(*nation_id);
     }
-    (id_to_entity, id_to_name)
+    (id_to_entity, id_to_name, ids)
 }
 
 #[cfg(test)]
