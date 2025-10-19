@@ -58,3 +58,190 @@ fn test_hex_coordinates() {
     let distance = hex1.distance_to(hex2);
     assert_eq!(distance, 1); // Adjacent tiles should have distance 1
 }
+
+/// Ensure AI-issued move commands are validated and executed
+#[test]
+fn test_ai_move_command_executes() {
+    use bevy::ecs::system::RunSystemOnce;
+    use bevy::prelude::*;
+    use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
+
+    use rust_imperialism::civilians::systems::{execute_move_orders, handle_civilian_commands};
+    use rust_imperialism::civilians::{
+        Civilian, CivilianCommand, CivilianKind, CivilianOrder, CivilianOrderKind, DeselectCivilian,
+    };
+    use rust_imperialism::map::province::{Province, ProvinceId, TileProvince};
+    use rust_imperialism::messages::civilians::CivilianCommandRejected;
+    use rust_imperialism::turn_system::TurnSystem;
+    use rust_imperialism::ui::logging::TerminalLogEvent;
+
+    let mut world = World::new();
+    world.init_resource::<TurnSystem>();
+    world.init_resource::<Messages<CivilianCommand>>();
+    world.init_resource::<Messages<CivilianCommandRejected>>();
+    world.init_resource::<Messages<TerminalLogEvent>>();
+    world.init_resource::<Messages<DeselectCivilian>>();
+
+    // Owned province and tiles
+    let nation = world.spawn_empty().id();
+    let province_id = ProvinceId(1);
+    world.spawn(Province {
+        id: province_id,
+        owner: Some(nation),
+        tiles: vec![],
+        city_tile: TilePos { x: 0, y: 0 },
+    });
+
+    let start = TilePos { x: 1, y: 1 };
+    let target = TilePos { x: 1, y: 2 };
+    let mut storage = TileStorage::empty(TilemapSize { x: 4, y: 4 });
+    let start_tile = world.spawn(TileProvince { province_id }).id();
+    let target_tile = world.spawn(TileProvince { province_id }).id();
+    storage.set(&start, start_tile);
+    storage.set(&target, target_tile);
+    world.spawn(storage);
+
+    let civilian = world
+        .spawn(Civilian {
+            kind: CivilianKind::Engineer,
+            position: start,
+            owner: nation,
+            selected: false,
+            has_moved: false,
+        })
+        .id();
+
+    {
+        let mut commands = world.resource_mut::<Messages<CivilianCommand>>();
+        commands.write(CivilianCommand {
+            civilian,
+            order: CivilianOrderKind::Move { to: target },
+        });
+    }
+
+    let _ = world.run_system_once(handle_civilian_commands);
+    world.flush();
+
+    assert!(world.get::<CivilianOrder>(civilian).is_some());
+
+    let rejections = world
+        .run_system_once(|mut reader: MessageReader<CivilianCommandRejected>| {
+            reader.read().cloned().collect::<Vec<_>>()
+        })
+        .expect("read civilian rejections");
+    assert!(rejections.is_empty());
+
+    let _ = world.run_system_once(execute_move_orders);
+    world.flush();
+
+    let civilian_state = world.get::<Civilian>(civilian).unwrap();
+    assert_eq!(civilian_state.position, target);
+    assert!(civilian_state.has_moved);
+    assert!(world.get::<CivilianOrder>(civilian).is_none());
+}
+
+/// Ensure illegal rail commands are rejected with validation feedback
+#[test]
+fn test_illegal_rail_command_rejected() {
+    use bevy::ecs::system::RunSystemOnce;
+    use bevy::prelude::*;
+    use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
+
+    use rust_imperialism::civilians::systems::handle_civilian_commands;
+    use rust_imperialism::civilians::{
+        Civilian, CivilianCommand, CivilianKind, CivilianOrder, CivilianOrderKind, DeselectCivilian,
+    };
+    use rust_imperialism::map::province::{Province, ProvinceId, TileProvince};
+    use rust_imperialism::messages::civilians::{CivilianCommandError, CivilianCommandRejected};
+    use rust_imperialism::turn_system::TurnSystem;
+    use rust_imperialism::ui::logging::TerminalLogEvent;
+
+    let mut world = World::new();
+    world.init_resource::<TurnSystem>();
+    world.init_resource::<Messages<CivilianCommand>>();
+    world.init_resource::<Messages<CivilianCommandRejected>>();
+    world.init_resource::<Messages<TerminalLogEvent>>();
+    world.init_resource::<Messages<DeselectCivilian>>();
+
+    let player = world.spawn_empty().id();
+    let other = world.spawn_empty().id();
+
+    let player_province = ProvinceId(1);
+    let other_province = ProvinceId(2);
+    world.spawn(Province {
+        id: player_province,
+        owner: Some(player),
+        tiles: vec![],
+        city_tile: TilePos { x: 0, y: 0 },
+    });
+    world.spawn(Province {
+        id: other_province,
+        owner: Some(other),
+        tiles: vec![],
+        city_tile: TilePos { x: 3, y: 3 },
+    });
+
+    let start = TilePos { x: 2, y: 2 };
+    let target = TilePos { x: 2, y: 3 };
+    let mut storage = TileStorage::empty(TilemapSize { x: 5, y: 5 });
+    let start_tile = world
+        .spawn(TileProvince {
+            province_id: player_province,
+        })
+        .id();
+    let target_tile = world
+        .spawn(TileProvince {
+            province_id: other_province,
+        })
+        .id();
+    storage.set(&start, start_tile);
+    storage.set(&target, target_tile);
+    world.spawn(storage);
+
+    let engineer = world
+        .spawn(Civilian {
+            kind: CivilianKind::Engineer,
+            position: start,
+            owner: player,
+            selected: false,
+            has_moved: false,
+        })
+        .id();
+
+    {
+        let mut commands = world.resource_mut::<Messages<CivilianCommand>>();
+        commands.write(CivilianCommand {
+            civilian: engineer,
+            order: CivilianOrderKind::BuildRail { to: target },
+        });
+    }
+
+    let _ = world.run_system_once(handle_civilian_commands);
+    world.flush();
+
+    assert!(world.get::<CivilianOrder>(engineer).is_none());
+
+    let rejections = world
+        .run_system_once(|mut reader: MessageReader<CivilianCommandRejected>| {
+            reader.read().cloned().collect::<Vec<_>>()
+        })
+        .expect("read civilian rejections");
+    assert_eq!(rejections.len(), 1);
+    assert_eq!(
+        rejections[0].reason,
+        CivilianCommandError::TargetTileUnowned
+    );
+
+    let logs = world
+        .run_system_once(|mut reader: MessageReader<TerminalLogEvent>| {
+            reader
+                .read()
+                .map(|event| event.message.clone())
+                .collect::<Vec<_>>()
+        })
+        .expect("read terminal logs");
+    assert!(
+        logs.iter()
+            .any(|entry: &String| entry.contains("order") && entry.contains("rejected"))
+    );
+}

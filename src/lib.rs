@@ -7,6 +7,7 @@ use bevy::image::ImagePlugin;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::TilemapPlugin;
 
+use crate::ai::AiSupportPlugin;
 use crate::civilians::CivilianPlugin;
 use crate::diplomacy::DiplomacyPlugin;
 use crate::economy::EconomyPlugin;
@@ -22,6 +23,7 @@ use crate::ui::GameUIPlugin;
 use crate::ui::menu::AppState;
 use crate::ui::mode::GameMode;
 
+pub mod ai;
 pub mod assets;
 pub mod bmp_loader;
 pub mod civilians;
@@ -32,6 +34,8 @@ pub mod economy;
 pub mod helpers;
 pub mod input;
 pub mod map;
+pub mod messages;
+pub mod orders;
 pub mod resources;
 pub mod save;
 pub mod turn_system;
@@ -60,6 +64,7 @@ pub fn app() -> App {
             MapSetupPlugin,
             TurnSystemPlugin,
             EconomyPlugin,
+            AiSupportPlugin,
             CivilianPlugin,
             DiplomacyPlugin,
             GameUIPlugin,

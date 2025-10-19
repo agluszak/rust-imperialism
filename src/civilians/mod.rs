@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
 // Re-exports for public API
+pub use crate::messages::civilians::{
+    CivilianCommand, CivilianCommandError, CivilianCommandRejected,
+};
 pub use commands::*;
 pub use jobs::{advance_civilian_jobs, complete_improvement_jobs, reset_civilian_actions};
 pub use types::*;
@@ -11,6 +14,7 @@ use crate::ui::mode::GameMode;
 pub mod commands;
 pub mod engineering;
 pub mod jobs;
+pub mod order_validation;
 pub mod rendering;
 pub mod systems;
 pub mod types;
@@ -26,7 +30,8 @@ pub struct CivilianPlugin;
 impl Plugin for CivilianPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<SelectCivilian>()
-            .add_message::<GiveCivilianOrder>()
+            .add_message::<CivilianCommand>()
+            .add_message::<CivilianCommandRejected>()
             .add_message::<DeselectCivilian>()
             .add_message::<DeselectAllCivilians>()
             .add_message::<RescindOrders>()
@@ -43,7 +48,7 @@ impl Plugin for CivilianPlugin {
             .add_systems(
                 Update,
                 (
-                    systems::handle_civilian_orders,
+                    systems::handle_civilian_commands,
                     systems::execute_move_orders,
                     engineering::execute_engineer_orders,
                     engineering::execute_prospector_orders,

@@ -1,9 +1,10 @@
 use bevy::prelude::*;
 use bevy::ui_widgets::{Activate, observe};
 
-use super::commands::{DeselectAllCivilians, GiveCivilianOrder, RescindOrders, SelectCivilian};
+use super::commands::{DeselectAllCivilians, RescindOrders, SelectCivilian};
 use super::types::CivilianOrderKind;
 use super::types::{Civilian, CivilianKind, PreviousPosition};
+use crate::messages::civilians::CivilianCommand;
 use crate::ui::button_style::*;
 
 /// Marker for Engineer orders UI panel
@@ -78,10 +79,10 @@ pub fn update_engineer_orders_ui(
                             ..default()
                         },
                         BackgroundColor(NORMAL_BUTTON),
-                        observe(move |_: On<Activate>, mut order_writer: MessageWriter<GiveCivilianOrder>| {
+                        observe(move |_: On<Activate>, mut order_writer: MessageWriter<CivilianCommand>| {
                             info!("Build Depot button clicked for civilian {:?}", civilian_entity);
-                            order_writer.write(GiveCivilianOrder {
-                                entity: civilian_entity,
+                            order_writer.write(CivilianCommand {
+                                civilian: civilian_entity,
                                 order: CivilianOrderKind::BuildDepot,
                             });
                         }),
@@ -101,10 +102,10 @@ pub fn update_engineer_orders_ui(
                             ..default()
                         },
                         BackgroundColor(NORMAL_BUTTON),
-                        observe(move |_: On<Activate>, mut order_writer: MessageWriter<GiveCivilianOrder>| {
+                        observe(move |_: On<Activate>, mut order_writer: MessageWriter<CivilianCommand>| {
                             info!("Build Port button clicked for civilian {:?}", civilian_entity);
-                            order_writer.write(GiveCivilianOrder {
-                                entity: civilian_entity,
+                            order_writer.write(CivilianCommand {
+                                civilian: civilian_entity,
                                 order: CivilianOrderKind::BuildPort,
                             });
                         }),
@@ -196,10 +197,10 @@ pub fn update_improver_orders_ui(
                             ..default()
                         },
                         BackgroundColor(NORMAL_BUTTON),
-                        observe(move |_: On<Activate>, mut order_writer: MessageWriter<GiveCivilianOrder>| {
+                        observe(move |_: On<Activate>, mut order_writer: MessageWriter<CivilianCommand>| {
                             info!("Improve Tile button clicked for {:?}", civilian_kind);
-                            order_writer.write(GiveCivilianOrder {
-                                entity: civilian_entity,
+                            order_writer.write(CivilianCommand {
+                                civilian: civilian_entity,
                                 order: CivilianOrderKind::ImproveTile,
                             });
                         }),

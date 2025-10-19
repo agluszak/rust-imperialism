@@ -4,6 +4,15 @@ use std::collections::HashMap;
 use super::goods::Good;
 use super::reservation::ResourcePool;
 
+/// Immutable view into a single stockpile entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StockpileEntry {
+    pub good: Good,
+    pub total: u32,
+    pub reserved: u32,
+    pub available: u32,
+}
+
 #[derive(Component, Debug, Clone, Default)]
 pub struct Stockpile {
     pools: HashMap<Good, ResourcePool>,
@@ -78,6 +87,20 @@ impl Stockpile {
         self.get(good) >= qty
     }
 
+    /// Iterate over all goods tracked by the stockpile.
+    ///
+    /// The iterator yields immutable snapshots containing total, reserved,
+    /// and available quantities for each [`Good`]. Consumers should sort the
+    /// returned collection if they require deterministic ordering.
+    pub fn entries(&self) -> impl Iterator<Item = StockpileEntry> + '_ {
+        self.pools.iter().map(|(good, pool)| StockpileEntry {
+            good: *good,
+            total: pool.total,
+            reserved: pool.reserved,
+            available: pool.available(),
+        })
+    }
+
     /// Internal: Get mutable access to a pool (for ReservationSystem)
     pub(super) fn get_pool_mut(&mut self, good: Good) -> Option<&mut ResourcePool> {
         Some(self.pools.entry(good).or_default())
@@ -150,5 +173,27 @@ mod tests {
         assert!(!s.has_at_least(Good::Wool, 11));
         assert!(s.has_available(Good::Wool, 4)); // Available (10 - 6)
         assert!(!s.has_available(Good::Wool, 5));
+    }
+
+    #[test]
+    fn entries_expose_totals_and_reservations() {
+        let mut stockpile = Stockpile::default();
+        stockpile.add(Good::Grain, 5);
+        stockpile.add(Good::Steel, 2);
+        stockpile.reserve(Good::Grain, 3);
+
+        let mut entries: Vec<_> = stockpile.entries().collect();
+        entries.sort_by_key(|entry| entry.good);
+
+        assert_eq!(entries.len(), 2);
+        let grain = entries.iter().find(|e| e.good == Good::Grain).unwrap();
+        assert_eq!(grain.total, 5);
+        assert_eq!(grain.reserved, 3);
+        assert_eq!(grain.available, 2);
+
+        let steel = entries.iter().find(|e| e.good == Good::Steel).unwrap();
+        assert_eq!(steel.total, 2);
+        assert_eq!(steel.reserved, 0);
+        assert_eq!(steel.available, 2);
     }
 }
