@@ -40,9 +40,11 @@ pub fn advance_civilian_jobs(
 
 /// Complete improvement jobs when they finish
 pub fn complete_improvement_jobs(
+    mut commands: Commands,
     civilians_with_jobs: Query<(&Civilian, &CivilianJob)>,
     tile_storage_query: Query<&TileStorage>,
     mut tile_resources: Query<&mut TileResource>,
+    potential_minerals: Query<&crate::map::PotentialMineral>,
     mut prospecting_knowledge: ResMut<ProspectingKnowledge>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
@@ -76,34 +78,53 @@ pub fn complete_improvement_jobs(
                             resource.development
                         ),
                     });
+
+                    // Add visual improvement marker to the tile
+                    commands
+                        .entity(tile_entity)
+                        .insert(crate::map::rendering::TileImprovement {
+                            development_level: resource.development,
+                        });
                 }
             }
             JobType::Prospecting => {
                 if let Some(tile_storage) = tile_storage_query.iter().next()
                     && let Some(tile_entity) = tile_storage.get(&job.target)
-                    && let Ok(mut resource) = tile_resources.get_mut(tile_entity)
                 {
-                    if resource.requires_prospecting() {
-                        prospecting_knowledge.mark_discovered(tile_entity, civilian.owner);
-                    }
+                    // Check if tile has potential mineral
+                    if let Ok(potential) = potential_minerals.get(tile_entity) {
+                        // Reveal what was found (or not found)
+                        if let Some(resource_type) = potential.reveal() {
+                            // Found a mineral! Create the TileResource
+                            commands
+                                .entity(tile_entity)
+                                .insert(TileResource::visible(resource_type))
+                                .insert(crate::map::ProspectedMineral { resource_type })
+                                .remove::<crate::map::PotentialMineral>();
 
-                    if !resource.discovered {
-                        resource.discovered = true;
-                        log_events.write(TerminalLogEvent {
-                            message: format!(
-                                "Prospector discovered {:?} at ({}, {})!",
-                                resource.resource_type, job.target.x, job.target.y
-                            ),
-                        });
-                    } else if resource.requires_prospecting()
-                        && prospecting_knowledge.is_discovered_by(tile_entity, civilian.owner)
-                    {
-                        log_events.write(TerminalLogEvent {
-                            message: format!(
-                                "Prospector confirmed {:?} at ({}, {})",
-                                resource.resource_type, job.target.x, job.target.y
-                            ),
-                        });
+                            log_events.write(TerminalLogEvent {
+                                message: format!(
+                                    "Prospector discovered {:?} at ({}, {})!",
+                                    resource_type, job.target.x, job.target.y
+                                ),
+                            });
+
+                            // Mark as discovered for this nation
+                            prospecting_knowledge.mark_discovered(tile_entity, civilian.owner);
+                        } else {
+                            // Nothing found
+                            commands
+                                .entity(tile_entity)
+                                .insert(crate::map::ProspectedEmpty)
+                                .remove::<crate::map::PotentialMineral>();
+
+                            log_events.write(TerminalLogEvent {
+                                message: format!(
+                                    "Prospector found no minerals at ({}, {})",
+                                    job.target.x, job.target.y
+                                ),
+                            });
+                        }
                     }
                 }
             }

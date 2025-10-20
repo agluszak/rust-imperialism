@@ -18,6 +18,8 @@ use crate::map::MapSetupPlugin;
 use crate::map::rendering::TransportRenderingPlugin;
 use crate::map::rendering::border_rendering::BorderRenderingPlugin;
 use crate::map::rendering::city_rendering::CityRenderingPlugin;
+use crate::map::rendering::improvement_rendering::ImprovementRenderingPlugin;
+use crate::map::rendering::prospecting_markers::ProspectingMarkersPlugin;
 use crate::turn_system::TurnSystemPlugin;
 use crate::ui::GameUIPlugin;
 use crate::ui::menu::AppState;
@@ -72,6 +74,8 @@ pub fn app() -> App {
             TransportRenderingPlugin,
             BorderRenderingPlugin,
             CityRenderingPlugin,
+            ImprovementRenderingPlugin,
+            ProspectingMarkersPlugin,
         ));
 
     app

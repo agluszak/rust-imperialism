@@ -300,7 +300,6 @@ mod tests {
     use crate::economy::workforce::{Worker, WorkerHealth};
     use bevy::ecs::system::SystemState;
     use bevy::prelude::{App, World};
-    use std::collections::HashMap;
 
     fn rebuild_context(world: &mut World) {
         let mut system_state: SystemState<(

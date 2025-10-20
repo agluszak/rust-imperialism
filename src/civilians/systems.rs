@@ -292,81 +292,112 @@ pub fn execute_skip_and_sleep_orders(
 }
 
 /// Handle rescind orders - undo a civilian's action this turn
-pub fn handle_rescind_orders(
-    mut commands: Commands,
-    mut rescind_events: MessageReader<RescindOrders>,
-    mut civilians: Query<(
-        &mut Civilian,
-        &PreviousPosition,
-        Option<&ActionTurn>,
-        Option<&CivilianJob>,
-    )>,
-    turn: Res<TurnSystem>,
-    mut treasuries: Query<&mut Treasury>,
-    mut log_events: MessageWriter<TerminalLogEvent>,
-) {
-    for event in rescind_events.read() {
-        if let Ok((mut civilian, prev_pos, action_turn_opt, job_opt)) =
-            civilians.get_mut(event.entity)
-        {
-            let old_pos = civilian.position;
+/// Uses exclusive world access to immediately remove components
+pub fn handle_rescind_orders(world: &mut World) {
+    // Use SystemState to read messages properly
+    let mut events_to_process = Vec::new();
+    {
+        let mut state: bevy::ecs::system::SystemState<MessageReader<RescindOrders>> =
+            bevy::ecs::system::SystemState::new(world);
+        let mut rescind_reader = state.get_mut(world);
+        for event in rescind_reader.read() {
+            info!(
+                "handle_rescind_orders: received rescind event for {:?}",
+                event.entity
+            );
+            events_to_process.push(*event);
+        }
+        state.apply(world);
+    }
 
-            // Restore previous position
-            civilian.position = prev_pos.0;
-            civilian.has_moved = false;
+    if events_to_process.is_empty() {
+        return;
+    }
 
-            // Determine if refund should be given (only if rescinding on the same turn)
-            let should_refund = action_turn_opt
-                .map(|at| at.0 == turn.current_turn)
-                .unwrap_or(false);
+    info!(
+        "handle_rescind_orders: processing {} rescind events",
+        events_to_process.len()
+    );
 
-            // Calculate refund amount based on job type
-            let refund_amount = if should_refund {
-                job_opt.and_then(|job| match job.job_type {
-                    super::types::JobType::BuildingRail => Some(50),
-                    super::types::JobType::BuildingDepot => Some(100),
-                    super::types::JobType::BuildingPort => Some(150),
-                    _ => None, // Other job types don't have direct costs
-                })
-            } else {
-                None
-            };
+    // Get turn system for refund logic
+    let current_turn = world.resource::<TurnSystem>().current_turn;
 
-            // Apply refund if applicable
-            if let Some(amount) = refund_amount {
-                if let Ok(mut treasury) = treasuries.get_mut(civilian.owner) {
-                    treasury.add(amount);
-                    log_events.write(TerminalLogEvent {
-                        message: format!(
-                            "{:?} orders rescinded - returned to ({}, {}) from ({}, {}). ${} refunded (same turn).",
-                            civilian.kind,
-                            prev_pos.0.x, prev_pos.0.y,
-                            old_pos.x, old_pos.y,
-                            amount
-                        ),
-                    });
-                }
-            } else {
-                let refund_msg = if should_refund {
-                    "(no cost to refund)"
-                } else {
-                    "(no refund - action was on a previous turn)"
-                };
-                log_events.write(TerminalLogEvent {
-                    message: format!(
-                        "{:?} orders rescinded - returned to ({}, {}) from ({}, {}) {}",
-                        civilian.kind, prev_pos.0.x, prev_pos.0.y, old_pos.x, old_pos.y, refund_msg
-                    ),
-                });
+    // Process each rescind event
+    for event in events_to_process {
+        let Ok(mut entity_mut) = world.get_entity_mut(event.entity) else {
+            continue;
+        };
+
+        // Get required components (immutable first to avoid borrow conflicts)
+        let Some(prev_pos) = entity_mut.get::<PreviousPosition>().copied() else {
+            continue;
+        };
+        let action_turn_opt = entity_mut.get::<ActionTurn>().copied();
+        let job_type_opt = entity_mut.get::<CivilianJob>().map(|j| j.job_type);
+
+        // Now get mutable reference
+        let Some(mut civilian) = entity_mut.get_mut::<Civilian>() else {
+            continue;
+        };
+
+        let owner = civilian.owner;
+        let old_pos = civilian.position;
+        let kind = civilian.kind;
+
+        // Determine if refund should be given (before removing components)
+        let should_refund = action_turn_opt
+            .map(|at| at.0 == current_turn)
+            .unwrap_or(false);
+
+        // Calculate refund amount
+        let refund_amount = if should_refund {
+            job_type_opt.and_then(|job_type| match job_type {
+                super::types::JobType::BuildingRail => Some(50),
+                super::types::JobType::BuildingDepot => Some(100),
+                super::types::JobType::BuildingPort => Some(150),
+                _ => None,
+            })
+        } else {
+            None
+        };
+
+        // Restore previous position
+        civilian.position = prev_pos.0;
+        civilian.has_moved = false;
+
+        // Immediately remove components (exclusive world access = no queueing)
+        entity_mut.remove::<CivilianJob>();
+        entity_mut.remove::<CivilianOrder>();
+        entity_mut.remove::<PreviousPosition>();
+        entity_mut.remove::<ActionTurn>();
+
+        // Apply refund and log
+        let mut log_msg = String::new();
+        if let Some(amount) = refund_amount {
+            if let Some(mut treasury) = world.get_mut::<Treasury>(owner) {
+                treasury.add(amount);
+                log_msg = format!(
+                    "{:?} orders rescinded - returned to ({}, {}) from ({}, {}). ${} refunded (same turn).",
+                    kind, prev_pos.0.x, prev_pos.0.y, old_pos.x, old_pos.y, amount
+                );
             }
+        } else {
+            let refund_note = if should_refund {
+                "(no cost to refund)"
+            } else {
+                "(no refund - action was on a previous turn)"
+            };
+            log_msg = format!(
+                "{:?} orders rescinded - returned to ({}, {}) from ({}, {}) {}",
+                kind, prev_pos.0.x, prev_pos.0.y, old_pos.x, old_pos.y, refund_note
+            );
+        }
 
-            // Remove job, order, and action tracking components
-            commands
-                .entity(event.entity)
-                .remove::<CivilianJob>()
-                .remove::<CivilianOrder>()
-                .remove::<PreviousPosition>()
-                .remove::<ActionTurn>();
+        // Write log event
+        if !log_msg.is_empty() {
+            let mut log_messages =
+                world.resource_mut::<bevy::prelude::Messages<TerminalLogEvent>>();
+            log_messages.write(TerminalLogEvent { message: log_msg });
         }
     }
 }

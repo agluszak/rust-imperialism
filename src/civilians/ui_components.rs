@@ -1,7 +1,8 @@
 use bevy::prelude::*;
-use bevy::ui_widgets::{Activate, observe};
+use bevy::ui::widget::Button as OldButton;
+use bevy::ui_widgets::{Activate, Button};
 
-use super::commands::{DeselectAllCivilians, RescindOrders, SelectCivilian};
+use super::commands::{DeselectAllCivilians, DeselectCivilian, RescindOrders, SelectCivilian};
 use super::types::{Civilian, CivilianOrderDefinition, PreviousPosition};
 use crate::messages::civilians::CivilianCommand;
 use crate::ui::button_style::*;
@@ -88,6 +89,7 @@ pub fn update_civilian_orders_ui(
                 parent
                     .spawn((
                         Button,
+                        OldButton,
                         Node {
                             padding: UiRect::all(Val::Px(8.0)),
                             ..default()
@@ -151,6 +153,7 @@ pub fn update_civilian_orders_ui(
 pub fn update_rescind_orders_ui(
     mut commands: Commands,
     mut select_events: MessageReader<SelectCivilian>,
+    mut deselect_events: MessageReader<DeselectCivilian>,
     mut deselect_all_events: MessageReader<DeselectAllCivilians>,
     civilians_with_prev: Query<&PreviousPosition, With<Civilian>>,
     existing_panel: Query<Entity, With<RescindOrdersPanel>>,
@@ -158,6 +161,15 @@ pub fn update_rescind_orders_ui(
     // Handle deselect-all first (always hides panel)
     if !deselect_all_events.is_empty() {
         deselect_all_events.clear();
+        for entity in existing_panel.iter() {
+            commands.entity(entity).despawn();
+        }
+        return;
+    }
+
+    // Handle individual deselect events (hide panel)
+    if !deselect_events.is_empty() {
+        deselect_events.clear();
         for entity in existing_panel.iter() {
             commands.entity(entity).despawn();
         }
@@ -173,24 +185,34 @@ pub fn update_rescind_orders_ui(
     }
 
     if let Some((civilian_entity, prev_pos)) = selected_data {
+        info!(
+            "Civilian {:?} selected with PreviousPosition {:?}",
+            civilian_entity, prev_pos
+        );
         // Civilian is selected and has a previous position - show panel
         if existing_panel.is_empty() {
+            info!(
+                "Creating rescind orders panel for civilian {:?}",
+                civilian_entity
+            );
             // Create panel if it doesn't exist
-            commands.spawn((
-                Node {
-                    position_type: PositionType::Absolute,
-                    left: Val::Px(16.0),
-                    bottom: Val::Px(200.0),
-                    padding: UiRect::all(Val::Px(12.0)),
-                    flex_direction: FlexDirection::Column,
-                    row_gap: Val::Px(8.0),
-                    ..default()
-                },
-                BackgroundColor(Color::srgba(0.15, 0.12, 0.1, 0.95)),
-                BorderColor::all(Color::srgba(0.6, 0.5, 0.4, 0.9)),
-                RescindOrdersPanel,
-                children![
-                    (
+            commands
+                .spawn((
+                    Node {
+                        position_type: PositionType::Absolute,
+                        left: Val::Px(16.0),
+                        bottom: Val::Px(200.0),
+                        padding: UiRect::all(Val::Px(12.0)),
+                        flex_direction: FlexDirection::Column,
+                        row_gap: Val::Px(8.0),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgba(0.15, 0.12, 0.1, 0.95)),
+                    BorderColor::all(Color::srgba(0.6, 0.5, 0.4, 0.9)),
+                    RescindOrdersPanel,
+                ))
+                .with_children(|parent| {
+                    parent.spawn((
                         Text::new(format!(
                             "Undo Action\nWas at: ({}, {})",
                             prev_pos.0.x, prev_pos.0.y
@@ -200,40 +222,48 @@ pub fn update_rescind_orders_ui(
                             ..default()
                         },
                         TextColor(Color::srgb(1.0, 0.9, 0.7)),
-                    ),
-                    (
-                        Button,
-                        Node {
-                            padding: UiRect::all(Val::Px(8.0)),
-                            ..default()
-                        },
-                        BackgroundColor(NORMAL_DANGER),
-                        crate::ui::button_style::DangerButton,
-                        observe(move |_: On<Activate>, mut rescind_writer: MessageWriter<RescindOrders>| {
-                            info!("Rescind Orders button clicked for civilian {:?}", civilian_entity);
-                            rescind_writer.write(RescindOrders {
-                                entity: civilian_entity,
-                            });
-                        }),
-                        children![(
-                            Text::new("Rescind Orders"),
-                            TextFont {
-                                font_size: 14.0,
+                    ));
+
+                    parent
+                        .spawn((
+                            Button,
+                            OldButton,
+                            Node {
+                                padding: UiRect::all(Val::Px(8.0)),
                                 ..default()
                             },
-                            TextColor(Color::srgb(1.0, 0.9, 0.9)),
-                        )],
-                    ),
-                    (
+                            BackgroundColor(NORMAL_DANGER),
+                            crate::ui::button_style::DangerButton,
+                        ))
+                        .observe(
+                            move |_: On<Activate>,
+                                  mut rescind_writer: MessageWriter<RescindOrders>| {
+                                info!("Rescind Orders button clicked for civilian {:?}", civilian_entity);
+                                rescind_writer.write(RescindOrders {
+                                    entity: civilian_entity,
+                                });
+                            },
+                        )
+                        .with_children(|button_parent| {
+                            button_parent.spawn((
+                                Text::new("Rescind Orders"),
+                                TextFont {
+                                    font_size: 14.0,
+                                    ..default()
+                                },
+                                TextColor(Color::srgb(1.0, 0.9, 0.9)),
+                            ));
+                        });
+
+                    parent.spawn((
                         Text::new("(Refund if same turn)"),
                         TextFont {
                             font_size: 11.0,
                             ..default()
                         },
                         TextColor(Color::srgb(0.7, 0.9, 0.7)),
-                    ),
-                ],
-            ));
+                    ));
+                });
         }
     } else if !select_events.is_empty() {
         // Selected civilian without previous position, remove panel if it exists

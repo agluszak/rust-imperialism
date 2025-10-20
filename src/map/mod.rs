@@ -8,6 +8,7 @@ use crate::ui::components::MapTilemap;
 use crate::ui::menu::AppState;
 
 // Map-related modules
+pub mod prospecting;
 pub mod province;
 pub mod province_gen;
 pub mod province_setup;
@@ -17,6 +18,7 @@ pub mod tile_pos;
 pub mod tiles;
 
 // Re-exports for convenience
+pub use prospecting::*;
 pub use province::*;
 pub use province_gen::*;
 pub use province_setup::*;
@@ -59,7 +61,6 @@ impl Plugin for MapSetupPlugin {
     }
 }
 
-/// System that creates the tilemap once the terrain atlas is ready
 fn create_tilemap(
     mut commands: Commands,
     terrain_atlas: Option<Res<rendering::TerrainAtlas>>,
@@ -93,6 +94,11 @@ fn create_tilemap(
     // Create terrain generator with a fixed seed for consistent worlds
     let terrain_gen = TerrainGenerator::new(TERRAIN_SEED);
 
+    // Use deterministic RNG for resource placement (based on TERRAIN_SEED)
+    use rand::rngs::StdRng;
+    use rand::{Rng, SeedableRng};
+    let mut rng = StdRng::seed_from_u64(TERRAIN_SEED as u64);
+
     for x in 0..map_size.x {
         for y in 0..map_size.y {
             let tile_pos = TilePos { x, y };
@@ -111,9 +117,85 @@ fn create_tilemap(
                 terrain_type, // Add the terrain type component
             ));
 
-            // Add resources to farmland tiles
-            if terrain_type == tiles::TerrainType::Farmland {
-                tile_entity_commands.insert(TileResource::visible(ResourceType::Grain));
+            // Assign resources based on terrain type
+            match terrain_type {
+                tiles::TerrainType::Farmland => {
+                    // Farmland: Grain (70%), Cotton (20%), or Fruit (10%)
+                    let roll = rng.random::<f32>();
+                    let resource = if roll < 0.7 {
+                        ResourceType::Grain
+                    } else if roll < 0.9 {
+                        ResourceType::Cotton
+                    } else {
+                        ResourceType::Fruit
+                    };
+                    tile_entity_commands.insert(TileResource::visible(resource));
+                }
+                tiles::TerrainType::Grass => {
+                    // Grassland: 40% chance of Wool or Livestock
+                    if rng.random::<f32>() < 0.4 {
+                        let resource = if rng.random::<bool>() {
+                            ResourceType::Wool
+                        } else {
+                            ResourceType::Livestock
+                        };
+                        tile_entity_commands.insert(TileResource::visible(resource));
+                    }
+                }
+                tiles::TerrainType::Forest => {
+                    // Forest: Always has Timber
+                    tile_entity_commands.insert(TileResource::visible(ResourceType::Timber));
+                }
+                tiles::TerrainType::Mountain => {
+                    // Mountains: All can be prospected
+                    // 60% chance of actual mineral: Coal, Iron, Gold, or Gems
+                    let has_mineral = rng.random::<f32>() < 0.6;
+                    let mineral_type = if has_mineral {
+                        let roll = rng.random::<f32>();
+                        if roll < 0.4 {
+                            Some(ResourceType::Coal)
+                        } else if roll < 0.7 {
+                            Some(ResourceType::Iron)
+                        } else if roll < 0.9 {
+                            Some(ResourceType::Gold)
+                        } else {
+                            Some(ResourceType::Gems)
+                        }
+                    } else {
+                        None
+                    };
+                    tile_entity_commands.insert(PotentialMineral::new(mineral_type));
+                }
+                tiles::TerrainType::Hills => {
+                    // Hills: All can be prospected
+                    // 40% chance of actual mineral: Coal or Iron only (no gold/gems!)
+                    let has_mineral = rng.random::<f32>() < 0.4;
+                    let mineral_type = if has_mineral {
+                        let roll = rng.random::<f32>();
+                        if roll < 0.6 {
+                            Some(ResourceType::Coal)
+                        } else {
+                            Some(ResourceType::Iron)
+                        }
+                    } else {
+                        None
+                    };
+                    tile_entity_commands.insert(PotentialMineral::new(mineral_type));
+                }
+                tiles::TerrainType::Desert => {
+                    // Desert: All can be prospected for oil
+                    // 15% chance of Oil
+                    let has_oil = rng.random::<f32>() < 0.15;
+                    let mineral_type = if has_oil {
+                        Some(ResourceType::Oil)
+                    } else {
+                        None
+                    };
+                    tile_entity_commands.insert(PotentialMineral::new(mineral_type));
+                }
+                tiles::TerrainType::Water | tiles::TerrainType::Swamp => {
+                    // Water and Swamp: No resources
+                }
             }
 
             let tile_entity = tile_entity_commands
@@ -163,7 +245,7 @@ fn create_tilemap(
     // Mark tilemap as created
     commands.insert_resource(TilemapCreated);
 
-    info!("Tilemap created successfully!");
+    info!("Tilemap created successfully with resources!");
 }
 
 /// Track when mouse enters a tile

@@ -63,7 +63,7 @@ impl JobType {
             JobType::Mining => 2,
             JobType::Drilling => 3,
             JobType::Prospecting => 1,
-            JobType::ImprovingTile => 2,
+            JobType::ImprovingTile => 1,
         }
     }
 }

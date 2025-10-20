@@ -265,8 +265,11 @@ pub fn execute_prospector_orders(
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
-    tile_resources: Query<&TileResource>,
-    prospecting_knowledge: Res<ProspectingKnowledge>,
+    potential_minerals: Query<&crate::map::PotentialMineral>,
+    prospected_tiles: Query<(
+        Option<&crate::map::ProspectedEmpty>,
+        Option<&crate::map::ProspectedMineral>,
+    )>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (entity, mut civilian, order) in prospectors.iter_mut() {
@@ -302,54 +305,62 @@ pub fn execute_prospector_orders(
                 continue;
             }
 
-            // Find tile entity and check for hidden mineral
+            // Find tile entity and check if it can be prospected
             if let Some(tile_storage) = tile_storage_query.iter().next()
                 && let Some(tile_entity) = tile_storage.get(&to)
             {
-                if let Ok(resource) = tile_resources.get(tile_entity) {
-                    if !resource.requires_prospecting() {
-                        log_events.write(TerminalLogEvent {
-                            message: format!("No mineral deposits at ({}, {})", to.x, to.y),
-                        });
-                    } else if prospecting_knowledge.is_discovered_by(tile_entity, civilian.owner) {
-                        log_events.write(TerminalLogEvent {
-                            message: format!("No hidden minerals at ({}, {})", to.x, to.y),
-                        });
-                    } else {
-                        // Store previous position for potential undo
-                        let previous_pos = civilian.position;
+                // Check if tile has already been prospected
+                if let Ok((empty, mineral)) = prospected_tiles.get(tile_entity)
+                    && (empty.is_some() || mineral.is_some())
+                {
+                    log_events.write(TerminalLogEvent {
+                        message: format!(
+                            "Tile at ({}, {}) has already been prospected",
+                            to.x, to.y
+                        ),
+                    });
+                    commands.entity(entity).remove::<CivilianOrder>();
+                    continue;
+                }
 
-                        // Move to target tile
-                        civilian.position = to;
+                // Check if tile has potential mineral deposits
+                if potential_minerals.get(tile_entity).is_ok() {
+                    // Store previous position for potential undo
+                    let previous_pos = civilian.position;
 
-                        let job_type = civilian
-                            .kind
-                            .order_definition(&order.target)
-                            .and_then(|definition| definition.execution.job_type())
-                            .unwrap_or(JobType::Prospecting);
+                    // Move to target tile
+                    civilian.position = to;
 
-                        commands.entity(entity).insert((
-                            CivilianJob {
-                                job_type,
-                                turns_remaining: job_type.duration(),
-                                target: to,
-                            },
-                            PreviousPosition(previous_pos),
-                            ActionTurn(turn.current_turn),
-                        ));
+                    let job_type = civilian
+                        .kind
+                        .order_definition(&order.target)
+                        .and_then(|definition| definition.execution.job_type())
+                        .unwrap_or(JobType::Prospecting);
 
-                        log_events.write(TerminalLogEvent {
-                            message: format!(
-                                "Prospector moved to ({}, {}) and began surveying {:?}",
-                                to.x, to.y, resource.resource_type
-                            ),
-                        });
-                        civilian.has_moved = true;
-                        deselect_writer.write(DeselectCivilian { entity });
-                    }
+                    commands.entity(entity).insert((
+                        CivilianJob {
+                            job_type,
+                            turns_remaining: job_type.duration(),
+                            target: to,
+                        },
+                        PreviousPosition(previous_pos),
+                        ActionTurn(turn.current_turn),
+                    ));
+
+                    log_events.write(TerminalLogEvent {
+                        message: format!(
+                            "Prospector moved to ({}, {}) and began surveying for minerals",
+                            to.x, to.y
+                        ),
+                    });
+                    civilian.has_moved = true;
+                    deselect_writer.write(DeselectCivilian { entity });
                 } else {
                     log_events.write(TerminalLogEvent {
-                        message: format!("No mineral deposits at ({}, {})", to.x, to.y),
+                        message: format!(
+                            "Cannot prospect at ({}, {}): no mineral deposits possible here",
+                            to.x, to.y
+                        ),
                     });
                 }
             }

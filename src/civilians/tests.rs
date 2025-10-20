@@ -274,7 +274,7 @@ fn test_prospector_starts_prospecting_job() {
     let tile_entity = world
         .spawn((
             TileProvince { province_id },
-            TileResource::hidden_mineral(ResourceType::Coal),
+            crate::map::PotentialMineral::new(Some(ResourceType::Coal)),
         ))
         .id();
     tile_storage.set(&tile_pos, tile_entity);
@@ -304,12 +304,12 @@ fn test_prospector_starts_prospecting_job() {
     assert_eq!(job.job_type, JobType::Prospecting);
     assert_eq!(job.turns_remaining, JobType::Prospecting.duration());
 
-    let resource = world
-        .get::<TileResource>(tile_entity)
-        .expect("Tile should have resource");
+    // PotentialMineral should still exist until prospecting completes
     assert!(
-        !resource.discovered,
-        "Resource should remain hidden until job completes"
+        world
+            .get::<crate::map::PotentialMineral>(tile_entity)
+            .is_some(),
+        "PotentialMineral should remain until job completes"
     );
 }
 
@@ -323,7 +323,7 @@ fn test_prospecting_job_reveals_resource_on_completion() {
     let tile_pos = TilePos { x: 0, y: 0 };
     let tile_entity = world
         .spawn((
-            TileResource::hidden_mineral(ResourceType::Coal),
+            crate::map::PotentialMineral::new(Some(ResourceType::Coal)),
             TileProvince {
                 province_id: ProvinceId(1),
             },
@@ -353,12 +353,24 @@ fn test_prospecting_job_reveals_resource_on_completion() {
 
     let _ = world.run_system_once(complete_improvement_jobs);
 
+    // After prospecting completes, should have TileResource and ProspectedMineral
     let resource = world
         .get::<TileResource>(tile_entity)
-        .expect("Tile should have resource");
+        .expect("Tile should have resource after prospecting");
+    assert_eq!(resource.resource_type, ResourceType::Coal);
+    assert!(resource.discovered, "Resource should be discovered");
+
+    let prospected = world
+        .get::<crate::map::ProspectedMineral>(tile_entity)
+        .expect("Tile should have ProspectedMineral marker");
+    assert_eq!(prospected.resource_type, ResourceType::Coal);
+
+    // PotentialMineral should be removed
     assert!(
-        resource.discovered,
-        "Prospecting job should reveal resource"
+        world
+            .get::<crate::map::PotentialMineral>(tile_entity)
+            .is_none(),
+        "PotentialMineral should be removed after prospecting"
     );
 
     assert!(
@@ -458,7 +470,7 @@ fn new_owner_must_reprospect_before_mining() {
     let tile_entity = world
         .spawn((
             TileProvince { province_id },
-            TileResource::hidden_mineral(ResourceType::Coal),
+            crate::map::PotentialMineral::new(Some(ResourceType::Coal)),
         ))
         .id();
     tile_storage.set(&tile_pos, tile_entity);

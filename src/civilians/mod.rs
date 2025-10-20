@@ -8,8 +8,6 @@ pub use commands::*;
 pub use jobs::{advance_civilian_jobs, complete_improvement_jobs, reset_civilian_actions};
 pub use types::*;
 
-use crate::ui::mode::GameMode;
-
 // Module declarations
 pub mod commands;
 pub mod engineering;
@@ -48,6 +46,12 @@ impl Plugin for CivilianPlugin {
             )
             .add_systems(
                 Update,
+                systems::handle_rescind_orders
+                    .before(systems::handle_civilian_commands)
+                    .run_if(in_state(crate::ui::mode::GameMode::Map)),
+            )
+            .add_systems(
+                Update,
                 (
                     systems::handle_civilian_commands,
                     systems::execute_move_orders,
@@ -55,13 +59,34 @@ impl Plugin for CivilianPlugin {
                     engineering::execute_engineer_orders,
                     engineering::execute_prospector_orders,
                     engineering::execute_civilian_improvement_orders,
-                    systems::handle_rescind_orders,
                     ui_components::update_civilian_orders_ui,
                     ui_components::update_rescind_orders_ui,
                     rendering::render_civilian_visuals,
                     rendering::update_civilian_visual_colors,
                 )
-                    .run_if(in_state(GameMode::Map)),
+                    .chain()
+                    .run_if(in_state(crate::ui::mode::GameMode::Map)),
+            )
+            // Turn-based systems (run when turn phase changes)
+            .add_systems(
+                Update,
+                (
+                    jobs::advance_civilian_jobs
+                        .run_if(resource_changed::<crate::turn_system::TurnSystem>)
+                        .run_if(|turn_system: Res<crate::turn_system::TurnSystem>| {
+                            turn_system.phase == crate::turn_system::TurnPhase::PlayerTurn
+                        }),
+                    jobs::complete_improvement_jobs
+                        .run_if(resource_changed::<crate::turn_system::TurnSystem>)
+                        .run_if(|turn_system: Res<crate::turn_system::TurnSystem>| {
+                            turn_system.phase == crate::turn_system::TurnPhase::PlayerTurn
+                        }),
+                    jobs::reset_civilian_actions
+                        .run_if(resource_changed::<crate::turn_system::TurnSystem>)
+                        .run_if(|turn_system: Res<crate::turn_system::TurnSystem>| {
+                            turn_system.phase == crate::turn_system::TurnPhase::PlayerTurn
+                        }),
+                ),
             );
     }
 }
