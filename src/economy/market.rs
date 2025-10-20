@@ -11,8 +11,6 @@ pub const MARKET_RESOURCES: &[Good] = &[
     Good::Timber,
     Good::Coal,
     Good::Iron,
-    Good::Gold,
-    Good::Gems,
     Good::Oil,
 ];
 
@@ -28,7 +26,6 @@ pub fn market_price(good: Good) -> u32 {
         Good::Cotton | Good::Wool => 90,
         Good::Timber => 70,
         Good::Coal | Good::Iron => 100,
-        Good::Gold | Good::Gems => 250,
         Good::Oil => 110,
         _ => 100,
     }

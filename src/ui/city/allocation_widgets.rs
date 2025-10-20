@@ -91,7 +91,7 @@ macro_rules! spawn_allocation_stepper {
         $parent.spawn((
             Text::new($label),
             TextFont {
-                font_size: 16.0,
+                font_size: 12.0,
                 ..default()
             },
             TextColor(Color::srgb(1.0, 0.95, 0.8)),

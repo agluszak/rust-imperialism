@@ -13,7 +13,7 @@ use crate::ui::city::allocation_ui_unified::{
 };
 use crate::ui::city::allocation_widgets::AllocationType;
 use crate::ui::mode::{GameMode, switch_to_mode};
-use crate::{spawn_allocation_bar, spawn_allocation_stepper, spawn_allocation_summary};
+use crate::{spawn_allocation_bar, spawn_allocation_stepper};
 
 #[derive(Component)]
 pub struct MarketScreen;
@@ -97,7 +97,7 @@ pub fn ensure_market_screen_visible(
                 .spawn((
                     Node {
                         flex_direction: FlexDirection::Column,
-                        row_gap: Val::Px(8.0),
+                        row_gap: Val::Px(2.0),
                         ..default()
                     },
                     BackgroundColor(Color::srgba(0.12, 0.12, 0.12, 0.6)),
@@ -108,10 +108,11 @@ pub fn ensure_market_screen_visible(
                         let good_name = good.to_string();
                         list.spawn((
                             Node {
+                                height: Val::Px(32.0),
                                 width: Val::Percent(100.0),
                                 flex_direction: FlexDirection::Row,
-                                column_gap: Val::Px(12.0),
-                                padding: UiRect::all(Val::Px(8.0)),
+                                column_gap: Val::Px(6.0),
+                                padding: UiRect::all(Val::Px(3.0)),
                                 align_items: AlignItems::Center,
                                 ..default()
                             },
@@ -126,8 +127,8 @@ pub fn ensure_market_screen_visible(
                                 row.spawn((
                                     ImageNode::new(icon_handle),
                                     Node {
-                                        width: Val::Px(32.0),
-                                        height: Val::Px(32.0),
+                                        width: Val::Px(20.0),
+                                        height: Val::Px(20.0),
                                         ..default()
                                     },
                                 ));
@@ -136,23 +137,23 @@ pub fn ensure_market_screen_visible(
                             // Info column (compact)
                             row.spawn((Node {
                                 flex_direction: FlexDirection::Column,
-                                row_gap: Val::Px(2.0),
-                                min_width: Val::Px(140.0),
+                                row_gap: Val::Px(1.0),
+                                min_width: Val::Px(100.0),
                                 ..default()
                             },))
                                 .with_children(|info| {
                                     info.spawn((
                                         Text::new(format!("{} (${})  ", good_name, price)),
                                         TextFont {
-                                            font_size: 16.0,
+                                            font_size: 13.0,
                                             ..default()
                                         },
                                         TextColor(Color::srgb(0.95, 0.95, 0.9)),
                                     ));
                                     info.spawn((
-                                        Text::new("Stock: 0 / 0"),
+                                        Text::new("0 / 0"),
                                         TextFont {
-                                            font_size: 12.0,
+                                            font_size: 10.0,
                                             ..default()
                                         },
                                         TextColor(Color::srgb(0.75, 0.75, 0.75)),
@@ -162,9 +163,9 @@ pub fn ensure_market_screen_visible(
 
                             // Buy column (simple toggle - no resource bar)
                             row.spawn((Node {
-                                flex_direction: FlexDirection::Column,
-                                row_gap: Val::Px(4.0),
-                                min_width: Val::Px(140.0),
+                                flex_direction: FlexDirection::Row,
+                                column_gap: Val::Px(3.0),
+                                align_items: AlignItems::Center,
                                 ..default()
                             },))
                                 .with_children(|buy| {
@@ -173,14 +174,13 @@ pub fn ensure_market_screen_visible(
                                         "Buy Interest",
                                         AllocationType::MarketBuy(good)
                                     );
-                                    spawn_allocation_summary!(buy, AllocationType::MarketBuy(good));
                                 });
 
                             // Sell column (with quantity allocation)
                             row.spawn((Node {
-                                flex_direction: FlexDirection::Column,
-                                row_gap: Val::Px(4.0),
-                                min_width: Val::Px(200.0),
+                                flex_direction: FlexDirection::Row,
+                                column_gap: Val::Px(4.0),
+                                align_items: AlignItems::Center,
                                 ..default()
                             },))
                                 .with_children(|sell| {
@@ -193,10 +193,6 @@ pub fn ensure_market_screen_visible(
                                         sell,
                                         good,
                                         "Stock",
-                                        AllocationType::MarketSell(good)
-                                    );
-                                    spawn_allocation_summary!(
-                                        sell,
                                         AllocationType::MarketSell(good)
                                     );
                                 });
@@ -293,7 +289,7 @@ fn update_market_inventory_texts(
     for (mut text, marker) in texts.iter_mut() {
         let total = stockpile.get(marker.good);
         let available = stockpile.get_available(marker.good);
-        text.0 = format!("Stock: {} / {}", available, total);
+        text.0 = format!("{} / {}", available, total);
     }
 }
 
