@@ -1,11 +1,15 @@
 # AGENTS.md
 
-This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. Last updated: **2025-10-19**.
+This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. Last updated: **2025-10-20**.
 
 **This is an economy-first, turn-based strategy game** inspired by Imperialism (1997). Built with Bevy 0.17 ECS, featuring hex-based maps, multi-nation economies, and a reservation-based resource allocation system.
 
 ## Recent Changes (Oct 2025)
 
+- **Civilian units**: Complete prospector/farmer/forester/engineer system with resource discovery
+- **Prospecting system**: Hidden mineral deposits with visual markers (red X or colored squares)
+- **Rescind orders**: Exclusive-world-access system for immediate component removal
+- **UI patterns**: Documented Bevy 0.17 button requirements (both Button + OldButton components)
 - **Plugin architecture**: `EconomyPlugin`, `MapSetupPlugin`, `CameraPlugin` encapsulate system registration
 - **Resources/messages**: Moved to respective plugins (Economy/Map own their resources)
 - **Map visibility**: All map visuals use `MapTilemap` marker for automatic show/hide on mode switch
@@ -13,7 +17,7 @@ This document is the single source of truth for contributors (human or AI) to un
 - **Allocation system**: Refactored to atomic reservations (`Vec<ReservationId>` per allocation)
 - **Test organization**: Inline for small tests (<50 lines), separate `tests.rs` for large test suites
 - **Import style**: All code uses explicit `crate::` paths (no `super::`)
-- **Quality**: Zero clippy warnings, 74 unit + 3 integration tests passing
+- **Quality**: Zero clippy warnings, 112 unit + 5 integration tests passing
 
 ## Quick Reference
 
@@ -115,6 +119,29 @@ See `ai-docs/ALLOCATION_DESIGN.md` for full details.
 - Always add `MapTilemap` marker to sprites/meshes visible on map
 - Enables automatic visibility control via `show_screen`/`hide_screen`
 
+**UI Buttons (Bevy 0.17):**
+- MUST use BOTH button components: `Button` (new) and `OldButton` (compatibility layer)
+- Import: `use bevy::ui::widget::Button as OldButton; use bevy::ui_widgets::{Activate, Button};`
+- Use `.observe()` as a **builder method**, NOT as a component in the spawn tuple
+- Correct pattern:
+```rust
+parent
+    .spawn((
+        Button,
+        OldButton,
+        Node { padding: UiRect::all(Val::Px(8.0)), ..default() },
+        BackgroundColor(NORMAL_BUTTON),
+    ))
+    .observe(move |_: On<Activate>, /* system parameters */| {
+        // Button click handler
+    })
+    .with_children(|button_parent| {
+        button_parent.spawn((Text::new("Label"), ...));
+    });
+```
+- ❌ WRONG: `observe(...)` inside the spawn tuple
+- ✅ CORRECT: `.observe(...)` as method call after `.spawn()`
+
 ## How to Work on This Codebase
 
 **Adding systems:**
@@ -142,6 +169,9 @@ See `ai-docs/ALLOCATION_DESIGN.md` for full details.
 
 ✅ **Complete:**
 - Main menu, province generation, border rendering, city rendering
+- Civilian units (Engineer, Prospector, Farmer, Rancher, Forester, Miner, Driller)
+- Prospecting system with hidden minerals and visual discovery markers
+- Rescind orders functionality with refunds for same-turn actions
 - Production system (TextileMill with 2:1 ratios)
 - Allocation/reservation system
 - Market (fixed prices, exclusive buy/sell orders)
