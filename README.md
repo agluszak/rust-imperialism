@@ -4,6 +4,8 @@ A modern reimplementation of the classic 1997 strategy game *Imperialism*, built
 
 ⚠️ **Work in Progress** - This project is under active development and not yet feature-complete.
 
+![Screenshot](screenshot.png)
+
 ## About
 
 This is an economy-first, turn-based strategy game featuring hex-based maps, multi-nation economy and diplomacy. The project aims to recreate the deep economic gameplay of the original while modernizing the technology stack.
