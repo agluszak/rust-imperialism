@@ -1,6 +1,6 @@
 # Rust Imperialism
 
-A modern reimplementation of the classic 1997 strategy game *Imperialism*, built with [Bevy](https://bevy.org/) and Rust.
+A modern reimplementation of the [classic 1997 strategy game *Imperialism*](https://www.gog.com/en/game/imperialism), built with [Bevy](https://bevy.org/) and Rust.
 
 ⚠️ **Work in Progress** - This project is under active development and not yet feature-complete.
 
