@@ -68,15 +68,16 @@ impl Plugin for EconomyPlugin {
         app.add_systems(
             Update,
             (
+                transport::initialize_transport_capacity,
                 transport::apply_improvements,
                 transport::compute_rail_connectivity.after(transport::apply_improvements),
-                transport::update_transport_capacity.after(transport::compute_rail_connectivity),
                 production::calculate_connected_production
-                    .after(transport::update_transport_capacity),
+                    .after(transport::compute_rail_connectivity),
                 transport::update_transport_demand_snapshot
                     .after(production::calculate_connected_production),
                 transport::apply_transport_allocations,
                 production::run_production,
+                transport::convert_transport_goods_to_capacity.after(production::run_production),
             )
                 .in_set(EconomySet),
         );

@@ -275,6 +275,7 @@ fn setup_diplomacy_screen(
                             let nation_copy = *nation;
                             list.spawn((
                                 Button,
+                                OldButton,
                                 Node {
                                     padding: UiRect::all(Val::Px(8.0)),
                                     ..default()

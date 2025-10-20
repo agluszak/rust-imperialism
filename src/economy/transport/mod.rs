@@ -12,8 +12,9 @@ pub use state::{
 // Derived metrics and logic
 pub mod metrics;
 pub use metrics::{
-    TransportAdjustAllocation, apply_transport_allocations, transport_capacity, transport_demand,
-    transport_slot, update_transport_capacity, update_transport_demand_snapshot,
+    TransportAdjustAllocation, apply_transport_allocations, convert_transport_goods_to_capacity,
+    initialize_transport_capacity, transport_capacity, transport_demand, transport_slot,
+    update_transport_demand_snapshot,
 };
 
 // Messages

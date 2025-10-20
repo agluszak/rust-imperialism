@@ -1,5 +1,6 @@
 use bevy::ecs::hierarchy::ChildSpawnerCommands;
 use bevy::prelude::*;
+use bevy::ui::InteractionDisabled;
 use bevy::ui::widget::Button as OldButton;
 use bevy::ui_widgets::{Activate, Button, observe};
 use bevy_ecs_tilemap::prelude::TilePos;
@@ -66,6 +67,13 @@ struct TransportSatisfactionFill {
     commodity: TransportCommodity,
 }
 
+#[derive(Component)]
+struct TransportAdjustButton {
+    commodity: TransportCommodity,
+    nation: Entity,
+    delta: i32,
+}
+
 const RESOURCE_COMMODITIES: &[TransportCommodity] = &[
     TransportCommodity::Grain,
     TransportCommodity::Fruit,
@@ -113,6 +121,7 @@ impl Plugin for TransportUIPlugin {
                     update_transport_icon_colors,
                     update_transport_satisfaction_bars,
                     update_transport_capacity_display,
+                    update_transport_button_states,
                 )
                     .run_if(in_state(GameMode::Transport)),
             );
@@ -144,7 +153,11 @@ pub fn handle_transport_selection(
 }
 
 /// Create the transport screen UI when entering the transport game mode
-fn setup_transport_screen(mut commands: Commands, player: Option<Res<PlayerNation>>) {
+fn setup_transport_screen(
+    mut commands: Commands,
+    player: Option<Res<PlayerNation>>,
+    asset_server: Res<AssetServer>,
+) {
     let Some(player) = player else {
         commands
             .spawn((
@@ -206,12 +219,19 @@ fn setup_transport_screen(mut commands: Commands, player: Option<Res<PlayerNatio
                     ..default()
                 })
                 .with_children(|columns: &mut ChildSpawnerCommands| {
-                    spawn_commodity_column(columns, "Resources", RESOURCE_COMMODITIES, nation);
+                    spawn_commodity_column(
+                        columns,
+                        "Resources",
+                        RESOURCE_COMMODITIES,
+                        nation,
+                        &asset_server,
+                    );
                     spawn_commodity_column(
                         columns,
                         "Materials & Goods",
                         INDUSTRY_COMMODITIES,
                         nation,
+                        &asset_server,
                     );
                 });
 
@@ -288,6 +308,7 @@ fn spawn_commodity_column(
     title: &str,
     commodities: &[TransportCommodity],
     nation: Entity,
+    asset_server: &AssetServer,
 ) {
     parent
         .spawn(Node {
@@ -307,7 +328,7 @@ fn spawn_commodity_column(
             ));
 
             for &commodity in commodities {
-                spawn_commodity_row(column, commodity, nation);
+                spawn_commodity_row(column, commodity, nation, asset_server);
             }
         });
 }
@@ -318,6 +339,7 @@ fn spawn_commodity_row(
     parent: &mut ChildSpawnerCommands,
     commodity: TransportCommodity,
     nation: Entity,
+    asset_server: &AssetServer,
 ) {
     parent
         .spawn((Node {
@@ -327,26 +349,22 @@ fn spawn_commodity_row(
             ..default()
         },))
         .with_children(|row: &mut ChildSpawnerCommands| {
-            spawn_adjust_button_column(row, commodity, nation, [-5, -1]);
+            spawn_adjust_button_column(row, commodity, nation, &[-1]);
 
-            row.spawn(Node {
-                width: Val::Px(36.0),
-                height: Val::Px(36.0),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            })
-            .with_children(|icon| {
-                icon.spawn((
-                    Text::new(commodity.icon()),
-                    TextFont {
-                        font_size: 28.0,
-                        ..default()
-                    },
-                    TextColor(Color::srgb(0.86, 0.9, 1.0)),
-                    TransportIconText { commodity },
-                ));
-            });
+            // Load and display the commodity icon
+            let icon_handle: Handle<Image> =
+                asset_server.load(format!("extracted/{}", commodity.icon()));
+
+            row.spawn((
+                ImageNode::new(icon_handle),
+                Node {
+                    width: Val::Px(32.0),
+                    height: Val::Px(32.0),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.86, 0.9, 1.0)), // Default tint
+                TransportIconText { commodity },
+            ));
 
             row.spawn(Node {
                 flex_direction: FlexDirection::Column,
@@ -443,7 +461,7 @@ fn spawn_commodity_row(
                 });
             });
 
-            spawn_adjust_button_column(row, commodity, nation, [1, 5]);
+            spawn_adjust_button_column(row, commodity, nation, &[1]);
         });
 }
 
@@ -451,7 +469,7 @@ fn spawn_adjust_button_column(
     parent: &mut ChildSpawnerCommands,
     commodity: TransportCommodity,
     nation: Entity,
-    deltas: [i32; 2],
+    deltas: &[i32],
 ) {
     parent
         .spawn(Node {
@@ -474,6 +492,11 @@ fn spawn_adjust_button_column(
                             ..default()
                         },
                         BackgroundColor(NORMAL_BUTTON),
+                        TransportAdjustButton {
+                            commodity,
+                            nation,
+                            delta,
+                        },
                         transport_adjustment_button(commodity, nation, delta),
                     ))
                     .with_children(|button| {
@@ -564,6 +587,7 @@ fn update_transport_bar_fills(
             TransportBarFillKind::Granted => slot.granted,
         };
         let percent = (value as f32 / scale as f32 * 100.0).clamp(0.0, 100.0);
+
         node.width = Val::Percent(percent);
     }
 }
@@ -630,7 +654,7 @@ fn update_transport_bar_texts(
 fn update_transport_icon_colors(
     player: Option<Res<PlayerNation>>,
     demand_snapshot: Res<TransportDemandSnapshot>,
-    mut icons: Query<(&mut TextColor, &TransportIconText)>,
+    mut icons: Query<(&mut BackgroundColor, &TransportIconText)>,
 ) {
     if !demand_snapshot.is_changed() {
         return;
@@ -713,5 +737,45 @@ fn update_transport_capacity_display(
             (snapshot.used as f32 / snapshot.total as f32 * 100.0).clamp(0.0, 100.0)
         };
         node.width = Val::Percent(percent);
+    }
+}
+
+fn update_transport_button_states(
+    capacity: Res<TransportCapacity>,
+    allocations: Res<TransportAllocations>,
+    demand_snapshot: Res<TransportDemandSnapshot>,
+    mut buttons: Query<(
+        Entity,
+        &TransportAdjustButton,
+        Has<InteractionDisabled>,
+        &mut BackgroundColor,
+    )>,
+    mut commands: Commands,
+) {
+    if !capacity.is_changed() && !allocations.is_changed() && !demand_snapshot.is_changed() {
+        return;
+    }
+
+    for (entity, button, currently_disabled, mut bg_color) in buttons.iter_mut() {
+        let slot = transport_slot(&allocations, button.nation, button.commodity);
+        let demand = transport_demand(&demand_snapshot, button.nation, button.commodity);
+        let cap = transport_capacity(&capacity, button.nation);
+
+        let should_be_disabled = if button.delta < 0 {
+            // Decrease button: disabled if already at 0
+            slot.requested == 0
+        } else {
+            // Increase button: disabled if at supply limit or capacity limit
+            let capacity_remaining = cap.total.saturating_sub(cap.used);
+            slot.requested >= demand.supply || capacity_remaining == 0
+        };
+
+        if should_be_disabled && !currently_disabled {
+            commands.entity(entity).insert(InteractionDisabled);
+            bg_color.0 = Color::srgb(0.3, 0.3, 0.3);
+        } else if !should_be_disabled && currently_disabled {
+            commands.entity(entity).remove::<InteractionDisabled>();
+            bg_color.0 = NORMAL_BUTTON;
+        }
     }
 }

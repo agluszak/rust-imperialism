@@ -80,6 +80,7 @@ impl TransportCommodity {
             Armaments => Some(TransportCommodity::Armaments),
             CannedFood => Some(TransportCommodity::CannedFood),
             Horses => Some(TransportCommodity::Horses),
+            Transport => None, // Transport is not transported, it's converted to capacity
         }
     }
 
@@ -102,30 +103,30 @@ impl TransportCommodity {
         }
     }
 
-    /// Icon glyph used for compact UI displays.
+    /// Icon bitmap path used for compact UI displays.
     pub fn icon(self) -> &'static str {
         use TransportCommodity::*;
         match self {
-            Grain => "🌾",
-            Fruit => "🍎",
-            Fiber => "🧵",
-            Meat => "🥩",
-            Timber => "🪵",
-            Coal => "⛏️",
-            Iron => "⚙️",
-            Precious => "💎",
-            Oil => "🛢️",
-            Fabric => "🧶",
-            Lumber => "🪚",
-            Paper => "📄",
-            Steel => "🔩",
-            Fuel => "⛽",
-            Clothing => "👗",
-            Furniture => "🪑",
-            Hardware => "🛠️",
-            Armaments => "⚔️",
-            CannedFood => "🥫",
-            Horses => "🐎",
+            Grain => "bitmaps/717.BMP",
+            Fruit => "bitmaps/718.BMP",
+            Fiber => "bitmaps/700.BMP", // Cotton
+            Meat => "bitmaps/720.BMP",  // Cattle
+            Timber => "bitmaps/702.BMP",
+            Coal => "bitmaps/703.BMP",
+            Iron => "bitmaps/704.BMP",
+            Precious => "bitmaps/722.BMP", // Gold
+            Oil => "bitmaps/706.BMP",
+            Fabric => "bitmaps/708.BMP", // Wool (processed fiber)
+            Lumber => "bitmaps/709.BMP",
+            Paper => "bitmaps/710.BMP",
+            Steel => "bitmaps/711.BMP",
+            Fuel => "bitmaps/712.BMP",
+            Clothing => "bitmaps/713.BMP",
+            Furniture => "bitmaps/714.BMP",
+            Hardware => "bitmaps/715.BMP",  // Tools
+            Armaments => "bitmaps/716.BMP", // Arms
+            CannedFood => "bitmaps/707.BMP",
+            Horses => "bitmaps/705.BMP",
         }
     }
 
@@ -160,7 +161,7 @@ pub struct TransportCapacity {
     pub nations: HashMap<Entity, CapacitySnapshot>,
 }
 
-pub const BASE_TRANSPORT_CAPACITY: u32 = 8;
+pub const BASE_TRANSPORT_CAPACITY: u32 = 5;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CapacitySnapshot {

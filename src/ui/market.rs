@@ -4,6 +4,7 @@ use bevy::ui_widgets::Button;
 
 use super::button_style::*;
 use super::generic_systems::hide_screen;
+use crate::economy::transport::TransportCommodity;
 use crate::economy::{
     Allocations, Good, MARKET_RESOURCES, PlayerNation, Stockpile, Treasury, market_price,
 };
@@ -48,6 +49,7 @@ impl Plugin for MarketUIPlugin {
 pub fn ensure_market_screen_visible(
     mut commands: Commands,
     mut roots: Query<&mut Visibility, With<MarketScreen>>,
+    asset_server: Res<AssetServer>,
 ) {
     if let Ok(mut vis) = roots.single_mut() {
         *vis = Visibility::Visible;
@@ -116,6 +118,21 @@ pub fn ensure_market_screen_visible(
                             BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.85)),
                         ))
                         .with_children(|row| {
+                            // Icon for the good
+                            if let Some(commodity) = TransportCommodity::from_good(good) {
+                                let icon_handle: Handle<Image> =
+                                    asset_server.load(format!("extracted/{}", commodity.icon()));
+
+                                row.spawn((
+                                    ImageNode::new(icon_handle),
+                                    Node {
+                                        width: Val::Px(32.0),
+                                        height: Val::Px(32.0),
+                                        ..default()
+                                    },
+                                ));
+                            }
+
                             // Info column (compact)
                             row.spawn((Node {
                                 flex_direction: FlexDirection::Column,

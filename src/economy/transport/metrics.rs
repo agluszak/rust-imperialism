@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use std::collections::HashMap;
 
 use crate::economy::{
     allocation::Allocations,
@@ -13,44 +12,40 @@ use crate::economy::{
     workforce::Workforce,
 };
 
-use super::types::{Depot, Port};
-
-/// Base capacity contributed by each connected depot.
-const DEPOT_CAPACITY: u32 = 6;
-/// Base capacity contributed by each connected port.
-const PORT_CAPACITY: u32 = 8;
-
-/// Recalculate transport capacity totals from connected depots and ports.
-pub fn update_transport_capacity(
+/// Initialize transport capacity for new nations with a starting amount.
+pub fn initialize_transport_capacity(
     mut capacity: ResMut<TransportCapacity>,
-    depots: Query<&Depot>,
-    ports: Query<&Port>,
-    nations: Query<Entity, With<NationId>>,
+    nations: Query<Entity, Added<NationId>>,
 ) {
-    let mut totals: HashMap<Entity, u32> = HashMap::new();
-
     for nation in nations.iter() {
-        totals.insert(nation, BASE_TRANSPORT_CAPACITY);
-    }
-
-    for depot in depots.iter().filter(|d| d.connected) {
-        let entry = totals.entry(depot.owner).or_insert(BASE_TRANSPORT_CAPACITY);
-        *entry += DEPOT_CAPACITY;
-    }
-
-    for port in ports.iter().filter(|p| p.connected) {
-        let entry = totals.entry(port.owner).or_insert(BASE_TRANSPORT_CAPACITY);
-        *entry += PORT_CAPACITY;
-    }
-
-    capacity
-        .nations
-        .retain(|nation, _| totals.contains_key(nation));
-
-    for (nation, total_capacity) in totals {
         let snapshot = capacity.snapshot_mut(nation);
-        snapshot.total = total_capacity;
-        snapshot.used = snapshot.used.min(snapshot.total);
+        snapshot.total = BASE_TRANSPORT_CAPACITY;
+        snapshot.used = 0;
+    }
+}
+
+/// Convert Transport goods from stockpile to transport capacity.
+/// Runs during processing phase to accumulate produced transport.
+pub fn convert_transport_goods_to_capacity(
+    mut capacity: ResMut<TransportCapacity>,
+    mut stockpiles: Query<(Entity, &mut crate::economy::stockpile::Stockpile)>,
+    turn: Res<crate::turn_system::TurnSystem>,
+) {
+    use crate::turn_system::TurnPhase;
+
+    // Only convert at the end of processing phase
+    if turn.phase != TurnPhase::Processing {
+        return;
+    }
+
+    for (nation, mut stockpile) in stockpiles.iter_mut() {
+        let transport_in_stock = stockpile.get(Good::Transport);
+        if transport_in_stock > 0 {
+            // Convert all Transport goods to capacity
+            let converted = stockpile.take_up_to(Good::Transport, transport_in_stock);
+            let snapshot = capacity.snapshot_mut(nation);
+            snapshot.total += converted;
+        }
     }
 }
 
@@ -62,29 +57,46 @@ pub struct TransportAdjustAllocation {
     pub requested: u32,
 }
 
-/// Apply allocation adjustments while respecting total capacity.
+/// Apply allocation adjustments while respecting total capacity and available supply.
 pub fn apply_transport_allocations(
     mut capacity: ResMut<TransportCapacity>,
     mut allocations: ResMut<TransportAllocations>,
     mut requests: MessageReader<TransportAdjustAllocation>,
+    demand_snapshot: Res<TransportDemandSnapshot>,
 ) {
+    let mut message_count = 0;
     for request in requests.read() {
+        message_count += 1;
+
         let nation_alloc = allocations.ensure_nation(request.nation);
         let slot = nation_alloc.slot_mut(request.commodity);
-        slot.requested = request.requested;
+
+        // Clamp requested amount to available supply
+        let available_supply = demand_snapshot
+            .nations
+            .get(&request.nation)
+            .and_then(|map| map.get(&request.commodity))
+            .map(|entry| entry.supply)
+            .unwrap_or(0);
+
+        let clamped = request.requested.min(available_supply);
+
+        slot.requested = clamped;
     }
 
-    // Recompute granted totals per nation.
-    for (nation, nation_alloc) in allocations.nations.iter_mut() {
-        let mut remaining = capacity.snapshot(*nation).total;
-        for commodity in TransportCommodity::ORDERED.iter() {
-            if let Some(slot) = nation_alloc.commodities.get_mut(commodity) {
-                let granted = slot.requested.min(remaining);
-                slot.granted = granted;
-                remaining = remaining.saturating_sub(granted);
+    if message_count > 0 {
+        // Recompute granted totals per nation.
+        for (nation, nation_alloc) in allocations.nations.iter_mut() {
+            let mut remaining = capacity.snapshot(*nation).total;
+            for commodity in TransportCommodity::ORDERED.iter() {
+                if let Some(slot) = nation_alloc.commodities.get_mut(commodity) {
+                    let granted = slot.requested.min(remaining);
+                    slot.granted = granted;
+                    remaining = remaining.saturating_sub(granted);
+                }
             }
+            capacity.snapshot_mut(*nation).used = capacity.snapshot(*nation).total - remaining;
         }
-        capacity.snapshot_mut(*nation).used = capacity.snapshot(*nation).total - remaining;
     }
 }
 
@@ -119,8 +131,18 @@ pub fn update_transport_demand_snapshot(
     connected_production: Res<crate::economy::production::ConnectedProduction>,
     workforces: Query<(Entity, &Workforce)>,
     allocations: Query<(Entity, &Allocations, Option<&Buildings>)>,
+    workforce_changed: Query<Entity, Changed<Workforce>>,
+    allocations_changed: Query<Entity, Changed<Allocations>>,
     mut snapshot: ResMut<TransportDemandSnapshot>,
 ) {
+    // Only update when something actually changed (like market system does)
+    if !connected_production.is_changed()
+        && workforce_changed.is_empty()
+        && allocations_changed.is_empty()
+    {
+        return;
+    }
+
     snapshot.nations.clear();
 
     // Supply from connected production

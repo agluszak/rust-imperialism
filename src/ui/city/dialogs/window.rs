@@ -1,5 +1,6 @@
 use bevy::prelude::*;
-use bevy::ui_widgets::{Activate, observe};
+use bevy::ui::widget::Button as OldButton;
+use bevy::ui_widgets::{Activate, Button, observe};
 
 use super::types::{
     BuildingDialog, CloseBuildingDialog, DialogCloseButton, DialogDragHandle, DialogDragState,
@@ -76,6 +77,7 @@ pub fn spawn_dialog_frame(
                             header
                                 .spawn((
                                     Button,
+                                    OldButton,
                                     Node {
                                         width: Val::Px(24.0),
                                         height: Val::Px(24.0),
