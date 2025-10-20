@@ -28,14 +28,14 @@ const ATLAS_TILES_HIGH: u32 = 2; // We have 8 terrain types, so 4x2 = 8 slots
 /// Load all terrain tiles at startup
 pub fn start_terrain_atlas_loading(mut commands: Commands, asset_server: Res<AssetServer>) {
     let terrain_files = vec![
-        ("glop/pictuniv.gob_2_10000.BMP.bmp", 0), // Grass
-        ("glop/pictuniv.gob_2_10001.BMP.bmp", 1), // Forest
-        ("glop/pictuniv.gob_2_10002.BMP.bmp", 2), // Hills
-        ("glop/pictuniv.gob_2_10003.BMP.bmp", 3), // Mountains
-        ("glop/pictuniv.gob_2_10004.BMP.bmp", 4), // Swamp
-        ("glop/pictuniv.gob_2_10005.BMP.bmp", 5), // Water
-        ("glop/pictuniv.gob_2_10006.BMP.bmp", 6), // Desert
-        ("glop/pictuniv.gob_2_10007.BMP.bmp", 7), // Farmland
+        ("extracted/bitmaps/10000.BMP", 0), // Grass
+        ("extracted/bitmaps/10001.BMP", 1), // Forest
+        ("extracted/bitmaps/10002.BMP", 2), // Hills
+        ("extracted/bitmaps/10003.BMP", 3), // Mountains
+        ("extracted/bitmaps/10004.BMP", 4), // Swamp
+        ("extracted/bitmaps/10005.BMP", 5), // Water
+        ("extracted/bitmaps/10006.BMP", 6), // Desert
+        ("extracted/bitmaps/10007.BMP", 7), // Farmland
     ];
 
     let mut builder = TerrainAtlasBuilder::default();
