@@ -29,7 +29,7 @@ Before running the game, you need to extract bitmap resources from your copy of 
 1. Locate your Imperialism installation directory
 2. Run the extraction script (requires the game's `.gob` files):
    ```bash
-   ./extract_data.sh <path to Imperialism data directory>
+   python ./extract_data.py <path to Imperialism data directory>
    ```
 3. This will populate `assets/extracted` with the necessary resources
 
