@@ -287,11 +287,16 @@ fn test_buildings_collection() {
 fn test_buildings_with_all_initial() {
     let buildings = Buildings::with_all_initial();
 
-    // Should have all 4 production buildings
+    // Should have all production buildings
     assert!(buildings.get(BuildingKind::TextileMill).is_some());
     assert!(buildings.get(BuildingKind::LumberMill).is_some());
     assert!(buildings.get(BuildingKind::SteelMill).is_some());
     assert!(buildings.get(BuildingKind::FoodProcessingCenter).is_some());
+    assert!(buildings.get(BuildingKind::ClothingFactory).is_some());
+    assert!(buildings.get(BuildingKind::FurnitureFactory).is_some());
+    assert!(buildings.get(BuildingKind::MetalWorks).is_some());
+    assert!(buildings.get(BuildingKind::Refinery).is_some());
+    assert!(buildings.get(BuildingKind::Railyard).is_some());
 
     // Check default capacities
     assert_eq!(
@@ -299,6 +304,34 @@ fn test_buildings_with_all_initial() {
         8
     );
     assert_eq!(buildings.get(BuildingKind::LumberMill).unwrap().capacity, 4);
+    assert_eq!(buildings.get(BuildingKind::SteelMill).unwrap().capacity, 4);
+    assert_eq!(
+        buildings
+            .get(BuildingKind::FoodProcessingCenter)
+            .unwrap()
+            .capacity,
+        4
+    );
+    assert_eq!(
+        buildings
+            .get(BuildingKind::ClothingFactory)
+            .unwrap()
+            .capacity,
+        2
+    );
+    assert_eq!(
+        buildings
+            .get(BuildingKind::FurnitureFactory)
+            .unwrap()
+            .capacity,
+        2
+    );
+    assert_eq!(buildings.get(BuildingKind::MetalWorks).unwrap().capacity, 2);
+    assert_eq!(buildings.get(BuildingKind::Refinery).unwrap().capacity, 2);
+    assert_eq!(
+        buildings.get(BuildingKind::Railyard).unwrap().capacity,
+        u32::MAX
+    );
 }
 
 #[test]

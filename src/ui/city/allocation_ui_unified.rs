@@ -243,6 +243,11 @@ pub fn update_all_allocation_bars(
                         Good::Paper | Good::Lumber => BuildingKind::LumberMill,
                         Good::Steel => BuildingKind::SteelMill,
                         Good::CannedFood => BuildingKind::FoodProcessingCenter,
+                        Good::Clothing => BuildingKind::ClothingFactory,
+                        Good::Furniture => BuildingKind::FurnitureFactory,
+                        Good::Hardware | Good::Armaments => BuildingKind::MetalWorks,
+                        Good::Fuel => BuildingKind::Refinery,
+                        Good::Transport => BuildingKind::Railyard,
                         _ => BuildingKind::TextileMill,
                     };
 
@@ -257,6 +262,12 @@ pub fn update_all_allocation_bars(
                             (BuildingKind::FoodProcessingCenter, Good::Fruit) => 1,
                             (BuildingKind::FoodProcessingCenter, Good::Livestock) => 1,
                             (BuildingKind::FoodProcessingCenter, Good::Fish) => 1,
+                            (BuildingKind::ClothingFactory, Good::Fabric) => 2,
+                            (BuildingKind::FurnitureFactory, Good::Lumber) => 2,
+                            (BuildingKind::MetalWorks, Good::Steel) => 2,
+                            (BuildingKind::Refinery, Good::Oil) => 2,
+                            (BuildingKind::Railyard, Good::Steel) => 1,
+                            (BuildingKind::Railyard, Good::Lumber) => 1,
                             _ => 0,
                         };
                         (count * per_unit_cost, available)
