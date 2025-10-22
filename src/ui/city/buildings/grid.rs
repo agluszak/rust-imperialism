@@ -96,6 +96,11 @@ pub fn spawn_building_grid(commands: &mut Commands, parent_entity: Entity) {
                     spawn_btn(BuildingKind::LumberMill, "Lumber\nMill");
                     spawn_btn(BuildingKind::SteelMill, "Steel\nMill");
                     spawn_btn(BuildingKind::FoodProcessingCenter, "Food\nProcessing");
+                    spawn_btn(BuildingKind::ClothingFactory, "Clothing\nFactory");
+                    spawn_btn(BuildingKind::FurnitureFactory, "Furniture\nFactory");
+                    spawn_btn(BuildingKind::MetalWorks, "Metal\nWorks");
+                    spawn_btn(BuildingKind::Refinery, "Refinery");
+                    spawn_btn(BuildingKind::Railyard, "Railyard");
 
                     // Workforce buildings
                     spawn_btn(BuildingKind::Capitol, "Capitol");

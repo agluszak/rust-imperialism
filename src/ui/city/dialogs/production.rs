@@ -90,13 +90,23 @@ fn spawn_production_content(
         BuildingKind::LumberMill => vec![Good::Lumber, Good::Paper], // TWO separate outputs!
         BuildingKind::SteelMill => vec![Good::Steel],
         BuildingKind::FoodProcessingCenter => vec![Good::CannedFood],
+        BuildingKind::ClothingFactory => vec![Good::Clothing],
+        BuildingKind::FurnitureFactory => vec![Good::Furniture],
+        BuildingKind::MetalWorks => vec![Good::Hardware, Good::Armaments],
+        BuildingKind::Refinery => vec![Good::Fuel],
+        BuildingKind::Railyard => vec![Good::Transport],
         _ => vec![],
     };
 
     // Building title and capacity
     commands.entity(content_entity).with_children(|content| {
+        let capacity_text = if building.capacity == u32::MAX {
+            "∞".to_string()
+        } else {
+            building.capacity.to_string()
+        };
         content.spawn((
-            Text::new(format!("{:?} (Cap: {})", building_kind, building.capacity)),
+            Text::new(format!("{:?} (Cap: {})", building_kind, capacity_text)),
             TextFont {
                 font_size: 16.0,
                 ..default()
@@ -445,6 +455,23 @@ fn get_recipe_for_output(
                 (Good::CannedFood, 2),
             )
         }
+        (BuildingKind::ClothingFactory, Good::Clothing) => {
+            (vec![vec![(Good::Fabric, 2)]], (Good::Clothing, 1))
+        }
+        (BuildingKind::FurnitureFactory, Good::Furniture) => {
+            (vec![vec![(Good::Lumber, 2)]], (Good::Furniture, 1))
+        }
+        (BuildingKind::MetalWorks, Good::Hardware) => {
+            (vec![vec![(Good::Steel, 2)]], (Good::Hardware, 1))
+        }
+        (BuildingKind::MetalWorks, Good::Armaments) => {
+            (vec![vec![(Good::Steel, 2)]], (Good::Armaments, 1))
+        }
+        (BuildingKind::Refinery, Good::Fuel) => (vec![vec![(Good::Oil, 2)]], (Good::Fuel, 1)),
+        (BuildingKind::Railyard, Good::Transport) => (
+            vec![vec![(Good::Steel, 1), (Good::Lumber, 1)]],
+            (Good::Transport, 1),
+        ),
         _ => (vec![], (Good::Fabric, 0)), // Shouldn't happen
     }
 }

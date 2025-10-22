@@ -122,6 +122,11 @@ fn inputs_for_output(
             // Output is in canned food units (2 per batch)
             vec![(Good::Grain, 2), (Good::Fruit, 1), (meat, 1)]
         }
+        BuildingKind::ClothingFactory => vec![(Good::Fabric, 2)],
+        BuildingKind::FurnitureFactory => vec![(Good::Lumber, 2)],
+        BuildingKind::MetalWorks => vec![(Good::Steel, 2)],
+        BuildingKind::Refinery => vec![(Good::Oil, 2)],
+        BuildingKind::Railyard => vec![(Good::Steel, 1), (Good::Lumber, 1)],
         BuildingKind::Capitol | BuildingKind::TradeSchool | BuildingKind::PowerPlant => vec![],
     }
 }
@@ -188,6 +193,11 @@ pub fn update_transport_demand_snapshot(
                 Good::Paper | Good::Lumber => BuildingKind::LumberMill,
                 Good::Steel => BuildingKind::SteelMill,
                 Good::CannedFood => BuildingKind::FoodProcessingCenter,
+                Good::Clothing => BuildingKind::ClothingFactory,
+                Good::Furniture => BuildingKind::FurnitureFactory,
+                Good::Hardware | Good::Armaments => BuildingKind::MetalWorks,
+                Good::Fuel => BuildingKind::Refinery,
+                Good::Transport => BuildingKind::Railyard,
                 _ => continue,
             };
 
