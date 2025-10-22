@@ -10,6 +10,7 @@ pub enum ResourceType {
     // Livestock
     Wool,
     Livestock,
+    Fish, // Coastal fisheries gathered by ports
     // Natural
     Timber,
     // Minerals (must be discovered by Prospector)
@@ -28,6 +29,7 @@ pub const ALL_RESOURCES: &[ResourceType] = &[
     ResourceType::Cotton,
     ResourceType::Wool,
     ResourceType::Livestock,
+    ResourceType::Fish,
     ResourceType::Timber,
     ResourceType::Coal,
     ResourceType::Iron,
@@ -97,6 +99,7 @@ impl TileResource {
             | ResourceType::Cotton
             | ResourceType::Wool
             | ResourceType::Livestock
+            | ResourceType::Fish
             | ResourceType::Timber => match self.development {
                 DevelopmentLevel::Lv0 => 1,
                 DevelopmentLevel::Lv1 => 2,

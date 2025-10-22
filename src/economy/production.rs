@@ -4,7 +4,10 @@ use std::iter;
 
 use crate::{
     civilians::types::ProspectingKnowledge,
-    economy::transport::{Depot, Port},
+    economy::{
+        nation::Capital,
+        transport::{Depot, Port},
+    },
     map::tile_pos::{HexExt, TilePosExt},
     resources::{ResourceType, TileResource},
 };
@@ -25,6 +28,7 @@ pub fn calculate_connected_production(
     mut production: ResMut<ConnectedProduction>,
     connected_depots: Query<&Depot>,
     connected_ports: Query<&Port>,
+    capitals: Query<(Entity, &Capital)>,
     tile_storage: Query<&TileStorage>,
     tile_resources: Query<&TileResource>,
     prospecting_knowledge: Res<ProspectingKnowledge>,
@@ -38,7 +42,40 @@ pub fn calculate_connected_production(
         return;
     };
 
-    let mut process_improvement = |owner: Entity, position: TilePos| {
+    fn record_output(
+        production: &mut ConnectedProduction,
+        processed_tiles: &mut HashSet<TilePos>,
+        owner: Entity,
+        resource_type: ResourceType,
+        tile_pos: Option<TilePos>,
+        output: u32,
+        count_improvement: bool,
+    ) {
+        if output == 0 {
+            return;
+        }
+
+        let nation_production = production.0.entry(owner).or_default();
+        let entry = nation_production.entry(resource_type).or_default();
+        if count_improvement {
+            entry.0 += 1;
+        }
+        entry.1 += output;
+
+        if let Some(pos) = tile_pos {
+            processed_tiles.insert(pos);
+        }
+    }
+
+    fn process_improvement(
+        production: &mut ConnectedProduction,
+        processed_tiles: &mut HashSet<TilePos>,
+        owner: Entity,
+        position: TilePos,
+        tile_storage: &TileStorage,
+        tile_resources: &Query<&TileResource>,
+        prospecting_knowledge: &ProspectingKnowledge,
+    ) {
         let center_hex = position.to_hex();
         let neighbors = center_hex.all_neighbors();
         let tiles_to_check = neighbors.iter().copied().chain(iter::once(center_hex));
@@ -58,24 +95,182 @@ pub fn calculate_connected_production(
                     {
                         continue;
                     }
-                    let nation_production = production.0.entry(owner).or_default();
-                    let entry = nation_production.entry(resource.resource_type).or_default();
-                    entry.0 += 1; // Increment improvement count
-                    entry.1 += resource.get_output(); // Add production output
-                    processed_tiles.insert(tile_pos);
+                    record_output(
+                        production,
+                        processed_tiles,
+                        owner,
+                        resource.resource_type,
+                        Some(tile_pos),
+                        resource.get_output(),
+                        true,
+                    );
                 }
             }
         }
-    };
+    }
+
+    let production = production.as_mut();
 
     // Process connected depots
     for depot in connected_depots.iter().filter(|d| d.connected) {
-        process_improvement(depot.owner, depot.position);
+        process_improvement(
+            production,
+            &mut processed_tiles,
+            depot.owner,
+            depot.position,
+            tile_storage,
+            &tile_resources,
+            &prospecting_knowledge,
+        );
     }
 
     // Process connected ports
     for port in connected_ports.iter().filter(|p| p.connected) {
-        process_improvement(port.owner, port.position);
+        process_improvement(
+            production,
+            &mut processed_tiles,
+            port.owner,
+            port.position,
+            tile_storage,
+            &tile_resources,
+            &prospecting_knowledge,
+        );
+        record_output(
+            production,
+            &mut processed_tiles,
+            port.owner,
+            ResourceType::Fish,
+            None,
+            2,
+            true,
+        );
+    }
+
+    // Process capital-adjacent tiles for baseline yields
+    for (owner, capital) in capitals.iter() {
+        let center_hex = capital.0.to_hex();
+
+        for hex in center_hex.all_neighbors() {
+            if let Some(tile_pos) = hex.to_tile_pos() {
+                if processed_tiles.contains(&tile_pos) {
+                    continue;
+                }
+                if let Some(tile_entity) = tile_storage.get(&tile_pos)
+                    && let Ok(resource) = tile_resources.get(tile_entity)
+                    && resource.discovered
+                {
+                    if resource.requires_prospecting()
+                        && !prospecting_knowledge.is_discovered_by(tile_entity, owner)
+                    {
+                        continue;
+                    }
+
+                    if matches!(
+                        resource.resource_type,
+                        ResourceType::Grain
+                            | ResourceType::Fruit
+                            | ResourceType::Cotton
+                            | ResourceType::Timber
+                            | ResourceType::Livestock
+                    ) {
+                        record_output(
+                            production,
+                            &mut processed_tiles,
+                            owner,
+                            resource.resource_type,
+                            Some(tile_pos),
+                            1,
+                            false,
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        economy::{nation::Capital, transport::Port},
+        map::tiles::TerrainType,
+        resources::{ResourceType, TileResource},
+        test_utils::{create_test_tile, create_test_tilemap},
+    };
+    use bevy_ecs_tilemap::prelude::TilePos;
+
+    #[test]
+    fn capital_adjacent_tiles_provide_baseline_yield() {
+        let mut app = App::new();
+        app.insert_resource(ConnectedProduction::default());
+        app.insert_resource(ProspectingKnowledge::default());
+
+        let (tilemap_entity, mut tile_storage) = create_test_tilemap(app.world_mut(), 3, 3);
+        let capital_pos = TilePos { x: 1, y: 1 };
+        let field_pos = TilePos { x: 1, y: 2 };
+
+        let field_entity = create_test_tile(
+            app.world_mut(),
+            field_pos,
+            TerrainType::Farmland,
+            tilemap_entity,
+            &mut tile_storage,
+        );
+        app.world_mut()
+            .entity_mut(field_entity)
+            .insert(TileResource::visible(ResourceType::Grain));
+
+        app.world_mut()
+            .entity_mut(tilemap_entity)
+            .insert(tile_storage);
+
+        let nation = app.world_mut().spawn(Capital(capital_pos)).id();
+
+        app.add_systems(Update, calculate_connected_production);
+        app.update();
+
+        let production = app.world().resource::<ConnectedProduction>();
+        let nation_output = production
+            .0
+            .get(&nation)
+            .expect("capital-adjacent production recorded");
+        let grain_entry = nation_output
+            .get(&ResourceType::Grain)
+            .expect("grain entry exists");
+        assert_eq!(grain_entry.0, 0, "no improvements should be counted");
+        assert_eq!(grain_entry.1, 1, "capital adjacency yields one grain");
+    }
+
+    #[test]
+    fn connected_port_produces_two_fish() {
+        let mut app = App::new();
+        app.insert_resource(ConnectedProduction::default());
+        app.insert_resource(ProspectingKnowledge::default());
+
+        let (tilemap_entity, tile_storage) = create_test_tilemap(app.world_mut(), 3, 3);
+        app.world_mut()
+            .entity_mut(tilemap_entity)
+            .insert(tile_storage.clone());
+
+        let nation = app.world_mut().spawn_empty().id();
+        app.world_mut().spawn(Port {
+            position: TilePos { x: 1, y: 1 },
+            owner: nation,
+            connected: true,
+            is_river: false,
+        });
+
+        app.add_systems(Update, calculate_connected_production);
+        app.update();
+
+        let production = app.world().resource::<ConnectedProduction>();
+        let nation_output = production.0.get(&nation).expect("port production recorded");
+        let fish_entry = nation_output
+            .get(&ResourceType::Fish)
+            .expect("fish entry exists");
+        assert_eq!(fish_entry.0, 1, "port counts as improvement for fish");
+        assert_eq!(fish_entry.1, 2, "ports yield two fish");
     }
 }
 
