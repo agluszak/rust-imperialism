@@ -36,9 +36,14 @@ pub fn open_building_dialogs(
         // Get dialog title
         let title = match event.building_kind {
             BuildingKind::TextileMill => "Textile Mill",
+            BuildingKind::ClothingFactory => "Clothing Factory",
             BuildingKind::LumberMill => "Lumber Mill",
+            BuildingKind::FurnitureFactory => "Furniture Factory",
             BuildingKind::SteelMill => "Steel Mill",
+            BuildingKind::MetalWorks => "Metal Works",
             BuildingKind::FoodProcessingCenter => "Food Processing",
+            BuildingKind::Refinery => "Oil Refinery",
+            BuildingKind::Railyard => "Railyard",
             BuildingKind::Capitol => "Capitol",
             BuildingKind::TradeSchool => "Trade School",
             BuildingKind::PowerPlant => "Power Plant",

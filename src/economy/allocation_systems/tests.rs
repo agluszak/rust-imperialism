@@ -122,6 +122,60 @@ fn test_steel_mill_inputs() {
     assert_eq!(inputs[1], (Good::Coal, 1));
 }
 
+#[test]
+fn test_clothing_factory_inputs() {
+    let stockpile = Stockpile::default();
+
+    let inputs =
+        calculate_inputs_for_one_unit(BuildingKind::ClothingFactory, Good::Clothing, &stockpile);
+
+    assert_eq!(inputs.len(), 1);
+    assert_eq!(inputs[0], (Good::Fabric, 2));
+}
+
+#[test]
+fn test_furniture_factory_inputs() {
+    let stockpile = Stockpile::default();
+
+    let inputs =
+        calculate_inputs_for_one_unit(BuildingKind::FurnitureFactory, Good::Furniture, &stockpile);
+
+    assert_eq!(inputs.len(), 1);
+    assert_eq!(inputs[0], (Good::Lumber, 2));
+}
+
+#[test]
+fn test_metal_works_inputs() {
+    let stockpile = Stockpile::default();
+
+    let inputs =
+        calculate_inputs_for_one_unit(BuildingKind::MetalWorks, Good::Hardware, &stockpile);
+
+    assert_eq!(inputs.len(), 1);
+    assert_eq!(inputs[0], (Good::Steel, 2));
+}
+
+#[test]
+fn test_refinery_inputs() {
+    let stockpile = Stockpile::default();
+
+    let inputs = calculate_inputs_for_one_unit(BuildingKind::Refinery, Good::Fuel, &stockpile);
+
+    assert_eq!(inputs.len(), 1);
+    assert_eq!(inputs[0], (Good::Oil, 2));
+}
+
+#[test]
+fn test_railyard_inputs() {
+    let stockpile = Stockpile::default();
+
+    let inputs = calculate_inputs_for_one_unit(BuildingKind::Railyard, Good::Transport, &stockpile);
+
+    assert_eq!(inputs.len(), 2);
+    assert!(inputs.contains(&(Good::Steel, 1)));
+    assert!(inputs.contains(&(Good::Lumber, 1)));
+}
+
 /// Test reservation system integration
 #[test]
 fn test_reservation_system_basics() {
@@ -289,9 +343,14 @@ fn test_buildings_with_all_initial() {
 
     // Should have all 4 production buildings
     assert!(buildings.get(BuildingKind::TextileMill).is_some());
+    assert!(buildings.get(BuildingKind::ClothingFactory).is_some());
     assert!(buildings.get(BuildingKind::LumberMill).is_some());
+    assert!(buildings.get(BuildingKind::FurnitureFactory).is_some());
     assert!(buildings.get(BuildingKind::SteelMill).is_some());
+    assert!(buildings.get(BuildingKind::MetalWorks).is_some());
+    assert!(buildings.get(BuildingKind::Refinery).is_some());
     assert!(buildings.get(BuildingKind::FoodProcessingCenter).is_some());
+    assert!(buildings.get(BuildingKind::Railyard).is_some());
 
     // Check default capacities
     assert_eq!(
@@ -299,6 +358,34 @@ fn test_buildings_with_all_initial() {
         8
     );
     assert_eq!(buildings.get(BuildingKind::LumberMill).unwrap().capacity, 4);
+    assert_eq!(
+        buildings
+            .get(BuildingKind::ClothingFactory)
+            .unwrap()
+            .capacity,
+        4
+    );
+    assert_eq!(
+        buildings
+            .get(BuildingKind::FurnitureFactory)
+            .unwrap()
+            .capacity,
+        4
+    );
+    assert_eq!(buildings.get(BuildingKind::SteelMill).unwrap().capacity, 4);
+    assert_eq!(buildings.get(BuildingKind::MetalWorks).unwrap().capacity, 4);
+    assert_eq!(buildings.get(BuildingKind::Refinery).unwrap().capacity, 4);
+    assert_eq!(
+        buildings
+            .get(BuildingKind::FoodProcessingCenter)
+            .unwrap()
+            .capacity,
+        4
+    );
+    assert_eq!(
+        buildings.get(BuildingKind::Railyard).unwrap().capacity,
+        u32::MAX
+    );
 }
 
 #[test]

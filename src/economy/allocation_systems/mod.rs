@@ -60,14 +60,34 @@ pub(crate) fn calculate_inputs_for_one_unit(
             vec![(fiber, 2)]
         }
 
+        BuildingKind::ClothingFactory => {
+            // 2 fabric → 1 clothing
+            vec![(Good::Fabric, 2)]
+        }
+
         BuildingKind::LumberMill => {
             // 2 timber → 1 output (Lumber or Paper)
             vec![(Good::Timber, 2)]
         }
 
+        BuildingKind::FurnitureFactory => {
+            // 2 lumber → 1 furniture
+            vec![(Good::Lumber, 2)]
+        }
+
         BuildingKind::SteelMill => {
             // 1 iron + 1 coal → 1 steel
             vec![(Good::Iron, 1), (Good::Coal, 1)]
+        }
+
+        BuildingKind::MetalWorks => {
+            // 2 steel → 1 hardware or armaments
+            vec![(Good::Steel, 2)]
+        }
+
+        BuildingKind::Refinery => {
+            // 2 oil → 1 fuel
+            vec![(Good::Oil, 2)]
         }
 
         BuildingKind::FoodProcessingCenter => {
@@ -88,6 +108,11 @@ pub(crate) fn calculate_inputs_for_one_unit(
             };
 
             vec![(Good::Grain, 2), (Good::Fruit, 1), (meat, 1)]
+        }
+
+        BuildingKind::Railyard => {
+            // 1 steel + 1 lumber → 1 transport
+            vec![(Good::Steel, 1), (Good::Lumber, 1)]
         }
 
         BuildingKind::Capitol | BuildingKind::TradeSchool | BuildingKind::PowerPlant => vec![],
@@ -180,9 +205,14 @@ fn process_production_adjustment(
 
     let building_kind = match msg.output_good {
         Good::Fabric => BuildingKind::TextileMill,
+        Good::Clothing => BuildingKind::ClothingFactory,
         Good::Paper | Good::Lumber => BuildingKind::LumberMill,
+        Good::Furniture => BuildingKind::FurnitureFactory,
         Good::Steel => BuildingKind::SteelMill,
+        Good::Hardware | Good::Armaments => BuildingKind::MetalWorks,
+        Good::Fuel => BuildingKind::Refinery,
         Good::CannedFood => BuildingKind::FoodProcessingCenter,
+        Good::Transport => BuildingKind::Railyard,
         _ => {
             warn!(
                 "Cannot determine building for output good: {:?}",

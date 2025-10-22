@@ -112,8 +112,12 @@ fn inputs_for_output(
             ProductionChoice::UseWool => vec![(Good::Wool, 2)],
             _ => vec![(Good::Cotton, 2)],
         },
+        BuildingKind::ClothingFactory => vec![(Good::Fabric, 2)],
         BuildingKind::LumberMill => vec![(Good::Timber, 2)],
+        BuildingKind::FurnitureFactory => vec![(Good::Lumber, 2)],
         BuildingKind::SteelMill => vec![(Good::Iron, 1), (Good::Coal, 1)],
+        BuildingKind::MetalWorks => vec![(Good::Steel, 2)],
+        BuildingKind::Refinery => vec![(Good::Oil, 2)],
         BuildingKind::FoodProcessingCenter => {
             let meat = match choice {
                 ProductionChoice::UseFish => Good::Fish,
@@ -122,6 +126,7 @@ fn inputs_for_output(
             // Output is in canned food units (2 per batch)
             vec![(Good::Grain, 2), (Good::Fruit, 1), (meat, 1)]
         }
+        BuildingKind::Railyard => vec![(Good::Steel, 1), (Good::Lumber, 1)],
         BuildingKind::Capitol | BuildingKind::TradeSchool | BuildingKind::PowerPlant => vec![],
     }
 }
@@ -185,9 +190,14 @@ pub fn update_transport_demand_snapshot(
 
             let building_kind = match output_good {
                 Good::Fabric | Good::Cloth => BuildingKind::TextileMill,
+                Good::Clothing => BuildingKind::ClothingFactory,
                 Good::Paper | Good::Lumber => BuildingKind::LumberMill,
+                Good::Furniture => BuildingKind::FurnitureFactory,
                 Good::Steel => BuildingKind::SteelMill,
+                Good::Hardware | Good::Armaments => BuildingKind::MetalWorks,
+                Good::Fuel => BuildingKind::Refinery,
                 Good::CannedFood => BuildingKind::FoodProcessingCenter,
+                Good::Transport => BuildingKind::Railyard,
                 _ => continue,
             };
 
@@ -199,6 +209,7 @@ pub fn update_transport_demand_snapshot(
             let choice = match building_kind {
                 BuildingKind::TextileMill => ProductionChoice::UseCotton,
                 BuildingKind::FoodProcessingCenter => ProductionChoice::UseLivestock,
+                BuildingKind::MetalWorks => ProductionChoice::MakeHardware,
                 _ => ProductionChoice::UseCotton,
             };
 

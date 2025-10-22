@@ -83,9 +83,14 @@ pub fn calculate_connected_production(
 pub enum BuildingKind {
     // Production buildings
     TextileMill,          // 2×Cotton OR 2×Wool → 1×Fabric
+    ClothingFactory,      // 2×Fabric → 1×Clothing
     LumberMill,           // 2×Timber → 1×Lumber OR 1×Paper
+    FurnitureFactory,     // 2×Lumber → 1×Furniture
     SteelMill,            // 1×Iron + 1×Coal → 1×Steel
+    MetalWorks,           // 2×Steel → 1×Hardware OR 1×Armaments
+    Refinery,             // 2×Oil → 1×Fuel
     FoodProcessingCenter, // 2×Grain + 1×Fruit + 1×(Livestock|Fish) → 2×CannedFood
+    Railyard,             // 1×Steel + 1×Lumber → 1×Transport
 
     // Worker-related buildings (no production capacity)
     Capitol,     // Recruit untrained workers
@@ -103,6 +108,10 @@ pub enum ProductionChoice {
     // For LumberMill: choose between Lumber or Paper
     MakeLumber,
     MakePaper,
+
+    // For MetalWorks: choose between Hardware or Armaments
+    MakeHardware,
+    MakeArmaments,
 
     // For FoodProcessingCenter: choose between Livestock or Fish
     UseLivestock,
@@ -148,9 +157,37 @@ impl Building {
         }
     }
 
+    pub fn clothing_factory(capacity: u32) -> Self {
+        Self {
+            kind: BuildingKind::ClothingFactory,
+            capacity,
+        }
+    }
+
+    pub fn furniture_factory(capacity: u32) -> Self {
+        Self {
+            kind: BuildingKind::FurnitureFactory,
+            capacity,
+        }
+    }
+
     pub fn steel_mill(capacity: u32) -> Self {
         Self {
             kind: BuildingKind::SteelMill,
+            capacity,
+        }
+    }
+
+    pub fn metal_works(capacity: u32) -> Self {
+        Self {
+            kind: BuildingKind::MetalWorks,
+            capacity,
+        }
+    }
+
+    pub fn refinery(capacity: u32) -> Self {
+        Self {
+            kind: BuildingKind::Refinery,
             capacity,
         }
     }
@@ -182,6 +219,13 @@ impl Building {
             capacity, // Fuel → labor conversion capacity
         }
     }
+
+    pub fn railyard() -> Self {
+        Self {
+            kind: BuildingKind::Railyard,
+            capacity: u32::MAX, // Unlimited per-turn orders
+        }
+    }
 }
 
 /// Collection of all buildings for a nation
@@ -198,12 +242,20 @@ impl Buildings {
     pub fn with_all_initial() -> Self {
         let mut buildings = HashMap::new();
         buildings.insert(BuildingKind::TextileMill, Building::textile_mill(8));
+        buildings.insert(BuildingKind::ClothingFactory, Building::clothing_factory(4));
         buildings.insert(BuildingKind::LumberMill, Building::lumber_mill(4));
+        buildings.insert(
+            BuildingKind::FurnitureFactory,
+            Building::furniture_factory(4),
+        );
         buildings.insert(BuildingKind::SteelMill, Building::steel_mill(4));
+        buildings.insert(BuildingKind::MetalWorks, Building::metal_works(4));
+        buildings.insert(BuildingKind::Refinery, Building::refinery(4));
         buildings.insert(
             BuildingKind::FoodProcessingCenter,
             Building::food_processing_center(4),
         );
+        buildings.insert(BuildingKind::Railyard, Building::railyard());
         Self { buildings }
     }
 
@@ -247,7 +299,10 @@ pub fn run_production(
                 let input_good = match settings.choice {
                     ProductionChoice::UseCotton => Good::Cotton,
                     ProductionChoice::UseWool => Good::Wool,
-                    _ => continue, // Invalid choice for this building
+                    _ => {
+                        settings.choice = ProductionChoice::UseCotton;
+                        Good::Cotton
+                    }
                 };
 
                 // Apply labor constraint
@@ -271,13 +326,37 @@ pub fn run_production(
                 }
             }
 
+            BuildingKind::ClothingFactory => {
+                // 2:1 ratio: 2×Fabric → 1×Clothing
+
+                let actual_output = settings.target_output.min(max_from_labor);
+
+                if actual_output > 0 {
+                    let inputs_needed = actual_output * 2;
+                    let consumed = stock.consume_reserved(Good::Fabric, inputs_needed);
+                    let produced = consumed / 2;
+                    stock.add(Good::Clothing, produced);
+
+                    if produced < actual_output {
+                        info!(
+                            "ClothingFactory: expected {} but only consumed {} fabric",
+                            inputs_needed, consumed
+                        );
+                        settings.target_output = produced;
+                    }
+                }
+            }
+
             BuildingKind::LumberMill => {
                 // 2:1 ratio: 2×Timber → 1×Lumber OR 1×Paper
 
                 let output_good = match settings.choice {
                     ProductionChoice::MakeLumber => Good::Lumber,
                     ProductionChoice::MakePaper => Good::Paper,
-                    _ => continue,
+                    _ => {
+                        settings.choice = ProductionChoice::MakeLumber;
+                        Good::Lumber
+                    }
                 };
 
                 // Apply labor constraint
@@ -292,6 +371,27 @@ pub fn run_production(
                     if produced < actual_output {
                         info!(
                             "LumberMill: expected {} but only consumed {} inputs",
+                            inputs_needed, consumed
+                        );
+                        settings.target_output = produced;
+                    }
+                }
+            }
+
+            BuildingKind::FurnitureFactory => {
+                // 2:1 ratio: 2×Lumber → 1×Furniture
+
+                let actual_output = settings.target_output.min(max_from_labor);
+
+                if actual_output > 0 {
+                    let inputs_needed = actual_output * 2;
+                    let consumed = stock.consume_reserved(Good::Lumber, inputs_needed);
+                    let produced = consumed / 2;
+                    stock.add(Good::Furniture, produced);
+
+                    if produced < actual_output {
+                        info!(
+                            "FurnitureFactory: expected {} but only consumed {} lumber",
                             inputs_needed, consumed
                         );
                         settings.target_output = produced;
@@ -321,13 +421,67 @@ pub fn run_production(
                 }
             }
 
+            BuildingKind::MetalWorks => {
+                // 2:1 ratio: 2×Steel → 1×Hardware OR 1×Armaments
+
+                let output_good = match settings.choice {
+                    ProductionChoice::MakeHardware => Good::Hardware,
+                    ProductionChoice::MakeArmaments => Good::Armaments,
+                    _ => {
+                        settings.choice = ProductionChoice::MakeHardware;
+                        Good::Hardware
+                    }
+                };
+
+                let actual_output = settings.target_output.min(max_from_labor);
+
+                if actual_output > 0 {
+                    let inputs_needed = actual_output * 2;
+                    let consumed = stock.consume_reserved(Good::Steel, inputs_needed);
+                    let produced = consumed / 2;
+                    stock.add(output_good, produced);
+
+                    if produced < actual_output {
+                        info!(
+                            "MetalWorks: expected {} but only consumed {} steel",
+                            inputs_needed, consumed
+                        );
+                        settings.target_output = produced;
+                    }
+                }
+            }
+
+            BuildingKind::Refinery => {
+                // 2:1 ratio: 2×Oil → 1×Fuel
+
+                let actual_output = settings.target_output.min(max_from_labor);
+
+                if actual_output > 0 {
+                    let inputs_needed = actual_output * 2;
+                    let consumed = stock.consume_reserved(Good::Oil, inputs_needed);
+                    let produced = consumed / 2;
+                    stock.add(Good::Fuel, produced);
+
+                    if produced < actual_output {
+                        info!(
+                            "Refinery: expected {} but only consumed {} oil",
+                            inputs_needed, consumed
+                        );
+                        settings.target_output = produced;
+                    }
+                }
+            }
+
             BuildingKind::FoodProcessingCenter => {
                 // Special ratio: 2×Grain + 1×Fruit + 1×(Livestock|Fish) → 2×CannedFood
 
                 let meat_good = match settings.choice {
                     ProductionChoice::UseLivestock => Good::Livestock,
                     ProductionChoice::UseFish => Good::Fish,
-                    _ => continue,
+                    _ => {
+                        settings.choice = ProductionChoice::UseLivestock;
+                        Good::Livestock
+                    }
                 };
 
                 // target_output is in canned food units (comes in pairs)
@@ -355,6 +509,27 @@ pub fn run_production(
                             grain_consumed,
                             fruit_consumed,
                             meat_consumed
+                        );
+                        settings.target_output = produced;
+                    }
+                }
+            }
+
+            BuildingKind::Railyard => {
+                // 1×Steel + 1×Lumber → 1×Transport (no intrinsic capacity limit)
+
+                let actual_output = settings.target_output.min(max_from_labor);
+
+                if actual_output > 0 {
+                    let steel_consumed = stock.consume_reserved(Good::Steel, actual_output);
+                    let lumber_consumed = stock.consume_reserved(Good::Lumber, actual_output);
+                    let produced = steel_consumed.min(lumber_consumed);
+                    stock.add(Good::Transport, produced);
+
+                    if produced < actual_output {
+                        info!(
+                            "Railyard: expected {} but only consumed {} steel and {} lumber",
+                            actual_output, steel_consumed, lumber_consumed
                         );
                         settings.target_output = produced;
                     }

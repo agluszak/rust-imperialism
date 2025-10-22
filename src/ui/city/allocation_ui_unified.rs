@@ -240,9 +240,14 @@ pub fn update_all_allocation_bars(
                 } else {
                     let building_kind = match output_good {
                         Good::Fabric => BuildingKind::TextileMill,
+                        Good::Clothing => BuildingKind::ClothingFactory,
                         Good::Paper | Good::Lumber => BuildingKind::LumberMill,
+                        Good::Furniture => BuildingKind::FurnitureFactory,
                         Good::Steel => BuildingKind::SteelMill,
+                        Good::Hardware | Good::Armaments => BuildingKind::MetalWorks,
+                        Good::Fuel => BuildingKind::Refinery,
                         Good::CannedFood => BuildingKind::FoodProcessingCenter,
+                        Good::Transport => BuildingKind::Railyard,
                         _ => BuildingKind::TextileMill,
                     };
 
@@ -250,13 +255,19 @@ pub fn update_all_allocation_bars(
                         let per_unit_cost = match (building_kind, bar.good) {
                             (BuildingKind::TextileMill, Good::Cotton) => 2,
                             (BuildingKind::TextileMill, Good::Wool) => 2,
+                            (BuildingKind::ClothingFactory, Good::Fabric) => 2,
                             (BuildingKind::LumberMill, Good::Timber) => 2,
+                            (BuildingKind::FurnitureFactory, Good::Lumber) => 2,
                             (BuildingKind::SteelMill, Good::Iron) => 1,
                             (BuildingKind::SteelMill, Good::Coal) => 1,
+                            (BuildingKind::MetalWorks, Good::Steel) => 2,
+                            (BuildingKind::Refinery, Good::Oil) => 2,
                             (BuildingKind::FoodProcessingCenter, Good::Grain) => 2,
                             (BuildingKind::FoodProcessingCenter, Good::Fruit) => 1,
                             (BuildingKind::FoodProcessingCenter, Good::Livestock) => 1,
                             (BuildingKind::FoodProcessingCenter, Good::Fish) => 1,
+                            (BuildingKind::Railyard, Good::Steel) => 1,
+                            (BuildingKind::Railyard, Good::Lumber) => 1,
                             _ => 0,
                         };
                         (count * per_unit_cost, available)
