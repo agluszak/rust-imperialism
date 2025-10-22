@@ -20,3 +20,4 @@ image = "0.25"
 thiserror = "2.0"
 moonshine-save = "0.6"
 moonshine-kind = "0.4"
+big-brain = { git = "https://github.com/zkat/big-brain", rev = "12ffd46498f4703dd80b0121c9b964b413f887ee", default-features = false }

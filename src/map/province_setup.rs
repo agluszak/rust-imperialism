@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
 use std::collections::{HashMap, HashSet};
 
+use crate::ai::{AiControlledCivilian, AiNation};
 use crate::civilians::{Civilian, CivilianKind};
 use crate::constants::MAP_SIZE;
 use crate::economy::{
@@ -92,6 +93,8 @@ pub fn assign_provinces_to_countries(
 
     // Create countries
     let mut country_entities = Vec::new();
+    let mut capitals = Vec::new();
+
     for i in 0..num_countries {
         let name = if i == 0 {
             "Player".to_string()
@@ -142,6 +145,10 @@ pub fn assign_provinces_to_countries(
         ));
 
         let country_entity = country_builder.id();
+
+        if i > 0 {
+            commands.entity(country_entity).insert(AiNation);
+        }
 
         // Player gets starting buildings and workforce
         if i == 0 {
@@ -217,6 +224,7 @@ pub fn assign_provinces_to_countries(
                     prov_city,
                     country_entity,
                     country_idx == 0, // First country gets first province as capital
+                    &mut capitals,
                     &assigned,
                 );
             }
@@ -237,6 +245,7 @@ pub fn assign_provinces_to_countries(
                 *city_tile,
                 country_entity,
                 false,
+                &mut capitals,
                 &assigned,
             );
             assigned.insert(*province_id);
@@ -244,28 +253,16 @@ pub fn assign_provinces_to_countries(
         }
     }
 
+    let player_entity = country_entities.first().copied();
+
     // Spawn starter civilian roster for the player clustered around the capital
-    if let Some(player_entity) = country_entities.first()
-        && let Some(player_capital) = province_list.first()
+    if let Some(player_entity) = player_entity
+        && let Some(player_capital) = capitals
+            .iter()
+            .find(|(entity, _)| *entity == player_entity)
+            .map(|(_, pos)| *pos)
     {
-        let capital_pos = player_capital.2;
-        let capital_hex = capital_pos.to_hex();
-        let mut spawn_positions = Vec::new();
-        spawn_positions.push(capital_pos);
-
-        for neighbor in capital_hex.all_neighbors() {
-            if let Some(tile_pos) = neighbor.to_tile_pos() {
-                spawn_positions.push(tile_pos);
-            }
-            if spawn_positions.len() >= 6 {
-                break;
-            }
-        }
-
-        while spawn_positions.len() < 6 {
-            spawn_positions.push(capital_pos);
-        }
-
+        let spawn_positions = gather_spawn_positions(player_capital, 6);
         let starter_units = [
             CivilianKind::Engineer,
             CivilianKind::Prospector,
@@ -279,11 +276,36 @@ pub fn assign_provinces_to_countries(
             commands.spawn(Civilian {
                 kind: *kind,
                 position: *pos,
-                owner: *player_entity,
+                owner: player_entity,
                 selected: false,
                 has_moved: false,
             });
             info!("Spawned {:?} for player at ({}, {})", kind, pos.x, pos.y);
+        }
+    }
+
+    let ai_starter_units = [CivilianKind::Engineer, CivilianKind::Prospector];
+    for (nation_entity, capital_pos) in capitals
+        .iter()
+        .copied()
+        .filter(|(entity, _)| Some(*entity) != player_entity)
+    {
+        let spawn_positions = gather_spawn_positions(capital_pos, ai_starter_units.len());
+        for (kind, pos) in ai_starter_units.iter().zip(spawn_positions.iter()) {
+            commands.spawn((
+                Civilian {
+                    kind: *kind,
+                    position: *pos,
+                    owner: nation_entity,
+                    selected: false,
+                    has_moved: false,
+                },
+                AiControlledCivilian,
+            ));
+            info!(
+                "Spawned {:?} for AI nation {:?} at ({}, {})",
+                kind, nation_entity, pos.x, pos.y
+            );
         }
     }
 
@@ -299,6 +321,7 @@ fn assign_province_to_country(
     city_tile: TilePos,
     country_entity: Entity,
     is_first_of_country: bool,
+    capitals: &mut Vec<(Entity, TilePos)>,
     assigned: &HashSet<ProvinceId>,
 ) {
     // Update province owner
@@ -324,7 +347,28 @@ fn assign_province_to_country(
             boost_capital_food_tiles(world, capital_tile);
         });
         info!("Set capital at ({}, {})", city_tile.x, city_tile.y);
+        capitals.push((country_entity, city_tile));
     }
+}
+
+fn gather_spawn_positions(capital_pos: TilePos, count: usize) -> Vec<TilePos> {
+    let mut spawn_positions = Vec::new();
+    spawn_positions.push(capital_pos);
+
+    for neighbor in capital_pos.to_hex().all_neighbors() {
+        if let Some(tile_pos) = neighbor.to_tile_pos() {
+            spawn_positions.push(tile_pos);
+        }
+        if spawn_positions.len() >= count {
+            break;
+        }
+    }
+
+    while spawn_positions.len() < count {
+        spawn_positions.push(capital_pos);
+    }
+
+    spawn_positions
 }
 
 pub(crate) fn boost_capital_food_tiles(world: &mut World, capital_pos: TilePos) {
