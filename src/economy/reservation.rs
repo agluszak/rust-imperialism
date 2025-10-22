@@ -80,6 +80,7 @@ impl ReservationSystem {
         // Try to reserve all goods
         for (good, amount) in &goods {
             if let Some(pool) = stockpile.get_pool_mut(*good) {
+                let available = pool.available();
                 if pool.try_reserve(*amount) {
                     reserved_goods.push((*good, *amount));
                 } else {
@@ -89,6 +90,10 @@ impl ReservationSystem {
                             pool.release(amt);
                         }
                     }
+                    info!(
+                        "Reservation failed: insufficient {:?} (need {}, have {})",
+                        good, amount, available
+                    );
                     return None;
                 }
             } else {
@@ -98,11 +103,13 @@ impl ReservationSystem {
                         pool.release(amt);
                     }
                 }
+                info!("Reservation failed: {:?} not in stockpile", good);
                 return None;
             }
         }
 
         // Try to reserve labor
+        let labor_available = workforce.labor_pool.available();
         if !workforce.try_reserve_labor(labor) {
             // ROLLBACK: release goods
             for (good, amt) in reserved_goods {
@@ -110,10 +117,15 @@ impl ReservationSystem {
                     pool.release(amt);
                 }
             }
+            info!(
+                "Reservation failed: insufficient labor (need {}, have {})",
+                labor, labor_available
+            );
             return None;
         }
 
         // Try to reserve money
+        let money_available = treasury.available();
         if !treasury.try_reserve(money) {
             // ROLLBACK: release goods and labor
             for (good, amt) in reserved_goods {
@@ -122,6 +134,10 @@ impl ReservationSystem {
                 }
             }
             workforce.release_labor(labor);
+            info!(
+                "Reservation failed: insufficient money (need {}, have {})",
+                money, money_available
+            );
             return None;
         }
 

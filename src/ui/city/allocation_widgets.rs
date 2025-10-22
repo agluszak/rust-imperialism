@@ -239,7 +239,7 @@ macro_rules! spawn_allocation_summary {
         use $crate::ui::city::allocation_widgets::AllocationSummary;
 
         $parent.spawn((
-            Text::new("→ ..."),
+            Text::new("-> ..."),
             TextFont {
                 font_size: 14.0,
                 ..default()

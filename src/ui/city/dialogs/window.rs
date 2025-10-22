@@ -101,7 +101,7 @@ pub fn spawn_dialog_frame(
                                 ))
                                 .with_children(|btn| {
                                     btn.spawn((
-                                        Text::new("×"),
+                                        Text::new("X"),
                                         TextFont {
                                             font_size: 20.0,
                                             ..default()

@@ -43,7 +43,7 @@ pub fn adjust_allocation_on_click(allocation_type: AllocationType, delta: i32) -
                         requested: new_requested,
                     });
                     info!(
-                        "Recruitment: {} → {} (delta: {})",
+                        "Recruitment: {} -> {} (delta: {})",
                         current, new_requested, delta
                     );
                 }
@@ -57,7 +57,7 @@ pub fn adjust_allocation_on_click(allocation_type: AllocationType, delta: i32) -
                         requested: new_requested,
                     });
                     info!(
-                        "Training ({:?}): {} → {} (delta: {})",
+                        "Training ({:?}): {} -> {} (delta: {})",
                         from_skill, current, new_requested, delta
                     );
                 }
@@ -72,7 +72,7 @@ pub fn adjust_allocation_on_click(allocation_type: AllocationType, delta: i32) -
                         target_output: new_target,
                     });
                     info!(
-                        "Production ({:?}): {} → {} (delta: {})",
+                        "Production ({:?}): {} -> {} (delta: {})",
                         output_good, current, new_target, delta
                     );
                 }
@@ -88,7 +88,7 @@ pub fn adjust_allocation_on_click(allocation_type: AllocationType, delta: i32) -
                         requested: new_requested,
                     });
                     info!(
-                        "Market buy interest ({:?}): {} → {}",
+                        "Market buy interest ({:?}): {} -> {}",
                         good,
                         if current == 1 { "ON" } else { "OFF" },
                         if new_requested == 1 { "ON" } else { "OFF" }
@@ -105,7 +105,7 @@ pub fn adjust_allocation_on_click(allocation_type: AllocationType, delta: i32) -
                         requested: new_requested,
                     });
                     info!(
-                        "Market sell ({:?}): {} → {} (delta: {})",
+                        "Market sell ({:?}): {} -> {} (delta: {})",
                         good, current, new_requested, delta
                     );
                 }
@@ -210,7 +210,7 @@ pub fn update_all_allocation_bars(
 
     for (mut text, mut bg_color, mut border_color, bar) in bars.iter_mut() {
         // Calculate needed based on allocation type
-        // Each allocation represents 1 unit, so needed = count × per-unit-cost
+        // Each allocation represents 1 unit, so needed = count * per-unit-cost
         let (needed, available) = match bar.allocation_type {
             AllocationType::Recruitment => {
                 let count = alloc.recruitment_count() as u32;
@@ -343,12 +343,12 @@ pub fn update_all_allocation_summaries(
                     let allocated = alloc.recruitment_count();
                     if allocated > 0 {
                         format!(
-                            "→ Will recruit {} worker{} next turn",
+                            "-> Will recruit {} worker{} next turn",
                             allocated,
                             if allocated == 1 { "" } else { "s" }
                         )
                     } else {
-                        "→ No workers will be recruited".to_string()
+                        "-> No workers will be recruited".to_string()
                     }
                 }
 
@@ -357,40 +357,40 @@ pub fn update_all_allocation_summaries(
                     if allocated > 0 {
                         let to_skill = from_skill.next_level();
                         format!(
-                            "→ Will train {} worker{} from {:?} to {:?} next turn",
+                            "-> Will train {} worker{} from {:?} to {:?} next turn",
                             allocated,
                             if allocated == 1 { "" } else { "s" },
                             from_skill,
                             to_skill
                         )
                     } else {
-                        "→ No workers will be trained".to_string()
+                        "-> No workers will be trained".to_string()
                     }
                 }
 
                 AllocationType::Production(building_entity, output_good) => {
                     let allocated = alloc.production_count(building_entity, output_good);
                     if allocated > 0 {
-                        format!("→ Will produce {} {:?} next turn", allocated, output_good)
+                        format!("-> Will produce {} {:?} next turn", allocated, output_good)
                     } else {
-                        "→ No production planned".to_string()
+                        "-> No production planned".to_string()
                     }
                 }
 
                 AllocationType::MarketBuy(good) => {
                     if alloc.has_buy_interest(good) {
-                        format!("→ Interested in buying {}", good)
+                        format!("-> Interested in buying {}", good)
                     } else {
-                        format!("→ No buy interest for {}", good)
+                        format!("-> No buy interest for {}", good)
                     }
                 }
 
                 AllocationType::MarketSell(good) => {
                     let allocated = alloc.market_sell_count(good);
                     if allocated > 0 {
-                        format!("→ Will offer {} {} for sale", allocated, good)
+                        format!("-> Will offer {} {} for sale", allocated, good)
                     } else {
-                        format!("→ No sell offers for {}", good)
+                        format!("-> No sell offers for {}", good)
                     }
                 }
             };

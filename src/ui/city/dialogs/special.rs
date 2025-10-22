@@ -124,8 +124,8 @@ fn spawn_capitol_content(
                 // Canned Food
                 section.spawn((
                     Text::new(format!(
-                        "  • 1× Canned Food {}",
-                        if has_food { "✓" } else { "✗" }
+                        "  • 1x Canned Food {}",
+                        if has_food { "[x]" } else { "[ ]" }
                     )),
                     TextFont {
                         font_size: 13.0,
@@ -144,8 +144,8 @@ fn spawn_capitol_content(
                 // Clothing
                 section.spawn((
                     Text::new(format!(
-                        "  • 1× Clothing {}",
-                        if has_clothing { "✓" } else { "✗" }
+                        "  • 1x Clothing {}",
+                        if has_clothing { "[x]" } else { "[ ]" }
                     )),
                     TextFont {
                         font_size: 13.0,
@@ -164,8 +164,8 @@ fn spawn_capitol_content(
                 // Furniture
                 section.spawn((
                     Text::new(format!(
-                        "  • 1× Furniture {}",
-                        if has_furniture { "✓" } else { "✗" }
+                        "  • 1x Furniture {}",
+                        if has_furniture { "[x]" } else { "[ ]" }
                     )),
                     TextFont {
                         font_size: 13.0,
@@ -325,9 +325,9 @@ fn spawn_trade_school_content(
 
         // Training options (NEW: using allocation macros)
 
-        // Section 1: Train Untrained → Trained
+        // Section 1: Train Untrained -> Trained
         content.spawn((
-            Text::new("Train Untrained → Trained"),
+            Text::new("Train Untrained -> Trained"),
             TextFont {
                 font_size: 16.0,
                 ..default()
@@ -354,9 +354,9 @@ fn spawn_trade_school_content(
 
         crate::spawn_allocation_summary!(content, AllocationType::Training(WorkerSkill::Untrained));
 
-        // Section 2: Train Trained → Expert
+        // Section 2: Train Trained -> Expert
         content.spawn((
-            Text::new("Train Trained → Expert"),
+            Text::new("Train Trained -> Expert"),
             TextFont {
                 font_size: 16.0,
                 ..default()
@@ -440,7 +440,7 @@ fn spawn_power_plant_content(
                 ));
 
                 section.spawn((
-                    Text::new("Conversion: 1 fuel → 2 labor points"),
+                    Text::new("Conversion: 1 fuel -> 2 labor points"),
                     TextFont {
                         font_size: 13.0,
                         ..default()
@@ -487,7 +487,11 @@ pub fn update_capitol_requirement_displays(
             _ => continue,
         };
 
-        **text = format!("  • 1× {} {}", good_name, if available { "✓" } else { "✗" });
+        **text = format!(
+            "  • 1x {} {}",
+            good_name,
+            if available { "[x]" } else { "[ ]" }
+        );
         *color = TextColor(if available {
             Color::srgb(0.7, 0.9, 0.7)
         } else {

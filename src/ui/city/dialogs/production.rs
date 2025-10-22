@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::economy::production::{Building, BuildingKind, Buildings, ProductionSettings};
+use crate::economy::transport::state::TransportCommodity;
 use crate::economy::{Good, PlayerNation, Stockpile, Workforce};
 use crate::ui::city::allocation_widgets::AllocationType;
 use crate::ui::city::components::ProductionLaborDisplay;
@@ -17,6 +18,7 @@ pub fn populate_production_dialog(
     player_nation: Option<Res<PlayerNation>>,
     stockpiles: Query<&Stockpile>,
     workforces: Query<&Workforce>,
+    asset_server: Res<AssetServer>,
 ) {
     let Some(player) = player_nation else {
         return;
@@ -44,7 +46,12 @@ pub fn populate_production_dialog(
             BuildingKind::TextileMill
             | BuildingKind::LumberMill
             | BuildingKind::SteelMill
-            | BuildingKind::FoodProcessingCenter => {}
+            | BuildingKind::FoodProcessingCenter
+            | BuildingKind::ClothingFactory
+            | BuildingKind::FurnitureFactory
+            | BuildingKind::MetalWorks
+            | BuildingKind::Refinery
+            | BuildingKind::Railyard => {}
             _ => continue, // Not a production building
         }
 
@@ -63,6 +70,7 @@ pub fn populate_production_dialog(
             settings,
             stockpile,
             workforce,
+            &asset_server,
         );
     }
 }
@@ -76,6 +84,7 @@ fn spawn_production_content(
     _settings: &ProductionSettings,
     stockpile: &Stockpile,
     workforce: &Workforce,
+    asset_server: &AssetServer,
 ) {
     let building_kind = building.kind;
     let _capacity = building.capacity;
@@ -101,7 +110,7 @@ fn spawn_production_content(
     // Building title and capacity
     commands.entity(content_entity).with_children(|content| {
         let capacity_text = if building.capacity == u32::MAX {
-            "∞".to_string()
+            "inf".to_string()
         } else {
             building.capacity.to_string()
         };
@@ -129,6 +138,7 @@ fn spawn_production_content(
             *output_good,
             &stockpile_clone,
             workforce,
+            asset_server,
         );
     }
 }
@@ -142,6 +152,7 @@ fn spawn_production_section(
     output_good: Good,
     stockpile: &Stockpile,
     workforce: &Workforce,
+    asset_server: &AssetServer,
 ) {
     commands.entity(parent_entity).with_children(|content| {
         content
@@ -156,7 +167,7 @@ fn spawn_production_section(
             .with_children(|section| {
                 // Section title
                 section.spawn((
-                    Text::new(format!("→ {:?}", output_good)),
+                    Text::new(format!("-> {:?}", output_good)),
                     TextFont {
                         font_size: 14.0,
                         ..default()
@@ -184,7 +195,7 @@ fn spawn_production_section(
                         let (input_alternatives, output) =
                             get_recipe_for_output(building_kind, output_good);
 
-                        // Display input alternatives (e.g., "2× Cotton OR 2× Wool")
+                        // Display input alternatives (e.g., "2x Cotton OR 2x Wool")
                         for (alt_idx, alternative) in input_alternatives.iter().enumerate() {
                             if alt_idx > 0 {
                                 // Show "OR" between alternatives
@@ -220,56 +231,14 @@ fn spawn_production_section(
                                 let available = stockpile.get_available(*good);
                                 let has_enough = available >= *amount;
 
-                                // Input icon/text
-                                equation
-                                    .spawn(Node {
-                                        width: Val::Px(55.0),
-                                        height: Val::Px(55.0),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        border: UiRect::all(Val::Px(1.0)),
-                                        ..default()
-                                    })
-                                    .with_children(|icon| {
-                                        icon.spawn((
-                                            Text::new(format!("{}×\n{:?}", amount, good)),
-                                            TextFont {
-                                                font_size: 10.0,
-                                                ..default()
-                                            },
-                                            TextColor(if has_enough {
-                                                Color::srgb(0.9, 0.9, 0.9)
-                                            } else {
-                                                Color::srgb(0.9, 0.5, 0.5)
-                                            }),
-                                            TextLayout {
-                                                justify: Justify::Center,
-                                                ..default()
-                                            },
-                                        ));
-
-                                        // Red X overlay if missing
-                                        if !has_enough {
-                                            icon.spawn((
-                                                Text::new("✗"),
-                                                TextFont {
-                                                    font_size: 32.0,
-                                                    ..default()
-                                                },
-                                                TextColor(Color::srgb(1.0, 0.2, 0.2)),
-                                                Node {
-                                                    position_type: PositionType::Absolute,
-                                                    ..default()
-                                                },
-                                            ));
-                                        }
-                                    });
+                                // Input icon
+                                spawn_good_icon(equation, *good, *amount, has_enough, asset_server);
                             }
                         }
 
                         // Arrow
                         equation.spawn((
-                            Text::new("→"),
+                            Text::new("->"),
                             TextFont {
                                 font_size: 20.0,
                                 ..default()
@@ -279,29 +248,7 @@ fn spawn_production_section(
 
                         // Output
                         let (out_good, out_amount) = output;
-                        equation
-                            .spawn(Node {
-                                width: Val::Px(55.0),
-                                height: Val::Px(55.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                border: UiRect::all(Val::Px(1.0)),
-                                ..default()
-                            })
-                            .with_children(|icon| {
-                                icon.spawn((
-                                    Text::new(format!("{}×\n{:?}", out_amount, out_good)),
-                                    TextFont {
-                                        font_size: 10.0,
-                                        ..default()
-                                    },
-                                    TextColor(Color::srgb(0.7, 0.9, 0.7)),
-                                    TextLayout {
-                                        justify: Justify::Center,
-                                        ..default()
-                                    },
-                                ));
-                            });
+                        spawn_good_icon(equation, out_good, out_amount, true, asset_server);
                     });
 
                 // Allocation UI using widget macros
@@ -351,8 +298,8 @@ fn spawn_production_section(
 
                         bar_container.spawn((
                             Text::new(format!(
-                                "Required: 0 (Available: {})",
-                                workforce.available_labor()
+                                "Required: 0 (Unreserved: {})",
+                                workforce.labor_pool.available()
                             )),
                             TextFont {
                                 font_size: 12.0,
@@ -392,7 +339,7 @@ pub fn update_production_labor_display(
         return;
     };
 
-    let available_labor = workforce.available_labor();
+    let unreserved_labor = workforce.labor_pool.available();
 
     for (mut text, mut color, display) in display_query.iter_mut() {
         // Get production allocation for this specific output_good
@@ -400,11 +347,11 @@ pub fn update_production_labor_display(
             allocations.production_count(display.building_entity, display.output_good) as u32;
 
         **text = format!(
-            "Required: {} (Available: {})",
-            production_alloc, available_labor
+            "Required: {} (Unreserved: {})",
+            production_alloc, unreserved_labor
         );
 
-        *color = TextColor(if production_alloc <= available_labor {
+        *color = TextColor(if production_alloc <= unreserved_labor {
             Color::srgb(0.7, 0.9, 0.7)
         } else {
             Color::srgb(0.9, 0.6, 0.6)
@@ -415,8 +362,8 @@ pub fn update_production_labor_display(
 /// Get recipe for a building and choice
 /// Get recipe for a specific output good
 /// Returns (inputs, output) where inputs shows ALL possible alternatives
-/// For TextileMill: shows "2× Cotton OR 2× Wool"
-/// For FoodProcessing: shows "2× Grain + 1× Fruit + 1× (Livestock OR Fish)"
+/// For TextileMill: shows "2x Cotton OR 2x Wool"
+/// For FoodProcessing: shows "2x Grain + 1x Fruit + 1x (Livestock OR Fish)"
 fn get_recipe_for_output(
     building_kind: BuildingKind,
     output_good: Good,
@@ -430,22 +377,22 @@ fn get_recipe_for_output(
             )
         }
         (BuildingKind::LumberMill, Good::Lumber) => {
-            // Simple: 2 Timber → 1 Lumber
+            // Simple: 2 Timber -> 1 Lumber
             (vec![vec![(Good::Timber, 2)]], (Good::Lumber, 1))
         }
         (BuildingKind::LumberMill, Good::Paper) => {
-            // Simple: 2 Timber → 1 Paper
+            // Simple: 2 Timber -> 1 Paper
             (vec![vec![(Good::Timber, 2)]], (Good::Paper, 1))
         }
         (BuildingKind::SteelMill, Good::Steel) => {
-            // Simple: 1 Iron + 1 Coal → 1 Steel
+            // Simple: 1 Iron + 1 Coal -> 1 Steel
             (
                 vec![vec![(Good::Iron, 1), (Good::Coal, 1)]],
                 (Good::Steel, 1),
             )
         }
         (BuildingKind::FoodProcessingCenter, Good::CannedFood) => {
-            // Complex: 2 Grain + 1 Fruit + (1 Livestock OR 1 Fish) → 2 CannedFood
+            // Complex: 2 Grain + 1 Fruit + (1 Livestock OR 1 Fish) -> 2 CannedFood
             // Show as two alternatives: one with Livestock, one with Fish
             (
                 vec![
@@ -474,4 +421,100 @@ fn get_recipe_for_output(
         ),
         _ => (vec![], (Good::Fabric, 0)), // Shouldn't happen
     }
+}
+
+/// Spawn a good icon with quantity overlay
+fn spawn_good_icon(
+    parent: &mut ChildSpawnerCommands,
+    good: Good,
+    amount: u32,
+    has_enough: bool,
+    asset_server: &AssetServer,
+) {
+    // Try to get the icon for this good
+    let maybe_commodity = TransportCommodity::from_good(good);
+
+    parent
+        .spawn(Node {
+            width: Val::Px(55.0),
+            height: Val::Px(55.0),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            border: UiRect::all(Val::Px(1.0)),
+            ..default()
+        })
+        .with_children(|icon_box| {
+            if let Some(commodity) = maybe_commodity {
+                // Load and display the icon image
+                let icon_handle: Handle<Image> =
+                    asset_server.load(format!("extracted/{}", commodity.icon()));
+
+                icon_box.spawn((
+                    ImageNode::new(icon_handle),
+                    Node {
+                        width: Val::Px(48.0),
+                        height: Val::Px(48.0),
+                        position_type: PositionType::Absolute,
+                        ..default()
+                    },
+                    BackgroundColor(if has_enough {
+                        Color::srgb(1.0, 1.0, 1.0)
+                    } else {
+                        Color::srgb(1.0, 0.6, 0.6)
+                    }),
+                ));
+            } else {
+                // Fallback to text if no icon available
+                icon_box.spawn((
+                    Text::new(format!("{:?}", good)),
+                    TextFont {
+                        font_size: 9.0,
+                        ..default()
+                    },
+                    TextColor(if has_enough {
+                        Color::srgb(0.9, 0.9, 0.9)
+                    } else {
+                        Color::srgb(0.9, 0.5, 0.5)
+                    }),
+                    TextLayout {
+                        justify: Justify::Center,
+                        ..default()
+                    },
+                ));
+            }
+
+            // Quantity text overlay
+            icon_box.spawn((
+                Text::new(format!("{}x", amount)),
+                TextFont {
+                    font_size: 12.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(1.0, 1.0, 1.0)),
+                Node {
+                    position_type: PositionType::Absolute,
+                    bottom: Val::Px(2.0),
+                    right: Val::Px(2.0),
+                    padding: UiRect::axes(Val::Px(2.0), Val::Px(1.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.7)),
+            ));
+
+            // Red X overlay if missing
+            if !has_enough {
+                icon_box.spawn((
+                    Text::new("X"),
+                    TextFont {
+                        font_size: 32.0,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(1.0, 0.2, 0.2)),
+                    Node {
+                        position_type: PositionType::Absolute,
+                        ..default()
+                    },
+                ));
+            }
+        });
 }
