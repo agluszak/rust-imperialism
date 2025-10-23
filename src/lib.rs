@@ -15,11 +15,11 @@ use crate::helpers::camera::CameraPlugin;
 use crate::helpers::picking::TilemapBackend;
 use crate::input::InputPlugin;
 use crate::map::MapSetupPlugin;
-use crate::map::rendering::TransportRenderingPlugin;
 use crate::map::rendering::border_rendering::BorderRenderingPlugin;
 use crate::map::rendering::city_rendering::CityRenderingPlugin;
 use crate::map::rendering::improvement_rendering::ImprovementRenderingPlugin;
 use crate::map::rendering::prospecting_markers::ProspectingMarkersPlugin;
+use crate::map::rendering::{ConnectedResourceDebugPlugin, TransportRenderingPlugin};
 use crate::turn_system::TurnSystemPlugin;
 use crate::ui::GameUIPlugin;
 use crate::ui::menu::AppState;
@@ -69,9 +69,12 @@ pub fn app() -> App {
             AiSupportPlugin,
             CivilianPlugin,
             DiplomacyPlugin,
+        ))
+        .add_plugins((
             GameUIPlugin,
             InputPlugin,
             TransportRenderingPlugin,
+            ConnectedResourceDebugPlugin,
             BorderRenderingPlugin,
             CityRenderingPlugin,
             ImprovementRenderingPlugin,
