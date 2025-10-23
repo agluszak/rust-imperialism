@@ -11,6 +11,25 @@ pub struct TileImprovement {
     pub development_level: DevelopmentLevel,
 }
 
+/// Relationship component linking the spawned marker sprite back to the tile entity.
+/// The [`TileImprovementMarker`] target component is automatically attached to the tile,
+/// providing O(1) lookups when updating or despawning the marker.
+#[derive(Component)]
+#[relationship(relationship_target = TileImprovementMarker)]
+struct ImprovementMarkerFor(Entity);
+
+/// Reverse relationship component automatically attached to improved tiles.
+/// Stores the entity of the spawned sprite so we can update or despawn it efficiently.
+#[derive(Component)]
+#[relationship_target(relationship = ImprovementMarkerFor)]
+struct TileImprovementMarker(Entity);
+
+impl TileImprovementMarker {
+    fn entity(&self) -> Entity {
+        self.0
+    }
+}
+
 /// Plugin to render improvement markers on tiles
 pub struct ImprovementRenderingPlugin;
 
@@ -18,7 +37,11 @@ impl Plugin for ImprovementRenderingPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (render_improvement_markers, update_improvement_markers),
+            (
+                render_improvement_markers,
+                update_improvement_markers,
+                cleanup_removed_improvement_markers,
+            ),
         );
     }
 }
@@ -52,46 +75,26 @@ fn render_improvement_markers(
         );
 
         // Spawn a simple colored square as improvement marker
-        commands.spawn((
-            Sprite {
-                color,
-                custom_size: Some(Vec2::new(IMPROVEMENT_SIZE, IMPROVEMENT_SIZE)),
-                ..default()
-            },
-            Transform::from_translation(pos.extend(1.5)), // Above terrain, below cities
-            GlobalTransform::default(),
-            Visibility::default(),
-            InheritedVisibility::default(),
-            ViewVisibility::default(),
-            MapTilemap,                        // Marker for visibility control
-            ImprovementMarkerFor(tile_entity), // Track which tile this belongs to
-        ));
+        spawn_marker(&mut commands, tile_entity, pos, color);
     }
 }
 
-/// Component linking improvement marker to its tile
-#[derive(Component)]
-struct ImprovementMarkerFor(Entity);
-
 /// Update improvement markers when development level changes
 fn update_improvement_markers(
-    mut commands: Commands,
     changed_tiles: Query<
-        (Entity, &TilePos, &TileImprovement, &TileResource),
+        (
+            Entity,
+            &TilePos,
+            &TileImprovement,
+            &TileResource,
+            Option<&TileImprovementMarker>,
+        ),
         Changed<TileImprovement>,
     >,
-    markers: Query<(Entity, &ImprovementMarkerFor)>,
+    mut marker_visuals: Query<(&mut Sprite, &mut Transform), With<ImprovementMarkerFor>>,
+    mut commands: Commands,
 ) {
-    for (tile_entity, tile_pos, improvement, _resource) in changed_tiles.iter() {
-        // Find and remove old marker
-        for (marker_entity, marker_for) in markers.iter() {
-            if marker_for.0 == tile_entity {
-                commands.entity(marker_entity).despawn();
-                break;
-            }
-        }
-
-        // Create new marker with updated color
+    for (tile_entity, tile_pos, improvement, _resource, maybe_marker) in changed_tiles.iter() {
         let mut pos = tile_pos.to_world_pos();
         pos.y += IMPROVEMENT_OFFSET_Y;
 
@@ -102,19 +105,49 @@ fn update_improvement_markers(
             _ => Color::WHITE,
         };
 
-        commands.spawn((
-            Sprite {
-                color,
-                custom_size: Some(Vec2::new(IMPROVEMENT_SIZE, IMPROVEMENT_SIZE)),
-                ..default()
-            },
-            Transform::from_translation(pos.extend(1.5)),
-            GlobalTransform::default(),
-            Visibility::default(),
-            InheritedVisibility::default(),
-            ViewVisibility::default(),
-            MapTilemap,
-            ImprovementMarkerFor(tile_entity),
-        ));
+        if let Some(marker) = maybe_marker {
+            if let Ok((mut sprite, mut transform)) = marker_visuals.get_mut(marker.entity()) {
+                sprite.color = color;
+                transform.translation = pos.extend(1.5);
+            } else {
+                warn!(
+                    "Tile {:?} lost its improvement marker entity; respawning",
+                    tile_entity
+                );
+                spawn_marker(&mut commands, tile_entity, pos, color);
+            }
+        } else {
+            spawn_marker(&mut commands, tile_entity, pos, color);
+        }
     }
+}
+
+/// Remove improvement markers automatically when the tile loses its improvement component.
+fn cleanup_removed_improvement_markers(
+    mut removed_improvements: RemovedComponents<TileImprovement>,
+    markers: Query<&TileImprovementMarker>,
+    mut commands: Commands,
+) {
+    for tile_entity in removed_improvements.read() {
+        if let Ok(marker) = markers.get(tile_entity) {
+            commands.entity(marker.entity()).despawn();
+        }
+    }
+}
+
+fn spawn_marker(commands: &mut Commands, tile_entity: Entity, pos: Vec2, color: Color) {
+    commands.spawn((
+        Sprite {
+            color,
+            custom_size: Some(Vec2::new(IMPROVEMENT_SIZE, IMPROVEMENT_SIZE)),
+            ..default()
+        },
+        Transform::from_translation(pos.extend(1.5)),
+        GlobalTransform::default(),
+        Visibility::default(),
+        InheritedVisibility::default(),
+        ViewVisibility::default(),
+        MapTilemap,
+        ImprovementMarkerFor(tile_entity),
+    ));
 }
