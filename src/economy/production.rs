@@ -140,7 +140,7 @@ pub fn calculate_connected_production(
             &mut processed_tiles,
             port.owner,
             ResourceType::Fish,
-            None,
+            Some(port.position),
             2,
             true,
         );
@@ -165,14 +165,7 @@ pub fn calculate_connected_production(
                         continue;
                     }
 
-                    if matches!(
-                        resource.resource_type,
-                        ResourceType::Grain
-                            | ResourceType::Fruit
-                            | ResourceType::Cotton
-                            | ResourceType::Timber
-                            | ResourceType::Livestock
-                    ) {
+                    if resource.resource_type.is_baseline_yield_eligible() {
                         record_output(
                             production,
                             &mut processed_tiles,
