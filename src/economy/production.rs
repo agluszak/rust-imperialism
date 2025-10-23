@@ -798,7 +798,13 @@ fn log_production_shortfall(
         return;
     }
 
-    let output_good = variant.primary_output_good().unwrap_or(Good::Fabric);
+    let Some(output_good) = variant.primary_output_good() else {
+        warn!(
+            "{:?}: requested {} output but recipe variant has no primary output good (produced {}). Consumption: {:?}",
+            building_kind, requested_output, produced_output, consumption
+        );
+        return;
+    };
 
     let details = if consumption.is_empty() {
         "no inputs consumed".to_string()
