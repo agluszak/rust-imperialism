@@ -4,10 +4,74 @@ use bevy::ui_widgets::{Activate, observe};
 use super::allocation_widgets::{
     AllocationBar, AllocationStepperDisplay, AllocationSummary, AllocationType,
 };
-use crate::economy::{Allocations, PlayerNation, Stockpile, Treasury};
+use crate::economy::{
+    Allocations, Good, PlayerNation, Stockpile, Treasury,
+    production::{Buildings, building_for_output, input_requirement_per_unit},
+};
 use crate::messages::{
     AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, MarketInterest,
 };
+
+fn allocation_value(alloc: &Allocations, allocation_type: AllocationType) -> u32 {
+    match allocation_type {
+        AllocationType::Recruitment => alloc.recruitment_count() as u32,
+        AllocationType::Training(skill) => alloc.training_count(skill) as u32,
+        AllocationType::Production(entity, good) => alloc.production_count(entity, good) as u32,
+        AllocationType::MarketBuy(good) => u32::from(alloc.has_buy_interest(good)),
+        AllocationType::MarketSell(good) => alloc.market_sell_count(good) as u32,
+    }
+}
+
+fn recruitment_cost_per_unit(good: Good) -> u32 {
+    matches!(good, Good::CannedFood | Good::Clothing | Good::Furniture) as u32
+}
+
+fn training_cost_per_unit(good: Good) -> u32 {
+    (good == Good::Paper) as u32
+}
+
+fn allocation_requirement(
+    alloc: &Allocations,
+    stockpile: &Stockpile,
+    buildings: Option<&Buildings>,
+    bar: &AllocationBar,
+) -> (u32, u32) {
+    match bar.allocation_type {
+        AllocationType::Recruitment => {
+            let count = allocation_value(alloc, bar.allocation_type);
+            let needed = count * recruitment_cost_per_unit(bar.good);
+            (needed, stockpile.get_available(bar.good))
+        }
+        AllocationType::Training(_) => {
+            let count = allocation_value(alloc, bar.allocation_type);
+            let needed = count * training_cost_per_unit(bar.good);
+            (needed, stockpile.get_available(bar.good))
+        }
+        AllocationType::Production(_, output_good) => {
+            let available = stockpile.get_available(bar.good);
+            let count = allocation_value(alloc, bar.allocation_type);
+            if count == 0 {
+                return (0, available);
+            }
+
+            if let (Some(buildings), Some(kind)) = (buildings, building_for_output(output_good)) {
+                if buildings.get(kind).is_some() {
+                    if let Some(per_unit) = input_requirement_per_unit(kind, output_good, bar.good)
+                    {
+                        return (count * per_unit, available);
+                    }
+                }
+            }
+
+            (0, available)
+        }
+        AllocationType::MarketBuy(_) => (0, 0),
+        AllocationType::MarketSell(good) => {
+            let count = allocation_value(alloc, bar.allocation_type);
+            (count, stockpile.get_available(good))
+        }
+    }
+}
 
 // ============================================================================
 // Input Layer: Unified stepper button handler
@@ -36,7 +100,7 @@ pub fn adjust_allocation_on_click(allocation_type: AllocationType, delta: i32) -
 
             match allocation_type {
                 AllocationType::Recruitment => {
-                    let current = alloc.recruitment_count() as u32;
+                    let current = allocation_value(alloc, allocation_type);
                     let new_requested = (current as i32 + delta).max(0) as u32;
                     recruit_writer.write(AdjustRecruitment {
                         nation: player_instance,
@@ -49,7 +113,7 @@ pub fn adjust_allocation_on_click(allocation_type: AllocationType, delta: i32) -
                 }
 
                 AllocationType::Training(from_skill) => {
-                    let current = alloc.training_count(from_skill) as u32;
+                    let current = allocation_value(alloc, allocation_type);
                     let new_requested = (current as i32 + delta).max(0) as u32;
                     train_writer.write(AdjustTraining {
                         nation: player_instance,
@@ -63,7 +127,7 @@ pub fn adjust_allocation_on_click(allocation_type: AllocationType, delta: i32) -
                 }
 
                 AllocationType::Production(building_entity, output_good) => {
-                    let current = alloc.production_count(building_entity, output_good) as u32;
+                    let current = allocation_value(alloc, allocation_type);
                     let new_target = (current as i32 + delta).max(0) as u32;
                     prod_writer.write(AdjustProduction {
                         nation: player_instance,
@@ -78,8 +142,7 @@ pub fn adjust_allocation_on_click(allocation_type: AllocationType, delta: i32) -
                 }
 
                 AllocationType::MarketBuy(good) => {
-                    // Buy interest is boolean - toggle between 0 and 1
-                    let current = if alloc.has_buy_interest(good) { 1 } else { 0 };
+                    let current = allocation_value(alloc, allocation_type);
                     let new_requested = if current == 0 { 1 } else { 0 };
                     market_writer.write(AdjustMarketOrder {
                         nation: player_instance,
@@ -96,7 +159,7 @@ pub fn adjust_allocation_on_click(allocation_type: AllocationType, delta: i32) -
                 }
 
                 AllocationType::MarketSell(good) => {
-                    let current = alloc.market_sell_count(good) as u32;
+                    let current = allocation_value(alloc, allocation_type);
                     let new_requested = (current as i32 + delta).max(0) as u32;
                     market_writer.write(AdjustMarketOrder {
                         nation: player_instance,
@@ -137,27 +200,7 @@ pub fn update_all_stepper_displays(
 
     if let Ok(alloc) = allocations.get(player.entity()) {
         for (mut text, display) in displays.iter_mut() {
-            let allocated = match display.allocation_type {
-                AllocationType::Recruitment => alloc.recruitment_count(),
-
-                AllocationType::Training(from_skill) => alloc.training_count(from_skill),
-
-                AllocationType::Production(building_entity, output_good) => {
-                    alloc.production_count(building_entity, output_good)
-                }
-
-                AllocationType::MarketBuy(good) => {
-                    if alloc.has_buy_interest(good) {
-                        1
-                    } else {
-                        0
-                    }
-                }
-
-                AllocationType::MarketSell(good) => alloc.market_sell_count(good),
-            };
-
-            // With new system, allocated is always what's been successfully reserved
+            let allocated = allocation_value(alloc, display.allocation_type);
             text.0 = format!("{}", allocated);
         }
     }
@@ -179,8 +222,6 @@ pub fn update_all_allocation_bars(
     allocations_changed: Query<Entity, Changed<Allocations>>,
     new_bars: Query<Entity, Added<AllocationBar>>,
 ) {
-    use crate::economy::{BuildingKind, Good};
-
     let Some(player) = player_nation else {
         return;
     };
@@ -200,95 +241,15 @@ pub fn update_all_allocation_bars(
         return;
     };
 
-    let Ok(buildings_collection) = buildings_query.get(player_entity) else {
-        return;
-    };
+    let buildings_collection = buildings_query.get(player_entity).ok();
 
     let Ok(_treasury) = treasuries.get(player_entity) else {
         return;
     };
 
     for (mut text, mut bg_color, mut border_color, bar) in bars.iter_mut() {
-        // Calculate needed based on allocation type
-        // Each allocation represents 1 unit, so needed = count * per-unit-cost
-        let (needed, available) = match bar.allocation_type {
-            AllocationType::Recruitment => {
-                let count = alloc.recruitment_count() as u32;
-                let available = stockpile.get_available(bar.good);
-                let needed = match bar.good {
-                    Good::CannedFood | Good::Clothing | Good::Furniture => count,
-                    _ => 0,
-                };
-                (needed, available)
-            }
-
-            AllocationType::Training(from_skill) => {
-                let count = alloc.training_count(from_skill) as u32;
-                let available = stockpile.get_available(bar.good);
-                let needed = match bar.good {
-                    Good::Paper => count,
-                    _ => 0,
-                };
-                (needed, available)
-            }
-
-            AllocationType::Production(building_entity, output_good) => {
-                let available = stockpile.get_available(bar.good);
-                let count = alloc.production_count(building_entity, output_good) as u32;
-                if count == 0 {
-                    (0, available)
-                } else {
-                    let building_kind = match output_good {
-                        Good::Fabric => BuildingKind::TextileMill,
-                        Good::Paper | Good::Lumber => BuildingKind::LumberMill,
-                        Good::Steel => BuildingKind::SteelMill,
-                        Good::CannedFood => BuildingKind::FoodProcessingCenter,
-                        Good::Clothing => BuildingKind::ClothingFactory,
-                        Good::Furniture => BuildingKind::FurnitureFactory,
-                        Good::Hardware | Good::Armaments => BuildingKind::MetalWorks,
-                        Good::Fuel => BuildingKind::Refinery,
-                        Good::Transport => BuildingKind::Railyard,
-                        _ => BuildingKind::TextileMill,
-                    };
-
-                    if buildings_collection.get(building_kind).is_some() {
-                        let per_unit_cost = match (building_kind, bar.good) {
-                            (BuildingKind::TextileMill, Good::Cotton) => 2,
-                            (BuildingKind::TextileMill, Good::Wool) => 2,
-                            (BuildingKind::LumberMill, Good::Timber) => 2,
-                            (BuildingKind::SteelMill, Good::Iron) => 1,
-                            (BuildingKind::SteelMill, Good::Coal) => 1,
-                            (BuildingKind::FoodProcessingCenter, Good::Grain) => 2,
-                            (BuildingKind::FoodProcessingCenter, Good::Fruit) => 1,
-                            (BuildingKind::FoodProcessingCenter, Good::Livestock) => 1,
-                            (BuildingKind::FoodProcessingCenter, Good::Fish) => 1,
-                            (BuildingKind::ClothingFactory, Good::Fabric) => 2,
-                            (BuildingKind::FurnitureFactory, Good::Lumber) => 2,
-                            (BuildingKind::MetalWorks, Good::Steel) => 2,
-                            (BuildingKind::Refinery, Good::Oil) => 2,
-                            (BuildingKind::Railyard, Good::Steel) => 1,
-                            (BuildingKind::Railyard, Good::Lumber) => 1,
-                            _ => 0,
-                        };
-                        (count * per_unit_cost, available)
-                    } else {
-                        (0, available)
-                    }
-                }
-            }
-
-            AllocationType::MarketBuy(good) => {
-                // Buy interest is just a flag, no resources needed/reserved
-                let _has_interest = alloc.has_buy_interest(good);
-                (0, 0)
-            }
-
-            AllocationType::MarketSell(good) => {
-                let count = alloc.market_sell_count(good) as u32;
-                let available = stockpile.get_available(good);
-                (count, available)
-            }
-        };
+        let (needed, available) =
+            allocation_requirement(alloc, stockpile, buildings_collection, bar);
 
         // Update text
         text.0 = format!("{}: {} / {}", bar.label, needed, available);
@@ -340,7 +301,7 @@ pub fn update_all_allocation_summaries(
         for (mut text, summary) in summaries.iter_mut() {
             text.0 = match summary.allocation_type {
                 AllocationType::Recruitment => {
-                    let allocated = alloc.recruitment_count();
+                    let allocated = allocation_value(alloc, summary.allocation_type);
                     if allocated > 0 {
                         format!(
                             "-> Will recruit {} worker{} next turn",
@@ -353,7 +314,7 @@ pub fn update_all_allocation_summaries(
                 }
 
                 AllocationType::Training(from_skill) => {
-                    let allocated = alloc.training_count(from_skill);
+                    let allocated = allocation_value(alloc, summary.allocation_type);
                     if allocated > 0 {
                         let to_skill = from_skill.next_level();
                         format!(
@@ -368,8 +329,8 @@ pub fn update_all_allocation_summaries(
                     }
                 }
 
-                AllocationType::Production(building_entity, output_good) => {
-                    let allocated = alloc.production_count(building_entity, output_good);
+                AllocationType::Production(_, output_good) => {
+                    let allocated = allocation_value(alloc, summary.allocation_type);
                     if allocated > 0 {
                         format!("-> Will produce {} {:?} next turn", allocated, output_good)
                     } else {
@@ -378,7 +339,7 @@ pub fn update_all_allocation_summaries(
                 }
 
                 AllocationType::MarketBuy(good) => {
-                    if alloc.has_buy_interest(good) {
+                    if allocation_value(alloc, summary.allocation_type) > 0 {
                         format!("-> Interested in buying {}", good)
                     } else {
                         format!("-> No buy interest for {}", good)
@@ -386,7 +347,7 @@ pub fn update_all_allocation_summaries(
                 }
 
                 AllocationType::MarketSell(good) => {
-                    let allocated = alloc.market_sell_count(good);
+                    let allocated = allocation_value(alloc, summary.allocation_type);
                     if allocated > 0 {
                         format!("-> Will offer {} {} for sale", allocated, good)
                     } else {

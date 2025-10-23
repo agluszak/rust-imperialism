@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
+use std::collections::HashSet;
 
 use crate::assets;
 use crate::civilians::{Civilian, CivilianKind};
@@ -40,6 +41,178 @@ const PORT_DISCONNECTED_COLOR: Color = Color::srgb(0.6, 0.2, 0.2);
 
 const LINE_WIDTH: f32 = 2.0;
 
+trait StructureVisual {
+    fn position(&self) -> TilePos;
+    fn is_connected(&self) -> bool;
+}
+
+impl StructureVisual for Depot {
+    fn position(&self) -> TilePos {
+        self.position
+    }
+
+    fn is_connected(&self) -> bool {
+        self.connected
+    }
+}
+
+impl StructureVisual for Port {
+    fn position(&self) -> TilePos {
+        self.position
+    }
+
+    fn is_connected(&self) -> bool {
+        self.connected
+    }
+}
+
+fn sync_line_visuals<Marker: Component>(
+    commands: &mut Commands,
+    edges: &HashSet<(TilePos, TilePos)>,
+    changed: bool,
+    existing: &Query<(Entity, &Marker)>,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    color: Color,
+    z_layer: f32,
+    marker_from_edge: impl Fn((TilePos, TilePos)) -> Marker,
+    edge_from_marker: impl Fn(&Marker) -> (TilePos, TilePos),
+) {
+    if !changed {
+        return;
+    }
+
+    let existing_edges: HashSet<(TilePos, TilePos)> = existing
+        .iter()
+        .map(|(_, marker)| edge_from_marker(marker))
+        .collect();
+
+    for &edge in edges.iter() {
+        if !existing_edges.contains(&edge) {
+            spawn_line_visual(
+                commands,
+                meshes,
+                materials,
+                edge,
+                color,
+                z_layer,
+                marker_from_edge(edge),
+            );
+        }
+    }
+
+    for (entity, marker) in existing.iter() {
+        if !edges.contains(&edge_from_marker(marker)) {
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+fn spawn_line_visual<Marker: Component>(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<ColorMaterial>,
+    edge: (TilePos, TilePos),
+    color: Color,
+    z_layer: f32,
+    marker: Marker,
+) {
+    let (a, b) = edge;
+    let pos_a = a.to_world_pos();
+    let pos_b = b.to_world_pos();
+
+    let center = (pos_a + pos_b) / 2.0;
+    let diff = pos_b - pos_a;
+    let length = diff.length();
+    let angle = diff.y.atan2(diff.x);
+
+    commands.spawn((
+        Mesh2d(meshes.add(Rectangle::new(length, LINE_WIDTH))),
+        MeshMaterial2d(materials.add(ColorMaterial::from_color(color))),
+        Transform::from_translation(center.extend(z_layer))
+            .with_rotation(Quat::from_rotation_z(angle)),
+        marker,
+        MapTilemap,
+    ));
+}
+
+fn sync_structure_visuals<T: Component + StructureVisual>(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    new_items: &Query<(Entity, &T), Added<T>>,
+    changed_items: &Query<(Entity, &T, Option<&MapVisual>), Changed<T>>,
+    sprites: &mut Query<&mut Sprite>,
+    asset_path: &'static str,
+    connected_color: Color,
+    disconnected_color: Color,
+) {
+    for (entity, data) in new_items.iter() {
+        spawn_structure_visual(
+            commands,
+            asset_server,
+            entity,
+            data,
+            asset_path,
+            connected_color,
+            disconnected_color,
+        );
+    }
+
+    for (entity, data, visual) in changed_items.iter() {
+        let color = if data.is_connected() {
+            connected_color
+        } else {
+            disconnected_color
+        };
+
+        if let Some(visual) = visual
+            && let Ok(mut sprite) = sprites.get_mut(visual.entity())
+        {
+            sprite.color = color;
+        } else if !new_items.contains(entity) {
+            spawn_structure_visual(
+                commands,
+                asset_server,
+                entity,
+                data,
+                asset_path,
+                connected_color,
+                disconnected_color,
+            );
+        }
+    }
+}
+
+fn spawn_structure_visual<T: Component + StructureVisual>(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    entity: Entity,
+    data: &T,
+    asset_path: &'static str,
+    connected_color: Color,
+    disconnected_color: Color,
+) {
+    let pos = data.position().to_world_pos();
+    let texture: Handle<Image> = asset_server.load(asset_path);
+    let color = if data.is_connected() {
+        connected_color
+    } else {
+        disconnected_color
+    };
+
+    commands.spawn((
+        Sprite {
+            image: texture,
+            color,
+            custom_size: Some(Vec2::new(64.0, 64.0)),
+            ..default()
+        },
+        Transform::from_translation(pos.extend(2.0)),
+        MapVisualFor(entity),
+        MapTilemap,
+    ));
+}
+
 pub struct TransportRenderingPlugin;
 
 impl Plugin for TransportRenderingPlugin {
@@ -68,43 +241,18 @@ fn render_rails(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    if !rails.is_changed() {
-        return;
-    }
-
-    // Build set of existing edges
-    let existing_edges: std::collections::HashSet<(TilePos, TilePos)> =
-        existing.iter().map(|(_, visual)| visual.edge).collect();
-
-    // Find edges to add (in Rails but not in existing visuals)
-    for &edge in rails.0.iter() {
-        if !existing_edges.contains(&edge) {
-            let (a, b) = edge;
-            let pos_a = a.to_world_pos();
-            let pos_b = b.to_world_pos();
-
-            let center = (pos_a + pos_b) / 2.0;
-            let diff = pos_b - pos_a;
-            let length = diff.length();
-            let angle = diff.y.atan2(diff.x);
-
-            commands.spawn((
-                Mesh2d(meshes.add(Rectangle::new(length, LINE_WIDTH))),
-                MeshMaterial2d(materials.add(ColorMaterial::from_color(RAIL_COLOR))),
-                Transform::from_translation(center.extend(1.0))
-                    .with_rotation(Quat::from_rotation_z(angle)),
-                RailLineVisual { edge },
-                MapTilemap, // Marker for visibility control
-            ));
-        }
-    }
-
-    // Find edges to remove (in existing visuals but not in Rails)
-    for (entity, visual) in existing.iter() {
-        if !rails.0.contains(&visual.edge) {
-            commands.entity(entity).despawn();
-        }
-    }
+    sync_line_visuals(
+        &mut commands,
+        &rails.0,
+        rails.is_changed(),
+        &existing,
+        &mut meshes,
+        &mut materials,
+        RAIL_COLOR,
+        1.0,
+        |edge| RailLineVisual { edge },
+        |visual: &RailLineVisual| visual.edge,
+    );
 }
 
 /// Incrementally update road line visuals to match the Roads resource
@@ -116,43 +264,18 @@ fn render_roads(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    if !roads.is_changed() {
-        return;
-    }
-
-    // Build set of existing edges
-    let existing_edges: std::collections::HashSet<(TilePos, TilePos)> =
-        existing.iter().map(|(_, visual)| visual.edge).collect();
-
-    // Find edges to add (in Roads but not in existing visuals)
-    for &edge in roads.0.iter() {
-        if !existing_edges.contains(&edge) {
-            let (a, b) = edge;
-            let pos_a = a.to_world_pos();
-            let pos_b = b.to_world_pos();
-
-            let center = (pos_a + pos_b) / 2.0;
-            let diff = pos_b - pos_a;
-            let length = diff.length();
-            let angle = diff.y.atan2(diff.x);
-
-            commands.spawn((
-                Mesh2d(meshes.add(Rectangle::new(length, LINE_WIDTH))),
-                MeshMaterial2d(materials.add(ColorMaterial::from_color(ROAD_COLOR))),
-                Transform::from_translation(center.extend(0.5))
-                    .with_rotation(Quat::from_rotation_z(angle)),
-                RoadLineVisual { edge },
-                MapTilemap, // Marker for visibility control
-            ));
-        }
-    }
-
-    // Find edges to remove (in existing visuals but not in Roads)
-    for (entity, visual) in existing.iter() {
-        if !roads.0.contains(&visual.edge) {
-            commands.entity(entity).despawn();
-        }
-    }
+    sync_line_visuals(
+        &mut commands,
+        &roads.0,
+        roads.is_changed(),
+        &existing,
+        &mut meshes,
+        &mut materials,
+        ROAD_COLOR,
+        0.5,
+        |edge| RoadLineVisual { edge },
+        |visual: &RoadLineVisual| visual.edge,
+    );
 }
 
 /// Update depot visual colors based on connectivity
@@ -164,58 +287,16 @@ fn update_depot_visuals(
     changed_depots: Query<(Entity, &Depot, Option<&MapVisual>), Changed<Depot>>,
     mut sprites: Query<&mut Sprite>,
 ) {
-    // Create visuals for new depots
-    for (depot_entity, depot) in new_depots.iter() {
-        let pos = depot.position.to_world_pos();
-        let texture: Handle<Image> = asset_server.load(assets::depot_asset_path());
-        let color = if depot.connected {
-            DEPOT_CONNECTED_COLOR
-        } else {
-            DEPOT_DISCONNECTED_COLOR
-        };
-
-        commands.spawn((
-            Sprite {
-                image: texture,
-                color,
-                custom_size: Some(Vec2::new(64.0, 64.0)),
-                ..default()
-            },
-            Transform::from_translation(pos.extend(2.0)),
-            MapVisualFor(depot_entity), // Relationship: sprite -> depot
-            MapTilemap,                 // Marker for visibility control
-        ));
-    }
-
-    // Update colors for changed depots (O(1) lookup via relationship)
-    for (depot_entity, depot, visual) in changed_depots.iter() {
-        let color = if depot.connected {
-            DEPOT_CONNECTED_COLOR
-        } else {
-            DEPOT_DISCONNECTED_COLOR
-        };
-
-        // If depot has a visual, update its color
-        if let Some(visual) = visual
-            && let Ok(mut sprite) = sprites.get_mut(visual.entity())
-        {
-            sprite.color = color;
-        } else if !new_depots.contains(depot_entity) {
-            // Depot changed but has no visual (and wasn't just added) - create one
-            let pos = depot.position.to_world_pos();
-            let texture: Handle<Image> = asset_server.load(assets::depot_asset_path());
-            commands.spawn((
-                Sprite {
-                    image: texture,
-                    color,
-                    custom_size: Some(Vec2::new(64.0, 64.0)),
-                    ..default()
-                },
-                Transform::from_translation(pos.extend(2.0)),
-                MapVisualFor(depot_entity),
-            ));
-        }
-    }
+    sync_structure_visuals(
+        &mut commands,
+        &asset_server,
+        &new_depots,
+        &changed_depots,
+        &mut sprites,
+        assets::depot_asset_path(),
+        DEPOT_CONNECTED_COLOR,
+        DEPOT_DISCONNECTED_COLOR,
+    );
 }
 
 /// Update port visual colors based on connectivity
@@ -227,58 +308,16 @@ fn update_port_visuals(
     changed_ports: Query<(Entity, &Port, Option<&MapVisual>), Changed<Port>>,
     mut sprites: Query<&mut Sprite>,
 ) {
-    // Create visuals for new ports
-    for (port_entity, port) in new_ports.iter() {
-        let pos = port.position.to_world_pos();
-        let texture: Handle<Image> = asset_server.load(assets::port_asset_path());
-        let color = if port.connected {
-            PORT_CONNECTED_COLOR
-        } else {
-            PORT_DISCONNECTED_COLOR
-        };
-
-        commands.spawn((
-            Sprite {
-                image: texture,
-                color,
-                custom_size: Some(Vec2::new(64.0, 64.0)),
-                ..default()
-            },
-            Transform::from_translation(pos.extend(2.0)),
-            MapVisualFor(port_entity), // Relationship: sprite -> port
-            MapTilemap,                // Marker for visibility control
-        ));
-    }
-
-    // Update colors for changed ports (O(1) lookup via relationship)
-    for (port_entity, port, visual) in changed_ports.iter() {
-        let color = if port.connected {
-            PORT_CONNECTED_COLOR
-        } else {
-            PORT_DISCONNECTED_COLOR
-        };
-
-        // If port has a visual, update its color
-        if let Some(visual) = visual
-            && let Ok(mut sprite) = sprites.get_mut(visual.entity())
-        {
-            sprite.color = color;
-        } else if !new_ports.contains(port_entity) {
-            // Port changed but has no visual (and wasn't just added) - create one
-            let pos = port.position.to_world_pos();
-            let texture: Handle<Image> = asset_server.load(assets::port_asset_path());
-            commands.spawn((
-                Sprite {
-                    image: texture,
-                    color,
-                    custom_size: Some(Vec2::new(64.0, 64.0)),
-                    ..default()
-                },
-                Transform::from_translation(pos.extend(2.0)),
-                MapVisualFor(port_entity),
-            ));
-        }
-    }
+    sync_structure_visuals(
+        &mut commands,
+        &asset_server,
+        &new_ports,
+        &changed_ports,
+        &mut sprites,
+        assets::port_asset_path(),
+        PORT_CONNECTED_COLOR,
+        PORT_DISCONNECTED_COLOR,
+    );
 }
 
 /// Render shadow rail preview when hovering over adjacent tiles with Engineer selected

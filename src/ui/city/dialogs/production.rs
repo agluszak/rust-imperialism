@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-use crate::economy::production::{Building, BuildingKind, Buildings, ProductionSettings};
+use crate::economy::production::{
+    Building, BuildingKind, Buildings, ProductionSettings, production_recipe,
+};
 use crate::economy::transport::state::TransportCommodity;
 use crate::economy::{Good, PlayerNation, Stockpile, Workforce};
 use crate::ui::city::allocation_widgets::AllocationType;
@@ -368,59 +370,28 @@ fn get_recipe_for_output(
     building_kind: BuildingKind,
     output_good: Good,
 ) -> (Vec<Vec<(Good, u32)>>, (Good, u32)) {
-    match (building_kind, output_good) {
-        (BuildingKind::TextileMill, Good::Fabric) => {
-            // Two alternatives: Cotton OR Wool
-            (
-                vec![vec![(Good::Cotton, 2)], vec![(Good::Wool, 2)]],
-                (Good::Fabric, 1),
-            )
+    if let Some(recipe) = production_recipe(building_kind) {
+        let variants = recipe.variants_for_output(output_good);
+        if variants.is_empty() {
+            return (vec![], (output_good, 0));
         }
-        (BuildingKind::LumberMill, Good::Lumber) => {
-            // Simple: 2 Timber -> 1 Lumber
-            (vec![vec![(Good::Timber, 2)]], (Good::Lumber, 1))
-        }
-        (BuildingKind::LumberMill, Good::Paper) => {
-            // Simple: 2 Timber -> 1 Paper
-            (vec![vec![(Good::Timber, 2)]], (Good::Paper, 1))
-        }
-        (BuildingKind::SteelMill, Good::Steel) => {
-            // Simple: 1 Iron + 1 Coal -> 1 Steel
-            (
-                vec![vec![(Good::Iron, 1), (Good::Coal, 1)]],
-                (Good::Steel, 1),
-            )
-        }
-        (BuildingKind::FoodProcessingCenter, Good::CannedFood) => {
-            // Complex: 2 Grain + 1 Fruit + (1 Livestock OR 1 Fish) -> 2 CannedFood
-            // Show as two alternatives: one with Livestock, one with Fish
-            (
-                vec![
-                    vec![(Good::Grain, 2), (Good::Fruit, 1), (Good::Livestock, 1)],
-                    vec![(Good::Grain, 2), (Good::Fruit, 1), (Good::Fish, 1)],
-                ],
-                (Good::CannedFood, 2),
-            )
-        }
-        (BuildingKind::ClothingFactory, Good::Clothing) => {
-            (vec![vec![(Good::Fabric, 2)]], (Good::Clothing, 1))
-        }
-        (BuildingKind::FurnitureFactory, Good::Furniture) => {
-            (vec![vec![(Good::Lumber, 2)]], (Good::Furniture, 1))
-        }
-        (BuildingKind::MetalWorks, Good::Hardware) => {
-            (vec![vec![(Good::Steel, 2)]], (Good::Hardware, 1))
-        }
-        (BuildingKind::MetalWorks, Good::Armaments) => {
-            (vec![vec![(Good::Steel, 2)]], (Good::Armaments, 1))
-        }
-        (BuildingKind::Refinery, Good::Fuel) => (vec![vec![(Good::Oil, 2)]], (Good::Fuel, 1)),
-        (BuildingKind::Railyard, Good::Transport) => (
-            vec![vec![(Good::Steel, 1), (Good::Lumber, 1)]],
-            (Good::Transport, 1),
-        ),
-        _ => (vec![], (Good::Fabric, 0)), // Shouldn't happen
+
+        let inputs = variants
+            .iter()
+            .map(|info| {
+                info.variant
+                    .inputs()
+                    .iter()
+                    .map(|ingredient| (ingredient.good, ingredient.amount))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+
+        let output_amount = variants[0].variant.primary_output_amount();
+        return (inputs, (output_good, output_amount));
     }
+
+    (vec![], (output_good, 0))
 }
 
 /// Spawn a good icon with quantity overlay
