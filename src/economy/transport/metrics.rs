@@ -151,7 +151,7 @@ pub fn update_transport_demand_snapshot(
     snapshot.nations.clear();
 
     // Supply from connected production
-    for (nation, resources) in connected_production.0.iter() {
+    for (nation, resources) in connected_production.totals.iter() {
         let entries = snapshot.nations.entry(*nation).or_default();
         for commodity in TransportCommodity::ORDERED.iter() {
             let mut supply = 0u32;

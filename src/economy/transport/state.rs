@@ -91,7 +91,7 @@ impl TransportCommodity {
             Grain => &[ResourceType::Grain],
             Fruit => &[ResourceType::Fruit],
             Fiber => &[ResourceType::Cotton, ResourceType::Wool],
-            Meat => &[ResourceType::Livestock],
+            Meat => &[ResourceType::Livestock, ResourceType::Fish],
             Timber => &[ResourceType::Timber],
             Coal => &[ResourceType::Coal],
             Iron => &[ResourceType::Iron],

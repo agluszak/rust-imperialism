@@ -10,6 +10,7 @@ pub enum ResourceType {
     // Livestock
     Wool,
     Livestock,
+    Fish, // Coastal fisheries gathered by ports
     // Natural
     Timber,
     // Minerals (must be discovered by Prospector)
@@ -28,6 +29,7 @@ pub const ALL_RESOURCES: &[ResourceType] = &[
     ResourceType::Cotton,
     ResourceType::Wool,
     ResourceType::Livestock,
+    ResourceType::Fish,
     ResourceType::Timber,
     ResourceType::Coal,
     ResourceType::Iron,
@@ -35,6 +37,22 @@ pub const ALL_RESOURCES: &[ResourceType] = &[
     ResourceType::Gems,
     ResourceType::Oil,
 ];
+
+impl ResourceType {
+    /// Returns true when the resource provides a baseline yield without improvements.
+    pub fn is_baseline_yield_eligible(self) -> bool {
+        matches!(
+            self,
+            ResourceType::Grain
+                | ResourceType::Fruit
+                | ResourceType::Cotton
+                | ResourceType::Wool
+                | ResourceType::Livestock
+                | ResourceType::Fish
+                | ResourceType::Timber
+        )
+    }
+}
 
 /// Development level of a resource (0-3)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -90,19 +108,17 @@ impl TileResource {
             return 0;
         }
 
-        match self.resource_type {
+        if self.resource_type.is_baseline_yield_eligible() {
             // Food/fiber/timber: 1/2/3/4
-            ResourceType::Grain
-            | ResourceType::Fruit
-            | ResourceType::Cotton
-            | ResourceType::Wool
-            | ResourceType::Livestock
-            | ResourceType::Timber => match self.development {
+            return match self.development {
                 DevelopmentLevel::Lv0 => 1,
                 DevelopmentLevel::Lv1 => 2,
                 DevelopmentLevel::Lv2 => 3,
                 DevelopmentLevel::Lv3 => 4,
-            },
+            };
+        }
+
+        match self.resource_type {
             // Coal/iron/oil: 0/2/4/6
             ResourceType::Coal | ResourceType::Iron | ResourceType::Oil => match self.development {
                 DevelopmentLevel::Lv0 => 0,
@@ -117,6 +133,7 @@ impl TileResource {
                 DevelopmentLevel::Lv2 => 2,
                 DevelopmentLevel::Lv3 => 3,
             },
+            _ => 0,
         }
     }
 
