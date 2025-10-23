@@ -7,7 +7,7 @@ use bevy::image::ImagePlugin;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::TilemapPlugin;
 
-use crate::ai::AiSupportPlugin;
+use crate::ai::{AiBehaviorPlugin, AiSupportPlugin};
 use crate::civilians::CivilianPlugin;
 use crate::diplomacy::DiplomacyPlugin;
 use crate::economy::EconomyPlugin;
@@ -76,7 +76,8 @@ pub fn app() -> App {
             CityRenderingPlugin,
             ImprovementRenderingPlugin,
             ProspectingMarkersPlugin,
-        ));
+        ))
+        .add_plugins(AiBehaviorPlugin);
 
     app
 }

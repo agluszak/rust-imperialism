@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
 use std::collections::{HashMap, HashSet};
 
+use crate::ai::{AiControlledCivilian, AiNation};
 use crate::civilians::{Civilian, CivilianKind};
 use crate::constants::MAP_SIZE;
 use crate::economy::{
@@ -92,6 +93,8 @@ pub fn assign_provinces_to_countries(
 
     // Create countries
     let mut country_entities = Vec::new();
+    let mut capitals = Vec::new();
+
     for i in 0..num_countries {
         let name = if i == 0 {
             "Player".to_string()
@@ -142,6 +145,10 @@ pub fn assign_provinces_to_countries(
         ));
 
         let country_entity = country_builder.id();
+
+        if i > 0 {
+            commands.entity(country_entity).insert(AiNation);
+        }
 
         // Player gets starting buildings and workforce
         if i == 0 {
@@ -216,8 +223,7 @@ pub fn assign_provinces_to_countries(
                     prov_id,
                     prov_city,
                     country_entity,
-                    country_idx == 0, // First country gets first province as capital
-                    &assigned,
+                    &mut capitals,
                 );
             }
         }
@@ -236,36 +242,23 @@ pub fn assign_provinces_to_countries(
                 *province_id,
                 *city_tile,
                 country_entity,
-                false,
-                &assigned,
+                &mut capitals,
             );
             assigned.insert(*province_id);
             country_idx += 1;
         }
     }
 
+    let player_entity = country_entities.first().copied();
+
     // Spawn starter civilian roster for the player clustered around the capital
-    if let Some(player_entity) = country_entities.first()
-        && let Some(player_capital) = province_list.first()
+    if let Some(player_entity) = player_entity
+        && let Some(player_capital) = capitals
+            .iter()
+            .find(|(entity, _)| *entity == player_entity)
+            .map(|(_, pos)| *pos)
     {
-        let capital_pos = player_capital.2;
-        let capital_hex = capital_pos.to_hex();
-        let mut spawn_positions = Vec::new();
-        spawn_positions.push(capital_pos);
-
-        for neighbor in capital_hex.all_neighbors() {
-            if let Some(tile_pos) = neighbor.to_tile_pos() {
-                spawn_positions.push(tile_pos);
-            }
-            if spawn_positions.len() >= 6 {
-                break;
-            }
-        }
-
-        while spawn_positions.len() < 6 {
-            spawn_positions.push(capital_pos);
-        }
-
+        let spawn_positions = gather_spawn_positions(player_capital, 6);
         let starter_units = [
             CivilianKind::Engineer,
             CivilianKind::Prospector,
@@ -279,11 +272,36 @@ pub fn assign_provinces_to_countries(
             commands.spawn(Civilian {
                 kind: *kind,
                 position: *pos,
-                owner: *player_entity,
+                owner: player_entity,
                 selected: false,
                 has_moved: false,
             });
             info!("Spawned {:?} for player at ({}, {})", kind, pos.x, pos.y);
+        }
+    }
+
+    let ai_starter_units = [CivilianKind::Engineer, CivilianKind::Prospector];
+    for (nation_entity, capital_pos) in capitals
+        .iter()
+        .copied()
+        .filter(|(entity, _)| Some(*entity) != player_entity)
+    {
+        let spawn_positions = gather_spawn_positions(capital_pos, ai_starter_units.len());
+        for (kind, pos) in ai_starter_units.iter().zip(spawn_positions.iter()) {
+            commands.spawn((
+                Civilian {
+                    kind: *kind,
+                    position: *pos,
+                    owner: nation_entity,
+                    selected: false,
+                    has_moved: false,
+                },
+                AiControlledCivilian,
+            ));
+            info!(
+                "Spawned {:?} for AI nation {:?} at ({}, {})",
+                kind, nation_entity, pos.x, pos.y
+            );
         }
     }
 
@@ -298,8 +316,7 @@ fn assign_province_to_country(
     province_id: ProvinceId,
     city_tile: TilePos,
     country_entity: Entity,
-    is_first_of_country: bool,
-    assigned: &HashSet<ProvinceId>,
+    capitals: &mut Vec<(Entity, TilePos)>,
 ) {
     // Update province owner
     if let Ok((_, mut province)) = provinces.get_mut(province_entity) {
@@ -307,7 +324,7 @@ fn assign_province_to_country(
     }
 
     // Create city entity
-    let is_capital = is_first_of_country && assigned.len() == 1;
+    let is_capital = !capitals.iter().any(|(entity, _)| *entity == country_entity);
     commands.spawn((
         City {
             province: province_id,
@@ -324,7 +341,28 @@ fn assign_province_to_country(
             boost_capital_food_tiles(world, capital_tile);
         });
         info!("Set capital at ({}, {})", city_tile.x, city_tile.y);
+        capitals.push((country_entity, city_tile));
     }
+}
+
+fn gather_spawn_positions(capital_pos: TilePos, count: usize) -> Vec<TilePos> {
+    let mut spawn_positions = Vec::new();
+    spawn_positions.push(capital_pos);
+
+    for neighbor in capital_pos.to_hex().all_neighbors() {
+        if let Some(tile_pos) = neighbor.to_tile_pos() {
+            spawn_positions.push(tile_pos);
+        }
+        if spawn_positions.len() >= count {
+            break;
+        }
+    }
+
+    while spawn_positions.len() < count {
+        spawn_positions.push(capital_pos);
+    }
+
+    spawn_positions
 }
 
 pub(crate) fn boost_capital_food_tiles(world: &mut World, capital_pos: TilePos) {
@@ -451,10 +489,16 @@ fn get_connected_provinces(
 
 #[cfg(test)]
 mod tests {
+    use bevy::ecs::system::RunSystemOnce;
     use bevy::prelude::*;
     use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
 
-    use crate::map::province_setup::boost_capital_food_tiles;
+    use crate::ai::{AiControlledCivilian, AiNation};
+    use crate::civilians::Civilian;
+    use crate::map::province::{Province, ProvinceId};
+    use crate::map::province_setup::{
+        ProvincesGenerated, assign_provinces_to_countries, boost_capital_food_tiles,
+    };
     use crate::resources::{DevelopmentLevel, ResourceType, TileResource};
 
     #[test]
@@ -497,5 +541,58 @@ mod tests {
             .expect("mineral tile should have resource");
         assert_eq!(mineral_resource.development, DevelopmentLevel::Lv0);
         assert!(!mineral_resource.discovered);
+    }
+
+    #[test]
+    fn ai_nations_receive_capitals_and_civilians() {
+        let mut world = World::new();
+        world.insert_resource(ProvincesGenerated);
+
+        let province_positions = [
+            TilePos { x: 0, y: 0 },
+            TilePos { x: 1, y: 0 },
+            TilePos { x: 2, y: 0 },
+            TilePos { x: 3, y: 0 },
+            TilePos { x: 4, y: 0 },
+            TilePos { x: 5, y: 0 },
+        ];
+
+        for (index, position) in province_positions.iter().enumerate() {
+            world.spawn(Province::new(
+                ProvinceId(index as u32),
+                vec![*position],
+                *position,
+            ));
+        }
+
+        let _ = world.run_system_once(assign_provinces_to_countries);
+        world.flush();
+
+        let mut ai_nation_query = world.query_filtered::<Entity, With<AiNation>>();
+        let ai_nations: Vec<Entity> = ai_nation_query.iter(&world).collect();
+        assert!(
+            ai_nations.len() >= 1,
+            "expected at least one AI nation to be created"
+        );
+
+        let mut ai_civilian_query =
+            world.query_filtered::<(Entity, &Civilian), With<AiControlledCivilian>>();
+        assert!(
+            ai_civilian_query.iter(&world).count() >= ai_nations.len(),
+            "expected each AI nation to spawn civilians"
+        );
+
+        for nation in ai_nations {
+            let owned_units: Vec<Entity> = ai_civilian_query
+                .iter(&world)
+                .filter(|(_, civilian)| civilian.owner == nation)
+                .map(|(entity, _)| entity)
+                .collect();
+            assert!(
+                !owned_units.is_empty(),
+                "AI nation {:?} should have at least one controlled civilian",
+                nation
+            );
+        }
     }
 }
