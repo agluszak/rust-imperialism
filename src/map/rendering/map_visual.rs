@@ -1,9 +1,12 @@
 use bevy::prelude::*;
 
+use crate::ui::components::MapTilemap;
+
 /// Points from any map sprite entity to the game entity it visualizes
 /// This is a universal relationship that works for all map entity types:
 /// civilians, cities, depots, ports, regiments, etc.
 #[derive(Component)]
+#[require(MapTilemap)]
 #[relationship(relationship_target = MapVisual)]
 pub struct MapVisualFor(pub Entity);
 
