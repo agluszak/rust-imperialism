@@ -183,7 +183,6 @@ fn update_depot_visuals(
             },
             Transform::from_translation(pos.extend(2.0)),
             MapVisualFor(depot_entity), // Relationship: sprite -> depot
-            MapTilemap,                 // Marker for visibility control
         ));
     }
 
@@ -246,7 +245,6 @@ fn update_port_visuals(
             },
             Transform::from_translation(pos.extend(2.0)),
             MapVisualFor(port_entity), // Relationship: sprite -> port
-            MapTilemap,                // Marker for visibility control
         ));
     }
 
