@@ -228,6 +228,399 @@ impl Building {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Ingredient {
+    pub good: Good,
+    pub amount: u32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ProductAmount {
+    pub good: Good,
+    pub amount: u32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RecipeVariant {
+    inputs: &'static [Ingredient],
+    outputs: &'static [ProductAmount],
+}
+
+impl RecipeVariant {
+    pub fn inputs(&self) -> &'static [Ingredient] {
+        self.inputs
+    }
+
+    pub fn outputs(&self) -> &'static [ProductAmount] {
+        self.outputs
+    }
+
+    pub fn primary_output(&self) -> Option<ProductAmount> {
+        self.outputs.first().copied()
+    }
+
+    pub fn primary_output_good(&self) -> Option<Good> {
+        self.primary_output().map(|output| output.good)
+    }
+
+    pub fn primary_output_amount(&self) -> u32 {
+        self.primary_output()
+            .map(|output| output.amount)
+            .unwrap_or(0)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RecipeVariantInfo {
+    pub choice: Option<ProductionChoice>,
+    pub variant: RecipeVariant,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ProductionRecipe {
+    variants: &'static [RecipeVariantDefinition],
+}
+
+impl ProductionRecipe {
+    pub fn variant_for_choice(&self, choice: ProductionChoice) -> Option<RecipeVariant> {
+        self.variants
+            .iter()
+            .find(|definition| definition.choice == Some(choice))
+            .or_else(|| {
+                self.variants
+                    .iter()
+                    .find(|definition| definition.choice.is_none())
+            })
+            .map(|definition| definition.variant)
+    }
+
+    pub fn variants_for_output(&self, output_good: Good) -> Vec<RecipeVariantInfo> {
+        self.variants_iter(output_good).collect()
+    }
+
+    pub fn input_amount_for(&self, output_good: Good, input_good: Good) -> Option<u32> {
+        self.variants_iter(output_good).find_map(|info| {
+            info.variant
+                .inputs
+                .iter()
+                .find(|ingredient| ingredient.good == input_good)
+                .map(|ingredient| ingredient.amount)
+        })
+    }
+
+    pub fn produces(&self, output_good: Good) -> bool {
+        self.variants_iter(output_good).next().is_some()
+    }
+
+    fn variants_iter(&self, output_good: Good) -> impl Iterator<Item = RecipeVariantInfo> + '_ {
+        self.variants
+            .iter()
+            .filter(move |definition| {
+                definition
+                    .variant
+                    .primary_output_good()
+                    .is_some_and(|good| good == output_good)
+            })
+            .map(|definition| RecipeVariantInfo {
+                choice: definition.choice,
+                variant: definition.variant,
+            })
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct RecipeVariantDefinition {
+    choice: Option<ProductionChoice>,
+    variant: RecipeVariant,
+}
+
+const TEXTILE_COTTON_INPUTS: [Ingredient; 1] = [Ingredient {
+    good: Good::Cotton,
+    amount: 2,
+}];
+const TEXTILE_WOOL_INPUTS: [Ingredient; 1] = [Ingredient {
+    good: Good::Wool,
+    amount: 2,
+}];
+const TEXTILE_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
+    good: Good::Fabric,
+    amount: 1,
+}];
+const TEXTILE_VARIANTS: [RecipeVariantDefinition; 2] = [
+    RecipeVariantDefinition {
+        choice: Some(ProductionChoice::UseCotton),
+        variant: RecipeVariant {
+            inputs: &TEXTILE_COTTON_INPUTS,
+            outputs: &TEXTILE_OUTPUTS,
+        },
+    },
+    RecipeVariantDefinition {
+        choice: Some(ProductionChoice::UseWool),
+        variant: RecipeVariant {
+            inputs: &TEXTILE_WOOL_INPUTS,
+            outputs: &TEXTILE_OUTPUTS,
+        },
+    },
+];
+const TEXTILE_RECIPE: ProductionRecipe = ProductionRecipe {
+    variants: &TEXTILE_VARIANTS,
+};
+
+const LUMBER_INPUTS: [Ingredient; 1] = [Ingredient {
+    good: Good::Timber,
+    amount: 2,
+}];
+const LUMBER_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
+    good: Good::Lumber,
+    amount: 1,
+}];
+const PAPER_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
+    good: Good::Paper,
+    amount: 1,
+}];
+const LUMBER_VARIANTS: [RecipeVariantDefinition; 2] = [
+    RecipeVariantDefinition {
+        choice: Some(ProductionChoice::MakeLumber),
+        variant: RecipeVariant {
+            inputs: &LUMBER_INPUTS,
+            outputs: &LUMBER_OUTPUTS,
+        },
+    },
+    RecipeVariantDefinition {
+        choice: Some(ProductionChoice::MakePaper),
+        variant: RecipeVariant {
+            inputs: &LUMBER_INPUTS,
+            outputs: &PAPER_OUTPUTS,
+        },
+    },
+];
+const LUMBER_RECIPE: ProductionRecipe = ProductionRecipe {
+    variants: &LUMBER_VARIANTS,
+};
+
+const STEEL_INPUTS: [Ingredient; 2] = [
+    Ingredient {
+        good: Good::Iron,
+        amount: 1,
+    },
+    Ingredient {
+        good: Good::Coal,
+        amount: 1,
+    },
+];
+const STEEL_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
+    good: Good::Steel,
+    amount: 1,
+}];
+const STEEL_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
+    choice: None,
+    variant: RecipeVariant {
+        inputs: &STEEL_INPUTS,
+        outputs: &STEEL_OUTPUTS,
+    },
+}];
+const STEEL_RECIPE: ProductionRecipe = ProductionRecipe {
+    variants: &STEEL_VARIANTS,
+};
+
+const FOOD_LIVESTOCK_INPUTS: [Ingredient; 3] = [
+    Ingredient {
+        good: Good::Grain,
+        amount: 2,
+    },
+    Ingredient {
+        good: Good::Fruit,
+        amount: 1,
+    },
+    Ingredient {
+        good: Good::Livestock,
+        amount: 1,
+    },
+];
+const FOOD_FISH_INPUTS: [Ingredient; 3] = [
+    Ingredient {
+        good: Good::Grain,
+        amount: 2,
+    },
+    Ingredient {
+        good: Good::Fruit,
+        amount: 1,
+    },
+    Ingredient {
+        good: Good::Fish,
+        amount: 1,
+    },
+];
+const FOOD_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
+    good: Good::CannedFood,
+    amount: 2,
+}];
+const FOOD_VARIANTS: [RecipeVariantDefinition; 2] = [
+    RecipeVariantDefinition {
+        choice: Some(ProductionChoice::UseLivestock),
+        variant: RecipeVariant {
+            inputs: &FOOD_LIVESTOCK_INPUTS,
+            outputs: &FOOD_OUTPUTS,
+        },
+    },
+    RecipeVariantDefinition {
+        choice: Some(ProductionChoice::UseFish),
+        variant: RecipeVariant {
+            inputs: &FOOD_FISH_INPUTS,
+            outputs: &FOOD_OUTPUTS,
+        },
+    },
+];
+const FOOD_RECIPE: ProductionRecipe = ProductionRecipe {
+    variants: &FOOD_VARIANTS,
+};
+
+const CLOTHING_INPUTS: [Ingredient; 1] = [Ingredient {
+    good: Good::Fabric,
+    amount: 2,
+}];
+const CLOTHING_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
+    good: Good::Clothing,
+    amount: 1,
+}];
+const CLOTHING_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
+    choice: None,
+    variant: RecipeVariant {
+        inputs: &CLOTHING_INPUTS,
+        outputs: &CLOTHING_OUTPUTS,
+    },
+}];
+const CLOTHING_RECIPE: ProductionRecipe = ProductionRecipe {
+    variants: &CLOTHING_VARIANTS,
+};
+
+const FURNITURE_INPUTS: [Ingredient; 1] = [Ingredient {
+    good: Good::Lumber,
+    amount: 2,
+}];
+const FURNITURE_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
+    good: Good::Furniture,
+    amount: 1,
+}];
+const FURNITURE_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
+    choice: None,
+    variant: RecipeVariant {
+        inputs: &FURNITURE_INPUTS,
+        outputs: &FURNITURE_OUTPUTS,
+    },
+}];
+const FURNITURE_RECIPE: ProductionRecipe = ProductionRecipe {
+    variants: &FURNITURE_VARIANTS,
+};
+
+const METAL_INPUTS: [Ingredient; 1] = [Ingredient {
+    good: Good::Steel,
+    amount: 2,
+}];
+const HARDWARE_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
+    good: Good::Hardware,
+    amount: 1,
+}];
+const ARMAMENT_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
+    good: Good::Armaments,
+    amount: 1,
+}];
+const METAL_VARIANTS: [RecipeVariantDefinition; 2] = [
+    RecipeVariantDefinition {
+        choice: Some(ProductionChoice::MakeHardware),
+        variant: RecipeVariant {
+            inputs: &METAL_INPUTS,
+            outputs: &HARDWARE_OUTPUTS,
+        },
+    },
+    RecipeVariantDefinition {
+        choice: Some(ProductionChoice::MakeArmaments),
+        variant: RecipeVariant {
+            inputs: &METAL_INPUTS,
+            outputs: &ARMAMENT_OUTPUTS,
+        },
+    },
+];
+const METAL_RECIPE: ProductionRecipe = ProductionRecipe {
+    variants: &METAL_VARIANTS,
+};
+
+const REFINERY_INPUTS: [Ingredient; 1] = [Ingredient {
+    good: Good::Oil,
+    amount: 2,
+}];
+const REFINERY_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
+    good: Good::Fuel,
+    amount: 1,
+}];
+const REFINERY_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
+    choice: None,
+    variant: RecipeVariant {
+        inputs: &REFINERY_INPUTS,
+        outputs: &REFINERY_OUTPUTS,
+    },
+}];
+const REFINERY_RECIPE: ProductionRecipe = ProductionRecipe {
+    variants: &REFINERY_VARIANTS,
+};
+
+const RAILYARD_INPUTS: [Ingredient; 2] = [
+    Ingredient {
+        good: Good::Steel,
+        amount: 1,
+    },
+    Ingredient {
+        good: Good::Lumber,
+        amount: 1,
+    },
+];
+const RAILYARD_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
+    good: Good::Transport,
+    amount: 1,
+}];
+const RAILYARD_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
+    choice: None,
+    variant: RecipeVariant {
+        inputs: &RAILYARD_INPUTS,
+        outputs: &RAILYARD_OUTPUTS,
+    },
+}];
+const RAILYARD_RECIPE: ProductionRecipe = ProductionRecipe {
+    variants: &RAILYARD_VARIANTS,
+};
+
+const PRODUCTION_RECIPES: &[(BuildingKind, &ProductionRecipe)] = &[
+    (BuildingKind::TextileMill, &TEXTILE_RECIPE),
+    (BuildingKind::LumberMill, &LUMBER_RECIPE),
+    (BuildingKind::SteelMill, &STEEL_RECIPE),
+    (BuildingKind::FoodProcessingCenter, &FOOD_RECIPE),
+    (BuildingKind::ClothingFactory, &CLOTHING_RECIPE),
+    (BuildingKind::FurnitureFactory, &FURNITURE_RECIPE),
+    (BuildingKind::MetalWorks, &METAL_RECIPE),
+    (BuildingKind::Refinery, &REFINERY_RECIPE),
+    (BuildingKind::Railyard, &RAILYARD_RECIPE),
+];
+
+pub fn production_recipe(kind: BuildingKind) -> Option<&'static ProductionRecipe> {
+    PRODUCTION_RECIPES
+        .iter()
+        .find_map(|(recipe_kind, recipe)| (*recipe_kind == kind).then_some(*recipe))
+}
+
+pub fn building_for_output(output_good: Good) -> Option<BuildingKind> {
+    PRODUCTION_RECIPES
+        .iter()
+        .find_map(|(kind, recipe)| recipe.produces(output_good).then_some(*kind))
+}
+
+pub fn input_requirement_per_unit(
+    kind: BuildingKind,
+    output_good: Good,
+    input_good: Good,
+) -> Option<u32> {
+    production_recipe(kind)?.input_amount_for(output_good, input_good)
+}
+
 /// Collection of all buildings for a nation
 #[derive(Component, Debug, Clone, Default)]
 pub struct Buildings {
@@ -292,239 +685,144 @@ pub fn run_production(
         // Each unit of production requires 1 labor point
         // This acts as another constraint on production alongside capacity and inputs
         let max_from_labor = available_labor;
-        match building.kind {
-            BuildingKind::TextileMill => {
-                // 2:1 ratio: 2×Cotton OR 2×Wool → 1×Fabric
+        let Some(recipe) = production_recipe(building.kind) else {
+            continue;
+        };
 
-                let input_good = match settings.choice {
-                    ProductionChoice::UseCotton => Good::Cotton,
-                    ProductionChoice::UseWool => Good::Wool,
-                    _ => continue, // Invalid choice for this building
-                };
+        let desired_output = settings
+            .target_output
+            .min(max_from_labor)
+            .min(building.capacity);
+        if desired_output == 0 {
+            settings.target_output = 0;
+            continue;
+        }
 
-                // Apply labor constraint
-                let actual_output = settings.target_output.min(max_from_labor);
+        let Some(variant) = recipe.variant_for_choice(settings.choice) else {
+            settings.target_output = 0;
+            debug!(
+                "Skipping production for {:?}: no variant for choice {:?}",
+                building.kind, settings.choice
+            );
+            continue;
+        };
 
-                if actual_output > 0 {
-                    let inputs_needed = actual_output * 2;
-                    // Consume reserved inputs (should already be reserved by UI)
-                    let consumed = stock.consume_reserved(input_good, inputs_needed);
-                    let produced = consumed / 2;
-                    stock.add(Good::Fabric, produced);
+        let output_per_batch = variant.primary_output_amount();
+        if output_per_batch == 0 {
+            settings.target_output = 0;
+            continue;
+        }
 
-                    if produced < actual_output {
-                        // This shouldn't happen if reservations work correctly
-                        info!(
-                            "TextileMill: expected {} but only consumed {} inputs",
-                            inputs_needed, consumed
-                        );
-                        settings.target_output = produced;
-                    }
-                }
-            }
+        let target_batches = desired_output.div_ceil(output_per_batch);
+        if target_batches == 0 {
+            settings.target_output = 0;
+            continue;
+        }
 
-            BuildingKind::LumberMill => {
-                // 2:1 ratio: 2×Timber → 1×Lumber OR 1×Paper
+        let (produced_output, consumption) = execute_variant(&mut stock, variant, target_batches);
 
-                let output_good = match settings.choice {
-                    ProductionChoice::MakeLumber => Good::Lumber,
-                    ProductionChoice::MakePaper => Good::Paper,
-                    _ => continue,
-                };
+        if produced_output < desired_output {
+            log_production_shortfall(
+                building.kind,
+                variant,
+                desired_output,
+                produced_output,
+                &consumption,
+            );
+        }
 
-                // Apply labor constraint
-                let actual_output = settings.target_output.min(max_from_labor);
+        settings.target_output = produced_output;
+    }
+}
 
-                if actual_output > 0 {
-                    let inputs_needed = actual_output * 2;
-                    let consumed = stock.consume_reserved(Good::Timber, inputs_needed);
-                    let produced = consumed / 2;
-                    stock.add(output_good, produced);
+#[derive(Clone, Debug)]
+struct ConsumptionRecord {
+    ingredient: Ingredient,
+    consumed: u32,
+    required: u32,
+}
 
-                    if produced < actual_output {
-                        info!(
-                            "LumberMill: expected {} but only consumed {} inputs",
-                            inputs_needed, consumed
-                        );
-                        settings.target_output = produced;
-                    }
-                }
-            }
+fn execute_variant(
+    stock: &mut Stockpile,
+    variant: RecipeVariant,
+    target_batches: u32,
+) -> (u32, Vec<ConsumptionRecord>) {
+    if target_batches == 0 {
+        return (0, Vec::new());
+    }
 
-            BuildingKind::SteelMill => {
-                // 1:1 ratio: 1×Iron + 1×Coal → 1×Steel
+    let mut actual_batches = target_batches;
+    let mut consumption = Vec::with_capacity(variant.inputs().len());
 
-                // Apply labor constraint
-                let actual_output = settings.target_output.min(max_from_labor);
+    for ingredient in variant.inputs() {
+        let required = ingredient.amount.saturating_mul(target_batches);
+        let consumed = if required > 0 {
+            stock.consume_reserved(ingredient.good, required)
+        } else {
+            0
+        };
+        if ingredient.amount > 0 {
+            actual_batches = actual_batches.min(consumed / ingredient.amount);
+        }
+        consumption.push(ConsumptionRecord {
+            ingredient: *ingredient,
+            consumed,
+            required,
+        });
+    }
 
-                if actual_output > 0 {
-                    let iron_consumed = stock.consume_reserved(Good::Iron, actual_output);
-                    let coal_consumed = stock.consume_reserved(Good::Coal, actual_output);
-                    let produced = iron_consumed.min(coal_consumed);
-                    stock.add(Good::Steel, produced);
+    let primary_output = variant.primary_output();
+    let mut produced_primary = 0;
 
-                    if produced < actual_output {
-                        info!(
-                            "SteelMill: expected {} but only consumed {} iron and {} coal",
-                            actual_output, iron_consumed, coal_consumed
-                        );
-                        settings.target_output = produced;
-                    }
-                }
-            }
-
-            BuildingKind::FoodProcessingCenter => {
-                // Special ratio: 2×Grain + 1×Fruit + 1×(Livestock|Fish) → 2×CannedFood
-
-                let meat_good = match settings.choice {
-                    ProductionChoice::UseLivestock => Good::Livestock,
-                    ProductionChoice::UseFish => Good::Fish,
-                    _ => continue,
-                };
-
-                // target_output is in canned food units (comes in pairs)
-                // Apply labor constraint (1 labor per output unit)
-                let actual_output = settings.target_output.min(max_from_labor);
-                let target_batches = actual_output.div_ceil(2); // Round up to batches
-
-                if target_batches > 0 {
-                    // Each batch: 2 grain, 1 fruit, 1 meat → 2 canned food
-                    let grain_consumed = stock.consume_reserved(Good::Grain, target_batches * 2);
-                    let fruit_consumed = stock.consume_reserved(Good::Fruit, target_batches);
-                    let meat_consumed = stock.consume_reserved(meat_good, target_batches);
-
-                    // Calculate actual batches we can produce from what was consumed
-                    let actual_batches =
-                        (grain_consumed / 2).min(fruit_consumed).min(meat_consumed);
-
-                    let produced = actual_batches * 2;
-                    stock.add(Good::CannedFood, produced);
-
-                    if produced < actual_output {
-                        info!(
-                            "FoodProcessingCenter: expected {} but only consumed {} grain, {} fruit, {} meat",
-                            target_batches * 2,
-                            grain_consumed,
-                            fruit_consumed,
-                            meat_consumed
-                        );
-                        settings.target_output = produced;
-                    }
-                }
-            }
-
-            BuildingKind::ClothingFactory => {
-                // 2×Fabric → 1×Clothing
-
-                let actual_output = settings.target_output.min(max_from_labor);
-
-                if actual_output > 0 {
-                    let inputs_needed = actual_output * 2;
-                    let consumed = stock.consume_reserved(Good::Fabric, inputs_needed);
-                    let produced = consumed / 2;
-                    stock.add(Good::Clothing, produced);
-
-                    if produced < actual_output {
-                        info!(
-                            "ClothingFactory: expected {} but only consumed {} fabric",
-                            inputs_needed, consumed
-                        );
-                        settings.target_output = produced;
-                    }
-                }
-            }
-
-            BuildingKind::FurnitureFactory => {
-                // 2×Lumber → 1×Furniture
-
-                let actual_output = settings.target_output.min(max_from_labor);
-
-                if actual_output > 0 {
-                    let inputs_needed = actual_output * 2;
-                    let consumed = stock.consume_reserved(Good::Lumber, inputs_needed);
-                    let produced = consumed / 2;
-                    stock.add(Good::Furniture, produced);
-
-                    if produced < actual_output {
-                        info!(
-                            "FurnitureFactory: expected {} but only consumed {} lumber",
-                            inputs_needed, consumed
-                        );
-                        settings.target_output = produced;
-                    }
-                }
-            }
-
-            BuildingKind::MetalWorks => {
-                // 2×Steel → 1×Hardware OR 1×Armaments
-
-                let output_good = match settings.choice {
-                    ProductionChoice::MakeArmaments => Good::Armaments,
-                    _ => Good::Hardware,
-                };
-
-                let actual_output = settings.target_output.min(max_from_labor);
-
-                if actual_output > 0 {
-                    let inputs_needed = actual_output * 2;
-                    let consumed = stock.consume_reserved(Good::Steel, inputs_needed);
-                    let produced = consumed / 2;
-                    stock.add(output_good, produced);
-
-                    if produced < actual_output {
-                        info!(
-                            "MetalWorks: expected {} but only consumed {} steel",
-                            inputs_needed, consumed
-                        );
-                        settings.target_output = produced;
-                    }
-                }
-            }
-
-            BuildingKind::Refinery => {
-                // 2×Oil → 1×Fuel
-
-                let actual_output = settings.target_output.min(max_from_labor);
-
-                if actual_output > 0 {
-                    let inputs_needed = actual_output * 2;
-                    let consumed = stock.consume_reserved(Good::Oil, inputs_needed);
-                    let produced = consumed / 2;
-                    stock.add(Good::Fuel, produced);
-
-                    if produced < actual_output {
-                        info!(
-                            "Refinery: expected {} but only consumed {} oil",
-                            inputs_needed, consumed
-                        );
-                        settings.target_output = produced;
-                    }
-                }
-            }
-
-            BuildingKind::Railyard => {
-                // 1×Steel + 1×Lumber → 1×Transport
-
-                let actual_output = settings.target_output.min(max_from_labor);
-
-                if actual_output > 0 {
-                    let steel_consumed = stock.consume_reserved(Good::Steel, actual_output);
-                    let lumber_consumed = stock.consume_reserved(Good::Lumber, actual_output);
-                    let produced = steel_consumed.min(lumber_consumed);
-                    stock.add(Good::Transport, produced);
-
-                    if produced < actual_output {
-                        info!(
-                            "Railyard: expected {} but only consumed {} steel and {} lumber",
-                            actual_output, steel_consumed, lumber_consumed
-                        );
-                        settings.target_output = produced;
-                    }
-                }
-            }
-
-            // Worker-related buildings don't run in this system
-            BuildingKind::Capitol | BuildingKind::TradeSchool | BuildingKind::PowerPlant => {}
+    for output in variant.outputs() {
+        let produced_amount = actual_batches.saturating_mul(output.amount);
+        if produced_amount > 0 {
+            stock.add(output.good, produced_amount);
+        }
+        if primary_output.is_some_and(|primary| primary.good == output.good) {
+            produced_primary = produced_amount;
         }
     }
+
+    (produced_primary, consumption)
+}
+
+fn log_production_shortfall(
+    building_kind: BuildingKind,
+    variant: RecipeVariant,
+    requested_output: u32,
+    produced_output: u32,
+    consumption: &[ConsumptionRecord],
+) {
+    if produced_output >= requested_output {
+        return;
+    }
+
+    let Some(output_good) = variant.primary_output_good() else {
+        warn!(
+            "{:?}: requested {} output but recipe variant has no primary output good (produced {}). Consumption: {:?}",
+            building_kind, requested_output, produced_output, consumption
+        );
+        return;
+    };
+
+    let details = if consumption.is_empty() {
+        "no inputs consumed".to_string()
+    } else {
+        consumption
+            .iter()
+            .map(|record| {
+                format!(
+                    "{:?} {}/{}",
+                    record.ingredient.good, record.consumed, record.required
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+
+    info!(
+        "{:?}: requested {} {:?} but produced {} ({})",
+        building_kind, requested_output, output_good, produced_output, details
+    );
 }
