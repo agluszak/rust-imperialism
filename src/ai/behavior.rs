@@ -119,7 +119,7 @@ fn initialize_ai_thinkers(
             Thinker::build()
                 .label("ai_civilian")
                 .picker(FirstToScore { threshold: 0.5 })
-                .when(ReadyToAct, IssueAiOrder::default()),
+                .when(ReadyToAct, IssueAiOrder),
         );
     }
 }

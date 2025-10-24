@@ -62,8 +62,7 @@ pub fn handle_deselect_all(
     mut events: MessageReader<DeselectAllCivilians>,
     mut civilians: Query<&mut Civilian>,
 ) {
-    if !events.is_empty() {
-        events.clear();
+    for _ in events.read() {
         for mut civilian in civilians.iter_mut() {
             if civilian.selected {
                 civilian.selected = false;
@@ -78,17 +77,7 @@ pub fn handle_civilian_selection(
     mut events: MessageReader<SelectCivilian>,
     mut civilians: Query<&mut Civilian>,
 ) {
-    let event_list: Vec<_> = events.read().collect();
-
-    if !event_list.is_empty() {
-        info!(
-            "handle_civilian_selection: received {} events",
-            event_list.len()
-        );
-    }
-
-    // Only process if there are events
-    for event in event_list {
+    for event in events.read() {
         info!(
             "Processing SelectCivilian event for entity {:?}",
             event.entity

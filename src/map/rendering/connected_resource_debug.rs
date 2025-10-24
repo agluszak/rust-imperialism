@@ -81,12 +81,26 @@ fn update_connected_resource_debug_labels(
         return;
     }
 
-    if !settings.is_changed() && !connected_production.is_changed() {
+    // Only rebuild when settings change (not every time production changes)
+    if !settings.is_changed() {
         return;
     }
 
     for entity in existing.iter() {
         commands.entity(entity).despawn();
+    }
+
+    let tile_count = connected_production.tiles.len();
+
+    if tile_count == 0 {
+        info!(
+            "Connected resource overlay enabled, but no connected resources found. Build depots/ports or place your capital near resources!"
+        );
+    } else {
+        info!(
+            "Connected resource overlay showing {} resource tiles",
+            tile_count
+        );
     }
 
     for tile in connected_production.tiles.iter() {
@@ -114,6 +128,10 @@ fn update_connected_resource_debug_labels(
             TextColor(color),
             Transform::from_translation(Vec3::new(world_pos.x, world_pos.y, 4.5))
                 .with_scale(Vec3::splat(0.45)),
+            GlobalTransform::default(),
+            Visibility::default(),
+            InheritedVisibility::default(),
+            ViewVisibility::default(),
             ConnectedResourceDebugLabel,
             MapTilemap,
         ));

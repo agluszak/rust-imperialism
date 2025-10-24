@@ -6,6 +6,7 @@ This document is the single source of truth for contributors (human or AI) to un
 
 ## Recent Changes (Oct 2025)
 
+- **Debug overlays**: Transport network connectivity visualization (F3), connected resource display (C key)
 - **Civilian units**: Complete prospector/farmer/forester/engineer system with resource discovery
 - **Prospecting system**: Hidden mineral deposits with visual markers (red X or colored squares)
 - **Rescind orders**: Exclusive-world-access system for immediate component removal
@@ -17,7 +18,7 @@ This document is the single source of truth for contributors (human or AI) to un
 - **Allocation system**: Refactored to atomic reservations (`Vec<ReservationId>` per allocation)
 - **Test organization**: Inline for small tests (<50 lines), separate `tests.rs` for large test suites
 - **Import style**: All code uses explicit `crate::` paths (no `super::`)
-- **Quality**: Zero clippy warnings, 112 unit + 5 integration tests passing
+- **Quality**: Zero clippy warnings, 119 unit + 5 integration tests passing
 
 ## Quick Reference
 
@@ -27,6 +28,15 @@ cargo run              # Run game
 cargo test             # Run all tests
 cargo clippy           # Lint checks
 ```
+
+**Debug Overlays (In-Game):**
+- **F3**: Toggle transport network connectivity visualization
+  - Green lines: Rails connected to your capital
+  - Red lines: Disconnected rail segments
+  - Labels show depot/port connectivity status
+- **C**: Toggle connected resource production display
+  - Shows which resources are accessible via transport network
+  - Color-coded by source (improvements, ports, baseline)
 
 **Where to find things:**
 - Plugins: `src/economy/mod.rs`, `src/map/mod.rs`, `src/helpers/camera.rs`, `src/civilians/mod.rs`
@@ -178,6 +188,7 @@ parent
 - Turn system with calendar
 - Transport infrastructure (rails, roads, depots, ports with connectivity)
 - Map visibility system (automatic hide/show on mode switch)
+- Debug overlays (transport connectivity F3, resource production C)
 
 🔲 **TODO:**
 - Link cities to provinces (show province resources)

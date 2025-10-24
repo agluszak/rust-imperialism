@@ -54,13 +54,11 @@ fn allocation_requirement(
                 return (0, available);
             }
 
-            if let (Some(buildings), Some(kind)) = (buildings, building_for_output(output_good)) {
-                if buildings.get(kind).is_some() {
-                    if let Some(per_unit) = input_requirement_per_unit(kind, output_good, bar.good)
-                    {
-                        return (count * per_unit, available);
-                    }
-                }
+            if let (Some(buildings), Some(kind)) = (buildings, building_for_output(output_good))
+                && buildings.get(kind).is_some()
+                && let Some(per_unit) = input_requirement_per_unit(kind, output_good, bar.good)
+            {
+                return (count * per_unit, available);
             }
 
             (0, available)
