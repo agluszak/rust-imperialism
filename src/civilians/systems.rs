@@ -138,7 +138,6 @@ pub fn handle_civilian_selection(
 /// Handle civilian command events and validate them before attaching orders
 pub fn handle_civilian_commands(
     mut commands: Commands,
-    player_nation: Option<Res<crate::economy::PlayerNation>>,
     mut events: MessageReader<CivilianCommand>,
     civilians: Query<(&Civilian, Option<&CivilianJob>, Option<&CivilianOrder>)>,
     tile_storage_query: Query<&TileStorage>,
@@ -147,10 +146,6 @@ pub fn handle_civilian_commands(
     mut rejection_writer: MessageWriter<CivilianCommandRejected>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
-    let Some(player) = player_nation else {
-        return; // No player nation set yet
-    };
-
     let tile_storage = tile_storage_query.iter().next();
 
     for command in events.read() {
@@ -175,7 +170,6 @@ pub fn handle_civilian_commands(
 
         match validate_command(
             civilian,
-            player.entity(),
             job,
             existing_order,
             &command.order,
