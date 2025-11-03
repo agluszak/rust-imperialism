@@ -235,8 +235,10 @@ pub fn calculate_connected_production(
 
 #[cfg(test)]
 mod tests {
+    use crate::economy::production::{ConnectedTileSource, calculate_connected_production};
     use crate::economy::*;
     use crate::{
+        civilians::types::ProspectingKnowledge,
         economy::{nation::Capital, transport::Port},
         map::tiles::TerrainType,
         resources::{ResourceType, TileResource},

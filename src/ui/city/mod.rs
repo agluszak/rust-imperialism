@@ -49,6 +49,7 @@ impl Plugin for CityUIPlugin {
                     hud::update_workforce_display,
                     hud::update_food_demand_display,
                     hud::update_warehouse_display,
+                    hud::update_province_resources_display,
                 )
                     .run_if(in_state(GameMode::City)),
             )

@@ -42,22 +42,13 @@ pub fn ensure_city_screen_visible(
     crate::ui::city::hud::spawn_labor_pool_panel(&mut commands, city_screen_entity);
     crate::ui::city::hud::spawn_food_demand_panel(&mut commands, city_screen_entity);
     crate::ui::city::hud::spawn_warehouse_hud(&mut commands, city_screen_entity);
+    crate::ui::city::hud::spawn_province_resources_panel(&mut commands, city_screen_entity);
 
     // Spawn building grid
     crate::ui::city::buildings::spawn_building_grid(&mut commands, city_screen_entity);
 
     // Add children to city screen
     commands.entity(city_screen_entity).with_children(|parent| {
-        // Header
-        parent.spawn((
-            Text::new("City Overview"),
-            TextFont {
-                font_size: 24.0,
-                ..default()
-            },
-            TextColor(Color::srgb(1.0, 0.95, 0.8)),
-        ));
-
         // Return to Map button (top-right)
         parent
             .spawn((

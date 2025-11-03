@@ -295,9 +295,18 @@ pub fn populate_ai_turn_context(
 #[cfg(test)]
 mod tests {
     use crate::ai::*;
+    use crate::economy::allocation::Allocations;
+    use crate::economy::goods::Good;
+    use crate::economy::nation::NationId;
     use crate::economy::reservation::ReservationSystem;
+    use crate::economy::stockpile::Stockpile;
+    use crate::economy::transport::{
+        DemandEntry, TransportAllocations, TransportCapacity, TransportCommodity,
+        TransportDemandSnapshot,
+    };
     use crate::economy::treasury::Treasury;
-    use crate::economy::workforce::{Worker, WorkerHealth};
+    use crate::economy::workforce::{Worker, WorkerHealth, WorkerSkill, Workforce};
+    use crate::turn_system::{TurnPhase, TurnSystem};
     use bevy::ecs::system::SystemState;
     use bevy::prelude::{App, World};
 

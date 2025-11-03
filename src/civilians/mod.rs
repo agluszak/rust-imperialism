@@ -21,6 +21,9 @@ pub mod ui_components;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod player_ownership_test;
+
 // No private imports needed - using fully qualified paths in plugin registration
 
 pub struct CivilianPlugin;

@@ -38,6 +38,14 @@ pub struct WarehouseHUD;
 #[derive(Component)]
 pub struct WarehouseStockDisplay;
 
+/// Top left: Province resources HUD
+#[derive(Component)]
+pub struct ProvinceResourcesHUD;
+
+/// Display for province resources (updates live)
+#[derive(Component)]
+pub struct ProvinceResourcesDisplay;
+
 // ============ Building Grid Components ============
 
 /// Marker for the building grid container

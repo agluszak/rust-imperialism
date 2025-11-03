@@ -597,6 +597,7 @@ fn test_cannot_assign_order_if_order_already_exists() {
     // Should reject because an order already exists
     let result = validate_command(
         &civilian,
+        Entity::PLACEHOLDER, // Player entity (same as owner, so ownership check passes)
         None,
         Some(&existing_order),
         &order,
@@ -651,6 +652,7 @@ fn test_can_assign_order_when_no_existing_order() {
     // Should succeed because no existing order or job
     let result = validate_command(
         &civilian,
+        Entity::PLACEHOLDER, // Player entity (same as owner, so ownership check passes)
         None,
         None,
         &order,

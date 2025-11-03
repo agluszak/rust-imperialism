@@ -28,6 +28,7 @@ pub fn tile_owned_by_nation(
 
 pub fn validate_command(
     civilian: &Civilian,
+    player_entity: Entity,
     job: Option<&CivilianJob>,
     existing_order: Option<&CivilianOrder>,
     order: &CivilianOrderKind,
@@ -35,6 +36,11 @@ pub fn validate_command(
     tile_provinces: &Query<&TileProvince>,
     provinces: &Query<&Province>,
 ) -> Result<(), CivilianCommandError> {
+    // First check: ensure the civilian is owned by the player
+    if civilian.owner != player_entity {
+        return Err(CivilianCommandError::NotPlayerOwned);
+    }
+
     if job.is_some() {
         return Err(CivilianCommandError::AlreadyHasJob);
     }
@@ -149,8 +155,9 @@ mod tests {
     use crate::civilians::*;
     use bevy::ecs::system::SystemState;
     use bevy::prelude::{Entity, World};
-    use bevy_ecs_tilemap::prelude::{TileStorage, TilemapSize};
+    use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
 
+    use crate::civilians::order_validation::validate_command;
     use crate::map::province::{Province, ProvinceId, TileProvince};
 
     #[test]
@@ -188,6 +195,7 @@ mod tests {
 
         let result = validate_command(
             &civilian,
+            Entity::PLACEHOLDER, // Player entity (same as owner)
             None,
             None,
             &order,

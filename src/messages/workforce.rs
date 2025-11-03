@@ -24,6 +24,7 @@ mod tests {
     use moonshine_kind::Instance;
 
     use crate::economy::NationId;
+    use crate::economy::workforce::WorkerSkill;
     use crate::messages::economy::AdjustTraining;
 
     #[test]

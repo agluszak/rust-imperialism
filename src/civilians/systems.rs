@@ -76,20 +76,38 @@ pub fn handle_deselect_all(
 
 /// Handle civilian selection events
 pub fn handle_civilian_selection(
+    player_nation: Option<Res<crate::economy::PlayerNation>>,
     mut events: MessageReader<SelectCivilian>,
     mut civilians: Query<&mut Civilian>,
 ) {
+    let Some(player) = player_nation else {
+        return; // No player nation set yet
+    };
+
     for event in events.read() {
         info!(
             "Processing SelectCivilian event for entity {:?}",
             event.entity
         );
 
+        // Check ownership first - only allow selecting player-owned units
+        let Ok(civilian_check) = civilians.get(event.entity) else {
+            warn!("Failed to get civilian entity {:?}", event.entity);
+            continue;
+        };
+
+        if civilian_check.owner != player.entity() {
+            info!(
+                "Ignoring selection of non-player unit {:?} (owner: {:?}, player: {:?})",
+                event.entity,
+                civilian_check.owner,
+                player.entity()
+            );
+            continue;
+        }
+
         // Check if clicking on already-selected unit (toggle deselect)
-        let is_already_selected = civilians
-            .get(event.entity)
-            .map(|c| c.selected)
-            .unwrap_or(false);
+        let is_already_selected = civilian_check.selected;
 
         if is_already_selected {
             // Deselect the unit (toggle off)
@@ -120,6 +138,7 @@ pub fn handle_civilian_selection(
 /// Handle civilian command events and validate them before attaching orders
 pub fn handle_civilian_commands(
     mut commands: Commands,
+    player_nation: Option<Res<crate::economy::PlayerNation>>,
     mut events: MessageReader<CivilianCommand>,
     civilians: Query<(&Civilian, Option<&CivilianJob>, Option<&CivilianOrder>)>,
     tile_storage_query: Query<&TileStorage>,
@@ -128,6 +147,10 @@ pub fn handle_civilian_commands(
     mut rejection_writer: MessageWriter<CivilianCommandRejected>,
     mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
+    let Some(player) = player_nation else {
+        return; // No player nation set yet
+    };
+
     let tile_storage = tile_storage_query.iter().next();
 
     for command in events.read() {
@@ -152,6 +175,7 @@ pub fn handle_civilian_commands(
 
         match validate_command(
             civilian,
+            player.entity(),
             job,
             existing_order,
             &command.order,

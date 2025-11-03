@@ -12,6 +12,7 @@ pub struct CivilianCommand {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CivilianCommandError {
     MissingCivilian,
+    NotPlayerOwned,
     AlreadyHasJob,
     AlreadyActed,
     CurrentTileUnowned,
@@ -27,6 +28,9 @@ impl CivilianCommandError {
     pub fn describe(self) -> &'static str {
         match self {
             CivilianCommandError::MissingCivilian => "civilian not found",
+            CivilianCommandError::NotPlayerOwned => {
+                "cannot control units belonging to other nations"
+            }
             CivilianCommandError::AlreadyHasJob => "civilian already has an active job",
             CivilianCommandError::AlreadyActed => "civilian has already acted this turn",
             CivilianCommandError::CurrentTileUnowned => {
