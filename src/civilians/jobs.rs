@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TileStorage;
 
-use super::types::{
+use crate::civilians::types::{
     ActionTurn, Civilian, CivilianJob, JobType, PreviousPosition, ProspectingKnowledge,
 };
 use crate::{resources::TileResource, ui::logging::TerminalLogEvent};

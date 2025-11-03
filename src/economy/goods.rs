@@ -121,7 +121,7 @@ impl fmt::Display for Good {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::economy::*;
 
     #[test]
     fn display_formats() {

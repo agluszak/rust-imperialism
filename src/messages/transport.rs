@@ -18,7 +18,7 @@ pub struct RecomputeConnectivity;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::messages::*;
 
     #[test]
     fn transport_messages_are_send_sync() {

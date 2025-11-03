@@ -294,7 +294,7 @@ pub fn populate_ai_turn_context(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::ai::*;
     use crate::economy::reservation::ReservationSystem;
     use crate::economy::treasury::Treasury;
     use crate::economy::workforce::{Worker, WorkerHealth};

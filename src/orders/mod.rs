@@ -64,7 +64,7 @@ impl OrdersQueue {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::orders::*;
     use bevy::prelude::World;
     use moonshine_kind::Instance;
 

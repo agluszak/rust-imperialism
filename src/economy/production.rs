@@ -13,8 +13,8 @@ use crate::{
 };
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
 
-use super::workforce::Workforce;
-use super::{goods::Good, stockpile::Stockpile};
+use crate::economy::workforce::Workforce;
+use crate::economy::{goods::Good, stockpile::Stockpile};
 use crate::turn_system::{TurnPhase, TurnSystem};
 
 /// Resource that stores the total connected production output for each nation.
@@ -235,7 +235,7 @@ pub fn calculate_connected_production(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::economy::*;
     use crate::{
         economy::{nation::Capital, transport::Port},
         map::tiles::TerrainType,

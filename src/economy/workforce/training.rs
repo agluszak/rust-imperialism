@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
-use super::super::goods::Good;
-use super::super::stockpile::Stockpile;
-use super::types::{WorkerSkill, Workforce};
+use crate::economy::goods::Good;
+use crate::economy::stockpile::Stockpile;
 use crate::economy::treasury::Treasury;
+use crate::economy::workforce::types::{WorkerSkill, Workforce};
 use crate::messages::workforce::TrainWorker;
 use crate::turn_system::{TurnPhase, TurnSystem};
 use crate::ui::logging::TerminalLogEvent;

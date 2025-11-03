@@ -4,16 +4,16 @@ use bevy::prelude::*;
 use bevy::ui::widget::Button as OldButton;
 use bevy::ui_widgets::{Activate, Button, observe};
 
-use super::button_style::{
-    AccentButton, DangerButton, NORMAL_ACCENT, NORMAL_BUTTON, NORMAL_DANGER,
-};
-use super::generic_systems::hide_screen;
 use crate::diplomacy::{
     DiplomacySelection, DiplomacyState, DiplomaticOffer, DiplomaticOfferKind, DiplomaticOffers,
     DiplomaticOrder, DiplomaticOrderKind, DiplomaticRelation, ForeignAidLedger, RelationshipBand,
     resolve_offer_response,
 };
 use crate::economy::{Name, NationId, PlayerNation, Treasury};
+use crate::ui::button_style::{
+    AccentButton, DangerButton, NORMAL_ACCENT, NORMAL_BUTTON, NORMAL_DANGER,
+};
+use crate::ui::generic_systems::hide_screen;
 use crate::ui::logging::TerminalLogEvent;
 use crate::ui::mode::{GameMode, switch_to_mode};
 

@@ -2,8 +2,10 @@ use bevy::prelude::*;
 
 use crate::economy::production::BuildingKind;
 
-use super::types::{BuildingDialog, CloseBuildingDialog, DialogZIndexCounter, OpenBuildingDialog};
-use super::window::spawn_dialog_frame;
+use crate::ui::city::dialogs::types::{
+    BuildingDialog, CloseBuildingDialog, DialogZIndexCounter, OpenBuildingDialog,
+};
+use crate::ui::city::dialogs::window::spawn_dialog_frame;
 
 /// Open building dialogs (Logic Layer)
 /// Spawns dialog windows when OpenBuildingDialog messages are received

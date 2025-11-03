@@ -3,7 +3,7 @@ use bevy_ecs_tilemap::prelude::TilePos;
 use crate::map::tile_pos::TilePosExt;
 use crate::map::tiles::TerrainType;
 
-use super::super::technology::{Technologies, Technology};
+use crate::economy::technology::{Technologies, Technology};
 
 /// Check if two tiles are adjacent
 pub fn are_adjacent(a: TilePos, b: TilePos) -> bool {

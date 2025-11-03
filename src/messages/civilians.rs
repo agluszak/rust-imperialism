@@ -51,7 +51,7 @@ pub struct CivilianCommandRejected {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::messages::*;
 
     #[test]
     fn command_error_descriptions_are_static() {

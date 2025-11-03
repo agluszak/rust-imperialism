@@ -146,7 +146,7 @@ fn require_engineer(civilian: &Civilian) -> Result<(), CivilianCommandError> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::civilians::*;
     use bevy::ecs::system::SystemState;
     use bevy::prelude::{Entity, World};
     use bevy_ecs_tilemap::prelude::{TileStorage, TilemapSize};

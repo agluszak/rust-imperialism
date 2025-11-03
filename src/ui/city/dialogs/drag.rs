@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use super::types::{DialogDragHandle, DialogDragState};
+use crate::ui::city::dialogs::types::{DialogDragHandle, DialogDragState};
 
 /// Start dragging when clicking on the dialog header (Input Layer)
 pub fn start_dialog_drag(

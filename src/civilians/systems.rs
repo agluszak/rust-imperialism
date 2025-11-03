@@ -1,11 +1,13 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TileStorage;
 
-use super::commands::{DeselectAllCivilians, DeselectCivilian, RescindOrders, SelectCivilian};
-use super::types::{
-    ActionTurn, Civilian, CivilianJob, CivilianOrder, CivilianOrderKind, PreviousPosition,
+use crate::civilians::commands::{
+    DeselectAllCivilians, DeselectCivilian, RescindOrders, SelectCivilian,
 };
 use crate::civilians::order_validation::validate_command;
+use crate::civilians::types::{
+    ActionTurn, Civilian, CivilianJob, CivilianOrder, CivilianOrderKind, PreviousPosition,
+};
 use crate::economy::treasury::Treasury;
 use crate::map::province::{Province, TileProvince};
 use crate::map::rendering::MapVisualFor;
@@ -341,9 +343,9 @@ pub fn handle_rescind_orders(world: &mut World) {
         // Calculate refund amount
         let refund_amount = if should_refund {
             job_type_opt.and_then(|job_type| match job_type {
-                super::types::JobType::BuildingRail => Some(50),
-                super::types::JobType::BuildingDepot => Some(100),
-                super::types::JobType::BuildingPort => Some(150),
+                crate::civilians::types::JobType::BuildingRail => Some(50),
+                crate::civilians::types::JobType::BuildingDepot => Some(100),
+                crate::civilians::types::JobType::BuildingPort => Some(150),
                 _ => None,
             })
         } else {

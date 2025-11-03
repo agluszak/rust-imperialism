@@ -42,7 +42,7 @@ impl Calendar {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::economy::*;
 
     #[test]
     fn calendar_display() {

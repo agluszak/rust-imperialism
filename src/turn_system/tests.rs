@@ -1,10 +1,10 @@
 use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
 
-use super::handle_turn_input;
 use crate::diplomacy::{DiplomaticOffer, DiplomaticOfferKind, DiplomaticOffers};
 use crate::economy::{Name, NationId, PlayerNation, Treasury};
 use crate::test_utils::*;
+use crate::turn_system::handle_turn_input;
 use crate::turn_system::{TurnPhase, TurnSystem};
 use crate::ui::logging::TerminalLogEvent;
 

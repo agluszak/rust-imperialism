@@ -18,7 +18,7 @@ pub use workforce::{RecruitWorkers, TrainWorker};
 // coupling to specific subsystem implementations.
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::messages::*;
 
     #[test]
     fn shared_messages_are_send_sync_static() {

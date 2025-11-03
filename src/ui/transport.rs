@@ -5,14 +5,14 @@ use bevy::ui::widget::Button as OldButton;
 use bevy::ui_widgets::{Activate, Button, observe};
 use bevy_ecs_tilemap::prelude::TilePos;
 
-use super::button_style::*;
-use super::generic_systems::despawn_screen;
 use crate::economy::nation::PlayerNation;
 use crate::economy::transport::{
     TransportAdjustAllocation, TransportAllocations, TransportCapacity, TransportCommodity,
     TransportDemandSnapshot, transport_capacity, transport_demand, transport_slot,
 };
 use crate::economy::{ImprovementKind, PlaceImprovement};
+use crate::ui::button_style::*;
+use crate::ui::generic_systems::despawn_screen;
 use crate::ui::logging::TerminalLogEvent;
 use crate::ui::mode::{GameMode, switch_to_mode};
 

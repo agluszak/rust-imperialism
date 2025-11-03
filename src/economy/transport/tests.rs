@@ -12,7 +12,7 @@ use crate::economy::transport::{
 };
 use crate::economy::workforce::Workforce;
 use crate::resources::ResourceType;
-use super::types::{Depot, Port};
+use crate::economy::transport::types::{Depot, Port};
 
 #[test]
 fn capacity_totals_respect_connected_improvements() {

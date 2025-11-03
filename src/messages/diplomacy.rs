@@ -24,7 +24,7 @@ pub enum DiplomaticOrderKind {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::messages::*;
 
     #[test]
     fn diplomatic_orders_are_send_sync() {

@@ -1,2 +1,18 @@
+# Clippy configuration for rust-imperialism
+# Enforces zero-warnings policy as documented in CLAUDE.md
+
+# Bevy systems often need many arguments, so we set a generous threshold
 too-many-arguments-threshold = 15
+
+# Type complexity can get high with Bevy query types
 type-complexity-threshold = 1000
+
+# Cognitive complexity limit to keep functions understandable
+cognitive-complexity-threshold = 30
+
+# Function length limits (helps keep functions focused)
+too-many-lines-threshold = 150
+
+# Single character binding names threshold
+# Allows common single-letter names like x, y, i, j
+single-char-binding-names-threshold = 4

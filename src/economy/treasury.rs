@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::reservation::ResourcePool;
+use crate::economy::reservation::ResourcePool;
 
 #[derive(Component, Debug, Clone)]
 pub struct Treasury {

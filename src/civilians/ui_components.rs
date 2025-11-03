@@ -2,8 +2,10 @@ use bevy::prelude::*;
 use bevy::ui::widget::Button as OldButton;
 use bevy::ui_widgets::{Activate, Button};
 
-use super::commands::{DeselectAllCivilians, DeselectCivilian, RescindOrders, SelectCivilian};
-use super::types::{Civilian, CivilianOrderDefinition, PreviousPosition};
+use crate::civilians::commands::{
+    DeselectAllCivilians, DeselectCivilian, RescindOrders, SelectCivilian,
+};
+use crate::civilians::types::{Civilian, CivilianOrderDefinition, PreviousPosition};
 use crate::messages::civilians::CivilianCommand;
 use crate::ui::button_style::*;
 
@@ -107,7 +109,7 @@ pub fn update_civilian_orders_ui(
                                 .unwrap_or(bevy_ecs_tilemap::prelude::TilePos { x: 0, y: 0 });
 
                             // Update order coordinates with actual target position
-                            use super::types::CivilianOrderKind;
+                            use crate::civilians::types::CivilianOrderKind;
                             let actual_order = match order_kind {
                                 CivilianOrderKind::Prospect { .. } => {
                                     CivilianOrderKind::Prospect { to: target_pos }

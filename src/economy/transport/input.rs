@@ -1,14 +1,16 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
 
-use super::messages::PlaceImprovement;
-use super::types::{Depot, ImprovementKind, Port, RailConstruction, Rails, Roads, ordered_edge};
-use super::validation::{are_adjacent, can_build_rail_on_terrain};
+use crate::economy::transport::messages::PlaceImprovement;
+use crate::economy::transport::types::{
+    Depot, ImprovementKind, Port, RailConstruction, Rails, Roads, ordered_edge,
+};
+use crate::economy::transport::validation::{are_adjacent, can_build_rail_on_terrain};
 use crate::map::tile_pos::{HexExt, TilePosExt};
 use crate::map::tiles::TerrainType;
 use crate::ui::logging::TerminalLogEvent;
 
-use super::super::{nation::PlayerNation, technology::Technologies, treasury::Treasury};
+use crate::economy::{nation::PlayerNation, technology::Technologies, treasury::Treasury};
 
 /// Apply improvement placements (Input Layer)
 /// Reads PlaceImprovement messages, validates, charges treasury, spawns entities

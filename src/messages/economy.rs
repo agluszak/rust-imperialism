@@ -40,7 +40,7 @@ pub struct AdjustMarketOrder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::messages::*;
     use bevy::prelude::World;
     use moonshine_kind::Instance;
 

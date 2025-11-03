@@ -1,4 +1,4 @@
-use super::Workforce;
+use crate::economy::workforce::Workforce;
 use bevy::prelude::*;
 
 /// Calculate recruitment cap based on province count

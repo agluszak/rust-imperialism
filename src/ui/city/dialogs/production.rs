@@ -8,7 +8,7 @@ use crate::economy::{Good, PlayerNation, Stockpile, Workforce};
 use crate::ui::city::allocation_widgets::AllocationType;
 use crate::ui::city::components::ProductionLaborDisplay;
 
-use super::types::BuildingDialog;
+use crate::ui::city::dialogs::types::BuildingDialog;
 
 /// Populate production dialog content (Rendering Layer)
 /// Called when a production building dialog is opened

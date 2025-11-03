@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::collections::{HashMap, HashSet};
 
-use super::{goods::Good, reservation::ReservationId, workforce::WorkerSkill};
+use crate::economy::{goods::Good, reservation::ReservationId, workforce::WorkerSkill};
 
 /// Per-nation component tracking all resource allocations via reservation IDs
 /// Each reservation represents ONE unit of output/worker/etc.

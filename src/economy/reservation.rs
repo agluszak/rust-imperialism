@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::collections::HashMap;
 
-use super::goods::Good;
+use crate::economy::goods::Good;
 
 /// A pool of resources with reservations
 #[derive(Debug, Clone, Default)]
@@ -71,9 +71,9 @@ impl ReservationSystem {
         goods: Vec<(Good, u32)>,
         labor: u32,
         money: u32,
-        stockpile: &mut super::stockpile::Stockpile,
-        workforce: &mut super::workforce::Workforce,
-        treasury: &mut super::treasury::Treasury,
+        stockpile: &mut crate::economy::stockpile::Stockpile,
+        workforce: &mut crate::economy::workforce::Workforce,
+        treasury: &mut crate::economy::treasury::Treasury,
     ) -> Option<ReservationId> {
         let mut reserved_goods = Vec::new();
 
@@ -159,9 +159,9 @@ impl ReservationSystem {
     pub fn release(
         &mut self,
         id: ReservationId,
-        stockpile: &mut super::stockpile::Stockpile,
-        workforce: &mut super::workforce::Workforce,
-        treasury: &mut super::treasury::Treasury,
+        stockpile: &mut crate::economy::stockpile::Stockpile,
+        workforce: &mut crate::economy::workforce::Workforce,
+        treasury: &mut crate::economy::treasury::Treasury,
     ) {
         if let Some(data) = self.reservations.remove(&id) {
             for (good, amt) in data.goods {
@@ -179,9 +179,9 @@ impl ReservationSystem {
     pub fn consume(
         &mut self,
         id: ReservationId,
-        stockpile: &mut super::stockpile::Stockpile,
-        workforce: &mut super::workforce::Workforce,
-        treasury: &mut super::treasury::Treasury,
+        stockpile: &mut crate::economy::stockpile::Stockpile,
+        workforce: &mut crate::economy::workforce::Workforce,
+        treasury: &mut crate::economy::treasury::Treasury,
     ) {
         if let Some(data) = self.reservations.remove(&id) {
             // For each reserved resource, consume it (subtract from total, clear reservation)
@@ -209,7 +209,7 @@ impl ReservationSystem {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::economy::*;
 
     #[test]
     fn resource_pool_basic() {

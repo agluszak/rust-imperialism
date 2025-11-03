@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-use super::super::goods::Good;
-use super::super::reservation::ResourcePool;
+use crate::economy::goods::Good;
+use crate::economy::reservation::ResourcePool;
 
 /// Workforce component tracks workers by skill level for a nation
 /// Workers provide labor points: Untrained=1, Trained=2, Expert=4
@@ -191,7 +191,7 @@ pub struct RecruitmentCapacity {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::economy::workforce::*;
 
     #[test]
     fn workforce_creation() {

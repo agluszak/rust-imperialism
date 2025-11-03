@@ -99,7 +99,7 @@ impl HexExt for Hex {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::map::tile_pos::*;
 
     #[test]
     fn test_hex_conversion_roundtrip() {

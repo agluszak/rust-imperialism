@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
-use super::super::goods::Good;
-use super::super::stockpile::Stockpile;
-use super::systems::calculate_recruitment_cap;
-use super::types::{RecruitmentCapacity, Workforce};
+use crate::economy::goods::Good;
+use crate::economy::stockpile::Stockpile;
+use crate::economy::workforce::systems::calculate_recruitment_cap;
+use crate::economy::workforce::types::{RecruitmentCapacity, Workforce};
 use crate::map::province::Province;
 use crate::messages::workforce::RecruitWorkers;
 use crate::turn_system::{TurnPhase, TurnSystem};

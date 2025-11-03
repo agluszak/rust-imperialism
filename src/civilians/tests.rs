@@ -554,7 +554,7 @@ fn new_owner_must_reprospect_before_mining() {
 
 #[test]
 fn test_cannot_assign_order_if_order_already_exists() {
-    use super::order_validation::validate_command;
+    use crate::civilians::order_validation::validate_command;
     use crate::messages::civilians::CivilianCommandError;
 
     let mut world = World::new();
@@ -614,7 +614,7 @@ fn test_cannot_assign_order_if_order_already_exists() {
 
 #[test]
 fn test_can_assign_order_when_no_existing_order() {
-    use super::order_validation::validate_command;
+    use crate::civilians::order_validation::validate_command;
 
     let mut world = World::new();
     let mut storage = TileStorage::empty(TilemapSize { x: 4, y: 4 });
@@ -667,8 +667,8 @@ fn test_can_assign_order_when_no_existing_order() {
 
 #[test]
 fn test_rescind_orders_removes_civilian_order_component() {
-    use super::systems::handle_rescind_orders;
-    use super::types::{ActionTurn, PreviousPosition};
+    use crate::civilians::systems::handle_rescind_orders;
+    use crate::civilians::types::{ActionTurn, PreviousPosition};
     use crate::economy::treasury::Treasury;
 
     let mut world = World::new();
@@ -748,8 +748,8 @@ fn test_rescind_orders_removes_civilian_order_component() {
 
 #[test]
 fn test_rescind_orders_removes_civilian_job_and_order() {
-    use super::systems::handle_rescind_orders;
-    use super::types::{ActionTurn, CivilianJob, JobType, PreviousPosition};
+    use crate::civilians::systems::handle_rescind_orders;
+    use crate::civilians::types::{ActionTurn, CivilianJob, JobType, PreviousPosition};
     use crate::economy::treasury::Treasury;
 
     let mut world = World::new();
@@ -832,7 +832,7 @@ fn test_rescind_orders_removes_civilian_job_and_order() {
 
 #[test]
 fn test_skip_turn_removes_order_after_one_turn() {
-    use super::systems::execute_skip_and_sleep_orders;
+    use crate::civilians::systems::execute_skip_and_sleep_orders;
 
     let mut world = World::new();
     world.init_resource::<Messages<TerminalLogEvent>>();
@@ -872,7 +872,7 @@ fn test_skip_turn_removes_order_after_one_turn() {
 
 #[test]
 fn test_sleep_order_persists_across_turns() {
-    use super::systems::execute_skip_and_sleep_orders;
+    use crate::civilians::systems::execute_skip_and_sleep_orders;
 
     let mut world = World::new();
     world.init_resource::<Messages<TerminalLogEvent>>();
@@ -912,7 +912,7 @@ fn test_sleep_order_persists_across_turns() {
 
 #[test]
 fn test_rescind_wakes_sleeping_civilian() {
-    use super::systems::handle_rescind_orders;
+    use crate::civilians::systems::handle_rescind_orders;
 
     let mut world = World::new();
     world.insert_resource(TurnSystem {

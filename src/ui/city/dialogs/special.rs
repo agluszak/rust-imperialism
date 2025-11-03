@@ -12,7 +12,7 @@ use crate::ui::city::components::{
     TradeSchoolWorkforceDisplay,
 };
 
-use super::types::BuildingDialog;
+use crate::ui::city::dialogs::types::BuildingDialog;
 
 /// Populate special building dialogs (Capitol, Trade School, Power Plant)
 pub fn populate_special_dialog(

@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
-use super::components::HireCivilian;
 use crate::civilians::{Civilian, CivilianKind};
 use crate::economy::{Capital, PlayerNation, Treasury};
 use crate::map::tile_pos::TilePosExt;
+use crate::ui::city::components::HireCivilian;
 use crate::ui::logging::TerminalLogEvent;
 
 // Note: HireCivilianButton component exists but no UI currently spawns these buttons.

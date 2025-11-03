@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-use super::messages::RecomputeConnectivity;
-use super::types::{RailConstruction, Rails, ordered_edge};
+use crate::economy::transport::messages::RecomputeConnectivity;
+use crate::economy::transport::types::{RailConstruction, Rails, ordered_edge};
 use crate::ui::logging::TerminalLogEvent;
 
 /// Advance rail construction progress each turn (Logic Layer)

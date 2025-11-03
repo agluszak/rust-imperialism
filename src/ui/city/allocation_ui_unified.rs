@@ -1,15 +1,15 @@
 use bevy::prelude::*;
 use bevy::ui_widgets::{Activate, observe};
 
-use super::allocation_widgets::{
-    AllocationBar, AllocationStepperDisplay, AllocationSummary, AllocationType,
-};
 use crate::economy::{
     Allocations, Good, PlayerNation, Stockpile, Treasury,
     production::{Buildings, building_for_output, input_requirement_per_unit},
 };
 use crate::messages::{
     AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, MarketInterest,
+};
+use crate::ui::city::allocation_widgets::{
+    AllocationBar, AllocationStepperDisplay, AllocationSummary, AllocationType,
 };
 
 fn allocation_value(alloc: &Allocations, allocation_type: AllocationType) -> u32 {

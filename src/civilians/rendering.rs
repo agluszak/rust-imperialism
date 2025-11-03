@@ -1,9 +1,9 @@
 use bevy::picking::prelude::Pickable;
 use bevy::prelude::*;
 
-use super::systems::handle_civilian_click;
-use super::types::{Civilian, CivilianJob};
 use crate::assets::civilian_asset_path;
+use crate::civilians::systems::handle_civilian_click;
+use crate::civilians::types::{Civilian, CivilianJob};
 use crate::map::rendering::{MapVisual, MapVisualFor};
 use crate::map::tile_pos::TilePosExt;
 

@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 use std::collections::HashMap;
 
-use super::goods::Good;
-use super::reservation::ResourcePool;
+use crate::economy::goods::Good;
+use crate::economy::reservation::ResourcePool;
 
 /// Immutable view into a single stockpile entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -109,7 +109,7 @@ impl Stockpile {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::economy::*;
 
     #[test]
     fn stockpile_add_and_take() {

@@ -3,8 +3,8 @@ use bevy::prelude::*;
 use bevy::ui::widget::Button as OldButton;
 use bevy::ui_widgets::{Activate, Button, observe};
 
-use super::button_style::*;
-use super::generic_systems::hide_screen;
+use crate::ui::button_style::*;
+use crate::ui::generic_systems::hide_screen;
 
 /// Root application state controlling whether we're in the Main Menu or the actual game
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default, Reflect)]

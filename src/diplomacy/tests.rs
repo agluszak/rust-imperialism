@@ -1,7 +1,7 @@
 use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
 
-use super::{
+use crate::diplomacy::{
     DiplomacyState, DiplomaticOffer, DiplomaticOfferKind, DiplomaticOffers, DiplomaticOrder,
     DiplomaticOrderKind, ForeignAidLedger, apply_recurring_aid, decay_relationships,
     process_diplomatic_orders, resolve_offer_response, sync_diplomatic_pairs,

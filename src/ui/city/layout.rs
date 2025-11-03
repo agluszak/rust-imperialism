@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::ui::widget::Button as OldButton;
 use bevy::ui_widgets::Button;
 
-use super::components::*;
+use crate::ui::city::components::*;
 use crate::ui::{
     button_style::*,
     mode::{GameMode, switch_to_mode},
@@ -39,12 +39,12 @@ pub fn ensure_city_screen_visible(
         .id();
 
     // Spawn HUD borders
-    super::hud::spawn_labor_pool_panel(&mut commands, city_screen_entity);
-    super::hud::spawn_food_demand_panel(&mut commands, city_screen_entity);
-    super::hud::spawn_warehouse_hud(&mut commands, city_screen_entity);
+    crate::ui::city::hud::spawn_labor_pool_panel(&mut commands, city_screen_entity);
+    crate::ui::city::hud::spawn_food_demand_panel(&mut commands, city_screen_entity);
+    crate::ui::city::hud::spawn_warehouse_hud(&mut commands, city_screen_entity);
 
     // Spawn building grid
-    super::buildings::spawn_building_grid(&mut commands, city_screen_entity);
+    crate::ui::city::buildings::spawn_building_grid(&mut commands, city_screen_entity);
 
     // Add children to city screen
     commands.entity(city_screen_entity).with_children(|parent| {

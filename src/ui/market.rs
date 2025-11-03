@@ -2,16 +2,16 @@ use bevy::prelude::*;
 use bevy::ui::widget::Button as OldButton;
 use bevy::ui_widgets::Button;
 
-use super::button_style::*;
-use super::generic_systems::hide_screen;
 use crate::economy::transport::TransportCommodity;
 use crate::economy::{
     Allocations, Good, MARKET_RESOURCES, PlayerNation, Stockpile, Treasury, market_price,
 };
+use crate::ui::button_style::*;
 use crate::ui::city::allocation_ui_unified::{
     update_all_allocation_bars, update_all_allocation_summaries, update_all_stepper_displays,
 };
 use crate::ui::city::allocation_widgets::AllocationType;
+use crate::ui::generic_systems::hide_screen;
 use crate::ui::mode::{GameMode, switch_to_mode};
 use crate::{spawn_allocation_bar, spawn_allocation_stepper};
 

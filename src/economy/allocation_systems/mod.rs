@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::{
+use crate::economy::{
     allocation::Allocations,
     goods::Good,
     production::{BuildingKind, Buildings},
@@ -613,10 +613,10 @@ pub fn finalize_allocations(
         &mut Stockpile,
         &mut Workforce,
         &mut Treasury,
-        &mut super::workforce::RecruitmentQueue,
-        &mut super::workforce::TrainingQueue,
+        &mut crate::economy::workforce::RecruitmentQueue,
+        &mut crate::economy::workforce::TrainingQueue,
     )>,
-    mut buildings: Query<&mut super::production::ProductionSettings>,
+    mut buildings: Query<&mut crate::economy::production::ProductionSettings>,
 ) {
     // Note: This system only runs when TurnSystem changes AND phase == Processing
     // due to run_if conditions in lib.rs, so no need for phase check here

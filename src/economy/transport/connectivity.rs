@@ -2,8 +2,8 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use super::messages::RecomputeConnectivity;
-use super::types::{Depot, Port, Rails};
+use crate::economy::transport::messages::RecomputeConnectivity;
+use crate::economy::transport::types::{Depot, Port, Rails};
 
 /// Build adjacency list for BFS from rail edges
 pub fn build_rail_graph(rails: &Rails) -> HashMap<TilePos, Vec<TilePos>> {
@@ -21,7 +21,7 @@ pub fn build_rail_graph(rails: &Rails) -> HashMap<TilePos, Vec<TilePos>> {
 pub fn compute_rail_connectivity(
     mut events: MessageReader<RecomputeConnectivity>,
     rails: Res<Rails>,
-    nations: Query<(Entity, &super::super::nation::Capital)>,
+    nations: Query<(Entity, &crate::economy::nation::Capital)>,
     mut depots: Query<&mut Depot>,
     mut ports: Query<&mut Port>,
 ) {
