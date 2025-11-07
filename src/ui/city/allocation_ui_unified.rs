@@ -17,7 +17,7 @@ fn allocation_value(alloc: &Allocations, allocation_type: AllocationType) -> u32
         AllocationType::Recruitment => alloc.recruitment_count() as u32,
         AllocationType::Training(skill) => alloc.training_count(skill) as u32,
         AllocationType::Production(entity, good) => alloc.production_count(entity, good) as u32,
-        AllocationType::MarketBuy(good) => u32::from(alloc.has_buy_interest(good)),
+        AllocationType::MarketBuy(good) => alloc.market_buy_quantity(good),
         AllocationType::MarketSell(good) => alloc.market_sell_count(good) as u32,
     }
 }
@@ -141,7 +141,7 @@ pub fn adjust_allocation_on_click(allocation_type: AllocationType, delta: i32) -
 
                 AllocationType::MarketBuy(good) => {
                     let current = allocation_value(alloc, allocation_type);
-                    let new_requested = if current == 0 { 1 } else { 0 };
+                    let new_requested = (current as i32 + delta).max(0) as u32;
                     market_writer.write(AdjustMarketOrder {
                         nation: player_instance,
                         good,
@@ -149,10 +149,8 @@ pub fn adjust_allocation_on_click(allocation_type: AllocationType, delta: i32) -
                         requested: new_requested,
                     });
                     info!(
-                        "Market buy interest ({:?}): {} -> {}",
-                        good,
-                        if current == 1 { "ON" } else { "OFF" },
-                        if new_requested == 1 { "ON" } else { "OFF" }
+                        "Market buy ({:?}): {} -> {} (delta: {})",
+                        good, current, new_requested, delta
                     );
                 }
 
@@ -337,10 +335,12 @@ pub fn update_all_allocation_summaries(
                 }
 
                 AllocationType::MarketBuy(good) => {
-                    if allocation_value(alloc, summary.allocation_type) > 0 {
-                        format!("-> Interested in buying {}", good)
+                    let allocated = allocation_value(alloc, summary.allocation_type);
+                    if allocated > 0 {
+                        let good_name = good.to_string();
+                        format!("-> Will bid for {} {} next turn", allocated, good_name)
                     } else {
-                        format!("-> No buy interest for {}", good)
+                        format!("-> No buy orders for {}", good)
                     }
                 }
 

@@ -6,9 +6,9 @@ use crate::ai::{AiControlledCivilian, AiNation};
 use crate::civilians::{Civilian, CivilianKind};
 use crate::constants::MAP_SIZE;
 use crate::economy::{
-    Allocations, Capital, Good, Name, NationColor, NationId, PlayerNation, RecruitmentCapacity,
-    RecruitmentQueue, ReservationSystem, Stockpile, Technologies, TrainingQueue, Treasury,
-    Workforce,
+    Allocations, Capital, Good, Name, NationColor, NationHandle, NationId, NationInstance,
+    PlayerNation, RecruitmentCapacity, RecruitmentQueue, ReservationSystem, Stockpile,
+    Technologies, TrainingQueue, Treasury, Workforce,
     production::{Buildings, ProductionSettings},
 };
 use crate::map::province::{City, Province, ProvinceId};
@@ -145,6 +145,16 @@ pub fn assign_provinces_to_countries(
         ));
 
         let country_entity = country_builder.id();
+
+        commands.queue(move |world: &mut World| {
+            if let Some(instance) = NationInstance::from_entity(world.entity(country_entity)) {
+                world
+                    .entity_mut(country_entity)
+                    .insert(NationHandle::new(instance));
+            } else {
+                warn!("Failed to create NationInstance for {:?}", country_entity);
+            }
+        });
 
         if i > 0 {
             commands.entity(country_entity).insert(AiNation);

@@ -14,6 +14,7 @@ pub mod production;
 pub mod reservation;
 pub mod stockpile;
 pub mod technology;
+pub mod trade;
 pub mod transport;
 pub mod treasury;
 pub mod workforce;
@@ -24,8 +25,10 @@ pub use crate::messages::{
 pub use allocation::Allocations;
 pub use calendar::{Calendar, Season};
 pub use goods::Good;
-pub use market::{MARKET_RESOURCES, market_price};
-pub use nation::{Capital, Name, NationColor, NationId, NationInstance, PlayerNation};
+pub use market::{MARKET_RESOURCES, MarketPriceModel, MarketVolume};
+pub use nation::{
+    Capital, Name, NationColor, NationHandle, NationId, NationInstance, PlayerNation,
+};
 pub use production::{Building, BuildingKind, ConnectedProduction};
 pub use reservation::{ReservationId, ReservationSystem, ResourcePool};
 pub use stockpile::Stockpile;
@@ -48,6 +51,7 @@ impl Plugin for EconomyPlugin {
     fn build(&self, app: &mut App) {
         // Register resources
         app.insert_resource(Calendar::default())
+            .insert_resource(market::MarketPriceModel::default())
             .insert_resource(transport::Roads::default())
             .insert_resource(transport::Rails::default())
             .insert_resource(production::ConnectedProduction::default())
@@ -145,6 +149,15 @@ impl Plugin for EconomyPlugin {
                         turn_system.phase == TurnPhase::PlayerTurn
                     }),
             )
+                .in_set(EconomySet),
+        );
+
+        app.add_systems(
+            Update,
+            trade::resolve_market_orders
+                .run_if(resource_changed::<TurnSystem>)
+                .run_if(|turn_system: Res<TurnSystem>| turn_system.phase == TurnPhase::Processing)
+                .after(allocation_systems::finalize_allocations)
                 .in_set(EconomySet),
         );
     }

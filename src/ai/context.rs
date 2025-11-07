@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use std::collections::BTreeSet;
 
 use crate::economy::allocation::Allocations;
 use crate::economy::goods::Good;
@@ -95,7 +94,7 @@ pub struct AiAllocationSnapshot {
     pub production: Vec<AiProductionAllocation>,
     pub recruitment: usize,
     pub training: Vec<AiTrainingAllocation>,
-    pub market_buy_interest: Vec<Good>,
+    pub market_buys: Vec<AiMarketBuy>,
     pub market_sells: Vec<AiMarketSell>,
 }
 
@@ -116,6 +115,12 @@ pub struct AiTrainingAllocation {
 pub struct AiMarketSell {
     pub good: Good,
     pub reserved: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AiMarketBuy {
+    pub good: Good,
+    pub requested: u32,
 }
 
 impl AiAllocationSnapshot {
@@ -146,9 +151,17 @@ impl AiAllocationSnapshot {
                 .training
                 .sort_by_key(|entry| training_skill_order(entry.skill));
 
-            let buy_interest: BTreeSet<Good> =
-                allocations.market_buy_interest.iter().copied().collect();
-            snapshot.market_buy_interest = buy_interest.into_iter().collect();
+            let mut buy_interest: Vec<AiMarketBuy> = allocations
+                .market_buys
+                .iter()
+                .filter(|(_good, quantity)| **quantity > 0)
+                .map(|(good, quantity)| AiMarketBuy {
+                    good: *good,
+                    requested: *quantity,
+                })
+                .collect();
+            buy_interest.sort_by_key(|entry| entry.good);
+            snapshot.market_buys = buy_interest;
 
             for (good, reservations) in allocations.market_sells.iter() {
                 snapshot.market_sells.push(AiMarketSell {
@@ -408,8 +421,8 @@ mod tests {
             allocations
                 .training
                 .insert(WorkerSkill::Untrained, vec![next_id()]);
-            allocations.market_buy_interest.insert(Good::Coal);
-            allocations.market_buy_interest.insert(Good::Grain);
+            allocations.market_buys.insert(Good::Coal, 1);
+            allocations.market_buys.insert(Good::Grain, 1);
             allocations
                 .market_sells
                 .insert(Good::Steel, vec![next_id()]);
@@ -476,8 +489,17 @@ mod tests {
         assert_eq!(snapshot.allocations.production.len(), 1);
         assert_eq!(snapshot.allocations.training.len(), 1);
         assert_eq!(
-            snapshot.allocations.market_buy_interest,
-            vec![Good::Grain, Good::Coal]
+            snapshot.allocations.market_buys,
+            vec![
+                AiMarketBuy {
+                    good: Good::Grain,
+                    requested: 1,
+                },
+                AiMarketBuy {
+                    good: Good::Coal,
+                    requested: 1,
+                },
+            ]
         );
         assert_eq!(snapshot.allocations.market_sells.len(), 1);
 

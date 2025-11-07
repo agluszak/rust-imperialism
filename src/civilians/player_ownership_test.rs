@@ -186,8 +186,5 @@ fn test_selecting_player_unit_deselects_others() {
         !first_civilian.selected,
         "First unit should be deselected when second unit is selected"
     );
-    assert!(
-        second_civilian.selected,
-        "Second unit should be selected"
-    );
+    assert!(second_civilian.selected, "Second unit should be selected");
 }
