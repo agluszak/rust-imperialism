@@ -290,7 +290,14 @@ pub fn assign_provinces_to_countries(
         }
     }
 
-    let ai_starter_units = [CivilianKind::Engineer, CivilianKind::Prospector];
+    let ai_starter_units = [
+        CivilianKind::Engineer,
+        CivilianKind::Prospector,
+        CivilianKind::Farmer,
+        CivilianKind::Miner,
+        CivilianKind::Rancher,
+        CivilianKind::Forester,
+    ];
     for (nation_entity, capital_pos) in capitals
         .iter()
         .copied()
