@@ -220,22 +220,25 @@ fn has_rail_target_scorer(
     for (Actor(actor), mut score, mut cache, span) in &mut scores {
         let _guard = span.span().enter();
 
-        cache.rail = None;
-
         let Some(storage) = tile_storage else {
+            cache.rail = None;
             score.set(0.0);
             continue;
         };
 
         let Ok(civilian) = civilians.get(*actor) else {
+            cache.rail = None;
             score.set(0.0);
             continue;
         };
 
         if civilian.has_moved || civilian.kind != CivilianKind::Engineer {
+            cache.rail = None;
             score.set(0.0);
             continue;
         }
+
+        cache.rail = None;
 
         match plan_rail_connection(
             civilian,
@@ -522,7 +525,7 @@ fn move_to_target_action(
                     order,
                 });
 
-                cache.improvement = None;
+                cache.rail = None;
                 *state = ActionState::Success;
             }
             ActionState::Success | ActionState::Failure => {}
