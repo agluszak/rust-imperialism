@@ -685,10 +685,10 @@ fn plan_rail_connection(
 
                 let mut movement_choice: Option<(u32, TilePos)> = None;
 
-                if let Some(result) = engineer_paths.first_step_towards(civilian.position, from) {
-                    if result.1 != civilian.position {
-                        movement_choice = Some(result);
-                    }
+                if let Some(result) = engineer_paths.first_step_towards(civilian.position, from)
+                    && result.1 != civilian.position
+                {
+                    movement_choice = Some(result);
                 }
 
                 if let Some(result) = engineer_paths.first_step_towards(civilian.position, to) {

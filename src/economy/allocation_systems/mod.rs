@@ -559,15 +559,14 @@ fn process_market_adjustment(
         MarketInterest::Sell => {
             let target = msg.requested as usize;
 
-            if target > 0 {
-                if let Some(previous) = allocations.market_buys.remove(&msg.good) {
-                    if previous > 0 {
-                        debug!(
-                            "Cleared buy request for {:?} (switching to sell offers, was {})",
-                            msg.good, previous
-                        );
-                    }
-                }
+            if target > 0
+                && let Some(previous) = allocations.market_buys.remove(&msg.good)
+                && previous > 0
+            {
+                debug!(
+                    "Cleared buy request for {:?} (switching to sell offers, was {})",
+                    msg.good, previous
+                );
             }
 
             let vec = allocations.market_sells.entry(msg.good).or_default();

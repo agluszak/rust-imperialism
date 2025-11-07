@@ -63,7 +63,11 @@ impl Plugin for EconomyPlugin {
         // Register messages
         app.add_message::<transport::PlaceImprovement>()
             .add_message::<transport::RecomputeConnectivity>()
-            .add_message::<transport::TransportAdjustAllocation>();
+            .add_message::<transport::TransportAdjustAllocation>()
+            .add_message::<AdjustRecruitment>()
+            .add_message::<AdjustTraining>()
+            .add_message::<AdjustProduction>()
+            .add_message::<AdjustMarketOrder>();
 
         // Configure the economy system set to run only in-game
         app.configure_sets(Update, EconomySet.run_if(in_state(AppState::InGame)));

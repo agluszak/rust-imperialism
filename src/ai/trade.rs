@@ -50,7 +50,7 @@ fn plan_ai_market_orders(
                 let deficit = BUY_SHORTAGE_THRESHOLD
                     .saturating_add(1)
                     .saturating_sub(available);
-                let desired_buy = deficit.max(1) as u32;
+                let desired_buy = deficit.max(1);
 
                 if current_buy != desired_buy {
                     writer.write(AdjustMarketOrder {
