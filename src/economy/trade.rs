@@ -164,9 +164,6 @@ pub fn resolve_market_orders(
                 };
 
                 let Some(reservation) = reservations.pop() else {
-                    if !reservations.is_empty() {
-                        seller_queue.push_back((seller, reservations));
-                    }
                     continue;
                 };
 

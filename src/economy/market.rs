@@ -53,9 +53,27 @@ impl Default for MarketPriceModel {
 }
 
 impl MarketPriceModel {
+    /// Returns the trade price for `good`, applying a small premium or discount
+    /// based on the provided [`MarketVolume`].
     pub fn price_for(&self, good: Good, volume: MarketVolume) -> u32 {
-        let _ = volume;
-        self.base_price(good)
+        let base = self.base_price(good);
+        let MarketVolume {
+            supply_units,
+            demand_units,
+        } = volume;
+
+        if supply_units == 0 || demand_units == 0 {
+            return base;
+        }
+
+        let supply = supply_units as f32;
+        let demand = demand_units as f32;
+        let total = supply + demand;
+        let imbalance = (demand - supply) / total;
+        let adjustment_factor = 1.0 + imbalance.clamp(-0.5, 0.5) * 0.25;
+        let adjusted = (base as f32 * adjustment_factor).round() as u32;
+
+        adjusted.max(1)
     }
 
     pub fn set_base_price(&mut self, good: Good, price: u32) {
