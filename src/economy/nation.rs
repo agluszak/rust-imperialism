@@ -14,6 +14,20 @@ pub struct Name(pub String);
 /// Type-safe handle to a nation entity.
 pub type NationInstance = Instance<NationId>;
 
+/// Component providing fast access to a nation's [`NationInstance`].
+#[derive(Component, Clone, Copy, Debug)]
+pub struct NationHandle(pub NationInstance);
+
+impl NationHandle {
+    pub fn new(instance: NationInstance) -> Self {
+        Self(instance)
+    }
+
+    pub fn instance(&self) -> NationInstance {
+        self.0
+    }
+}
+
 /// Capital tile position for a nation (used for rail network connectivity)
 #[derive(Component, Clone, Copy, Debug)]
 pub struct Capital(pub TilePos);

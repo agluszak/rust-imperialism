@@ -5,14 +5,16 @@ use crate::ui::menu::AppState;
 pub mod behavior;
 pub mod context;
 pub mod markers;
+pub mod trade;
 
 pub use behavior::AiBehaviorPlugin;
 pub use context::{
-    AiAllocationSnapshot, AiNationSnapshot, AiStockpileEntry, AiTransportAllocation,
+    AiAllocationSnapshot, AiMarketBuy, AiNationSnapshot, AiStockpileEntry, AiTransportAllocation,
     AiTransportDemand, AiTransportSnapshot, AiTurnContext, AiWorkforceSnapshot, enemy_turn_entered,
     populate_ai_turn_context,
 };
 pub use markers::{AiControlledCivilian, AiNation};
+pub use trade::AiEconomyPlugin;
 
 /// Registers shared AI infrastructure such as the per-turn context cache.
 pub struct AiSupportPlugin;

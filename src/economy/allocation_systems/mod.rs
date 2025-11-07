@@ -523,9 +523,9 @@ fn process_market_adjustment(
 
     match msg.kind {
         MarketInterest::Buy => {
-            let wants_to_buy = msg.requested > 0;
+            let target = msg.requested;
 
-            if wants_to_buy {
+            if target > 0 {
                 if let Some(sell_orders) = allocations.market_sells.get_mut(&msg.good) {
                     let cleared_count = sell_orders.len();
                     while let Some(res_id) = sell_orders.pop() {
@@ -539,10 +539,19 @@ fn process_market_adjustment(
                     }
                 }
 
-                if allocations.market_buy_interest.insert(msg.good) {
-                    debug!("Set buy interest for {:?}", msg.good);
+                match allocations.market_buys.insert(msg.good, target) {
+                    Some(previous) if previous != target => {
+                        debug!(
+                            "Updated buy request for {:?}: {} -> {}",
+                            msg.good, previous, target
+                        );
+                    }
+                    None => {
+                        debug!("Set buy request for {:?}: {}", msg.good, target);
+                    }
+                    _ => {}
                 }
-            } else if allocations.market_buy_interest.remove(&msg.good) {
+            } else if allocations.market_buys.remove(&msg.good).is_some() {
                 debug!("Cleared buy interest for {:?}", msg.good);
             }
         }
@@ -550,8 +559,15 @@ fn process_market_adjustment(
         MarketInterest::Sell => {
             let target = msg.requested as usize;
 
-            if target > 0 && allocations.market_buy_interest.remove(&msg.good) {
-                debug!("Cleared buy interest for {:?}", msg.good);
+            if target > 0 {
+                if let Some(previous) = allocations.market_buys.remove(&msg.good) {
+                    if previous > 0 {
+                        debug!(
+                            "Cleared buy request for {:?} (switching to sell offers, was {})",
+                            msg.good, previous
+                        );
+                    }
+                }
             }
 
             let vec = allocations.market_sells.entry(msg.good).or_default();
@@ -683,9 +699,14 @@ pub fn finalize_allocations(
             }
         }
 
-        // Log market buy interest - execution happens in dedicated market systems
-        for good in &allocations.market_buy_interest {
-            info!("Buy interest set for: {:?} (awaiting clearing)", good);
+        // Log market buy orders - execution happens in dedicated market systems
+        for (good, quantity) in &allocations.market_buys {
+            if *quantity > 0 {
+                info!(
+                    "Buy orders queued: {} × {:?} (awaiting clearing)",
+                    quantity, good
+                );
+            }
         }
 
         for (good, res_ids) in &allocations.market_sells {

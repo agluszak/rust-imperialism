@@ -525,7 +525,7 @@ fn test_market_orders_mutually_exclusive() {
     assert_eq!(stockpile.get_available(Good::Cotton), 97); // 3 reserved for selling
 
     // Set buy interest for Cotton - this should clear the sell orders
-    allocations.market_buy_interest.insert(Good::Cotton);
+    allocations.market_buys.insert(Good::Cotton, 3);
 
     // Simulate what apply_market_order_adjustments would do:
     // When setting buy interest, it should clear sell orders
@@ -561,7 +561,7 @@ fn test_market_orders_mutually_exclusive() {
 
     // Simulate what apply_market_order_adjustments would do:
     // When setting sell orders, it should clear buy interest
-    allocations.market_buy_interest.remove(&Good::Cotton);
+    allocations.market_buys.remove(&Good::Cotton);
 
     // Verify buy interest is now cleared and sell orders exist
     assert!(!allocations.has_buy_interest(Good::Cotton));

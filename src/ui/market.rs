@@ -4,7 +4,8 @@ use bevy::ui_widgets::Button;
 
 use crate::economy::transport::TransportCommodity;
 use crate::economy::{
-    Allocations, Good, MARKET_RESOURCES, PlayerNation, Stockpile, Treasury, market_price,
+    Allocations, Good, MARKET_RESOURCES, MarketPriceModel, MarketVolume, PlayerNation, Stockpile,
+    Treasury,
 };
 use crate::ui::button_style::*;
 use crate::ui::city::allocation_ui_unified::{
@@ -50,6 +51,7 @@ pub fn ensure_market_screen_visible(
     mut commands: Commands,
     mut roots: Query<&mut Visibility, With<MarketScreen>>,
     asset_server: Res<AssetServer>,
+    pricing: Res<MarketPriceModel>,
 ) {
     if let Ok(mut vis) = roots.single_mut() {
         *vis = Visibility::Visible;
@@ -104,7 +106,7 @@ pub fn ensure_market_screen_visible(
                 ))
                 .with_children(|list| {
                     for &good in MARKET_RESOURCES {
-                        let price = market_price(good);
+                        let price = pricing.price_for(good, MarketVolume::default());
                         let good_name = good.to_string();
                         list.spawn((
                             Node {
