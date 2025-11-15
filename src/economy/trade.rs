@@ -207,7 +207,7 @@ pub fn resolve_market_orders(
 
                 if buyer_capacity == 0 {
                     cash_map.insert(buyer, cash_available);
-                    break 'buyers;
+                    continue 'buyers;
                 }
 
                 let Some(reservation) = reservations.pop() else {
