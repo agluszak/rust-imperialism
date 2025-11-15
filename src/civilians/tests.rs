@@ -11,7 +11,6 @@ use crate::economy::transport::{PlaceImprovement, Rails, ordered_edge};
 use crate::map::province::{Province, ProvinceId, TileProvince};
 use crate::resources::{DevelopmentLevel, ResourceType, TileResource};
 use crate::turn_system::{TurnPhase, TurnSystem};
-use crate::ui::logging::TerminalLogEvent;
 use bevy::ecs::system::{RunSystemOnce, SystemState};
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
@@ -24,7 +23,6 @@ fn test_engineer_does_not_start_job_on_existing_rail() {
     world.init_resource::<ProspectingKnowledge>();
 
     // Initialize event resources that the system uses
-    world.init_resource::<Messages<TerminalLogEvent>>();
     world.init_resource::<Messages<PlaceImprovement>>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
@@ -104,7 +102,6 @@ fn test_engineer_starts_job_on_new_rail() {
     world.init_resource::<ProspectingKnowledge>();
 
     // Initialize event resources that the system uses
-    world.init_resource::<Messages<TerminalLogEvent>>();
     world.init_resource::<Messages<PlaceImprovement>>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
@@ -257,7 +254,6 @@ fn test_prospector_starts_prospecting_job() {
     world.init_resource::<crate::turn_system::TurnSystem>();
     world.init_resource::<ProspectingKnowledge>();
 
-    world.init_resource::<Messages<TerminalLogEvent>>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
     let nation = world.spawn_empty().id();
@@ -316,7 +312,6 @@ fn test_prospector_starts_prospecting_job() {
 #[test]
 fn test_prospecting_job_reveals_resource_on_completion() {
     let mut world = World::new();
-    world.init_resource::<Messages<TerminalLogEvent>>();
     world.init_resource::<ProspectingKnowledge>();
 
     let mut tile_storage = TileStorage::empty(TilemapSize { x: 3, y: 3 });
@@ -384,7 +379,6 @@ fn miner_requires_discovery_before_mining() {
     let mut world = World::new();
     world.init_resource::<crate::turn_system::TurnSystem>();
     world.init_resource::<ProspectingKnowledge>();
-    world.init_resource::<Messages<TerminalLogEvent>>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
     let nation = world.spawn_empty().id();
@@ -450,7 +444,6 @@ fn new_owner_must_reprospect_before_mining() {
     let mut world = World::new();
     world.init_resource::<crate::turn_system::TurnSystem>();
     world.init_resource::<ProspectingKnowledge>();
-    world.init_resource::<Messages<TerminalLogEvent>>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
     let nation_a = world.spawn_empty().id();
@@ -681,7 +674,6 @@ fn test_rescind_orders_removes_civilian_order_component() {
 
     // Initialize message resources
     world.init_resource::<Messages<RescindOrders>>();
-    world.init_resource::<Messages<TerminalLogEvent>>();
 
     // Create a nation with treasury
     let nation = world.spawn(Treasury::new(1000)).id();
@@ -762,7 +754,6 @@ fn test_rescind_orders_removes_civilian_job_and_order() {
 
     // Initialize message resources
     world.init_resource::<Messages<RescindOrders>>();
-    world.init_resource::<Messages<TerminalLogEvent>>();
 
     // Create a nation with treasury
     let nation = world.spawn(Treasury::new(1000)).id();
@@ -835,7 +826,6 @@ fn test_skip_turn_removes_order_after_one_turn() {
     use crate::civilians::systems::execute_skip_and_sleep_orders;
 
     let mut world = World::new();
-    world.init_resource::<Messages<TerminalLogEvent>>();
 
     let tile_pos = TilePos { x: 5, y: 5 };
     let civilian_entity = world
@@ -875,7 +865,6 @@ fn test_sleep_order_persists_across_turns() {
     use crate::civilians::systems::execute_skip_and_sleep_orders;
 
     let mut world = World::new();
-    world.init_resource::<Messages<TerminalLogEvent>>();
 
     let tile_pos = TilePos { x: 5, y: 5 };
     let civilian_entity = world
@@ -920,7 +909,6 @@ fn test_rescind_wakes_sleeping_civilian() {
         phase: TurnPhase::PlayerTurn,
     });
     world.init_resource::<Messages<RescindOrders>>();
-    world.init_resource::<Messages<TerminalLogEvent>>();
 
     let tile_pos = TilePos { x: 5, y: 5 };
     let prev_pos = TilePos { x: 5, y: 5 }; // Same position (no move)
@@ -971,7 +959,6 @@ fn miner_respects_max_development_level() {
     let mut world = World::new();
     world.init_resource::<crate::turn_system::TurnSystem>();
     world.init_resource::<ProspectingKnowledge>();
-    world.init_resource::<Messages<TerminalLogEvent>>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
     let nation = world.spawn_empty().id();
@@ -1027,7 +1014,6 @@ fn farmer_starts_improvement_job_on_visible_resource() {
     let mut world = World::new();
     world.init_resource::<crate::turn_system::TurnSystem>();
     world.init_resource::<ProspectingKnowledge>();
-    world.init_resource::<Messages<TerminalLogEvent>>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
     let nation = world.spawn_empty().id();

@@ -14,7 +14,6 @@ use crate::ui::button_style::{
     AccentButton, DangerButton, NORMAL_ACCENT, NORMAL_BUTTON, NORMAL_DANGER,
 };
 use crate::ui::generic_systems::hide_screen;
-use crate::ui::logging::TerminalLogEvent;
 use crate::ui::mode::{GameMode, switch_to_mode};
 
 const PANEL_BG: Color = Color::srgba(0.08, 0.09, 0.12, 0.92);
@@ -1063,8 +1062,7 @@ fn update_pending_offers(
                                     mut state: ResMut<DiplomacyState>,
                                     mut ledger: ResMut<ForeignAidLedger>,
                                     nations: Query<(Entity, &NationId, &Name)>,
-                                    mut treasuries: Query<&mut Treasury>,
-                                    mut log: MessageWriter<TerminalLogEvent>| {
+                                    mut treasuries: Query<&mut Treasury>| {
                                     if let Some(offer) = offers.take(offer_id) {
                                         resolve_offer_response(
                                             offer,
@@ -1073,7 +1071,6 @@ fn update_pending_offers(
                                             &mut ledger,
                                             &nations,
                                             &mut treasuries,
-                                            &mut log,
                                         );
                                     }
                                 }),
@@ -1103,8 +1100,7 @@ fn update_pending_offers(
                                     mut state: ResMut<DiplomacyState>,
                                     mut ledger: ResMut<ForeignAidLedger>,
                                     nations: Query<(Entity, &NationId, &Name)>,
-                                    mut treasuries: Query<&mut Treasury>,
-                                    mut log: MessageWriter<TerminalLogEvent>| {
+                                    mut treasuries: Query<&mut Treasury>| {
                                     if let Some(offer) = offers.take(offer_id) {
                                         resolve_offer_response(
                                             offer,
@@ -1113,7 +1109,6 @@ fn update_pending_offers(
                                             &mut ledger,
                                             &nations,
                                             &mut treasuries,
-                                            &mut log,
                                         );
                                     }
                                 }),

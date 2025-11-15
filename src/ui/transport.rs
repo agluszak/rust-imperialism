@@ -13,7 +13,6 @@ use crate::economy::transport::{
 use crate::economy::{ImprovementKind, PlaceImprovement};
 use crate::ui::button_style::*;
 use crate::ui::generic_systems::despawn_screen;
-use crate::ui::logging::TerminalLogEvent;
 use crate::ui::mode::{GameMode, switch_to_mode};
 
 #[derive(Component)]
@@ -132,7 +131,6 @@ pub fn handle_transport_selection(
     mut ev: MessageReader<TransportSelectTile>,
     mut tool: ResMut<TransportToolState>,
     mut place_writer: MessageWriter<PlaceImprovement>,
-    mut log: MessageWriter<TerminalLogEvent>,
 ) {
     for e in ev.read() {
         if let Some(a) = tool.first.take() {
@@ -145,9 +143,7 @@ pub fn handle_transport_selection(
             });
         } else {
             tool.first = Some(e.pos);
-            log.write(TerminalLogEvent {
-                message: format!("Selected tile ({}, {}) for road start", e.pos.x, e.pos.y),
-            });
+            info!("Selected tile ({}, {}) for road start", e.pos.x, e.pos.y);
         }
     }
 }

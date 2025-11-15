@@ -4,7 +4,6 @@ use crate::civilians::{Civilian, CivilianKind};
 use crate::economy::{Capital, PlayerNation, Treasury};
 use crate::map::tile_pos::TilePosExt;
 use crate::ui::city::components::HireCivilian;
-use crate::ui::logging::TerminalLogEvent;
 
 // Note: HireCivilianButton component exists but no UI currently spawns these buttons.
 // When hire buttons are added to the UI, they should use the observer pattern:
@@ -27,7 +26,6 @@ pub fn spawn_hired_civilian(
     mut treasuries: Query<&mut Treasury>,
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
     civilians: Query<&Civilian>,
-    mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for event in hire_events.read() {
         let Some(player) = &player_nation else {
@@ -36,9 +34,7 @@ pub fn spawn_hired_civilian(
 
         // Get capital position
         let Ok(capital) = nations.get(player.entity()) else {
-            log_events.write(TerminalLogEvent {
-                message: "Cannot hire: no capital found".to_string(),
-            });
+            info!("Cannot hire: no capital found");
             continue;
         };
 
@@ -57,14 +53,12 @@ pub fn spawn_hired_civilian(
         };
 
         if treasury.total() < cost {
-            log_events.write(TerminalLogEvent {
-                message: format!(
-                    "Not enough money to hire {:?} (need ${}, have ${})",
-                    event.kind,
-                    cost,
-                    treasury.total()
-                ),
-            });
+            info!(
+                "Not enough money to hire {:?} (need ${}, have ${})",
+                event.kind,
+                cost,
+                treasury.total()
+            );
             continue;
         }
 
@@ -72,9 +66,7 @@ pub fn spawn_hired_civilian(
         let spawn_pos = find_unoccupied_tile_near(capital.0, &tile_storage_query, &civilians);
 
         let Some(spawn_pos) = spawn_pos else {
-            log_events.write(TerminalLogEvent {
-                message: "No unoccupied tiles near capital to spawn civilian".to_string(),
-            });
+            info!("No unoccupied tiles near capital to spawn civilian");
             continue;
         };
 
@@ -90,12 +82,10 @@ pub fn spawn_hired_civilian(
             has_moved: false,
         });
 
-        log_events.write(TerminalLogEvent {
-            message: format!(
-                "Hired {:?} for ${} at ({}, {})",
-                event.kind, cost, spawn_pos.x, spawn_pos.y
-            ),
-        });
+        info!(
+            "Hired {:?} for ${} at ({}, {})",
+            event.kind, cost, spawn_pos.x, spawn_pos.y
+        );
     }
 }
 

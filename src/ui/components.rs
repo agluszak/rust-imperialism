@@ -4,16 +4,7 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct TurnDisplay;
 
-#[derive(Component)]
-pub struct TerminalWindow;
-
-#[derive(Component)]
-pub struct TerminalOutput;
-
-#[derive(Component)]
-pub struct ScrollableTerminal;
-
-/// Marker for the root entities of gameplay UI (HUD, terminal, sidebar)
+/// Marker for the root entities of gameplay UI (HUD, sidebar)
 #[derive(Component)]
 pub struct GameplayUIRoot;
 

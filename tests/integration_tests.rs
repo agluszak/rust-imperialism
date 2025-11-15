@@ -73,13 +73,11 @@ fn test_ai_move_command_executes() {
     use rust_imperialism::map::province::{Province, ProvinceId, TileProvince};
     use rust_imperialism::messages::civilians::CivilianCommandRejected;
     use rust_imperialism::turn_system::TurnSystem;
-    use rust_imperialism::ui::logging::TerminalLogEvent;
 
     let mut world = World::new();
     world.init_resource::<TurnSystem>();
     world.init_resource::<Messages<CivilianCommand>>();
     world.init_resource::<Messages<CivilianCommandRejected>>();
-    world.init_resource::<Messages<TerminalLogEvent>>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
     // Owned province and tiles
@@ -154,13 +152,11 @@ fn test_illegal_rail_command_rejected() {
     use rust_imperialism::map::province::{Province, ProvinceId, TileProvince};
     use rust_imperialism::messages::civilians::{CivilianCommandError, CivilianCommandRejected};
     use rust_imperialism::turn_system::TurnSystem;
-    use rust_imperialism::ui::logging::TerminalLogEvent;
 
     let mut world = World::new();
     world.init_resource::<TurnSystem>();
     world.init_resource::<Messages<CivilianCommand>>();
     world.init_resource::<Messages<CivilianCommandRejected>>();
-    world.init_resource::<Messages<TerminalLogEvent>>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
     let player = world.spawn_empty().id();
@@ -230,18 +226,5 @@ fn test_illegal_rail_command_rejected() {
     assert_eq!(
         rejections[0].reason,
         CivilianCommandError::TargetTileUnowned
-    );
-
-    let logs = world
-        .run_system_once(|mut reader: MessageReader<TerminalLogEvent>| {
-            reader
-                .read()
-                .map(|event| event.message.clone())
-                .collect::<Vec<_>>()
-        })
-        .expect("read terminal logs");
-    assert!(
-        logs.iter()
-            .any(|entry: &String| entry.contains("order") && entry.contains("rejected"))
     );
 }

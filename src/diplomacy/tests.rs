@@ -8,12 +8,10 @@ use crate::diplomacy::{
 };
 use crate::economy::{Name, NationId, Treasury};
 use crate::turn_system::{TurnPhase, TurnSystem};
-use crate::ui::logging::TerminalLogEvent;
 
 fn setup_world() -> World {
     let mut world = World::new();
     world.init_resource::<TurnSystem>();
-    world.init_resource::<Messages<TerminalLogEvent>>();
     world.init_resource::<Messages<DiplomaticOrder>>();
     world.insert_resource(DiplomacyState::default());
     world.insert_resource(ForeignAidLedger::default());
@@ -125,9 +123,8 @@ fn recurring_aid_transfers_each_turn() {
         |ledger: Res<ForeignAidLedger>,
          state: ResMut<DiplomacyState>,
          nations: Query<(Entity, &NationId, &Name)>,
-         treasuries: Query<&mut Treasury>,
-         log: MessageWriter<TerminalLogEvent>| {
-            apply_recurring_aid(ledger, state, nations, treasuries, log);
+         treasuries: Query<&mut Treasury>| {
+            apply_recurring_aid(ledger, state, nations, treasuries);
         },
     );
 
@@ -353,8 +350,7 @@ fn accepting_peace_offer_sets_peace() {
         move |mut state: ResMut<DiplomacyState>,
               mut ledger: ResMut<ForeignAidLedger>,
               nations: Query<(Entity, &NationId, &Name)>,
-              mut treasuries: Query<&mut Treasury>,
-              mut log: MessageWriter<TerminalLogEvent>| {
+              mut treasuries: Query<&mut Treasury>| {
             resolve_offer_response(
                 offer.clone(),
                 true,
@@ -362,7 +358,6 @@ fn accepting_peace_offer_sets_peace() {
                 &mut ledger,
                 &nations,
                 &mut treasuries,
-                &mut log,
             );
         },
     );
@@ -472,8 +467,7 @@ fn accepting_locked_aid_creates_grant() {
         move |mut state: ResMut<DiplomacyState>,
               mut ledger: ResMut<ForeignAidLedger>,
               nations: Query<(Entity, &NationId, &Name)>,
-              mut treasuries: Query<&mut Treasury>,
-              mut log: MessageWriter<TerminalLogEvent>| {
+              mut treasuries: Query<&mut Treasury>| {
             resolve_offer_response(
                 offer.clone(),
                 true,
@@ -481,7 +475,6 @@ fn accepting_locked_aid_creates_grant() {
                 &mut ledger,
                 &nations,
                 &mut treasuries,
-                &mut log,
             );
         },
     );
@@ -526,8 +519,7 @@ fn accepting_defensive_join_war_sets_war() {
         move |mut state: ResMut<DiplomacyState>,
               mut ledger: ResMut<ForeignAidLedger>,
               nations: Query<(Entity, &NationId, &Name)>,
-              mut treasuries: Query<&mut Treasury>,
-              mut log: MessageWriter<TerminalLogEvent>| {
+              mut treasuries: Query<&mut Treasury>| {
             resolve_offer_response(
                 offer.clone(),
                 true,
@@ -535,7 +527,6 @@ fn accepting_defensive_join_war_sets_war() {
                 &mut ledger,
                 &nations,
                 &mut treasuries,
-                &mut log,
             );
         },
     );
@@ -585,8 +576,7 @@ fn declining_defensive_join_war_penalizes() {
         move |mut state: ResMut<DiplomacyState>,
               mut ledger: ResMut<ForeignAidLedger>,
               nations: Query<(Entity, &NationId, &Name)>,
-              mut treasuries: Query<&mut Treasury>,
-              mut log: MessageWriter<TerminalLogEvent>| {
+              mut treasuries: Query<&mut Treasury>| {
             resolve_offer_response(
                 offer.clone(),
                 false,
@@ -594,7 +584,6 @@ fn declining_defensive_join_war_penalizes() {
                 &mut ledger,
                 &nations,
                 &mut treasuries,
-                &mut log,
             );
         },
     );
@@ -640,8 +629,7 @@ fn declining_offensive_join_war_preserves_alliance() {
         move |mut state: ResMut<DiplomacyState>,
               mut ledger: ResMut<ForeignAidLedger>,
               nations: Query<(Entity, &NationId, &Name)>,
-              mut treasuries: Query<&mut Treasury>,
-              mut log: MessageWriter<TerminalLogEvent>| {
+              mut treasuries: Query<&mut Treasury>| {
             resolve_offer_response(
                 offer.clone(),
                 false,
@@ -649,7 +637,6 @@ fn declining_offensive_join_war_preserves_alliance() {
                 &mut ledger,
                 &nations,
                 &mut treasuries,
-                &mut log,
             );
         },
     );

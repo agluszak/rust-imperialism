@@ -12,7 +12,6 @@ use crate::economy::{ImprovementKind, PlaceImprovement};
 use crate::map::province::{Province, TileProvince};
 use crate::resources::{DevelopmentLevel, TileResource};
 use crate::turn_system::TurnSystem;
-use crate::ui::logging::TerminalLogEvent;
 
 /// Execute Engineer orders (building infrastructure)
 pub fn execute_engineer_orders(
@@ -25,7 +24,6 @@ pub fn execute_engineer_orders(
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
-    mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (entity, mut civilian, order) in engineers.iter_mut() {
         // Only process Engineer units
@@ -49,12 +47,10 @@ pub fn execute_engineer_orders(
             .unwrap_or(false);
 
         if !has_territory_access {
-            log_events.write(TerminalLogEvent {
-                message: format!(
-                    "Engineer cannot act at ({}, {}): tile not owned by your nation",
-                    civilian.position.x, civilian.position.y
-                ),
-            });
+            info!(
+                "Engineer cannot act at ({}, {}): tile not owned by your nation",
+                civilian.position.x, civilian.position.y
+            );
             commands.entity(entity).remove::<CivilianOrder>();
             continue;
         }
@@ -73,7 +69,6 @@ pub fn execute_engineer_orders(
                     &tile_storage_query,
                     &tile_provinces,
                     &provinces,
-                    &mut log_events,
                 );
             }
             CivilianOrderKind::BuildDepot => {
@@ -121,7 +116,6 @@ fn handle_build_rail_order(
     tile_storage_query: &Query<&bevy_ecs_tilemap::prelude::TileStorage>,
     tile_provinces: &Query<&TileProvince>,
     provinces: &Query<&Province>,
-    log_events: &mut MessageWriter<TerminalLogEvent>,
 ) {
     // Also check target tile ownership
     let target_owned = tile_storage_query
@@ -133,12 +127,10 @@ fn handle_build_rail_order(
         .unwrap_or(false);
 
     if !target_owned {
-        log_events.write(TerminalLogEvent {
-            message: format!(
-                "Cannot build rail to ({}, {}): tile not owned by your nation",
-                to.x, to.y
-            ),
-        });
+        info!(
+            "Cannot build rail to ({}, {}): tile not owned by your nation",
+            to.x, to.y
+        );
         commands.entity(entity).remove::<CivilianOrder>();
         return;
     }
@@ -152,12 +144,10 @@ fn handle_build_rail_order(
 
     if rail_exists {
         // Rail already exists - just move the engineer without starting a job
-        log_events.write(TerminalLogEvent {
-            message: format!(
-                "Rail already exists between ({}, {}) and ({}, {}). Engineer moved.",
-                edge.0.x, edge.0.y, edge.1.x, edge.1.y
-            ),
-        });
+        info!(
+            "Rail already exists between ({}, {}) and ({}, {}). Engineer moved.",
+            edge.0.x, edge.0.y, edge.1.x, edge.1.y
+        );
         civilian.position = to;
         civilian.has_moved = true;
         deselect_writer.write(DeselectCivilian { entity });
@@ -270,7 +260,6 @@ pub fn execute_prospector_orders(
         Option<&crate::map::ProspectedEmpty>,
         Option<&crate::map::ProspectedMineral>,
     )>,
-    mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (entity, mut civilian, order) in prospectors.iter_mut() {
         // Only process Prospector units
@@ -295,12 +284,10 @@ pub fn execute_prospector_orders(
                 .unwrap_or(false);
 
             if !has_territory_access {
-                log_events.write(TerminalLogEvent {
-                    message: format!(
-                        "Prospector cannot act at ({}, {}): tile not owned by your nation",
-                        to.x, to.y
-                    ),
-                });
+                info!(
+                    "Prospector cannot act at ({}, {}): tile not owned by your nation",
+                    to.x, to.y
+                );
                 commands.entity(entity).remove::<CivilianOrder>();
                 continue;
             }
@@ -313,12 +300,10 @@ pub fn execute_prospector_orders(
                 if let Ok((empty, mineral)) = prospected_tiles.get(tile_entity)
                     && (empty.is_some() || mineral.is_some())
                 {
-                    log_events.write(TerminalLogEvent {
-                        message: format!(
-                            "Tile at ({}, {}) has already been prospected",
-                            to.x, to.y
-                        ),
-                    });
+                    info!(
+                        "Tile at ({}, {}) has already been prospected",
+                        to.x, to.y
+                    );
                     commands.entity(entity).remove::<CivilianOrder>();
                     continue;
                 }
@@ -347,21 +332,17 @@ pub fn execute_prospector_orders(
                         ActionTurn(turn.current_turn),
                     ));
 
-                    log_events.write(TerminalLogEvent {
-                        message: format!(
-                            "Prospector moved to ({}, {}) and began surveying for minerals",
-                            to.x, to.y
-                        ),
-                    });
+                    info!(
+                        "Prospector moved to ({}, {}) and began surveying for minerals",
+                        to.x, to.y
+                    );
                     civilian.has_moved = true;
                     deselect_writer.write(DeselectCivilian { entity });
                 } else {
-                    log_events.write(TerminalLogEvent {
-                        message: format!(
-                            "Cannot prospect at ({}, {}): no mineral deposits possible here",
-                            to.x, to.y
-                        ),
-                    });
+                    info!(
+                        "Cannot prospect at ({}, {}): no mineral deposits possible here",
+                        to.x, to.y
+                    );
                 }
             }
         }
@@ -381,7 +362,6 @@ pub fn execute_civilian_improvement_orders(
     provinces: Query<&Province>,
     tile_resources: Query<&TileResource>,
     prospecting_knowledge: Res<ProspectingKnowledge>,
-    mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (entity, mut civilian, order) in civilians.iter_mut() {
         // Only process civilians that support tile improvements
@@ -424,12 +404,10 @@ pub fn execute_civilian_improvement_orders(
             .unwrap_or(false);
 
         if !has_territory_access {
-            log_events.write(TerminalLogEvent {
-                message: format!(
-                    "{:?} cannot act at ({}, {}): tile not owned by your nation",
-                    civilian.kind, target_pos.x, target_pos.y
-                ),
-            });
+            info!(
+                "{:?} cannot act at ({}, {}): tile not owned by your nation",
+                civilian.kind, target_pos.x, target_pos.y
+            );
             commands.entity(entity).remove::<CivilianOrder>();
             continue;
         }
@@ -442,23 +420,19 @@ pub fn execute_civilian_improvement_orders(
                 if resource.requires_prospecting()
                     && !prospecting_knowledge.is_discovered_by(tile_entity, civilian.owner)
                 {
-                    log_events.write(TerminalLogEvent {
-                        message: format!(
-                            "{:?} must have this tile prospected before improving it",
-                            civilian.kind
-                        ),
-                    });
+                    info!(
+                        "{:?} must have this tile prospected before improving it",
+                        civilian.kind
+                    );
                     commands.entity(entity).remove::<CivilianOrder>();
                     continue;
                 }
 
                 if !resource.discovered {
-                    log_events.write(TerminalLogEvent {
-                        message: format!(
-                            "{:?} must have this tile prospected before improving it",
-                            civilian.kind
-                        ),
-                    });
+                    info!(
+                        "{:?} must have this tile prospected before improving it",
+                        civilian.kind
+                    );
                     commands.entity(entity).remove::<CivilianOrder>();
                     continue;
                 }
@@ -483,40 +457,32 @@ pub fn execute_civilian_improvement_orders(
                         ActionTurn(turn.current_turn),
                     ));
 
-                    log_events.write(TerminalLogEvent {
-                        message: format!(
-                            "{:?} moved to ({}, {}) and started improving {:?} - {} turns remaining",
-                            civilian.kind,
-                            target_pos.x,
-                            target_pos.y,
-                            resource.resource_type,
-                            job_type.duration()
-                        ),
-                    });
+                    info!(
+                        "{:?} moved to ({}, {}) and started improving {:?} - {} turns remaining",
+                        civilian.kind,
+                        target_pos.x,
+                        target_pos.y,
+                        resource.resource_type,
+                        job_type.duration()
+                    );
                     civilian.has_moved = true;
                     deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
                 } else if !can_improve {
-                    log_events.write(TerminalLogEvent {
-                        message: format!(
-                            "{:?} cannot improve {:?} at ({}, {})",
-                            civilian.kind, resource.resource_type, target_pos.x, target_pos.y
-                        ),
-                    });
+                    info!(
+                        "{:?} cannot improve {:?} at ({}, {})",
+                        civilian.kind, resource.resource_type, target_pos.x, target_pos.y
+                    );
                 } else if resource.development >= DevelopmentLevel::Lv3 {
-                    log_events.write(TerminalLogEvent {
-                        message: format!(
-                            "Resource already at max development at ({}, {})",
-                            target_pos.x, target_pos.y
-                        ),
-                    });
+                    info!(
+                        "Resource already at max development at ({}, {})",
+                        target_pos.x, target_pos.y
+                    );
                 }
             } else {
-                log_events.write(TerminalLogEvent {
-                    message: format!(
-                        "No improvable resource at ({}, {})",
-                        target_pos.x, target_pos.y
-                    ),
-                });
+                info!(
+                    "No improvable resource at ({}, {})",
+                    target_pos.x, target_pos.y
+                );
             }
         }
 

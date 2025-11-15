@@ -4,7 +4,7 @@ use bevy_ecs_tilemap::prelude::TileStorage;
 use crate::civilians::types::{
     ActionTurn, Civilian, CivilianJob, JobType, PreviousPosition, ProspectingKnowledge,
 };
-use crate::{resources::TileResource, ui::logging::TerminalLogEvent};
+use crate::resources::TileResource;
 
 /// Reset civilian movement at start of player turn
 pub fn reset_civilian_actions(mut civilians: Query<&mut Civilian>) {
@@ -46,7 +46,6 @@ pub fn complete_improvement_jobs(
     mut tile_resources: Query<&mut TileResource>,
     potential_minerals: Query<&crate::map::PotentialMineral>,
     mut prospecting_knowledge: ResMut<ProspectingKnowledge>,
-    mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (civilian, job) in civilians_with_jobs.iter() {
         // Only process jobs that just completed (turns_remaining == 0)
@@ -67,17 +66,15 @@ pub fn complete_improvement_jobs(
                         JobType::Drilling => "drilling",
                         _ => "improving",
                     };
-                    log_events.write(TerminalLogEvent {
-                        message: format!(
-                            "{:?} completed {} {:?} at ({}, {}) to level {:?}",
-                            civilian.kind,
-                            action,
-                            resource.resource_type,
-                            job.target.x,
-                            job.target.y,
-                            resource.development
-                        ),
-                    });
+                    info!(
+                        "{:?} completed {} {:?} at ({}, {}) to level {:?}",
+                        civilian.kind,
+                        action,
+                        resource.resource_type,
+                        job.target.x,
+                        job.target.y,
+                        resource.development
+                    );
 
                     // Add visual improvement marker to the tile
                     commands
@@ -102,12 +99,10 @@ pub fn complete_improvement_jobs(
                                 .insert(crate::map::ProspectedMineral { resource_type })
                                 .remove::<crate::map::PotentialMineral>();
 
-                            log_events.write(TerminalLogEvent {
-                                message: format!(
-                                    "Prospector discovered {:?} at ({}, {})!",
-                                    resource_type, job.target.x, job.target.y
-                                ),
-                            });
+                            info!(
+                                "Prospector discovered {:?} at ({}, {})!",
+                                resource_type, job.target.x, job.target.y
+                            );
 
                             // Mark as discovered for this nation
                             prospecting_knowledge.mark_discovered(tile_entity, civilian.owner);
@@ -118,12 +113,10 @@ pub fn complete_improvement_jobs(
                                 .insert(crate::map::ProspectedEmpty)
                                 .remove::<crate::map::PotentialMineral>();
 
-                            log_events.write(TerminalLogEvent {
-                                message: format!(
-                                    "Prospector found no minerals at ({}, {})",
-                                    job.target.x, job.target.y
-                                ),
-                            });
+                            info!(
+                                "Prospector found no minerals at ({}, {})",
+                                job.target.x, job.target.y
+                            );
                         }
                     }
                 }

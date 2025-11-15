@@ -5,7 +5,6 @@ use bevy::prelude::*;
 use crate::economy::{Name, NationId, Treasury};
 pub use crate::messages::diplomacy::{DiplomaticOrder, DiplomaticOrderKind};
 use crate::turn_system::{TurnPhase, TurnSystem};
-use crate::ui::logging::TerminalLogEvent;
 use crate::ui::menu::AppState;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -326,7 +325,6 @@ fn process_diplomatic_orders(
     mut offers: ResMut<DiplomaticOffers>,
     nations: Query<(Entity, &NationId, &Name)>,
     mut treasuries: Query<&mut Treasury>,
-    mut log: MessageWriter<TerminalLogEvent>,
 ) {
     let (id_to_entity, id_to_name, nation_ids) = collect_nation_lookup(&nations);
 
@@ -349,13 +347,11 @@ fn process_diplomatic_orders(
                     .map(|r| r.treaty.at_war)
                     .unwrap_or(false);
                 if already_at_war {
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "{} is already at war with {}.",
                             display_name(&id_to_name, order.actor),
                             display_name(&id_to_name, order.target)
-                        ),
-                    });
+                        );
                     continue;
                 }
 
@@ -367,13 +363,11 @@ fn process_diplomatic_orders(
                 state.adjust_score(order.actor, order.target, -40);
                 ledger.cancel(order.actor, order.target);
                 ledger.cancel(order.target, order.actor);
-                log.write(TerminalLogEvent {
-                    message: format!(
+                info!(
                         "{} has declared war on {}!",
                         display_name(&id_to_name, order.actor),
                         display_name(&id_to_name, order.target)
-                    ),
-                });
+                    );
 
                 // Other nations react based on their opinion of the target
                 let mut approvals: Vec<String> = Vec::new();
@@ -401,28 +395,23 @@ fn process_diplomatic_orders(
                 }
 
                 if !approvals.is_empty() {
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "Nations pleased by the war on {}: {}.",
                             display_name(&id_to_name, order.target),
                             approvals.join(", ")
-                        ),
-                    });
+                        );
                 }
                 if !condemnations.is_empty() {
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "Nations angered by the war on {}: {}.",
                             display_name(&id_to_name, order.target),
                             condemnations.join(", ")
-                        ),
-                    });
+                        );
                 }
 
                 queue_alliance_calls(
                     &mut state,
                     &mut offers,
-                    &mut log,
                     &id_to_name,
                     order.target,
                     order.actor,
@@ -431,7 +420,6 @@ fn process_diplomatic_orders(
                 queue_alliance_calls(
                     &mut state,
                     &mut offers,
-                    &mut log,
                     &id_to_name,
                     order.actor,
                     order.target,
@@ -444,13 +432,11 @@ fn process_diplomatic_orders(
                     .map(|r| r.treaty.at_war)
                     .unwrap_or(false);
                 if !at_war {
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "{} and {} are not currently at war.",
                             display_name(&id_to_name, order.actor),
                             display_name(&id_to_name, order.target)
-                        ),
-                    });
+                        );
                     continue;
                 }
 
@@ -459,13 +445,11 @@ fn process_diplomatic_orders(
                     order.target,
                     DiplomaticOfferKind::OfferPeace,
                 ));
-                log.write(TerminalLogEvent {
-                    message: format!(
+                info!(
                         "{} offered peace to {}.",
                         display_name(&id_to_name, order.actor),
                         display_name(&id_to_name, order.target)
-                    ),
-                });
+                    );
             }
             DiplomaticOrderKind::EstablishConsulate => {
                 if state
@@ -473,13 +457,11 @@ fn process_diplomatic_orders(
                     .map(|r| r.treaty.consulate)
                     .unwrap_or(false)
                 {
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "{} already maintains a consulate in {}.",
                             display_name(&id_to_name, order.actor),
                             display_name(&id_to_name, order.target)
-                        ),
-                    });
+                        );
                     continue;
                 }
 
@@ -488,12 +470,10 @@ fn process_diplomatic_orders(
                     .map(|r| r.score)
                     .unwrap_or_default();
                 if relation_score < 0 {
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "Relations with {} are too poor to open a consulate.",
                             display_name(&id_to_name, order.target)
-                        ),
-                    });
+                        );
                     continue;
                 }
 
@@ -503,13 +483,11 @@ fn process_diplomatic_orders(
                         Err(_) => continue,
                     };
                     if treasury.available() < 500 {
-                        log.write(TerminalLogEvent {
-                            message: format!(
+                        info!(
                                 "{} lacks the $500 needed for a consulate in {}.",
                                 display_name(&id_to_name, order.actor),
                                 display_name(&id_to_name, order.target)
-                            ),
-                        });
+                            );
                         false
                     } else {
                         treasury.subtract(500);
@@ -524,13 +502,11 @@ fn process_diplomatic_orders(
                     t.consulate = true;
                 });
                 state.adjust_score(order.actor, order.target, 5);
-                log.write(TerminalLogEvent {
-                    message: format!(
+                info!(
                         "{} established a consulate in {}.",
                         display_name(&id_to_name, order.actor),
                         display_name(&id_to_name, order.target)
-                    ),
-                });
+                    );
             }
             DiplomaticOrderKind::OpenEmbassy => {
                 let relation_data = state.relation(order.actor, order.target).cloned();
@@ -538,31 +514,25 @@ fn process_diplomatic_orders(
                     continue;
                 };
                 if !relation.treaty.consulate {
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "A consulate is required before opening an embassy in {}.",
                             display_name(&id_to_name, order.target)
-                        ),
-                    });
+                        );
                     continue;
                 }
                 if relation.treaty.embassy {
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "{} already has an embassy in {}.",
                             display_name(&id_to_name, order.actor),
                             display_name(&id_to_name, order.target)
-                        ),
-                    });
+                        );
                     continue;
                 }
                 if relation.score < 30 {
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "Relations with {} must be Cordial (30) to open an embassy.",
                             display_name(&id_to_name, order.target)
-                        ),
-                    });
+                        );
                     continue;
                 }
 
@@ -572,13 +542,11 @@ fn process_diplomatic_orders(
                         Err(_) => continue,
                     };
                     if treasury.available() < 5_000 {
-                        log.write(TerminalLogEvent {
-                            message: format!(
+                        info!(
                                 "{} lacks the $5,000 needed for an embassy in {}.",
                                 display_name(&id_to_name, order.actor),
                                 display_name(&id_to_name, order.target)
-                            ),
-                        });
+                            );
                         false
                     } else {
                         treasury.subtract(5_000);
@@ -593,43 +561,35 @@ fn process_diplomatic_orders(
                     t.embassy = true;
                 });
                 state.adjust_score(order.actor, order.target, 10);
-                log.write(TerminalLogEvent {
-                    message: format!(
+                info!(
                         "{} opened an embassy in {}.",
                         display_name(&id_to_name, order.actor),
                         display_name(&id_to_name, order.target)
-                    ),
-                });
+                    );
             }
             DiplomaticOrderKind::SignNonAggressionPact => {
                 let relation = state.relation(order.actor, order.target).cloned();
                 let Some(relation) = relation else { continue };
                 if relation.treaty.at_war {
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "Cannot sign a pact while at war with {}.",
                             display_name(&id_to_name, order.target)
-                        ),
-                    });
+                        );
                     continue;
                 }
                 if !relation.treaty.embassy {
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "An embassy in {} is required before a pact can be signed.",
                             display_name(&id_to_name, order.target)
-                        ),
-                    });
+                        );
                     continue;
                 }
                 if relation.treaty.non_aggression_pact {
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "{} already has a pact with {}.",
                             display_name(&id_to_name, order.actor),
                             display_name(&id_to_name, order.target)
-                        ),
-                    });
+                        );
                     continue;
                 }
 
@@ -638,52 +598,42 @@ fn process_diplomatic_orders(
                     order.target,
                     DiplomaticOfferKind::NonAggressionPact,
                 ));
-                log.write(TerminalLogEvent {
-                    message: format!(
+                info!(
                         "{} proposed a non-aggression pact to {}.",
                         display_name(&id_to_name, order.actor),
                         display_name(&id_to_name, order.target)
-                    ),
-                });
+                    );
             }
             DiplomaticOrderKind::FormAlliance => {
                 let relation = state.relation(order.actor, order.target).cloned();
                 let Some(relation) = relation else { continue };
                 if relation.treaty.at_war {
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "Cannot ally while at war with {}.",
                             display_name(&id_to_name, order.target)
-                        ),
-                    });
+                        );
                     continue;
                 }
                 if !relation.treaty.embassy {
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "An embassy in {} is required before an alliance.",
                             display_name(&id_to_name, order.target)
-                        ),
-                    });
+                        );
                     continue;
                 }
                 if relation.score < 40 {
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "Relations with {} must be Warm (40) for an alliance.",
                             display_name(&id_to_name, order.target)
-                        ),
-                    });
+                        );
                     continue;
                 }
                 if relation.treaty.alliance {
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "{} already has an alliance with {}.",
                             display_name(&id_to_name, order.actor),
                             display_name(&id_to_name, order.target)
-                        ),
-                    });
+                        );
                     continue;
                 }
 
@@ -692,13 +642,11 @@ fn process_diplomatic_orders(
                     order.target,
                     DiplomaticOfferKind::Alliance,
                 ));
-                log.write(TerminalLogEvent {
-                    message: format!(
+                info!(
                         "{} proposed an alliance to {}.",
                         display_name(&id_to_name, order.actor),
                         display_name(&id_to_name, order.target)
-                    ),
-                });
+                    );
             }
             DiplomaticOrderKind::SendAid { amount, locked } => {
                 if *amount <= 0 {
@@ -707,12 +655,10 @@ fn process_diplomatic_orders(
                 let relation = state.relation(order.actor, order.target).cloned();
                 let Some(relation) = relation else { continue };
                 if relation.treaty.at_war {
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "Cannot send aid while at war with {}.",
                             display_name(&id_to_name, order.target)
-                        ),
-                    });
+                        );
                     continue;
                 }
 
@@ -723,14 +669,12 @@ fn process_diplomatic_orders(
                         Err(_) => continue,
                     };
                     if donor_treasury.available() < amount {
-                        log.write(TerminalLogEvent {
-                            message: format!(
+                        info!(
                                 "{} lacks ${} to fund aid for {}.",
                                 display_name(&id_to_name, order.actor),
                                 amount,
                                 display_name(&id_to_name, order.target)
-                            ),
-                        });
+                            );
                         false
                     } else {
                         donor_treasury.subtract(amount);
@@ -756,26 +700,22 @@ fn process_diplomatic_orders(
                     });
                 }
 
-                log.write(TerminalLogEvent {
-                    message: format!(
+                info!(
                         "{} sent ${} in aid to {}{}.",
                         display_name(&id_to_name, order.actor),
                         amount,
                         display_name(&id_to_name, order.target),
                         if *locked { " (locked grant)" } else { "" }
-                    ),
-                });
+                    );
             }
             DiplomaticOrderKind::CancelAid => {
                 if ledger.cancel(order.actor, order.target) {
                     state.adjust_score(order.actor, order.target, -5);
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "{} cancelled aid to {}.",
                             display_name(&id_to_name, order.actor),
                             display_name(&id_to_name, order.target)
-                        ),
-                    });
+                        );
                 }
             }
         }
@@ -789,7 +729,6 @@ pub fn resolve_offer_response(
     ledger: &mut ForeignAidLedger,
     nations: &Query<(Entity, &NationId, &Name)>,
     treasuries: &mut Query<&mut Treasury>,
-    log: &mut MessageWriter<TerminalLogEvent>,
 ) {
     let (id_to_entity, id_to_name, _) = collect_nation_lookup(nations);
 
@@ -801,13 +740,11 @@ pub fn resolve_offer_response(
                     t.non_aggression_pact = false;
                 });
                 state.adjust_score(offer.from, offer.to, 15);
-                log.write(TerminalLogEvent {
-                    message: format!(
+                info!(
                         "{} accepted peace with {}.",
                         display_name(&id_to_name, offer.to),
                         display_name(&id_to_name, offer.from)
-                    ),
-                });
+                    );
             }
             DiplomaticOfferKind::Alliance => {
                 state.set_treaty(offer.from, offer.to, |t| {
@@ -815,40 +752,34 @@ pub fn resolve_offer_response(
                     t.non_aggression_pact = true;
                 });
                 state.adjust_score(offer.from, offer.to, 12);
-                log.write(TerminalLogEvent {
-                    message: format!(
+                info!(
                         "{} entered an alliance with {}.",
                         display_name(&id_to_name, offer.to),
                         display_name(&id_to_name, offer.from)
-                    ),
-                });
+                    );
             }
             DiplomaticOfferKind::NonAggressionPact => {
                 state.set_treaty(offer.from, offer.to, |t| {
                     t.non_aggression_pact = true;
                 });
                 state.adjust_score(offer.from, offer.to, 8);
-                log.write(TerminalLogEvent {
-                    message: format!(
+                info!(
                         "{} accepted a non-aggression pact with {}.",
                         display_name(&id_to_name, offer.to),
                         display_name(&id_to_name, offer.from)
-                    ),
-                });
+                    );
             }
             DiplomaticOfferKind::ForeignAid { amount, locked } => {
                 if let Some(&from_entity) = id_to_entity.get(&offer.from)
                     && let Ok(mut donor_treasury) = treasuries.get_mut(from_entity)
                 {
                     if donor_treasury.available() < amount as i64 {
-                        log.write(TerminalLogEvent {
-                            message: format!(
+                        info!(
                                 "{} could not afford the ${} aid promised to {}.",
                                 display_name(&id_to_name, offer.from),
                                 amount,
                                 display_name(&id_to_name, offer.to)
-                            ),
-                        });
+                            );
                         return;
                     }
                     donor_treasury.subtract(amount as i64);
@@ -870,15 +801,13 @@ pub fn resolve_offer_response(
                     });
                 }
 
-                log.write(TerminalLogEvent {
-                    message: format!(
+                info!(
                         "{} received ${} in aid from {}{}.",
                         display_name(&id_to_name, offer.to),
                         amount,
                         display_name(&id_to_name, offer.from),
                         if locked { " (locked grant)" } else { "" }
-                    ),
-                });
+                    );
             }
             DiplomaticOfferKind::JoinWar { enemy, defensive } => {
                 state.set_treaty(offer.to, enemy, |t| {
@@ -890,8 +819,7 @@ pub fn resolve_offer_response(
                 ledger.cancel(offer.to, enemy);
                 ledger.cancel(enemy, offer.to);
                 state.adjust_score(offer.to, offer.from, 6);
-                log.write(TerminalLogEvent {
-                    message: format!(
+                info!(
                         "{} joined {} in war against {}{}.",
                         display_name(&id_to_name, offer.to),
                         display_name(&id_to_name, offer.from),
@@ -901,51 +829,42 @@ pub fn resolve_offer_response(
                         } else {
                             ""
                         }
-                    ),
-                });
+                    );
             }
         }
     } else {
         match offer.kind {
             DiplomaticOfferKind::OfferPeace => {
                 state.adjust_score(offer.from, offer.to, -10);
-                log.write(TerminalLogEvent {
-                    message: format!(
+                info!(
                         "{} refused peace with {}.",
                         display_name(&id_to_name, offer.to),
                         display_name(&id_to_name, offer.from)
-                    ),
-                });
+                    );
             }
             DiplomaticOfferKind::Alliance => {
                 state.adjust_score(offer.from, offer.to, -12);
-                log.write(TerminalLogEvent {
-                    message: format!(
+                info!(
                         "{} declined an alliance proposed by {}.",
                         display_name(&id_to_name, offer.to),
                         display_name(&id_to_name, offer.from)
-                    ),
-                });
+                    );
             }
             DiplomaticOfferKind::NonAggressionPact => {
                 state.adjust_score(offer.from, offer.to, -6);
-                log.write(TerminalLogEvent {
-                    message: format!(
+                info!(
                         "{} rejected a non-aggression pact with {}.",
                         display_name(&id_to_name, offer.to),
                         display_name(&id_to_name, offer.from)
-                    ),
-                });
+                    );
             }
             DiplomaticOfferKind::ForeignAid { .. } => {
                 state.adjust_score(offer.from, offer.to, -3);
-                log.write(TerminalLogEvent {
-                    message: format!(
+                info!(
                         "{} declined aid from {}.",
                         display_name(&id_to_name, offer.to),
                         display_name(&id_to_name, offer.from)
-                    ),
-                });
+                    );
             }
             DiplomaticOfferKind::JoinWar { enemy, defensive } => {
                 if defensive {
@@ -955,23 +874,19 @@ pub fn resolve_offer_response(
                     });
                     state.adjust_all_relations(offer.to, -10);
                     state.adjust_score(offer.from, offer.to, -10);
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "{} refused to defend {} against {}. Alliance dissolved and reputation suffered.",
                             display_name(&id_to_name, offer.to),
                             display_name(&id_to_name, offer.from),
                             display_name(&id_to_name, enemy)
-                        ),
-                    });
+                        );
                 } else {
-                    log.write(TerminalLogEvent {
-                        message: format!(
+                    info!(
                             "{} declined to join {}'s war against {}.",
                             display_name(&id_to_name, offer.to),
                             display_name(&id_to_name, offer.from),
                             display_name(&id_to_name, enemy)
-                        ),
-                    });
+                        );
                 }
             }
         }
@@ -981,7 +896,6 @@ pub fn resolve_offer_response(
 fn queue_alliance_calls(
     state: &mut DiplomacyState,
     offers: &mut ResMut<DiplomaticOffers>,
-    log: &mut MessageWriter<TerminalLogEvent>,
     names: &HashMap<NationId, String>,
     belligerent: NationId,
     enemy: NationId,
@@ -1011,8 +925,7 @@ fn queue_alliance_calls(
             ally,
             DiplomaticOfferKind::JoinWar { enemy, defensive },
         ));
-        log.write(TerminalLogEvent {
-            message: format!(
+        info!(
                 "{} called upon {} to {} {}.",
                 display_name(names, belligerent),
                 display_name(names, ally),
@@ -1022,8 +935,7 @@ fn queue_alliance_calls(
                     "join the war on"
                 },
                 display_name(names, enemy)
-            ),
-        });
+            );
     }
 }
 
@@ -1032,7 +944,6 @@ fn apply_recurring_aid(
     mut state: ResMut<DiplomacyState>,
     nations: Query<(Entity, &NationId, &Name)>,
     mut treasuries: Query<&mut Treasury>,
-    mut log: MessageWriter<TerminalLogEvent>,
 ) {
     let (id_to_entity, id_to_name, _) = collect_nation_lookup(&nations);
 
@@ -1052,14 +963,12 @@ fn apply_recurring_aid(
                 Err(_) => continue,
             };
             if donor_treasury.available() < amount {
-                log.write(TerminalLogEvent {
-                    message: format!(
+                info!(
                         "{} could not afford the locked aid payment to {} (missing ${}).",
                         display_name(&id_to_name, grant.from),
                         display_name(&id_to_name, grant.to),
                         amount
-                    ),
-                });
+                    );
                 false
             } else {
                 donor_treasury.subtract(amount);
@@ -1076,14 +985,12 @@ fn apply_recurring_aid(
 
         state.adjust_score(grant.from, grant.to, ((amount / 200).max(1)) as i32);
 
-        log.write(TerminalLogEvent {
-            message: format!(
+        info!(
                 "{} delivered ${} in locked aid to {}.",
                 display_name(&id_to_name, grant.from),
                 amount,
                 display_name(&id_to_name, grant.to)
-            ),
-        });
+            );
     }
 }
 

@@ -3,8 +3,6 @@ pub mod city;
 pub mod components;
 pub mod diplomacy;
 pub mod generic_systems;
-pub mod input;
-pub mod logging;
 pub mod market;
 pub mod menu;
 pub mod mode;
@@ -15,11 +13,6 @@ pub mod transport;
 
 use crate::ui::menu::AppState;
 use bevy::prelude::*;
-
-pub use components::ScrollableTerminal;
-pub use input::handle_mouse_wheel_scroll;
-// Do not expose the logging resource outside the module; consumers should send events instead.
-// pub use logging::TerminalLog;
 
 pub struct GameUIPlugin;
 
@@ -34,9 +27,7 @@ impl Plugin for GameUIPlugin {
             diplomacy::DiplomacyUIPlugin,
             menu::MenuUIPlugin,
         ))
-        .insert_resource(logging::TerminalLog::new(100))
         .insert_resource(state::UIState::default())
-        .add_message::<logging::TerminalLogEvent>()
         .add_message::<state::UIStateUpdated>()
         // Spawn gameplay UI only when entering InGame state
         .add_systems(OnEnter(AppState::InGame), setup::setup_ui)
@@ -55,8 +46,6 @@ impl Plugin for GameUIPlugin {
                 generic_systems::hide_screen::<components::MapTilemap>,
             ),
         )
-        // Initialize terminal log messages once at startup
-        .add_systems(Startup, logging::setup_terminal_log)
         .add_systems(
             Update,
             (
@@ -64,17 +53,10 @@ impl Plugin for GameUIPlugin {
                 state::collect_ui_state,
                 state::notify_ui_state_changes.after(state::collect_ui_state),
                 // UI update systems run after state collection
-                // Consume log events before updating UI text so new lines appear
-                logging::consume_log_events.after(state::notify_ui_state_changes),
                 status::update_turn_display.after(state::notify_ui_state_changes),
                 status::update_calendar_display,
                 status::update_treasury_display,
                 status::update_tile_info_display,
-                logging::update_terminal_output.after(logging::consume_log_events),
-                // Mouse wheel scroll input handling
-                input::handle_mouse_wheel_scroll,
-                // Clamp scroll position after all scroll operations
-                input::clamp_scroll_position.after(input::handle_mouse_wheel_scroll),
                 // Button interaction visual feedback (standard Button widget handles mode switching via observers)
                 button_style::button_interaction_system,
                 button_style::accent_button_interaction_system,

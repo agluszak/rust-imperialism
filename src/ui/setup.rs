@@ -1,12 +1,10 @@
 use bevy::prelude::*;
-use bevy::ui::RelativeCursorPosition;
 use bevy::ui::widget::Button as OldButton;
-use bevy::ui_widgets::{Button, ControlOrientation, CoreScrollbarThumb, Scrollbar};
+use bevy::ui_widgets::Button;
 
 use crate::ui::button_style::*;
 use crate::ui::components::{
-    CalendarDisplay, GameplayUIRoot, ScrollableTerminal, TerminalOutput, TerminalWindow,
-    TileInfoDisplay, TreasuryDisplay, TurnDisplay,
+    CalendarDisplay, GameplayUIRoot, TileInfoDisplay, TreasuryDisplay, TurnDisplay,
 };
 
 pub fn setup_ui(mut commands: Commands) {
@@ -68,101 +66,6 @@ pub fn setup_ui(mut commands: Commands) {
         ],
     ));
 
-    // Create terminal window
-    commands
-        .spawn((
-            Node {
-                position_type: PositionType::Absolute,
-                bottom: Val::Px(10.0),
-                right: Val::Px(10.0),
-                width: Val::Px(420.0),
-                height: Val::Px(300.0),
-                border: UiRect::all(Val::Px(2.0)),
-                padding: UiRect::all(Val::Px(5.0)),
-                flex_direction: FlexDirection::Column,
-                overflow: Overflow::clip(),
-                ..default()
-            },
-            BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.8)),
-            TerminalWindow,
-            GameplayUIRoot,
-        ))
-        .with_children(|parent| {
-            // Terminal header
-            parent.spawn((
-                Text::new("Terminal Output"),
-                TextFont {
-                    font_size: 14.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.8, 0.8, 0.8)),
-                Node {
-                    margin: UiRect::bottom(Val::Px(5.0)),
-                    ..default()
-                },
-            ));
-
-            // Container for scrollable content and scrollbar
-            parent
-                .spawn(Node {
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
-                    flex_direction: FlexDirection::Row,
-                    ..default()
-                })
-                .with_children(|container| {
-                    // Scrollable content area
-                    let scrollable_id = container
-                        .spawn((
-                            Node {
-                                width: Val::Percent(95.0),
-                                height: Val::Percent(100.0),
-                                flex_direction: FlexDirection::Column,
-                                overflow: Overflow::scroll_y(),
-                                ..default()
-                            },
-                            ScrollPosition::default(),
-                            ScrollableTerminal,
-                            RelativeCursorPosition::default(),
-                            children![(
-                                Text::new(""),
-                                TextFont {
-                                    font_size: 12.0,
-                                    ..default()
-                                },
-                                TextColor(Color::srgb(0.0, 1.0, 0.0)),
-                                TerminalOutput,
-                                Node {
-                                    align_self: AlignSelf::Stretch,
-                                    ..default()
-                                },
-                            )],
-                        ))
-                        .id();
-
-                    // Headless scrollbar
-                    container.spawn((
-                        Node {
-                            width: Val::Percent(5.0),
-                            height: Val::Percent(100.0),
-                            flex_direction: FlexDirection::Column,
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgba(0.2, 0.2, 0.2, 0.8)),
-                        Scrollbar::new(scrollable_id, ControlOrientation::Vertical, 20.0),
-                        children![(
-                            Node {
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(20.0),
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgba(0.6, 0.6, 0.6, 0.8)),
-                            CoreScrollbarThumb,
-                        )],
-                    ));
-                });
-        });
-
     // Tile info display (bottom-left)
     commands.spawn((
         Node {
@@ -195,7 +98,7 @@ pub fn setup_ui(mut commands: Commands) {
             Node {
                 position_type: PositionType::Absolute,
                 top: Val::Px(10.0),
-                right: Val::Px(450.0),
+                right: Val::Px(10.0),
                 width: Val::Px(140.0),
                 flex_direction: FlexDirection::Column,
                 row_gap: Val::Px(8.0),

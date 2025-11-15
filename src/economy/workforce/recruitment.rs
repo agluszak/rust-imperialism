@@ -7,7 +7,6 @@ use crate::economy::workforce::types::{RecruitmentCapacity, Workforce};
 use crate::map::province::Province;
 use crate::messages::workforce::RecruitWorkers;
 use crate::turn_system::{TurnPhase, TurnSystem};
-use crate::ui::logging::TerminalLogEvent;
 
 /// Component tracking queued recruitment orders for a nation
 #[derive(Component, Debug, Clone, Default)]
@@ -23,7 +22,6 @@ pub fn handle_recruitment(
     mut nations: Query<(&mut RecruitmentQueue, &mut Stockpile)>,
     recruitment_capacity: Query<&RecruitmentCapacity>,
     provinces: Query<&Province>,
-    mut log_writer: MessageWriter<TerminalLogEvent>,
 ) {
     for event in events.read() {
         if let Ok((mut queue, mut stockpile)) = nations.get_mut(event.nation.entity()) {
@@ -45,9 +43,7 @@ pub fn handle_recruitment(
 
             if actual_count == 0 {
                 warn!("Cannot queue recruitment: cap is 0 (need more provinces)");
-                log_writer.write(TerminalLogEvent {
-                    message: "Cannot recruit: need more provinces".to_string(),
-                });
+                info!("Cannot recruit: need more provinces");
                 continue;
             }
 
@@ -68,12 +64,10 @@ pub fn handle_recruitment(
                     "Cannot queue recruitment: not enough available resources (need: {} each, available: {} food, {} clothing, {} furniture)",
                     actual_count, canned_food_available, clothing_available, furniture_available
                 );
-                log_writer.write(TerminalLogEvent {
-                    message: format!(
-                        "Cannot recruit: need Canned Food, Clothing, Furniture (available: {}, {}, {})",
-                        canned_food_available, clothing_available, furniture_available
-                    ),
-                });
+                info!(
+                    "Cannot recruit: need Canned Food, Clothing, Furniture (available: {}, {}, {})",
+                    canned_food_available, clothing_available, furniture_available
+                );
                 continue;
             }
 
@@ -93,12 +87,10 @@ pub fn handle_recruitment(
                 "Queued {} workers for recruitment (total queued: {}, cap: {})",
                 final_count, queue.queued, cap
             );
-            log_writer.write(TerminalLogEvent {
-                message: format!(
-                    "Queued {} workers for recruitment (will hire next turn)",
-                    final_count
-                ),
-            });
+            info!(
+                "Queued {} workers for recruitment (will hire next turn)",
+                final_count
+            );
         }
     }
 }

@@ -13,7 +13,6 @@ use crate::map::province::{Province, TileProvince};
 use crate::map::rendering::MapVisualFor;
 use crate::messages::civilians::{CivilianCommand, CivilianCommandError, CivilianCommandRejected};
 use crate::turn_system::TurnSystem;
-use crate::ui::logging::TerminalLogEvent;
 
 /// Handle clicks on civilian visuals to select them
 pub fn handle_civilian_click(
@@ -144,7 +143,6 @@ pub fn handle_civilian_commands(
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
     mut rejection_writer: MessageWriter<CivilianCommandRejected>,
-    mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     let tile_storage = tile_storage_query.iter().next();
 
@@ -157,12 +155,11 @@ pub fn handle_civilian_commands(
                     order: command.order,
                     reason: CivilianCommandError::MissingCivilian,
                 });
-                log_rejection(
-                    &mut log_events,
-                    None,
-                    command.civilian,
+                info!(
+                    "Order {:?} for {:?} rejected: {}",
                     command.order,
-                    CivilianCommandError::MissingCivilian,
+                    command.civilian,
+                    CivilianCommandError::MissingCivilian.describe()
                 );
                 continue;
             }
@@ -188,51 +185,24 @@ pub fn handle_civilian_commands(
                     order: command.order,
                     reason,
                 });
-                log_rejection(
-                    &mut log_events,
-                    Some((command.civilian, civilian)),
-                    command.civilian,
-                    command.order,
-                    reason,
-                );
+                if let CivilianCommandError::MissingTargetTile(pos) = reason {
+                    info!(
+                        "{:?} at ({}, {}) order {:?} rejected: target tile ({}, {}) not found",
+                        civilian.kind, civilian.position.x, civilian.position.y, command.order, pos.x, pos.y
+                    );
+                } else {
+                    info!(
+                        "{:?} at ({}, {}) order {:?} rejected: {}",
+                        civilian.kind,
+                        civilian.position.x,
+                        civilian.position.y,
+                        command.order,
+                        reason.describe()
+                    );
+                }
             }
         }
     }
-}
-
-fn log_rejection(
-    log_events: &mut MessageWriter<TerminalLogEvent>,
-    civilian_data: Option<(Entity, &Civilian)>,
-    civilian_entity: Entity,
-    order: CivilianOrderKind,
-    reason: CivilianCommandError,
-) {
-    let message = match (civilian_data, reason) {
-        (Some((_, civilian)), CivilianCommandError::MissingTargetTile(pos)) => format!(
-            "{:?} at ({}, {}) order {:?} rejected: target tile ({}, {}) not found",
-            civilian.kind, civilian.position.x, civilian.position.y, order, pos.x, pos.y
-        ),
-        (Some((_, civilian)), other) => format!(
-            "{:?} at ({}, {}) order {:?} rejected: {}",
-            civilian.kind,
-            civilian.position.x,
-            civilian.position.y,
-            order,
-            other.describe()
-        ),
-        (None, CivilianCommandError::MissingTargetTile(pos)) => format!(
-            "Order {:?} for {:?} rejected: target tile ({}, {}) not found",
-            order, civilian_entity, pos.x, pos.y
-        ),
-        (None, other) => format!(
-            "Order {:?} for {:?} rejected: {}",
-            order,
-            civilian_entity,
-            other.describe()
-        ),
-    };
-
-    log_events.write(TerminalLogEvent { message });
 }
 
 /// Execute Move orders for all civilian types
@@ -241,7 +211,6 @@ pub fn execute_move_orders(
     mut civilians: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
     mut deselect_writer: MessageWriter<DeselectCivilian>,
     turn: Res<TurnSystem>,
-    mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (entity, mut civilian, order) in civilians.iter_mut() {
         if let CivilianOrderKind::Move { to } = order.target {
@@ -259,9 +228,7 @@ pub fn execute_move_orders(
                 ActionTurn(turn.current_turn),
             ));
 
-            log_events.write(TerminalLogEvent {
-                message: format!("{:?} moved to ({}, {})", civilian.kind, to.x, to.y),
-            });
+            info!("{:?} moved to ({}, {})", civilian.kind, to.x, to.y);
 
             commands.entity(entity).remove::<CivilianOrder>();
         }
@@ -272,19 +239,16 @@ pub fn execute_move_orders(
 pub fn execute_skip_and_sleep_orders(
     mut commands: Commands,
     mut civilians: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
-    mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for (entity, mut civilian, order) in civilians.iter_mut() {
         match order.target {
             CivilianOrderKind::SkipTurn => {
                 // Skip this turn only - remove order so they're available next turn
                 civilian.has_moved = true;
-                log_events.write(TerminalLogEvent {
-                    message: format!(
-                        "{:?} at ({}, {}) is skipping this turn",
-                        civilian.kind, civilian.position.x, civilian.position.y
-                    ),
-                });
+                info!(
+                    "{:?} at ({}, {}) is skipping this turn",
+                    civilian.kind, civilian.position.x, civilian.position.y
+                );
                 commands.entity(entity).remove::<CivilianOrder>();
             }
             CivilianOrderKind::Sleep => {
@@ -402,11 +366,9 @@ pub fn handle_rescind_orders(world: &mut World) {
             );
         }
 
-        // Write log event
+        // Log the message
         if !log_msg.is_empty() {
-            let mut log_messages =
-                world.resource_mut::<bevy::prelude::Messages<TerminalLogEvent>>();
-            log_messages.write(TerminalLogEvent { message: log_msg });
+            info!("{}", log_msg);
         }
     }
 }

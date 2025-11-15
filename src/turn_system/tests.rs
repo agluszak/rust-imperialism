@@ -6,7 +6,6 @@ use crate::economy::{Name, NationId, PlayerNation, Treasury};
 use crate::test_utils::*;
 use crate::turn_system::handle_turn_input;
 use crate::turn_system::{TurnPhase, TurnSystem};
-use crate::ui::logging::TerminalLogEvent;
 
 #[test]
 fn test_turn_system_default() {
@@ -116,7 +115,6 @@ fn test_turn_phase_copy() {
 #[test]
 fn pending_offers_block_turn_end() {
     let mut world = create_test_world();
-    world.init_resource::<Messages<TerminalLogEvent>>();
     world.insert_resource(DiplomaticOffers::default());
 
     let player_entity = world
@@ -144,18 +142,10 @@ fn pending_offers_block_turn_end() {
     let _ = world.run_system_once(
         |keys: Res<ButtonInput<KeyCode>>,
          turn_system: ResMut<TurnSystem>,
-         log: MessageWriter<TerminalLogEvent>,
          offers: Res<DiplomaticOffers>,
          player: Res<PlayerNation>,
          nation_ids: Query<&NationId>| {
-            handle_turn_input(
-                keys,
-                turn_system,
-                log,
-                Some(offers),
-                Some(player),
-                nation_ids,
-            );
+            handle_turn_input(keys, turn_system, Some(offers), Some(player), nation_ids);
         },
     );
 

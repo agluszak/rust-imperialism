@@ -6,7 +6,6 @@ use crate::economy::treasury::Treasury;
 use crate::economy::workforce::types::{WorkerSkill, Workforce};
 use crate::messages::workforce::TrainWorker;
 use crate::turn_system::{TurnPhase, TurnSystem};
-use crate::ui::logging::TerminalLogEvent;
 
 /// Component tracking queued training orders for a nation
 #[derive(Component, Debug, Clone, Default)]
@@ -39,7 +38,6 @@ impl TrainingQueue {
 pub fn handle_training(
     mut events: MessageReader<TrainWorker>,
     mut nations: Query<(&Workforce, &mut Stockpile, &Treasury, &mut TrainingQueue)>,
-    mut log_writer: MessageWriter<TerminalLogEvent>,
 ) {
     const TRAINING_COST_PAPER: u32 = 1;
     const TRAINING_COST_CASH: i64 = 100;
@@ -67,25 +65,21 @@ pub fn handle_training(
                     WorkerSkill::Expert => "Expert",
                 };
                 warn!("Cannot queue training: not enough {} workers", skill_name);
-                log_writer.write(TerminalLogEvent {
-                    message: format!(
-                        "Cannot train: not enough {} workers (have: {}, need: {})",
-                        skill_name, available, total_orders
-                    ),
-                });
+                info!(
+                    "Cannot train: not enough {} workers (have: {}, need: {})",
+                    skill_name, available, total_orders
+                );
                 continue;
             }
 
             // Check if we have the required available resources (not reserved)
             if !stockpile.has_available(Good::Paper, TRAINING_COST_PAPER) {
                 warn!("Cannot queue training: not enough available paper");
-                log_writer.write(TerminalLogEvent {
-                    message: format!(
-                        "Cannot train: need {} Paper (available: {})",
-                        TRAINING_COST_PAPER,
-                        stockpile.get_available(Good::Paper)
-                    ),
-                });
+                info!(
+                    "Cannot train: need {} Paper (available: {})",
+                    TRAINING_COST_PAPER,
+                    stockpile.get_available(Good::Paper)
+                );
                 continue;
             }
 
@@ -95,13 +89,11 @@ pub fn handle_training(
             let total_cash_needed = (total_queued as i64 + 1) * TRAINING_COST_CASH;
             if treasury.total() < total_cash_needed {
                 warn!("Cannot queue training: not enough money");
-                log_writer.write(TerminalLogEvent {
-                    message: format!(
-                        "Cannot train: need ${} (have: ${})",
-                        total_cash_needed,
-                        treasury.total()
-                    ),
-                });
+                info!(
+                    "Cannot train: need ${} (have: ${})",
+                    total_cash_needed,
+                    treasury.total()
+                );
                 continue;
             }
 
@@ -126,12 +118,10 @@ pub fn handle_training(
             };
 
             info!("Queued training: {} -> {}", from_name, to_name);
-            log_writer.write(TerminalLogEvent {
-                message: format!(
-                    "Queued training: {} -> {} (will train next turn)",
-                    from_name, to_name
-                ),
-            });
+            info!(
+                "Queued training: {} -> {} (will train next turn)",
+                from_name, to_name
+            );
         }
     }
 }

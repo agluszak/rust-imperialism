@@ -1,13 +1,7 @@
-use bevy::{
-    input::{ButtonInput, mouse::MouseWheel},
-    math::Vec3,
-    prelude::*,
-    ui::RelativeCursorPosition,
-};
+use bevy::{input::{ButtonInput, mouse::MouseWheel}, math::Vec3, prelude::*};
 
 use crate::economy::{Capital, NationId, PlayerNation};
 use crate::map::TilePosExt;
-use crate::ui::ScrollableTerminal;
 use crate::ui::mode::GameMode;
 
 /// Plugin that handles camera setup and control
@@ -19,9 +13,7 @@ impl Plugin for CameraPlugin {
             Update,
             (
                 center_on_player_capital.run_if(resource_added::<PlayerNation>),
-                movement
-                    .after(crate::ui::handle_mouse_wheel_scroll)
-                    .run_if(in_state(GameMode::Map)),
+                movement.run_if(in_state(GameMode::Map)),
             ),
         );
     }
@@ -73,7 +65,6 @@ pub fn movement(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut scroll_evr: MessageReader<MouseWheel>,
     mut query: Query<(&mut Transform, &mut Projection), With<Camera>>,
-    terminal_area: Query<&RelativeCursorPosition, With<ScrollableTerminal>>,
 ) {
     for (mut transform, mut projection) in query.iter_mut() {
         let mut direction = Vec3::ZERO;
@@ -98,25 +89,8 @@ pub fn movement(
             continue;
         };
 
-        // Determine if the cursor is over the terminal (which includes the built-in scrollbar)
-        let mut cursor_over_ui = false;
-        for cursor in terminal_area.iter() {
-            if let Some(pos) = cursor.normalized
-                && pos.x >= 0.0
-                && pos.x <= 1.0
-                && pos.y >= 0.0
-                && pos.y <= 1.0
-            {
-                cursor_over_ui = true;
-                break;
-            }
-        }
-
-        // Handle mouse wheel zooming, but ignore when cursor is over terminal UI
+        // Handle mouse wheel zooming
         for ev in scroll_evr.read() {
-            if cursor_over_ui {
-                continue;
-            }
             let zoom_factor = if ev.y > 0.0 { 0.9 } else { 1.1 };
             ortho.scale *= zoom_factor;
         }

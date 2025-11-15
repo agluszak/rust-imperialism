@@ -2,7 +2,6 @@ use bevy::prelude::*;
 
 use crate::diplomacy::DiplomaticOffers;
 use crate::economy::{Calendar, NationId, PlayerNation, Season};
-use crate::ui::logging::TerminalLogEvent;
 
 #[derive(Resource, Debug, Clone)]
 pub struct TurnSystem {
@@ -63,7 +62,6 @@ impl Plugin for TurnSystemPlugin {
 fn handle_turn_input(
     keys: Res<ButtonInput<KeyCode>>,
     mut turn_system: ResMut<TurnSystem>,
-    mut log_writer: MessageWriter<TerminalLogEvent>,
     offers: Option<Res<DiplomaticOffers>>,
     player: Option<Res<PlayerNation>>,
     nation_ids: Query<&NationId>,
@@ -73,15 +71,11 @@ fn handle_turn_input(
             && let Ok(player_id) = nation_ids.get(*player.0)
             && offers.has_pending_for(*player_id)
         {
-            log_writer.write(TerminalLogEvent {
-                message: "Resolve pending diplomatic offers before ending the turn.".to_string(),
-            });
+            info!("Resolve pending diplomatic offers before ending the turn.");
             return;
         }
         turn_system.end_player_turn();
-        log_writer.write(TerminalLogEvent {
-            message: format!("Player turn ended. Turn: {}", turn_system.current_turn),
-        });
+        info!("Player turn ended. Turn: {}", turn_system.current_turn);
     }
 }
 
@@ -89,7 +83,6 @@ fn process_turn_phases(
     mut turn_system: ResMut<TurnSystem>,
     mut turn_timer: Local<Timer>,
     time: Res<Time>,
-    mut log_writer: MessageWriter<TerminalLogEvent>,
     mut calendar: Option<ResMut<Calendar>>,
 ) {
     // Handle turn phase transitions with timing
@@ -104,9 +97,7 @@ fn process_turn_phases(
 
             if turn_timer.just_finished() {
                 turn_system.advance_turn(); // Processing -> EnemyTurn
-                log_writer.write(TerminalLogEvent {
-                    message: "=== Enemy Turn ===".to_string(),
-                });
+                info!("=== Enemy Turn ===");
                 turn_timer.reset();
             }
         }
@@ -132,9 +123,7 @@ fn process_turn_phases(
                         }
                     };
                 }
-                log_writer.write(TerminalLogEvent {
-                    message: format!("Starting turn {}", turn_system.current_turn),
-                });
+                info!("Starting turn {}", turn_system.current_turn);
                 turn_timer.reset();
             }
         }
@@ -142,17 +131,12 @@ fn process_turn_phases(
     }
 }
 
-fn update_turn_display(
-    turn_system: Res<TurnSystem>,
-    mut log_writer: MessageWriter<TerminalLogEvent>,
-) {
+fn update_turn_display(turn_system: Res<TurnSystem>) {
     if turn_system.is_changed() {
-        log_writer.write(TerminalLogEvent {
-            message: format!(
-                "=== Turn {} - {:?} ===",
-                turn_system.current_turn, turn_system.phase
-            ),
-        });
+        info!(
+            "=== Turn {} - {:?} ===",
+            turn_system.current_turn, turn_system.phase
+        );
     }
 }
 

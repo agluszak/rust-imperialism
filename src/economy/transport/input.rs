@@ -8,7 +8,6 @@ use crate::economy::transport::types::{
 use crate::economy::transport::validation::{are_adjacent, can_build_rail_on_terrain};
 use crate::map::tile_pos::{HexExt, TilePosExt};
 use crate::map::tiles::TerrainType;
-use crate::ui::logging::TerminalLogEvent;
 
 use crate::economy::{nation::PlayerNation, technology::Technologies, treasury::Treasury};
 
@@ -24,19 +23,11 @@ pub fn apply_improvements(
     nations: Query<&Technologies>,
     tile_storage_query: Query<&TileStorage>,
     tile_types: Query<&TerrainType>,
-    mut log_events: MessageWriter<TerminalLogEvent>,
 ) {
     for e in ev.read() {
         match e.kind {
             ImprovementKind::Road => {
-                handle_road_placement(
-                    e.a,
-                    e.b,
-                    &mut roads,
-                    &player,
-                    &mut treasuries,
-                    &mut log_events,
-                );
+                handle_road_placement(e.a, e.b, &mut roads, &player, &mut treasuries);
             }
             ImprovementKind::Rail => {
                 handle_rail_construction(
@@ -48,17 +39,10 @@ pub fn apply_improvements(
                     &nations,
                     &tile_storage_query,
                     &tile_types,
-                    &mut log_events,
                 );
             }
             ImprovementKind::Depot => {
-                handle_depot_placement(
-                    &mut commands,
-                    e.a,
-                    &player,
-                    &mut treasuries,
-                    &mut log_events,
-                );
+                handle_depot_placement(&mut commands, e.a, &player, &mut treasuries);
             }
             ImprovementKind::Port => {
                 handle_port_placement(
@@ -68,7 +52,6 @@ pub fn apply_improvements(
                     &mut treasuries,
                     &tile_storage_query,
                     &tile_types,
-                    &mut log_events,
                 );
             }
         }
@@ -81,7 +64,6 @@ fn handle_road_placement(
     roads: &mut ResMut<Roads>,
     player: &Option<Res<PlayerNation>>,
     treasuries: &mut Query<&mut Treasury>,
-    log_events: &mut MessageWriter<TerminalLogEvent>,
 ) {
     if !are_adjacent(a, b) {
         return;
@@ -90,12 +72,10 @@ fn handle_road_placement(
     // Toggle behavior: if road exists, remove for free; otherwise place with cost
     if roads.0.contains(&edge) {
         roads.0.remove(&edge);
-        log_events.write(TerminalLogEvent {
-            message: format!(
-                "Removed road between ({}, {}) and ({}, {})",
-                edge.0.x, edge.0.y, edge.1.x, edge.1.y
-            ),
-        });
+        info!(
+            "Removed road between ({}, {}) and ({}, {})",
+            edge.0.x, edge.0.y, edge.1.x, edge.1.y
+        );
     } else {
         let cost: i64 = 10;
         if let Some(player) = &player
@@ -104,20 +84,16 @@ fn handle_road_placement(
             if treasury.total() >= cost {
                 treasury.subtract(cost);
                 roads.0.insert(edge);
-                log_events.write(TerminalLogEvent {
-                    message: format!(
-                        "Built road between ({}, {}) and ({}, {}) for ${}",
-                        edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost
-                    ),
-                });
+                info!(
+                    "Built road between ({}, {}) and ({}, {}) for ${}",
+                    edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost
+                );
             } else {
-                log_events.write(TerminalLogEvent {
-                    message: format!(
-                        "Not enough money to build road (need ${}, have ${})",
-                        cost,
-                        treasury.total()
-                    ),
-                });
+                info!(
+                    "Not enough money to build road (need ${}, have ${})",
+                    cost,
+                    treasury.total()
+                );
             }
         }
     }
@@ -132,7 +108,6 @@ fn handle_rail_construction(
     nations: &Query<&Technologies>,
     tile_storage_query: &Query<&TileStorage>,
     tile_types: &Query<&TerrainType>,
-    log_events: &mut MessageWriter<TerminalLogEvent>,
 ) {
     if !are_adjacent(e.a, e.b) {
         return;
@@ -141,12 +116,10 @@ fn handle_rail_construction(
 
     // Check if rail already exists
     if rails.0.contains(&edge) {
-        log_events.write(TerminalLogEvent {
-            message: format!(
-                "Rail already exists between ({}, {}) and ({}, {})",
-                edge.0.x, edge.0.y, edge.1.x, edge.1.y
-            ),
-        });
+        info!(
+            "Rail already exists between ({}, {}) and ({}, {})",
+            edge.0.x, edge.0.y, edge.1.x, edge.1.y
+        );
         return;
     }
 
@@ -217,10 +190,10 @@ fn handle_rail_construction(
         }
 
         if !can_build {
-            log_events.write(TerminalLogEvent {
-                message: failure_reason
-                    .unwrap_or_else(|| "Cannot build rail on this terrain".to_string()),
-            });
+            info!(
+                "{}",
+                failure_reason.unwrap_or_else(|| "Cannot build rail on this terrain".to_string())
+            );
             return;
         }
     }
@@ -245,20 +218,16 @@ fn handle_rail_construction(
                     engineer,
                 });
 
-                log_events.write(TerminalLogEvent {
-                    message: format!(
-                        "Started rail construction from ({}, {}) to ({}, {}) for ${} (3 turns)",
-                        edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost
-                    ),
-                });
+                info!(
+                    "Started rail construction from ({}, {}) to ({}, {}) for ${} (3 turns)",
+                    edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost
+                );
             } else {
-                log_events.write(TerminalLogEvent {
-                    message: format!(
-                        "Not enough money to build rail (need ${}, have ${})",
-                        cost,
-                        treasury.total()
-                    ),
-                });
+                info!(
+                    "Not enough money to build rail (need ${}, have ${})",
+                    cost,
+                    treasury.total()
+                );
             }
         }
     }
@@ -269,7 +238,6 @@ fn handle_depot_placement(
     a: TilePos,
     player: &Option<Res<PlayerNation>>,
     treasuries: &mut Query<&mut Treasury>,
-    log_events: &mut MessageWriter<TerminalLogEvent>,
 ) {
     // Depot is placed on a single tile (use position 'a', ignore 'b')
     let cost: i64 = 100;
@@ -284,17 +252,13 @@ fn handle_depot_placement(
                     owner: player_entity, // Set owner to player nation
                     connected: false,     // Will be computed by connectivity system
                 });
-                log_events.write(TerminalLogEvent {
-                    message: format!("Built depot at ({}, {}) for ${}", a.x, a.y, cost),
-                });
+                info!("Built depot at ({}, {}) for ${}", a.x, a.y, cost);
             } else {
-                log_events.write(TerminalLogEvent {
-                    message: format!(
-                        "Not enough money to build depot (need ${}, have ${})",
-                        cost,
-                        treasury.total()
-                    ),
-                });
+                info!(
+                    "Not enough money to build depot (need ${}, have ${})",
+                    cost,
+                    treasury.total()
+                );
             }
         }
     }
@@ -307,7 +271,6 @@ fn handle_port_placement(
     treasuries: &mut Query<&mut Treasury>,
     tile_storage_query: &Query<&TileStorage>,
     tile_types: &Query<&TerrainType>,
-    log_events: &mut MessageWriter<TerminalLogEvent>,
 ) {
     // Port must be adjacent to water
     let port_pos = a;
@@ -332,12 +295,10 @@ fn handle_port_placement(
     }
 
     if !adjacent_to_water {
-        log_events.write(TerminalLogEvent {
-            message: format!(
-                "Cannot build port at ({}, {}): must be adjacent to water",
-                port_pos.x, port_pos.y
-            ),
-        });
+        info!(
+            "Cannot build port at ({}, {}): must be adjacent to water",
+            port_pos.x, port_pos.y
+        );
         return;
     }
 
@@ -355,17 +316,13 @@ fn handle_port_placement(
                     connected: false,
                     is_river: false, // TODO: detect from terrain
                 });
-                log_events.write(TerminalLogEvent {
-                    message: format!("Built port at ({}, {}) for ${}", a.x, a.y, cost),
-                });
+                info!("Built port at ({}, {}) for ${}", a.x, a.y, cost);
             } else {
-                log_events.write(TerminalLogEvent {
-                    message: format!(
-                        "Not enough money to build port (need ${}, have ${})",
-                        cost,
-                        treasury.total()
-                    ),
-                });
+                info!(
+                    "Not enough money to build port (need ${}, have ${})",
+                    cost,
+                    treasury.total()
+                );
             }
         }
     }
