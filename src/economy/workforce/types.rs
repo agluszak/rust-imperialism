@@ -5,7 +5,8 @@ use crate::economy::reservation::ResourcePool;
 
 /// Workforce component tracks workers by skill level for a nation
 /// Workers provide labor points: Untrained=1, Trained=2, Expert=4
-#[derive(Component, Debug, Clone, Default)]
+#[derive(Component, Debug, Clone, Default, Reflect)]
+#[reflect(Component)]
 pub struct Workforce {
     /// Individual workers with their state
     pub workers: Vec<Worker>,
@@ -139,7 +140,7 @@ impl Workforce {
 }
 
 /// Individual worker with skill level and health state
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Reflect)]
 pub struct Worker {
     pub skill: WorkerSkill,
     pub health: WorkerHealth,
@@ -148,7 +149,7 @@ pub struct Worker {
 }
 
 /// Worker skill level determines labor points
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect)]
 pub enum WorkerSkill {
     Untrained, // 1 labor point
     Trained,   // 2 labor points
@@ -176,7 +177,7 @@ impl WorkerSkill {
 }
 
 /// Worker health state
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
 pub enum WorkerHealth {
     Healthy, // Produces labor
     Sick,    // Ate wrong food, produces 0 labor
@@ -184,7 +185,8 @@ pub enum WorkerHealth {
 }
 
 /// Component to track recruitment upgrades
-#[derive(Component, Debug, Clone, Copy, Default)]
+#[derive(Component, Debug, Clone, Copy, Default, Reflect)]
+#[reflect(Component)]
 pub struct RecruitmentCapacity {
     pub upgraded: bool, // false = provinces/4, true = provinces/3
 }

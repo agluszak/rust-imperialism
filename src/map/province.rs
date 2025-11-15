@@ -2,6 +2,7 @@ use bevy::ecs::entity::{EntityMapper, MapEntities};
 use bevy::ecs::reflect::ReflectMapEntities;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
+use moonshine_save::prelude::Save;
 
 /// Unique identifier for a province
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect)]
@@ -11,6 +12,7 @@ pub struct ProvinceId(pub u32);
 /// A province is a collection of adjacent tiles with one city
 #[derive(Component, Debug, Clone, Reflect)]
 #[reflect(Component, MapEntities)]
+#[require(Save)]
 pub struct Province {
     pub id: ProvinceId,
     pub tiles: Vec<TilePos>,
@@ -21,6 +23,7 @@ pub struct Province {
 /// Marker component for the city within a province
 #[derive(Component, Debug, Clone, Copy, Reflect)]
 #[reflect(Component)]
+#[require(Save)]
 pub struct City {
     pub province: ProvinceId,
     pub is_capital: bool,

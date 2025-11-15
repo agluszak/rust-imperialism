@@ -2,6 +2,7 @@ use bevy::ecs::entity::{EntityMapper, MapEntities};
 use bevy::ecs::reflect::ReflectMapEntities;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
+use moonshine_save::prelude::Save;
 use std::collections::HashSet;
 
 /// Type of transport improvement
@@ -16,6 +17,7 @@ pub enum ImprovementKind {
 /// Marker component for depots that gather resources
 #[derive(Component, Debug, Reflect)]
 #[reflect(Component, MapEntities)]
+#[require(Save)]
 pub struct Depot {
     pub position: TilePos,
     pub owner: Entity,   // Nation entity that owns this depot
@@ -25,6 +27,7 @@ pub struct Depot {
 /// Marker component for ports (coastal or river)
 #[derive(Component, Debug, Reflect)]
 #[reflect(Component, MapEntities)]
+#[require(Save)]
 pub struct Port {
     pub position: TilePos,
     pub owner: Entity, // Nation entity that owns this port
@@ -45,6 +48,7 @@ pub struct Rails(pub HashSet<(TilePos, TilePos)>);
 /// Component tracking rail construction in progress (takes 3 turns to complete)
 #[derive(Component, Debug, Reflect)]
 #[reflect(Component, MapEntities)]
+#[require(Save)]
 pub struct RailConstruction {
     pub from: TilePos,
     pub to: TilePos,

@@ -334,6 +334,7 @@ mod tests {
                         kind,
                         position: TilePos { x: 0, y: 0 },
                         owner: nation,
+                        owner_id: NationId(42),
                         selected: false,
                         has_moved: false,
                     });

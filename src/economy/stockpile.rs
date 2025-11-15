@@ -13,7 +13,8 @@ pub struct StockpileEntry {
     pub available: u32,
 }
 
-#[derive(Component, Debug, Clone, Default)]
+#[derive(Component, Debug, Clone, Default, Reflect)]
+#[reflect(Component)]
 pub struct Stockpile {
     pools: HashMap<Good, ResourcePool>,
 }

@@ -2,7 +2,8 @@ use bevy::prelude::*;
 
 use crate::economy::reservation::ResourcePool;
 
-#[derive(Component, Debug, Clone)]
+#[derive(Component, Debug, Clone, Reflect)]
+#[reflect(Component)]
 pub struct Treasury {
     money_pool: ResourcePool,
 }

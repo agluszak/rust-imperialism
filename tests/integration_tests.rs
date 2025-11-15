@@ -2,6 +2,8 @@
 //!
 //! These tests demonstrate ECS testing patterns and verify core game mechanics
 
+use rust_imperialism::economy::nation::NationId;
+
 /// Test turn system functionality
 #[test]
 fn test_turn_system() {
@@ -70,6 +72,7 @@ fn test_ai_move_command_executes() {
     use rust_imperialism::civilians::{
         Civilian, CivilianCommand, CivilianKind, CivilianOrder, CivilianOrderKind, DeselectCivilian,
     };
+    use rust_imperialism::economy::nation::NationId;
     use rust_imperialism::map::province::{Province, ProvinceId, TileProvince};
     use rust_imperialism::messages::civilians::CivilianCommandRejected;
     use rust_imperialism::turn_system::TurnSystem;
@@ -81,7 +84,7 @@ fn test_ai_move_command_executes() {
     world.init_resource::<Messages<DeselectCivilian>>();
 
     // Owned province and tiles
-    let nation = world.spawn_empty().id();
+    let nation = world.spawn(NationId(1)).id();
     let province_id = ProvinceId(1);
     world.spawn(Province {
         id: province_id,
@@ -104,6 +107,7 @@ fn test_ai_move_command_executes() {
             kind: CivilianKind::Engineer,
             position: start,
             owner: nation,
+            owner_id: NationId(1),
             selected: false,
             has_moved: false,
         })
@@ -159,7 +163,7 @@ fn test_illegal_rail_command_rejected() {
     world.init_resource::<Messages<CivilianCommandRejected>>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
-    let player = world.spawn_empty().id();
+    let player = world.spawn(NationId(2)).id();
     let other = world.spawn_empty().id();
 
     let player_province = ProvinceId(1);
@@ -199,6 +203,7 @@ fn test_illegal_rail_command_rejected() {
             kind: CivilianKind::Engineer,
             position: start,
             owner: player,
+            owner_id: NationId(2),
             selected: false,
             has_moved: false,
         })

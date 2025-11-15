@@ -4,7 +4,8 @@ use std::collections::HashMap;
 use crate::economy::goods::Good;
 
 /// A pool of resources with reservations
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Reflect)]
+#[reflect(Debug)]
 pub struct ResourcePool {
     pub total: u32,
     pub reserved: u32,
@@ -44,11 +45,11 @@ impl ResourcePool {
 }
 
 /// Opaque identifier for a reservation
-#[derive(Copy, Clone, Hash, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Debug, Reflect)]
 pub struct ReservationId(u32);
 
 /// Internal data for a reservation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect)]
 struct ReservationData {
     goods: Vec<(Good, u32)>,
     labor: u32,

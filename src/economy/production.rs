@@ -345,7 +345,7 @@ mod tests {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect)]
 pub enum BuildingKind {
     // Production buildings
     TextileMill,          // 2×Cotton OR 2×Wool → 1×Fabric
@@ -365,7 +365,7 @@ pub enum BuildingKind {
 }
 
 /// What input material a building should use for production
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
 pub enum ProductionChoice {
     // For TextileMill: choose between Cotton or Wool
     UseCotton,
@@ -385,7 +385,8 @@ pub enum ProductionChoice {
 }
 
 /// Production settings for a building (persists turn-to-turn)
-#[derive(Component, Debug, Clone)]
+#[derive(Component, Debug, Clone, Reflect)]
+#[reflect(Component)]
 pub struct ProductionSettings {
     /// What input material to use (e.g., Cotton vs Wool for textile mill)
     pub choice: ProductionChoice,
@@ -402,7 +403,8 @@ impl Default for ProductionSettings {
     }
 }
 
-#[derive(Component, Debug, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy, Reflect)]
+#[reflect(Component)]
 pub struct Building {
     pub kind: BuildingKind,
     pub capacity: u32, // Maximum output per turn
@@ -888,7 +890,8 @@ pub fn input_requirement_per_unit(
 }
 
 /// Collection of all buildings for a nation
-#[derive(Component, Debug, Clone, Default)]
+#[derive(Component, Debug, Clone, Default, Reflect)]
+#[reflect(Component)]
 pub struct Buildings {
     pub buildings: HashMap<BuildingKind, Building>,
 }

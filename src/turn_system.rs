@@ -3,13 +3,14 @@ use bevy::prelude::*;
 use crate::diplomacy::DiplomaticOffers;
 use crate::economy::{Calendar, NationId, PlayerNation, Season};
 
-#[derive(Resource, Debug, Clone)]
+#[derive(Resource, Debug, Clone, Reflect)]
+#[reflect(Resource)]
 pub struct TurnSystem {
     pub current_turn: u32,
     pub phase: TurnPhase,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Reflect)]
 pub enum TurnPhase {
     PlayerTurn,
     Processing,
