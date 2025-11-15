@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity)]
+
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
@@ -51,7 +53,12 @@ impl Plugin for AiBehaviorPlugin {
             )
             .add_systems(
                 Update,
-                reset_ai_rng_on_enemy_turn
+                (
+                    reset_ai_rng_on_enemy_turn,
+                    reset_ai_civilian_actions,
+                    reset_ai_action_states,
+                )
+                    .chain()
                     .run_if(in_state(AppState::InGame))
                     .run_if(enemy_turn_entered),
             )
@@ -169,9 +176,43 @@ fn reset_ai_rng_on_enemy_turn(mut rng: ResMut<AiRng>, turn: Res<TurnSystem>) {
     rng.0 = StdRng::seed_from_u64(RNG_BASE_SEED ^ u64::from(turn.current_turn));
 }
 
+/// Reset has_moved for AI-controlled civilians at the start of enemy turn.
+fn reset_ai_civilian_actions(mut civilians: Query<&mut Civilian, With<AiControlledCivilian>>) {
+    for mut civilian in civilians.iter_mut() {
+        civilian.has_moved = false;
+    }
+}
+
+/// Reset all AI action states to Init at the start of each enemy turn.
+/// Big-brain actions stay in Success/Failure state unless explicitly reset.
+fn reset_ai_action_states(
+    mut actions: Query<
+        &mut ActionState,
+        (
+            With<Actor>,
+            Or<(
+                With<BuildRailOrder>,
+                With<BuildImprovementOrder>,
+                With<MoveTowardsOwnedTile>,
+                With<SkipTurnOrder>,
+                With<crate::ai::trade::PlanBuildingFocus>,
+                With<crate::ai::trade::ApplyProductionPlan>,
+                With<crate::ai::trade::PlanMarketOrders>,
+                With<crate::ai::trade::EconomyIdleAction>,
+            )>,
+        ),
+    >,
+) {
+    for mut state in actions.iter_mut() {
+        if *state == ActionState::Success || *state == ActionState::Failure {
+            *state = ActionState::Init;
+        }
+    }
+}
+
 fn initialize_ai_thinkers(
     mut commands: Commands,
-    new_units: Query<Entity, (With<AiControlledCivilian>, Without<Thinker>)>,
+    new_units: Query<Entity, (With<AiControlledCivilian>, Without<AiOrderCache>)>,
 ) {
     for entity in &new_units {
         commands.entity(entity).insert((
@@ -993,8 +1034,8 @@ fn select_improvement_target(
 
 #[cfg(test)]
 mod tests {
-    use bevy::ecs::system::SystemState;
-    use bevy::prelude::{Commands, Entity, Query, Res, ResMut, With, Without, World};
+    use bevy::ecs::system::{RunSystemOnce, SystemState};
+    use bevy::prelude::{Commands, Entity, Query, Res, ResMut, Update, With, Without, World};
     use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
     use rand::RngCore;
     use rand::SeedableRng;
@@ -1578,6 +1619,315 @@ mod tests {
         match order {
             Some(CivilianOrderKind::Mine { to }) => assert_eq!(to, mineral_pos),
             other => panic!("expected mining order, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_reset_ai_action_states_resets_success_to_init() {
+        use bevy::prelude::App;
+        use big_brain::prelude::*;
+
+        let mut app = App::new();
+        app.add_plugins(BigBrainPlugin::new(bevy::prelude::Update));
+
+        // Spawn an AI civilian action in Success state
+        let civilian_action = app
+            .world_mut()
+            .spawn((
+                Actor(Entity::PLACEHOLDER),
+                ActionState::Success,
+                super::SkipTurnOrder,
+            ))
+            .id();
+
+        // Spawn an AI economy action in Success state
+        let economy_action = app
+            .world_mut()
+            .spawn((
+                Actor(Entity::PLACEHOLDER),
+                ActionState::Success,
+                crate::ai::trade::PlanBuildingFocus,
+            ))
+            .id();
+
+        // Run the reset system
+        app.world_mut()
+            .run_system_once(super::reset_ai_action_states)
+            .unwrap();
+
+        // Verify both were reset to Init
+        let civilian_state = app.world().get::<ActionState>(civilian_action).unwrap();
+        assert_eq!(
+            *civilian_state,
+            ActionState::Init,
+            "Civilian action should be reset to Init"
+        );
+
+        let economy_state = app.world().get::<ActionState>(economy_action).unwrap();
+        assert_eq!(
+            *economy_state,
+            ActionState::Init,
+            "Economy action should be reset to Init"
+        );
+    }
+
+    #[test]
+    fn test_reset_ai_action_states_resets_failure_to_init() {
+        use bevy::prelude::App;
+        use big_brain::prelude::*;
+
+        let mut app = App::new();
+        app.add_plugins(BigBrainPlugin::new(bevy::prelude::Update));
+
+        // Spawn actions in Failure state
+        let action1 = app
+            .world_mut()
+            .spawn((
+                Actor(Entity::PLACEHOLDER),
+                ActionState::Failure,
+                super::BuildRailOrder,
+            ))
+            .id();
+
+        let action2 = app
+            .world_mut()
+            .spawn((
+                Actor(Entity::PLACEHOLDER),
+                ActionState::Failure,
+                crate::ai::trade::ApplyProductionPlan,
+            ))
+            .id();
+
+        // Run the reset system
+        app.world_mut()
+            .run_system_once(super::reset_ai_action_states)
+            .unwrap();
+
+        // Verify both were reset
+        assert_eq!(
+            *app.world().get::<ActionState>(action1).unwrap(),
+            ActionState::Init
+        );
+        assert_eq!(
+            *app.world().get::<ActionState>(action2).unwrap(),
+            ActionState::Init
+        );
+    }
+
+    #[test]
+    fn test_reset_ai_action_states_preserves_other_states() {
+        use bevy::prelude::App;
+        use big_brain::prelude::*;
+
+        let mut app = App::new();
+        app.add_plugins(BigBrainPlugin::new(bevy::prelude::Update))
+;
+
+        // Spawn actions in various non-terminal states
+        let init_action = app
+            .world_mut()
+            .spawn((
+                Actor(Entity::PLACEHOLDER),
+                ActionState::Init,
+                super::SkipTurnOrder,
+            ))
+            .id();
+
+        let requested_action = app
+            .world_mut()
+            .spawn((
+                Actor(Entity::PLACEHOLDER),
+                ActionState::Requested,
+                super::BuildImprovementOrder,
+            ))
+            .id();
+
+        let executing_action = app
+            .world_mut()
+            .spawn((
+                Actor(Entity::PLACEHOLDER),
+                ActionState::Executing,
+                super::MoveTowardsOwnedTile,
+            ))
+            .id();
+
+        // Run the reset system
+        app.world_mut()
+            .run_system_once(super::reset_ai_action_states)
+            .unwrap();
+
+        // Verify non-terminal states are unchanged
+        assert_eq!(
+            *app.world().get::<ActionState>(init_action).unwrap(),
+            ActionState::Init,
+            "Init should remain Init"
+        );
+        assert_eq!(
+            *app.world().get::<ActionState>(requested_action).unwrap(),
+            ActionState::Requested,
+            "Requested should remain Requested"
+        );
+        assert_eq!(
+            *app.world().get::<ActionState>(executing_action).unwrap(),
+            ActionState::Executing,
+            "Executing should remain Executing"
+        );
+    }
+
+    #[test]
+    fn test_reset_ai_action_states_ignores_non_actor_actions() {
+        use bevy::prelude::App;
+        use big_brain::prelude::*;
+
+        let mut app = App::new();
+        app.add_plugins(BigBrainPlugin::new(bevy::prelude::Update))
+;
+
+        // Spawn an action without Actor component (shouldn't be reset)
+        let non_actor_action = app
+            .world_mut()
+            .spawn((ActionState::Success, super::SkipTurnOrder))
+            .id();
+
+        // Run the reset system
+        app.world_mut()
+            .run_system_once(super::reset_ai_action_states)
+            .unwrap();
+
+        // Verify it was not reset (still Success)
+        assert_eq!(
+            *app.world().get::<ActionState>(non_actor_action).unwrap(),
+            ActionState::Success,
+            "Non-Actor action should not be reset"
+        );
+    }
+
+    #[test]
+    fn test_reset_respects_actor_component() {
+        use bevy::prelude::App;
+        use big_brain::prelude::*;
+
+        let mut app = App::new();
+        app.add_plugins(BigBrainPlugin::new(Update))
+;
+
+        // Spawn an action WITH Actor component
+        let actor_action = app
+            .world_mut()
+            .spawn((
+                Actor(Entity::PLACEHOLDER),
+                ActionState::Success,
+                super::SkipTurnOrder,
+            ))
+            .id();
+
+        // Spawn an action WITHOUT Actor component
+        let non_actor_action = app
+            .world_mut()
+            .spawn((ActionState::Success, super::SkipTurnOrder))
+            .id();
+
+        // Run the reset system
+        app.world_mut()
+            .run_system_once(super::reset_ai_action_states)
+            .unwrap();
+
+        // Verify actor action was reset
+        assert_eq!(
+            *app.world().get::<ActionState>(actor_action).unwrap(),
+            ActionState::Init,
+            "Action with Actor should be reset"
+        );
+
+        // Verify non-actor action was NOT reset
+        assert_eq!(
+            *app.world().get::<ActionState>(non_actor_action).unwrap(),
+            ActionState::Success,
+            "Action without Actor should not be reset"
+        );
+    }
+
+    #[test]
+    fn test_multiple_ai_actions_reset_together() {
+        use bevy::prelude::App;
+        use big_brain::prelude::*;
+
+        let mut app = App::new();
+        app.add_plugins(BigBrainPlugin::new(bevy::prelude::Update))
+;
+
+        // Spawn multiple AI actions of different types, all in Success
+        let actions: Vec<Entity> = vec![
+            app.world_mut()
+                .spawn((
+                    Actor(Entity::PLACEHOLDER),
+                    ActionState::Success,
+                    super::SkipTurnOrder,
+                ))
+                .id(),
+            app.world_mut()
+                .spawn((
+                    Actor(Entity::PLACEHOLDER),
+                    ActionState::Success,
+                    super::BuildRailOrder,
+                ))
+                .id(),
+            app.world_mut()
+                .spawn((
+                    Actor(Entity::PLACEHOLDER),
+                    ActionState::Success,
+                    super::BuildImprovementOrder,
+                ))
+                .id(),
+            app.world_mut()
+                .spawn((
+                    Actor(Entity::PLACEHOLDER),
+                    ActionState::Success,
+                    super::MoveTowardsOwnedTile,
+                ))
+                .id(),
+            app.world_mut()
+                .spawn((
+                    Actor(Entity::PLACEHOLDER),
+                    ActionState::Success,
+                    crate::ai::trade::PlanBuildingFocus,
+                ))
+                .id(),
+            app.world_mut()
+                .spawn((
+                    Actor(Entity::PLACEHOLDER),
+                    ActionState::Success,
+                    crate::ai::trade::ApplyProductionPlan,
+                ))
+                .id(),
+            app.world_mut()
+                .spawn((
+                    Actor(Entity::PLACEHOLDER),
+                    ActionState::Success,
+                    crate::ai::trade::PlanMarketOrders,
+                ))
+                .id(),
+            app.world_mut()
+                .spawn((
+                    Actor(Entity::PLACEHOLDER),
+                    ActionState::Success,
+                    crate::ai::trade::EconomyIdleAction,
+                ))
+                .id(),
+        ];
+
+        // Run the reset system
+        app.world_mut()
+            .run_system_once(super::reset_ai_action_states)
+            .unwrap();
+
+        // Verify all were reset
+        for action in actions {
+            assert_eq!(
+                *app.world().get::<ActionState>(action).unwrap(),
+                ActionState::Init,
+                "All AI actions should be reset to Init"
+            );
         }
     }
 }

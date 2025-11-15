@@ -141,28 +141,28 @@ struct AiEconomyBrain {
 }
 
 #[derive(Component, Debug, Clone, ScorerBuilder)]
-struct ShouldPlanBuildings;
+pub struct ShouldPlanBuildings;
 
 #[derive(Component, Debug, Clone, Default, ActionBuilder)]
-struct PlanBuildingFocus;
+pub struct PlanBuildingFocus;
 
 #[derive(Component, Debug, Clone, ScorerBuilder)]
-struct ShouldApplyProduction;
+pub struct ShouldApplyProduction;
 
 #[derive(Component, Debug, Clone, Default, ActionBuilder)]
-struct ApplyProductionPlan;
+pub struct ApplyProductionPlan;
 
 #[derive(Component, Debug, Clone, ScorerBuilder)]
-struct ShouldPlanMarket;
+pub struct ShouldPlanMarket;
 
 #[derive(Component, Debug, Clone, Default, ActionBuilder)]
-struct PlanMarketOrders;
+pub struct PlanMarketOrders;
 
 #[derive(Component, Debug, Clone, ScorerBuilder)]
-struct EconomyIdle;
+pub struct EconomyIdle;
 
 #[derive(Component, Debug, Clone, Default, ActionBuilder)]
-struct EconomyIdleAction;
+pub struct EconomyIdleAction;
 
 fn initialize_ai_economy_thinkers(
     mut commands: Commands,

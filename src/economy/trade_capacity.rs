@@ -40,9 +40,7 @@ impl TradeCapacity {
     }
 
     pub fn snapshot_mut(&mut self, nation: Entity) -> &mut TradeCapacitySnapshot {
-        self.nations
-            .entry(nation)
-            .or_insert_with(TradeCapacitySnapshot::default)
+        self.nations.entry(nation).or_default()
     }
 
     pub fn available(&self, nation: Entity) -> u32 {
