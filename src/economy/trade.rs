@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::economy::market::{MARKET_RESOURCES, MarketPriceModel, MarketVolume};
 use crate::economy::nation::{Name, NationId};
+use crate::economy::trade_capacity::TradeCapacity;
 use crate::economy::{
     Allocations, Good, ReservationId, ReservationSystem, Stockpile, Treasury, Workforce,
 };
@@ -42,6 +43,7 @@ pub fn resolve_market_orders(
     >,
     nation_entities: Query<Entity, With<NationId>>,
     pricing: Res<MarketPriceModel>,
+    mut trade_capacity: ResMut<TradeCapacity>,
 ) {
     let mut snapshots = Vec::new();
 
@@ -70,6 +72,14 @@ pub fn resolve_market_orders(
 
     if snapshots.is_empty() {
         return;
+    }
+
+    trade_capacity.reset_usage();
+
+    let mut capacity_available: HashMap<Entity, u32> = HashMap::new();
+    for entity in nation_entities.iter() {
+        let available = trade_capacity.available(entity);
+        capacity_available.insert(entity, available);
     }
 
     let mut cash_map: HashMap<Entity, i64> = snapshots
@@ -179,6 +189,27 @@ pub fn resolve_market_orders(
                     break 'buyers;
                 };
 
+                let seller_capacity = capacity_available.get(&seller).copied().unwrap_or(0);
+                let buyer_capacity = capacity_available.get(&buyer).copied().unwrap_or(0);
+
+                debug!(
+                    "Market capacity {:?}: seller {:?} cap {}, buyer {:?} cap {}",
+                    good, seller, seller_capacity, buyer, buyer_capacity
+                );
+
+                if seller_capacity == 0 {
+                    debug!(
+                        "Skipping seller {:?} for {:?}: no trade capacity available",
+                        seller, good
+                    );
+                    continue;
+                }
+
+                if buyer_capacity == 0 {
+                    cash_map.insert(buyer, cash_available);
+                    break 'buyers;
+                }
+
                 let Some(reservation) = reservations.pop() else {
                     continue;
                 };
@@ -198,6 +229,16 @@ pub fn resolve_market_orders(
 
                 cash_available -= price;
                 *cash_map.entry(seller).or_insert(0) += price;
+
+                if let Some(entry) = capacity_available.get_mut(&seller) {
+                    *entry = entry.saturating_sub(1);
+                }
+                if let Some(entry) = capacity_available.get_mut(&buyer) {
+                    *entry = entry.saturating_sub(1);
+                }
+                let seller_consumed = trade_capacity.consume(seller, 1);
+                let buyer_consumed = trade_capacity.consume(buyer, 1);
+                debug_assert!(seller_consumed && buyer_consumed, "trade capacity mismatch");
 
                 if !reservations.is_empty() {
                     seller_queue.push_back((seller, reservations));
@@ -292,10 +333,19 @@ pub fn resolve_market_orders(
 #[cfg(test)]
 mod tests {
     use bevy::ecs::system::SystemState;
-    use bevy::prelude::{App, Entity, Query, Res, With};
+    use bevy::prelude::{App, Entity, Query, Res, ResMut, With};
 
     use crate::economy::market::MarketPriceModel;
     use crate::economy::trade::resolve_market_orders;
+    use crate::economy::trade_capacity::TradeCapacity;
+
+    fn set_trade_capacity(app: &mut App, nation: Entity, total: u32) {
+        let world = app.world_mut();
+        let mut capacity = world.resource_mut::<TradeCapacity>();
+        let snapshot = capacity.snapshot_mut(nation);
+        snapshot.total = total;
+        snapshot.used = 0;
+    }
     use crate::economy::{
         Good,
         allocation::Allocations,
@@ -310,6 +360,7 @@ mod tests {
     fn sells_goods_and_transfers_cash() {
         let mut app = App::new();
         app.insert_resource(MarketPriceModel::default());
+        app.insert_resource(TradeCapacity::default());
 
         let seller = app
             .world_mut()
@@ -336,6 +387,9 @@ mod tests {
                 Treasury::new(1_000),
             ))
             .id();
+
+        set_trade_capacity(&mut app, seller, 5);
+        set_trade_capacity(&mut app, buyer, 5);
 
         {
             let world = app.world_mut();
@@ -396,11 +450,13 @@ mod tests {
             >,
             Query<Entity, With<NationId>>,
             Res<MarketPriceModel>,
+            ResMut<TradeCapacity>,
         )> = SystemState::new(app.world_mut());
 
         {
-            let (nations, nation_entities, pricing) = system_state.get_mut(app.world_mut());
-            resolve_market_orders(nations, nation_entities, pricing);
+            let (nations, nation_entities, pricing, trade_capacity) =
+                system_state.get_mut(app.world_mut());
+            resolve_market_orders(nations, nation_entities, pricing, trade_capacity);
             system_state.apply(app.world_mut());
         }
 
@@ -426,6 +482,7 @@ mod tests {
     fn buys_multiple_units_when_requested() {
         let mut app = App::new();
         app.insert_resource(MarketPriceModel::default());
+        app.insert_resource(TradeCapacity::default());
 
         let seller = app
             .world_mut()
@@ -452,6 +509,9 @@ mod tests {
                 Treasury::new(1_000),
             ))
             .id();
+
+        set_trade_capacity(&mut app, seller, 5);
+        set_trade_capacity(&mut app, buyer, 5);
 
         {
             let world = app.world_mut();
@@ -513,11 +573,13 @@ mod tests {
             >,
             Query<Entity, With<NationId>>,
             Res<MarketPriceModel>,
+            ResMut<TradeCapacity>,
         )> = SystemState::new(app.world_mut());
 
         {
-            let (nations, nation_entities, pricing) = system_state.get_mut(app.world_mut());
-            resolve_market_orders(nations, nation_entities, pricing);
+            let (nations, nation_entities, pricing, trade_capacity) =
+                system_state.get_mut(app.world_mut());
+            resolve_market_orders(nations, nation_entities, pricing, trade_capacity);
             system_state.apply(app.world_mut());
         }
 
@@ -540,12 +602,133 @@ mod tests {
     }
 
     #[test]
+    fn trade_respects_trade_capacity_limits() {
+        let mut app = App::new();
+        app.insert_resource(MarketPriceModel::default());
+        app.insert_resource(TradeCapacity::default());
+
+        let seller = app
+            .world_mut()
+            .spawn((
+                NationId(1),
+                Name("Seller".into()),
+                Allocations::default(),
+                ReservationSystem::default(),
+                Stockpile::default(),
+                Workforce::new(),
+                Treasury::new(1_000),
+            ))
+            .id();
+
+        let buyer = app
+            .world_mut()
+            .spawn((
+                NationId(2),
+                Name("Buyer".into()),
+                Allocations::default(),
+                ReservationSystem::default(),
+                Stockpile::default(),
+                Workforce::new(),
+                Treasury::new(1_000),
+            ))
+            .id();
+
+        set_trade_capacity(&mut app, seller, 1);
+        set_trade_capacity(&mut app, buyer, 1);
+
+        {
+            let world = app.world_mut();
+            let mut seller_query = world.query::<(
+                &mut Stockpile,
+                &mut ReservationSystem,
+                &mut Allocations,
+                &mut Workforce,
+                &mut Treasury,
+            )>();
+
+            let (mut stockpile, mut reservations, mut allocations, mut workforce, mut treasury) =
+                seller_query.get_mut(world, seller).expect("seller data");
+
+            stockpile.add(Good::Grain, 4);
+            for _ in 0..2 {
+                let res_id = reservations
+                    .try_reserve(
+                        vec![(Good::Grain, 1u32)],
+                        0,
+                        0,
+                        &mut stockpile,
+                        &mut workforce,
+                        &mut treasury,
+                    )
+                    .expect("reserve grain for sale");
+                allocations
+                    .market_sells
+                    .entry(Good::Grain)
+                    .or_default()
+                    .push(res_id);
+            }
+        }
+
+        {
+            app.world_mut()
+                .get_mut::<Allocations>(buyer)
+                .unwrap()
+                .market_buys
+                .insert(Good::Grain);
+        }
+
+        let mut system_state: SystemState<(
+            Query<
+                (
+                    &mut Allocations,
+                    &mut ReservationSystem,
+                    &mut Stockpile,
+                    &mut Workforce,
+                    &mut Treasury,
+                    Option<&Name>,
+                ),
+                With<NationId>,
+            >,
+            Query<Entity, With<NationId>>,
+            Res<MarketPriceModel>,
+            ResMut<TradeCapacity>,
+        )> = SystemState::new(app.world_mut());
+
+        {
+            let (nations, nation_entities, pricing, trade_capacity) =
+                system_state.get_mut(app.world_mut());
+            resolve_market_orders(nations, nation_entities, pricing, trade_capacity);
+            system_state.apply(app.world_mut());
+        }
+
+        let world = app.world();
+        let buyer_stockpile = world.get::<Stockpile>(buyer).unwrap();
+        let trade_capacity = world.resource::<TradeCapacity>();
+        let seller_snapshot = trade_capacity.snapshot(seller);
+        let buyer_snapshot = trade_capacity.snapshot(buyer);
+
+        assert_eq!(seller_snapshot.total, 1);
+        assert_eq!(buyer_snapshot.total, 1);
+        assert_eq!(seller_snapshot.used, 1);
+        assert_eq!(buyer_snapshot.used, 1);
+        assert_eq!(
+            buyer_stockpile.get(Good::Grain),
+            1,
+            "Only one unit should arrive"
+        );
+
+        let seller_allocations = world.get::<Allocations>(seller).unwrap();
+        assert_eq!(seller_allocations.market_sell_count(Good::Grain), 1);
+    }
+
+    #[test]
     fn market_matches_seller_with_late_buyer() {
         // This test verifies the fix for the turn phase timing issue:
         // Seller expresses interest first, buyer expresses interest later,
         // market should still match them correctly
         let mut app = App::new();
         app.insert_resource(MarketPriceModel::default());
+        app.insert_resource(TradeCapacity::default());
 
         let seller = app
             .world_mut()
@@ -572,6 +755,9 @@ mod tests {
                 Treasury::new(1_000),
             ))
             .id();
+
+        set_trade_capacity(&mut app, seller, 5);
+        set_trade_capacity(&mut app, buyer, 5);
 
         // Setup: Seller adds stock and reserves it for sale (simulating PlayerTurn)
         {
@@ -636,11 +822,13 @@ mod tests {
             >,
             Query<Entity, With<NationId>>,
             Res<MarketPriceModel>,
+            ResMut<TradeCapacity>,
         )> = SystemState::new(app.world_mut());
 
         {
-            let (nations, nation_entities, pricing) = system_state.get_mut(app.world_mut());
-            resolve_market_orders(nations, nation_entities, pricing);
+            let (nations, nation_entities, pricing, trade_capacity) =
+                system_state.get_mut(app.world_mut());
+            resolve_market_orders(nations, nation_entities, pricing, trade_capacity);
             system_state.apply(app.world_mut());
         }
 
@@ -680,6 +868,7 @@ mod tests {
     fn processes_goods_in_manual_order() {
         let mut app = App::new();
         app.insert_resource(MarketPriceModel::default());
+        app.insert_resource(TradeCapacity::default());
 
         let seller = app
             .world_mut()
@@ -706,6 +895,9 @@ mod tests {
                 Treasury::new(80),
             ))
             .id();
+
+        set_trade_capacity(&mut app, seller, 5);
+        set_trade_capacity(&mut app, buyer, 5);
 
         // Seller reserves one Grain and one Cotton for sale.
         {
@@ -772,11 +964,13 @@ mod tests {
             >,
             Query<Entity, With<NationId>>,
             Res<MarketPriceModel>,
+            ResMut<TradeCapacity>,
         )> = SystemState::new(app.world_mut());
 
         {
-            let (nations, nation_entities, pricing) = system_state.get_mut(app.world_mut());
-            resolve_market_orders(nations, nation_entities, pricing);
+            let (nations, nation_entities, pricing, trade_capacity) =
+                system_state.get_mut(app.world_mut());
+            resolve_market_orders(nations, nation_entities, pricing, trade_capacity);
             system_state.apply(app.world_mut());
         }
 
@@ -793,6 +987,7 @@ mod tests {
     fn multiple_buyers_raise_price() {
         let mut app = App::new();
         app.insert_resource(MarketPriceModel::default());
+        app.insert_resource(TradeCapacity::default());
 
         let seller = app
             .world_mut()
@@ -832,6 +1027,10 @@ mod tests {
                 Treasury::new(1_000),
             ))
             .id();
+
+        set_trade_capacity(&mut app, seller, 5);
+        set_trade_capacity(&mut app, buyer_a, 5);
+        set_trade_capacity(&mut app, buyer_b, 5);
 
         // Seller reserves one Coal for sale at the start of the turn.
         {
@@ -894,11 +1093,13 @@ mod tests {
             >,
             Query<Entity, With<NationId>>,
             Res<MarketPriceModel>,
+            ResMut<TradeCapacity>,
         )> = SystemState::new(app.world_mut());
 
         {
-            let (nations, nation_entities, pricing) = system_state.get_mut(app.world_mut());
-            resolve_market_orders(nations, nation_entities, pricing);
+            let (nations, nation_entities, pricing, trade_capacity) =
+                system_state.get_mut(app.world_mut());
+            resolve_market_orders(nations, nation_entities, pricing, trade_capacity);
             system_state.apply(app.world_mut());
         }
 

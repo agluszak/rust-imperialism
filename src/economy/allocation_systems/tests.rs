@@ -297,6 +297,7 @@ fn test_buildings_with_all_initial() {
     assert!(buildings.get(BuildingKind::MetalWorks).is_some());
     assert!(buildings.get(BuildingKind::Refinery).is_some());
     assert!(buildings.get(BuildingKind::Railyard).is_some());
+    assert!(buildings.get(BuildingKind::Shipyard).is_some());
 
     // Check default capacities
     assert_eq!(
@@ -330,6 +331,10 @@ fn test_buildings_with_all_initial() {
     assert_eq!(buildings.get(BuildingKind::Refinery).unwrap().capacity, 2);
     assert_eq!(
         buildings.get(BuildingKind::Railyard).unwrap().capacity,
+        u32::MAX
+    );
+    assert_eq!(
+        buildings.get(BuildingKind::Shipyard).unwrap().capacity,
         u32::MAX
     );
 }

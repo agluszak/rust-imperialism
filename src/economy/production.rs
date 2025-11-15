@@ -357,6 +357,7 @@ pub enum BuildingKind {
     MetalWorks,           // 2×Steel → 1×Hardware OR 1×Armaments
     Refinery,             // 2×Oil → 1×Fuel
     Railyard,             // 1×Steel + 1×Lumber → 1×Transport
+    Shipyard,             // 1×Steel + 1×Lumber + 1×Fuel → 1×Ship
 
     // Worker-related buildings (no production capacity)
     Capitol,     // Recruit untrained workers
@@ -469,6 +470,13 @@ impl Building {
         Self {
             kind: BuildingKind::Railyard,
             capacity: u32::MAX, // Unlimited capacity - limited only by inputs and labor
+        }
+    }
+
+    pub fn shipyard() -> Self {
+        Self {
+            kind: BuildingKind::Shipyard,
+            capacity: u32::MAX,
         }
     }
 
@@ -855,6 +863,35 @@ const RAILYARD_RECIPE: ProductionRecipe = ProductionRecipe {
     variants: &RAILYARD_VARIANTS,
 };
 
+const SHIPYARD_INPUTS: [Ingredient; 3] = [
+    Ingredient {
+        good: Good::Steel,
+        amount: 1,
+    },
+    Ingredient {
+        good: Good::Lumber,
+        amount: 1,
+    },
+    Ingredient {
+        good: Good::Fuel,
+        amount: 1,
+    },
+];
+const SHIPYARD_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
+    good: Good::Ship,
+    amount: 1,
+}];
+const SHIPYARD_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
+    choice: None,
+    variant: RecipeVariant {
+        inputs: &SHIPYARD_INPUTS,
+        outputs: &SHIPYARD_OUTPUTS,
+    },
+}];
+const SHIPYARD_RECIPE: ProductionRecipe = ProductionRecipe {
+    variants: &SHIPYARD_VARIANTS,
+};
+
 const PRODUCTION_RECIPES: &[(BuildingKind, &ProductionRecipe)] = &[
     (BuildingKind::TextileMill, &TEXTILE_RECIPE),
     (BuildingKind::LumberMill, &LUMBER_RECIPE),
@@ -865,6 +902,7 @@ const PRODUCTION_RECIPES: &[(BuildingKind, &ProductionRecipe)] = &[
     (BuildingKind::MetalWorks, &METAL_RECIPE),
     (BuildingKind::Refinery, &REFINERY_RECIPE),
     (BuildingKind::Railyard, &RAILYARD_RECIPE),
+    (BuildingKind::Shipyard, &SHIPYARD_RECIPE),
 ];
 
 pub fn production_recipe(kind: BuildingKind) -> Option<&'static ProductionRecipe> {
@@ -915,6 +953,7 @@ impl Buildings {
         buildings.insert(BuildingKind::MetalWorks, Building::metal_works(2));
         buildings.insert(BuildingKind::Refinery, Building::refinery(2));
         buildings.insert(BuildingKind::Railyard, Building::railyard());
+        buildings.insert(BuildingKind::Shipyard, Building::shipyard());
         Self { buildings }
     }
 

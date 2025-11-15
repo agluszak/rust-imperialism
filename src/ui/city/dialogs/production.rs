@@ -53,7 +53,8 @@ pub fn populate_production_dialog(
             | BuildingKind::FurnitureFactory
             | BuildingKind::MetalWorks
             | BuildingKind::Refinery
-            | BuildingKind::Railyard => {}
+            | BuildingKind::Railyard
+            | BuildingKind::Shipyard => {}
             _ => continue, // Not a production building
         }
 
@@ -106,6 +107,7 @@ fn spawn_production_content(
         BuildingKind::MetalWorks => vec![Good::Hardware, Good::Armaments],
         BuildingKind::Refinery => vec![Good::Fuel],
         BuildingKind::Railyard => vec![Good::Transport],
+        BuildingKind::Shipyard => vec![Good::Ship],
         _ => vec![],
     };
 

@@ -6,7 +6,7 @@ use bevy::ui_widgets::{Activate, Button};
 use crate::economy::transport::TransportCommodity;
 use crate::economy::{
     Allocations, Good, MARKET_RESOURCES, MarketPriceModel, MarketVolume, PlayerNation, Stockpile,
-    Treasury,
+    TradeCapacity, Treasury,
 };
 use crate::messages::{AdjustMarketOrder, MarketInterest};
 use crate::ui::button_style::*;
@@ -28,6 +28,9 @@ struct MarketInventoryText {
 
 #[derive(Component)]
 struct MarketTreasuryText;
+
+#[derive(Component)]
+struct MarketTradeCapacityText;
 
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 enum MarketMode {
@@ -64,6 +67,7 @@ impl Plugin for MarketUIPlugin {
                     update_all_allocation_bars,
                     update_all_allocation_summaries,
                     update_market_treasury_text,
+                    update_market_trade_capacity_text,
                     update_market_inventory_texts,
                     update_buy_interest_indicators,
                     update_sell_controls_visibility,
@@ -119,6 +123,16 @@ pub fn ensure_market_screen_visible(
                 },
                 TextColor(Color::srgb(0.8, 0.95, 1.0)),
                 MarketTreasuryText,
+            ));
+
+            parent.spawn((
+                Text::new("Merchant Marine: 0 used / 0 holds (0 free)"),
+                TextFont {
+                    font_size: 16.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.85, 0.9, 1.0)),
+                MarketTradeCapacityText,
             ));
 
             parent
@@ -346,6 +360,31 @@ fn update_market_treasury_text(
         text.0 = format!(
             "Treasury available: ${} (reserved ${})",
             available, reserved
+        );
+    }
+}
+
+fn update_market_trade_capacity_text(
+    player: Option<Res<PlayerNation>>,
+    capacity: Res<TradeCapacity>,
+    mut texts: Query<&mut Text, With<MarketTradeCapacityText>>,
+    new_texts: Query<Entity, Added<MarketTradeCapacityText>>,
+) {
+    let Some(player) = player else {
+        return;
+    };
+
+    if !capacity.is_changed() && new_texts.is_empty() {
+        return;
+    }
+
+    let snapshot = capacity.snapshot(player.entity());
+    let available = snapshot.available();
+
+    for mut text in texts.iter_mut() {
+        text.0 = format!(
+            "Merchant Marine: {} used / {} holds ({} free)",
+            snapshot.used, snapshot.total, available
         );
     }
 }
