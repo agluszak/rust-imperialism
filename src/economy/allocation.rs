@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::economy::{goods::Good, reservation::ReservationId, workforce::WorkerSkill};
 
@@ -19,9 +19,9 @@ pub struct Allocations {
     /// Each ReservationId represents 1 worker training
     pub training: HashMap<WorkerSkill, Vec<ReservationId>>,
 
-    /// Market buy allocations: goods the nation wants to buy with quantities
-    /// Each entry represents the desired number of units to purchase
-    pub market_buys: HashMap<Good, u32>,
+    /// Market buy allocations: goods the nation has expressed interest in buying
+    /// Buy interest is boolean - the amount purchased depends on available supply
+    pub market_buys: HashSet<Good>,
 
     /// Market sell allocations: goods the nation wants to sell with quantities
     /// Each ReservationId represents 1 unit reserved for selling
@@ -49,16 +49,11 @@ impl Allocations {
 
     /// Check if nation has buy interest for a good
     pub fn has_buy_interest(&self, good: Good) -> bool {
-        self.market_buy_quantity(good) > 0
+        self.market_buys.contains(&good)
     }
 
     /// Get market sell allocation count for a good
     pub fn market_sell_count(&self, good: Good) -> usize {
         self.market_sells.get(&good).map(|v| v.len()).unwrap_or(0)
-    }
-
-    /// Get desired buy quantity for a good
-    pub fn market_buy_quantity(&self, good: Good) -> u32 {
-        self.market_buys.get(&good).copied().unwrap_or(0)
     }
 }

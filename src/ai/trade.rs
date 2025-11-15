@@ -42,30 +42,27 @@ fn plan_ai_market_orders(
         for &good in MARKET_RESOURCES {
             let available = stockpile.get_available(good);
             let price = pricing.price_for(good, MarketVolume::default()) as i64;
-            let current_buy = allocations.market_buy_quantity(good);
+            let has_buy_interest = allocations.has_buy_interest(good);
             let wants_buy = available <= BUY_SHORTAGE_THRESHOLD;
             let can_afford = cash_available >= price && price > 0;
 
+            // Express buy interest (boolean) if we have a shortage and can afford it
             if wants_buy && can_afford {
-                let deficit = BUY_SHORTAGE_THRESHOLD
-                    .saturating_add(1)
-                    .saturating_sub(available);
-                let desired_buy = deficit.max(1);
-
-                if current_buy != desired_buy {
+                if !has_buy_interest {
                     writer.write(AdjustMarketOrder {
                         nation,
                         good,
                         kind: MarketInterest::Buy,
-                        requested: desired_buy,
+                        requested: 1, // Non-zero means "interested"
                     });
                 }
-            } else if current_buy > 0 {
+            } else if has_buy_interest {
+                // Clear buy interest if we no longer want/can afford it
                 writer.write(AdjustMarketOrder {
                     nation,
                     good,
                     kind: MarketInterest::Buy,
-                    requested: 0,
+                    requested: 0, // Zero means "not interested"
                 });
             }
 
@@ -95,9 +92,7 @@ mod tests {
     use bevy::prelude::{App, Entity, World};
 
     use crate::ai::markers::AiNation;
-    use crate::ai::trade::{
-        BUY_SHORTAGE_THRESHOLD, SELL_MAX_PER_GOOD, SELL_RESERVE, plan_ai_market_orders,
-    };
+    use crate::ai::trade::{SELL_MAX_PER_GOOD, SELL_RESERVE, plan_ai_market_orders};
     use crate::economy::{
         allocation::Allocations,
         goods::Good,
@@ -159,11 +154,8 @@ mod tests {
             .iter()
             .find(|order| order.kind == MarketInterest::Buy && order.good == Good::Grain)
             .expect("expected grain buy order");
-        let available = 1;
-        let expected = (BUY_SHORTAGE_THRESHOLD + 1)
-            .saturating_sub(available)
-            .max(1);
-        assert_eq!(grain_order.requested, expected);
+        // Buy interest is boolean - just check that interest was expressed
+        assert!(grain_order.requested > 0, "Expected buy interest for Grain");
     }
 
     #[test]
@@ -200,7 +192,7 @@ mod tests {
             let world = app.world_mut();
             world.get_mut::<Treasury>(nation).unwrap().subtract(1_000);
             let mut allocations = world.get_mut::<Allocations>(nation).unwrap();
-            allocations.market_buys.insert(Good::Fish, 2);
+            allocations.market_buys.insert(Good::Fish);
         }
 
         let _ = app.world_mut().run_system_once(plan_ai_market_orders);

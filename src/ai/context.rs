@@ -120,7 +120,6 @@ pub struct AiMarketSell {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AiMarketBuy {
     pub good: Good,
-    pub requested: u32,
 }
 
 impl AiAllocationSnapshot {
@@ -154,11 +153,7 @@ impl AiAllocationSnapshot {
             let mut buy_interest: Vec<AiMarketBuy> = allocations
                 .market_buys
                 .iter()
-                .filter(|(_good, quantity)| **quantity > 0)
-                .map(|(good, quantity)| AiMarketBuy {
-                    good: *good,
-                    requested: *quantity,
-                })
+                .map(|good| AiMarketBuy { good: *good })
                 .collect();
             buy_interest.sort_by_key(|entry| entry.good);
             snapshot.market_buys = buy_interest;
@@ -421,8 +416,8 @@ mod tests {
             allocations
                 .training
                 .insert(WorkerSkill::Untrained, vec![next_id()]);
-            allocations.market_buys.insert(Good::Coal, 1);
-            allocations.market_buys.insert(Good::Grain, 1);
+            allocations.market_buys.insert(Good::Coal);
+            allocations.market_buys.insert(Good::Grain);
             allocations
                 .market_sells
                 .insert(Good::Steel, vec![next_id()]);
@@ -491,14 +486,8 @@ mod tests {
         assert_eq!(
             snapshot.allocations.market_buys,
             vec![
-                AiMarketBuy {
-                    good: Good::Grain,
-                    requested: 1,
-                },
-                AiMarketBuy {
-                    good: Good::Coal,
-                    requested: 1,
-                },
+                AiMarketBuy { good: Good::Grain },
+                AiMarketBuy { good: Good::Coal },
             ]
         );
         assert_eq!(snapshot.allocations.market_sells.len(), 1);

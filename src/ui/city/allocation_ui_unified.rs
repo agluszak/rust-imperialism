@@ -17,7 +17,10 @@ fn allocation_value(alloc: &Allocations, allocation_type: AllocationType) -> u32
         AllocationType::Recruitment => alloc.recruitment_count() as u32,
         AllocationType::Training(skill) => alloc.training_count(skill) as u32,
         AllocationType::Production(entity, good) => alloc.production_count(entity, good) as u32,
-        AllocationType::MarketBuy(good) => alloc.market_buy_quantity(good),
+        AllocationType::MarketBuy(good) => {
+            // Buy interest is boolean: 1 if interested, 0 if not
+            if alloc.has_buy_interest(good) { 1 } else { 0 }
+        }
         AllocationType::MarketSell(good) => alloc.market_sell_count(good) as u32,
     }
 }

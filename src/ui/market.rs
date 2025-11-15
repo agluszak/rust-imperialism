@@ -1,12 +1,14 @@
+use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::ui::widget::Button as OldButton;
-use bevy::ui_widgets::Button;
+use bevy::ui_widgets::{Activate, Button};
 
 use crate::economy::transport::TransportCommodity;
 use crate::economy::{
     Allocations, Good, MARKET_RESOURCES, MarketPriceModel, MarketVolume, PlayerNation, Stockpile,
     Treasury,
 };
+use crate::messages::{AdjustMarketOrder, MarketInterest};
 use crate::ui::button_style::*;
 use crate::ui::city::allocation_ui_unified::{
     update_all_allocation_bars, update_all_allocation_summaries, update_all_stepper_displays,
@@ -27,6 +29,28 @@ struct MarketInventoryText {
 #[derive(Component)]
 struct MarketTreasuryText;
 
+#[derive(Component, Clone, Copy, PartialEq, Eq)]
+enum MarketMode {
+    Buy,
+    Sell,
+}
+
+#[derive(Component)]
+struct MarketModeButton {
+    good: Good,
+    mode: MarketMode,
+}
+
+#[derive(Component)]
+struct MarketSellControls {
+    good: Good,
+}
+
+#[derive(Component)]
+struct BuyInterestIndicator {
+    good: Good,
+}
+
 pub struct MarketUIPlugin;
 
 impl Plugin for MarketUIPlugin {
@@ -41,6 +65,8 @@ impl Plugin for MarketUIPlugin {
                     update_all_allocation_summaries,
                     update_market_treasury_text,
                     update_market_inventory_texts,
+                    update_buy_interest_indicators,
+                    update_sell_controls_visibility,
                 )
                     .run_if(in_state(GameMode::Market)),
             );
@@ -163,41 +189,104 @@ pub fn ensure_market_screen_visible(
                                     ));
                                 });
 
-                            // Buy column (simple toggle - no resource bar)
-                            row.spawn((Node {
-                                flex_direction: FlexDirection::Row,
-                                column_gap: Val::Px(3.0),
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },))
-                                .with_children(|buy| {
-                                    spawn_allocation_stepper!(
-                                        buy,
-                                        "Buy Interest",
-                                        AllocationType::MarketBuy(good)
-                                    );
-                                });
-
-                            // Sell column (with quantity allocation)
+                            // Mode toggle buttons
                             row.spawn((Node {
                                 flex_direction: FlexDirection::Row,
                                 column_gap: Val::Px(4.0),
                                 align_items: AlignItems::Center,
                                 ..default()
                             },))
-                                .with_children(|sell| {
-                                    spawn_allocation_stepper!(
-                                        sell,
-                                        "Sell Offers",
-                                        AllocationType::MarketSell(good)
-                                    );
-                                    spawn_allocation_bar!(
-                                        sell,
-                                        good,
-                                        "Stock",
-                                        AllocationType::MarketSell(good)
-                                    );
+                                .with_children(|buttons| {
+                                    // Buy button
+                                    buttons
+                                        .spawn((
+                                            Button,
+                                            OldButton,
+                                            Node {
+                                                padding: UiRect::all(Val::Px(4.0)),
+                                                ..default()
+                                            },
+                                            BackgroundColor(NORMAL_BUTTON),
+                                            MarketModeButton {
+                                                good,
+                                                mode: MarketMode::Buy,
+                                            },
+                                        ))
+                                        .observe(market_mode_button_clicked)
+                                        .with_children(|b| {
+                                            b.spawn((
+                                                Text::new("Buy"),
+                                                TextFont {
+                                                    font_size: 12.0,
+                                                    ..default()
+                                                },
+                                                TextColor(Color::srgb(0.9, 0.9, 1.0)),
+                                            ));
+                                        });
+
+                                    // Sell button
+                                    buttons
+                                        .spawn((
+                                            Button,
+                                            OldButton,
+                                            Node {
+                                                padding: UiRect::all(Val::Px(4.0)),
+                                                ..default()
+                                            },
+                                            BackgroundColor(NORMAL_BUTTON),
+                                            MarketModeButton {
+                                                good,
+                                                mode: MarketMode::Sell,
+                                            },
+                                        ))
+                                        .observe(market_mode_button_clicked)
+                                        .with_children(|b| {
+                                            b.spawn((
+                                                Text::new("Sell"),
+                                                TextFont {
+                                                    font_size: 12.0,
+                                                    ..default()
+                                                },
+                                                TextColor(Color::srgb(0.9, 0.9, 1.0)),
+                                            ));
+                                        });
+
+                                    // Buy interest indicator
+                                    buttons.spawn((
+                                        Text::new(""),
+                                        TextFont {
+                                            font_size: 11.0,
+                                            ..default()
+                                        },
+                                        TextColor(Color::srgb(0.35, 0.95, 0.35)),
+                                        BuyInterestIndicator { good },
+                                    ));
                                 });
+
+                            // Sell controls (only visible when sell mode active)
+                            row.spawn((
+                                Node {
+                                    flex_direction: FlexDirection::Row,
+                                    column_gap: Val::Px(4.0),
+                                    align_items: AlignItems::Center,
+                                    display: Display::None, // Hidden by default
+                                    ..default()
+                                },
+                                MarketSellControls { good },
+                            ))
+                            .with_children(|sell| {
+                                spawn_allocation_stepper!(
+                                    sell,
+                                    "Quantity",
+                                    AllocationType::MarketSell(good)
+                                );
+                                spawn_allocation_bar!(
+                                    sell,
+                                    good,
+                                    "Stock",
+                                    AllocationType::MarketSell(good)
+                                );
+                            });
                         });
                     }
                 });
@@ -292,6 +381,170 @@ fn update_market_inventory_texts(
         let total = stockpile.get(marker.good);
         let available = stockpile.get_available(marker.good);
         text.0 = format!("{} / {}", available, total);
+    }
+}
+
+fn market_mode_button_clicked(
+    trigger: On<Activate>,
+    button: Query<&MarketModeButton>,
+    mut writer: MessageWriter<AdjustMarketOrder>,
+    player: Option<Res<PlayerNation>>,
+    allocations: Query<&Allocations>,
+    mut sell_controls: Query<(&MarketSellControls, &mut Node)>,
+) {
+    let target = trigger.event().entity;
+    let Ok(clicked_button) = button.get(target) else {
+        return;
+    };
+    let Some(player) = player else {
+        return;
+    };
+    let Ok(alloc) = allocations.get(player.entity()) else {
+        return;
+    };
+
+    let good = clicked_button.good;
+    let clicked_mode = clicked_button.mode;
+
+    // Check current state for this good
+    let has_buy = alloc.has_buy_interest(good);
+    let has_sell = alloc.market_sell_count(good) > 0;
+
+    let current_mode = if has_buy {
+        Some(MarketMode::Buy)
+    } else if has_sell {
+        Some(MarketMode::Sell)
+    } else {
+        None
+    };
+
+    // Toggle behavior: clicking the active mode button turns it off
+    let new_mode = if current_mode == Some(clicked_mode) {
+        None // Toggle off
+    } else {
+        Some(clicked_mode) // Switch to this mode
+    };
+
+    // Send messages to update allocations (only if state needs to change)
+    match new_mode {
+        Some(MarketMode::Buy) => {
+            // Express buy interest (only if not already set)
+            if !has_buy {
+                writer.write(AdjustMarketOrder {
+                    nation: player.instance(),
+                    good,
+                    kind: MarketInterest::Buy,
+                    requested: 1, // Non-zero = interested
+                });
+            }
+            // Clear any sell orders when switching to buy
+            if has_sell {
+                writer.write(AdjustMarketOrder {
+                    nation: player.instance(),
+                    good,
+                    kind: MarketInterest::Sell,
+                    requested: 0,
+                });
+            }
+        }
+        Some(MarketMode::Sell) => {
+            // Clear buy interest if switching from buy mode
+            if has_buy {
+                writer.write(AdjustMarketOrder {
+                    nation: player.instance(),
+                    good,
+                    kind: MarketInterest::Buy,
+                    requested: 0, // Clear interest
+                });
+            }
+            // Sell quantity is managed by steppers
+        }
+        None => {
+            // Clear both modes
+            if has_buy {
+                writer.write(AdjustMarketOrder {
+                    nation: player.instance(),
+                    good,
+                    kind: MarketInterest::Buy,
+                    requested: 0,
+                });
+            }
+            if has_sell {
+                writer.write(AdjustMarketOrder {
+                    nation: player.instance(),
+                    good,
+                    kind: MarketInterest::Sell,
+                    requested: 0,
+                });
+            }
+        }
+    }
+
+    // Update sell controls visibility immediately
+    for (ctrl, mut node) in sell_controls.iter_mut() {
+        if ctrl.good != good {
+            continue;
+        }
+
+        node.display = if new_mode == Some(MarketMode::Sell) {
+            Display::Flex
+        } else {
+            Display::None
+        };
+    }
+}
+
+fn update_buy_interest_indicators(
+    player: Option<Res<PlayerNation>>,
+    allocations: Query<&Allocations>,
+    allocations_changed: Query<Entity, Changed<Allocations>>,
+    mut indicators: Query<(&BuyInterestIndicator, &mut Text)>,
+    new_indicators: Query<Entity, Added<BuyInterestIndicator>>,
+) {
+    let Some(player) = player else {
+        return;
+    };
+
+    if allocations_changed.is_empty() && new_indicators.is_empty() {
+        return;
+    }
+
+    let Ok(alloc) = allocations.get(player.entity()) else {
+        return;
+    };
+
+    for (indicator, mut text) in indicators.iter_mut() {
+        let has_buy = alloc.has_buy_interest(indicator.good);
+        text.0 = if has_buy { "BID" } else { "" }.to_string();
+    }
+}
+
+fn update_sell_controls_visibility(
+    player: Option<Res<PlayerNation>>,
+    allocations: Query<&Allocations>,
+    allocations_changed: Query<Entity, Changed<Allocations>>,
+    mut controls: Query<(&MarketSellControls, &mut Node)>,
+    new_controls: Query<Entity, Added<MarketSellControls>>,
+) {
+    let Some(player) = player else {
+        return;
+    };
+
+    if allocations_changed.is_empty() && new_controls.is_empty() {
+        return;
+    }
+
+    let Ok(alloc) = allocations.get(player.entity()) else {
+        return;
+    };
+
+    for (ctrl, mut node) in controls.iter_mut() {
+        let has_sell = alloc.market_sell_count(ctrl.good) > 0;
+        node.display = if has_sell {
+            Display::Flex
+        } else {
+            Display::None
+        };
     }
 }
 
