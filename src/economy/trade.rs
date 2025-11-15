@@ -670,6 +670,9 @@ mod tests {
             seller_gain, buyer_cost,
             "Money transferred should match: seller gain = buyer cost"
         );
-        assert!(seller_gain > 0, "Seller should have earned money from the sale");
+        assert!(
+            seller_gain > 0,
+            "Seller should have earned money from the sale"
+        );
     }
 }

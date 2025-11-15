@@ -32,7 +32,16 @@ impl Plugin for AiEconomyPlugin {
 
 fn plan_ai_market_orders(
     mut writer: MessageWriter<AdjustMarketOrder>,
-    ai_nations: Query<(&NationHandle, &NationId, &Allocations, &Stockpile, &Treasury), With<AiNation>>,
+    ai_nations: Query<
+        (
+            &NationHandle,
+            &NationId,
+            &Allocations,
+            &Stockpile,
+            &Treasury,
+        ),
+        With<AiNation>,
+    >,
     pricing: Res<MarketPriceModel>,
 ) {
     for (handle, nation_id, allocations, stockpile, treasury) in ai_nations.iter() {

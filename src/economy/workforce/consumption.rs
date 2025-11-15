@@ -64,7 +64,10 @@ pub fn feed_workers(
         if is_player {
             if sick_count > 0 {
                 warn!("{} workers got sick from wrong food", sick_count);
-                info!("WARNING: {} workers sick (ate wrong food, 0 labor)", sick_count);
+                info!(
+                    "WARNING: {} workers sick (ate wrong food, 0 labor)",
+                    sick_count
+                );
             }
             if dead_count > 0 {
                 warn!("{} workers died from starvation", dead_count);

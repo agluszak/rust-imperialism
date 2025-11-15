@@ -1,4 +1,8 @@
-use bevy::{input::{ButtonInput, mouse::MouseWheel}, math::Vec3, prelude::*};
+use bevy::{
+    input::{ButtonInput, mouse::MouseWheel},
+    math::Vec3,
+    prelude::*,
+};
 
 use crate::economy::{Capital, NationId, PlayerNation};
 use crate::map::TilePosExt;

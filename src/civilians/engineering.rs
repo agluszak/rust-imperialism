@@ -300,10 +300,7 @@ pub fn execute_prospector_orders(
                 if let Ok((empty, mineral)) = prospected_tiles.get(tile_entity)
                     && (empty.is_some() || mineral.is_some())
                 {
-                    info!(
-                        "Tile at ({}, {}) has already been prospected",
-                        to.x, to.y
-                    );
+                    info!("Tile at ({}, {}) has already been prospected", to.x, to.y);
                     commands.entity(entity).remove::<CivilianOrder>();
                     continue;
                 }

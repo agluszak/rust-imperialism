@@ -188,7 +188,12 @@ pub fn handle_civilian_commands(
                 if let CivilianCommandError::MissingTargetTile(pos) = reason {
                     info!(
                         "{:?} at ({}, {}) order {:?} rejected: target tile ({}, {}) not found",
-                        civilian.kind, civilian.position.x, civilian.position.y, command.order, pos.x, pos.y
+                        civilian.kind,
+                        civilian.position.x,
+                        civilian.position.y,
+                        command.order,
+                        pos.x,
+                        pos.y
                     );
                 } else {
                     info!(
