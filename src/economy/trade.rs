@@ -538,4 +538,138 @@ mod tests {
         assert_eq!(seller_gain, buyer_cost, "Money transfer mismatch");
         assert!(seller_gain > 0, "Seller should have earned money");
     }
+
+    #[test]
+    fn market_matches_seller_with_late_buyer() {
+        // This test verifies the fix for the turn phase timing issue:
+        // Seller expresses interest first, buyer expresses interest later,
+        // market should still match them correctly
+        let mut app = App::new();
+        app.insert_resource(MarketPriceModel::default());
+
+        let seller = app
+            .world_mut()
+            .spawn((
+                NationId(1),
+                Name("Seller Nation".into()),
+                Allocations::default(),
+                ReservationSystem::default(),
+                Stockpile::default(),
+                Workforce::new(),
+                Treasury::new(500),
+            ))
+            .id();
+
+        let buyer = app
+            .world_mut()
+            .spawn((
+                NationId(2),
+                Name("Buyer Nation".into()),
+                Allocations::default(),
+                ReservationSystem::default(),
+                Stockpile::default(),
+                Workforce::new(),
+                Treasury::new(1_000),
+            ))
+            .id();
+
+        // Setup: Seller adds stock and reserves it for sale (simulating PlayerTurn)
+        {
+            let world = app.world_mut();
+            world
+                .get_mut::<Stockpile>(seller)
+                .unwrap()
+                .add(Good::Coal, 10);
+
+            let mut seller_query = world.query::<(
+                &mut Stockpile,
+                &mut ReservationSystem,
+                &mut Allocations,
+                &mut Workforce,
+                &mut Treasury,
+            )>();
+
+            let (mut stockpile, mut reservations, mut allocations, mut workforce, mut treasury) =
+                seller_query.get_mut(world, seller).expect("seller data");
+
+            // Seller reserves 3 Coal for sale
+            for _ in 0..3 {
+                if let Some(res_id) = reservations.try_reserve(
+                    vec![(Good::Coal, 1u32)],
+                    0,
+                    0,
+                    &mut stockpile,
+                    &mut workforce,
+                    &mut treasury,
+                ) {
+                    allocations
+                        .market_sells
+                        .entry(Good::Coal)
+                        .or_default()
+                        .push(res_id);
+                }
+            }
+        }
+
+        // Buyer expresses interest (simulating EnemyTurn - happens AFTER seller's sell orders)
+        {
+            let world = app.world_mut();
+            world
+                .get_mut::<Allocations>(buyer)
+                .unwrap()
+                .market_buys
+                .insert(Good::Coal);
+        }
+
+        // Market resolution (should happen at start of next PlayerTurn, AFTER both decided)
+        let mut system_state: SystemState<(
+            Query<
+                (
+                    &mut Allocations,
+                    &mut ReservationSystem,
+                    &mut Stockpile,
+                    &mut Workforce,
+                    &mut Treasury,
+                    Option<&Name>,
+                ),
+                With<NationId>,
+            >,
+            Query<Entity, With<NationId>>,
+            Res<MarketPriceModel>,
+        )> = SystemState::new(app.world_mut());
+
+        {
+            let (nations, nation_entities, pricing) = system_state.get_mut(app.world_mut());
+            resolve_market_orders(nations, nation_entities, pricing);
+            system_state.apply(app.world_mut());
+        }
+
+        // Verify: Trade should have executed successfully
+        let world = app.world();
+        let seller_stockpile = world.get::<Stockpile>(seller).unwrap();
+        let buyer_stockpile = world.get::<Stockpile>(buyer).unwrap();
+        let seller_treasury = world.get::<Treasury>(seller).unwrap();
+        let buyer_treasury = world.get::<Treasury>(buyer).unwrap();
+
+        // Buyer should have purchased all 3 units (or as many as they could afford)
+        let units_bought = buyer_stockpile.get(Good::Coal);
+        assert!(
+            units_bought > 0,
+            "Buyer should have successfully purchased Coal despite expressing interest late"
+        );
+        assert_eq!(
+            seller_stockpile.get(Good::Coal),
+            10 - units_bought,
+            "Seller should have lost the units that were sold"
+        );
+
+        // Money should have been transferred
+        let seller_gain = seller_treasury.total() - 500;
+        let buyer_cost = 1_000 - buyer_treasury.total();
+        assert_eq!(
+            seller_gain, buyer_cost,
+            "Money transferred should match: seller gain = buyer cost"
+        );
+        assert!(seller_gain > 0, "Seller should have earned money from the sale");
+    }
 }
