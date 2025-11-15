@@ -133,7 +133,7 @@ pub struct CivilianKindDefinition {
 }
 
 /// Type of civilian unit
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect)]
 pub enum CivilianKind {
     Prospector, // Reveals minerals (coal/iron/gold/gems/oil)
     Miner,      // Opens & upgrades mines
@@ -263,6 +263,17 @@ impl CivilianKind {
             CivilianKind::Driller => &DRILLER_DEFINITION,
             CivilianKind::Prospector => &PROSPECTOR_DEFINITION,
             CivilianKind::Developer => &DEVELOPER_DEFINITION,
+        }
+    }
+
+    /// Monetary cost to hire this civilian type.
+    pub fn hiring_cost(&self) -> i64 {
+        match self {
+            CivilianKind::Engineer => 200,
+            CivilianKind::Prospector => 150,
+            CivilianKind::Developer => 180,
+            CivilianKind::Miner | CivilianKind::Driller => 120,
+            CivilianKind::Farmer | CivilianKind::Rancher | CivilianKind::Forester => 100,
         }
     }
 

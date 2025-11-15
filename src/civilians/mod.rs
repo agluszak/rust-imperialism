@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 // Re-exports for public API
 pub use crate::messages::civilians::{
-    CivilianCommand, CivilianCommandError, CivilianCommandRejected,
+    CivilianCommand, CivilianCommandError, CivilianCommandRejected, HireCivilian,
 };
 pub use commands::*;
 pub use jobs::{advance_civilian_jobs, complete_improvement_jobs, reset_civilian_actions};
@@ -11,6 +11,7 @@ pub use types::*;
 // Module declarations
 pub mod commands;
 pub mod engineering;
+pub mod hiring;
 pub mod jobs;
 pub mod order_validation;
 pub mod rendering;
@@ -37,6 +38,7 @@ impl Plugin for CivilianPlugin {
             .add_message::<DeselectCivilian>()
             .add_message::<DeselectAllCivilians>()
             .add_message::<RescindOrders>()
+            .add_message::<HireCivilian>()
             // Selection handler runs always to react to events immediately
             .add_systems(
                 Update,
@@ -46,6 +48,10 @@ impl Plugin for CivilianPlugin {
                     systems::handle_deselection,
                     systems::handle_deselect_all,
                 ),
+            )
+            .add_systems(
+                Update,
+                hiring::spawn_hired_civilian.run_if(in_state(crate::ui::menu::AppState::InGame)),
             )
             .add_systems(
                 Update,
