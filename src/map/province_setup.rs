@@ -160,27 +160,23 @@ pub fn assign_provinces_to_countries(
             commands.entity(country_entity).insert(AiNation);
         }
 
-        // Player gets starting buildings and workforce
-        if i == 0 {
-            let mut workforce = Workforce::new();
-            // Start with 5 untrained workers
-            workforce.add_untrained(5);
-            // Sync labor pool with worker counts
-            workforce.update_labor_pool();
+        // Give every nation a basic industrial base so AI economies can function
+        let mut workforce = Workforce::new();
+        let starting_workers = if i == 0 { 5 } else { 3 };
+        workforce.add_untrained(starting_workers);
+        workforce.update_labor_pool();
 
-            // All manufacturories are available at start
-            commands.entity(country_entity).insert((
-                Buildings::with_all_initial(),
-                ProductionSettings::default(),
-                workforce,
-                RecruitmentCapacity::default(),
-                RecruitmentQueue::default(),
-                TrainingQueue::default(),
-            ));
+        commands.entity(country_entity).insert((
+            Buildings::with_all_initial(),
+            ProductionSettings::default(),
+            workforce,
+            RecruitmentCapacity::default(),
+            RecruitmentQueue::default(),
+            TrainingQueue::default(),
+        ));
 
-            // Note: Capitol and TradeSchool don't need separate Building entities
-            // They're always available and use the nation's Stockpile/Workforce directly
-        }
+        // Note: Capitol and TradeSchool don't need separate Building entities
+        // They're always available and use the nation's Stockpile/Workforce directly
         country_entities.push(country_entity);
         info!("Created Nation {} with color", i + 1);
     }
