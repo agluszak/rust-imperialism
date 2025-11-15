@@ -18,7 +18,8 @@ use crate::map::tiles::TerrainType;
 use crate::resources::{DevelopmentLevel, TileResource};
 
 /// Resource to track if provinces have been generated
-#[derive(Resource)]
+#[derive(Resource, Reflect, Default)]
+#[reflect(Resource)]
 pub struct ProvincesGenerated;
 
 /// Generate provinces after the tilemap is created
@@ -92,7 +93,7 @@ pub fn assign_provinces_to_countries(
     ];
 
     // Create countries
-    let mut country_entities = Vec::new();
+    let mut country_entities: Vec<(Entity, NationId)> = Vec::new();
     let mut capitals = Vec::new();
 
     for i in 0..num_countries {
@@ -181,12 +182,12 @@ pub fn assign_provinces_to_countries(
             // Note: Capitol and TradeSchool don't need separate Building entities
             // They're always available and use the nation's Stockpile/Workforce directly
         }
-        country_entities.push(country_entity);
+        country_entities.push((country_entity, NationId(i as u16 + 1)));
         info!("Created Nation {} with color", i + 1);
     }
 
     // Set player nation reference
-    if let Some(&player_entity) = country_entities.first() {
+    if let Some(&(player_entity, _)) = country_entities.first() {
         commands.queue(move |world: &mut World| {
             if let Some(player_nation) = PlayerNation::from_entity(world, player_entity) {
                 world.insert_resource(player_nation);
@@ -216,7 +217,7 @@ pub fn assign_provinces_to_countries(
             province_list.len() / num_countries,
         );
 
-        let country_entity = country_entities[country_idx % num_countries];
+        let (country_entity, _) = country_entities[country_idx % num_countries];
 
         // Assign all provinces in the connected group to this country
         for &prov_id in &connected_group {
@@ -244,7 +245,7 @@ pub fn assign_provinces_to_countries(
     // Handle any remaining unassigned provinces
     for (province_entity, province_id, city_tile) in province_list.iter() {
         if !assigned.contains(province_id) {
-            let country_entity = country_entities[country_idx % num_countries];
+            let (country_entity, _) = country_entities[country_idx % num_countries];
             assign_province_to_country(
                 &mut commands,
                 &mut provinces,
@@ -259,10 +260,12 @@ pub fn assign_provinces_to_countries(
         }
     }
 
-    let player_entity = country_entities.first().copied();
+    let nation_ids: HashMap<Entity, NationId> = country_entities.iter().copied().collect();
+    let player_info = country_entities.first().copied();
+    let player_entity_only = player_info.map(|(entity, _)| entity);
 
     // Spawn starter civilian roster for the player clustered around the capital
-    if let Some(player_entity) = player_entity
+    if let Some((player_entity, player_id)) = player_info
         && let Some(player_capital) = capitals
             .iter()
             .find(|(entity, _)| *entity == player_entity)
@@ -283,6 +286,7 @@ pub fn assign_provinces_to_countries(
                 kind: *kind,
                 position: *pos,
                 owner: player_entity,
+                owner_id: player_id,
                 selected: false,
                 has_moved: false,
             });
@@ -301,15 +305,20 @@ pub fn assign_provinces_to_countries(
     for (nation_entity, capital_pos) in capitals
         .iter()
         .copied()
-        .filter(|(entity, _)| Some(*entity) != player_entity)
+        .filter(|(entity, _)| Some(*entity) != player_entity_only)
     {
         let spawn_positions = gather_spawn_positions(capital_pos, ai_starter_units.len());
         for (kind, pos) in ai_starter_units.iter().zip(spawn_positions.iter()) {
+            let owner_id = nation_ids
+                .get(&nation_entity)
+                .copied()
+                .unwrap_or(NationId(0));
             commands.spawn((
                 Civilian {
                     kind: *kind,
                     position: *pos,
                     owner: nation_entity,
+                    owner_id,
                     selected: false,
                     has_moved: false,
                 },

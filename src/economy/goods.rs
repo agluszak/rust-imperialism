@@ -1,6 +1,7 @@
+use bevy::prelude::Reflect;
 use core::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Reflect)]
 pub enum Good {
     // Raw food resources
     Grain,

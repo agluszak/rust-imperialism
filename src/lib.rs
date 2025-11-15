@@ -22,6 +22,7 @@ use crate::map::rendering::prospecting_markers::ProspectingMarkersPlugin;
 use crate::map::rendering::{
     ConnectedResourceDebugPlugin, TransportDebugPlugin, TransportRenderingPlugin,
 };
+use crate::save::GameSavePlugin;
 use crate::turn_system::TurnSystemPlugin;
 use crate::ui::GameUIPlugin;
 use crate::ui::menu::AppState;
@@ -84,6 +85,7 @@ pub fn app() -> App {
             ImprovementRenderingPlugin,
             ProspectingMarkersPlugin,
         ))
+        .add_plugins(GameSavePlugin)
         .add_plugins(AiBehaviorPlugin);
 
     app
