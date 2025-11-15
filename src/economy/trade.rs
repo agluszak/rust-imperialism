@@ -106,6 +106,12 @@ pub fn resolve_market_orders(
             .collect();
 
         if interested_buyers.is_empty() {
+            info!(
+                "Market {:?}: {} sellers but no buyers (supply: {} units)",
+                good,
+                sellers.len(),
+                sellers.iter().map(|(_, r)| r.len()).sum::<usize>()
+            );
             continue;
         }
 
@@ -184,6 +190,11 @@ pub fn resolve_market_orders(
                     buyer,
                     reservation,
                 });
+
+                info!(
+                    "Market trade: {:?} sold for ${} (seller: {:?}, buyer: {:?})",
+                    good, price, seller, buyer
+                );
 
                 cash_available -= price;
                 *cash_map.entry(seller).or_insert(0) += price;

@@ -228,7 +228,10 @@ pub fn execute_move_orders(
                 ActionTurn(turn.current_turn),
             ));
 
-            info!("{:?} moved to ({}, {})", civilian.kind, to.x, to.y);
+            info!(
+                "{:?} (owner: {:?}) moved from ({}, {}) to ({}, {})",
+                civilian.kind, civilian.owner, previous_pos.x, previous_pos.y, to.x, to.y
+            );
 
             commands.entity(entity).remove::<CivilianOrder>();
         }

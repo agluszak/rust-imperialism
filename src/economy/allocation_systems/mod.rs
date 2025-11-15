@@ -592,12 +592,18 @@ fn process_market_adjustment(
                 }
 
                 if added > 0 {
-                    debug!(
-                        "Sell orders increased: {:?} {} → {} ({} added)",
+                    info!(
+                        "Sell orders increased: {:?} {} → {} ({} added, nation: {:?})",
                         msg.good,
                         current_count,
                         current_count + added,
-                        added
+                        added,
+                        msg.nation.entity()
+                    );
+                } else if to_add > 0 {
+                    info!(
+                        "Failed to create sell orders for {:?}: wanted {} but could only add {} (insufficient available stock)",
+                        msg.good, to_add, added
                     );
                 }
             }

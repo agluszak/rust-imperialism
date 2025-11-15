@@ -16,14 +16,16 @@ pub fn reset_civilian_actions(mut civilians: Query<&mut Civilian>) {
 /// Advance civilian jobs each turn
 pub fn advance_civilian_jobs(
     mut commands: Commands,
-    mut civilians_with_jobs: Query<(Entity, &mut CivilianJob)>,
+    mut civilians_with_jobs: Query<(Entity, &Civilian, &mut CivilianJob)>,
 ) {
-    for (entity, mut job) in civilians_with_jobs.iter_mut() {
+    for (entity, civilian, mut job) in civilians_with_jobs.iter_mut() {
         job.turns_remaining -= 1;
 
         if job.turns_remaining == 0 {
-            info!("Job {:?} completed for civilian {:?}", job.job_type, entity);
-            // Remove the job component and action tracking (job can no longer be rescinded)
+            info!(
+                "{:?} (owner: {:?}) completed job {:?}",
+                civilian.kind, civilian.owner, job.job_type
+            );
             commands
                 .entity(entity)
                 .remove::<CivilianJob>()
@@ -31,8 +33,8 @@ pub fn advance_civilian_jobs(
                 .remove::<ActionTurn>();
         } else {
             info!(
-                "Job {:?} in progress for civilian {:?}: {} turns remaining",
-                job.job_type, entity, job.turns_remaining
+                "{:?} (owner: {:?}) job {:?} in progress: {} turns remaining",
+                civilian.kind, civilian.owner, job.job_type, job.turns_remaining
             );
         }
     }
@@ -67,8 +69,9 @@ pub fn complete_improvement_jobs(
                         _ => "improving",
                     };
                     info!(
-                        "{:?} completed {} {:?} at ({}, {}) to level {:?}",
+                        "{:?} (owner: {:?}) completed {} {:?} at ({}, {}) to level {:?}",
                         civilian.kind,
+                        civilian.owner,
                         action,
                         resource.resource_type,
                         job.target.x,
@@ -100,8 +103,8 @@ pub fn complete_improvement_jobs(
                                 .remove::<crate::map::PotentialMineral>();
 
                             info!(
-                                "Prospector discovered {:?} at ({}, {})!",
-                                resource_type, job.target.x, job.target.y
+                                "Prospector (owner: {:?}) discovered {:?} at ({}, {})!",
+                                civilian.owner, resource_type, job.target.x, job.target.y
                             );
 
                             // Mark as discovered for this nation
@@ -114,8 +117,8 @@ pub fn complete_improvement_jobs(
                                 .remove::<crate::map::PotentialMineral>();
 
                             info!(
-                                "Prospector found no minerals at ({}, {})",
-                                job.target.x, job.target.y
+                                "Prospector (owner: {:?}) found no minerals at ({}, {})",
+                                civilian.owner, job.target.x, job.target.y
                             );
                         }
                     }
