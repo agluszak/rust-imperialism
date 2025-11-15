@@ -9,7 +9,8 @@ use crate::messages::workforce::RecruitWorkers;
 use crate::turn_system::{TurnPhase, TurnSystem};
 
 /// Component tracking queued recruitment orders for a nation
-#[derive(Component, Debug, Clone, Default)]
+#[derive(Component, Debug, Clone, Default, Reflect)]
+#[reflect(Component)]
 pub struct RecruitmentQueue {
     /// Number of workers queued for recruitment this turn
     pub queued: u32,

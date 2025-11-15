@@ -70,12 +70,6 @@ pub struct ProductionChoiceButton {
     pub choice: ProductionChoice,
 }
 
-/// Message to hire a civilian
-#[derive(Message, Debug, Clone, Copy)]
-pub struct HireCivilian {
-    pub kind: CivilianKind,
-}
-
 /// Marker for production dialog labor display
 #[derive(Component)]
 pub struct ProductionLaborDisplay {

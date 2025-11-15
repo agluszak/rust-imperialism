@@ -2,12 +2,16 @@ use bevy::ecs::entity::{EntityMapper, MapEntities};
 use bevy::ecs::reflect::ReflectMapEntities;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
+use moonshine_save::prelude::Save;
 use std::collections::{HashMap, HashSet};
+use std::mem;
 
+use crate::economy::nation::NationId;
 use crate::resources::TileResource;
 
 /// Tracks which nations have successfully prospected each mineral tile
-#[derive(Resource, Default, Debug)]
+#[derive(Resource, Default, Debug, Reflect)]
+#[reflect(Resource, MapEntities)]
 pub struct ProspectingKnowledge {
     discoveries: HashMap<Entity, HashSet<Entity>>,
 }
@@ -35,6 +39,23 @@ impl ProspectingKnowledge {
         for nations in self.discoveries.values_mut() {
             nations.remove(&nation);
         }
+    }
+}
+
+impl MapEntities for ProspectingKnowledge {
+    fn map_entities<M: EntityMapper>(&mut self, mapper: &mut M) {
+        let discoveries = mem::take(&mut self.discoveries);
+        self.discoveries = discoveries
+            .into_iter()
+            .map(|(tile, nations)| {
+                let mapped_tile = mapper.get_mapped(tile);
+                let mapped_nations = nations
+                    .into_iter()
+                    .map(|nation| mapper.get_mapped(nation))
+                    .collect();
+                (mapped_tile, mapped_nations)
+            })
+            .collect();
     }
 }
 
@@ -112,7 +133,7 @@ pub struct CivilianKindDefinition {
 }
 
 /// Type of civilian unit
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect)]
 pub enum CivilianKind {
     Prospector, // Reveals minerals (coal/iron/gold/gems/oil)
     Miner,      // Opens & upgrades mines
@@ -245,6 +266,17 @@ impl CivilianKind {
         }
     }
 
+    /// Monetary cost to hire this civilian type.
+    pub fn hiring_cost(&self) -> i64 {
+        match self {
+            CivilianKind::Engineer => 200,
+            CivilianKind::Prospector => 150,
+            CivilianKind::Developer => 180,
+            CivilianKind::Miner | CivilianKind::Driller => 120,
+            CivilianKind::Farmer | CivilianKind::Rancher | CivilianKind::Forester => 100,
+        }
+    }
+
     /// Returns true if the civilian can improve tile resources
     pub fn supports_improvements(&self) -> bool {
         self.definition().improvement_job.is_some()
@@ -307,10 +339,12 @@ impl CivilianKind {
 /// Civilian unit component
 #[derive(Component, Debug, Reflect)]
 #[reflect(Component, MapEntities)]
+#[require(Save)]
 pub struct Civilian {
     pub kind: CivilianKind,
     pub position: TilePos,
     pub owner: Entity, // Nation entity that owns this unit
+    pub owner_id: NationId,
     pub selected: bool,
     pub has_moved: bool, // True if unit has used its action this turn
 }

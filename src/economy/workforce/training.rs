@@ -8,7 +8,8 @@ use crate::messages::workforce::TrainWorker;
 use crate::turn_system::{TurnPhase, TurnSystem};
 
 /// Component tracking queued training orders for a nation
-#[derive(Component, Debug, Clone, Default)]
+#[derive(Component, Debug, Clone, Default, Reflect)]
+#[reflect(Component)]
 pub struct TrainingQueue {
     /// Training orders: (from_skill, count)
     pub orders: Vec<(WorkerSkill, u32)>,

@@ -1,20 +1,32 @@
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use big_brain::prelude::*;
+use std::collections::HashMap;
 
 use crate::ai::markers::AiNation;
+use crate::civilians::Civilian;
+use crate::civilians::CivilianKind;
 use crate::economy::allocation_systems;
 use crate::economy::goods::Good;
 use crate::economy::market::{MARKET_RESOURCES, MarketPriceModel, MarketVolume};
 use crate::economy::production::{BuildingKind, Buildings};
 use crate::economy::{Allocations, EconomySet, NationHandle, NationInstance, Stockpile, Treasury};
-use crate::messages::{AdjustMarketOrder, AdjustProduction, MarketInterest};
+use crate::messages::{AdjustMarketOrder, AdjustProduction, HireCivilian, MarketInterest};
 use crate::turn_system::{TurnPhase, TurnSystem};
 use crate::ui::menu::AppState;
 
 const BUY_SHORTAGE_THRESHOLD: u32 = 2;
 const SELL_RESERVE: u32 = 5;
 const SELL_MAX_PER_GOOD: u32 = 6;
+const AI_CIVILIAN_MAX_HIRES_PER_TURN: usize = 1;
+const AI_CIVILIAN_TARGETS: &[(CivilianKind, u32)] = &[
+    (CivilianKind::Engineer, 2),
+    (CivilianKind::Prospector, 2),
+    (CivilianKind::Farmer, 2),
+    (CivilianKind::Miner, 2),
+    (CivilianKind::Rancher, 1),
+    (CivilianKind::Forester, 1),
+];
 
 const PRODUCTION_PRIORITIES: &[(Good, u32)] = &[
     (Good::CannedFood, 8),
@@ -63,7 +75,60 @@ impl Plugin for AiEconomyPlugin {
                 .before(allocation_systems::apply_production_adjustments)
                 .before(allocation_systems::apply_market_order_adjustments)
                 .in_set(EconomySet),
+        )
+        .add_systems(
+            Update,
+            plan_ai_civilian_hiring
+                .in_set(EconomySet)
+                .run_if(in_state(AppState::InGame))
+                .run_if(enemy_turn_active),
         );
+    }
+}
+
+fn plan_ai_civilian_hiring(
+    mut writer: MessageWriter<HireCivilian>,
+    ai_nations: Query<(&NationHandle, &Treasury), With<AiNation>>,
+    civilians: Query<&Civilian>,
+) {
+    let mut counts: HashMap<Entity, HashMap<CivilianKind, u32>> = HashMap::new();
+    for civilian in civilians.iter() {
+        counts
+            .entry(civilian.owner)
+            .or_default()
+            .entry(civilian.kind)
+            .and_modify(|count| *count += 1)
+            .or_insert(1);
+    }
+
+    for (handle, treasury) in ai_nations.iter() {
+        let nation = handle.instance();
+        let mut remaining_cash = treasury.available();
+        let mut hires_this_turn = 0;
+        let nation_counts = counts.get(&nation.entity());
+
+        for &(kind, target) in AI_CIVILIAN_TARGETS {
+            if hires_this_turn >= AI_CIVILIAN_MAX_HIRES_PER_TURN {
+                break;
+            }
+
+            let current = nation_counts
+                .and_then(|entries| entries.get(&kind))
+                .copied()
+                .unwrap_or(0);
+            if current >= target {
+                continue;
+            }
+
+            let cost = kind.hiring_cost();
+            if remaining_cash < cost {
+                break;
+            }
+
+            writer.write(HireCivilian { nation, kind });
+            remaining_cash -= cost;
+            hires_this_turn += 1;
+        }
     }
 }
 
@@ -437,18 +502,55 @@ fn evaluate_market_orders(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::prelude::World;
+    use bevy::ecs::message::MessageReader;
+    use bevy::ecs::system::{RunSystemOnce, SystemState};
+    use bevy::prelude::{App, Entity, World};
+    use bevy_ecs_tilemap::prelude::TilePos;
 
+    use crate::ai::markers::AiNation;
+    use crate::ai::trade::{
+        AI_CIVILIAN_TARGETS, SELL_MAX_PER_GOOD, SELL_RESERVE, plan_ai_civilian_hiring,
+    };
+    use crate::civilians::Civilian;
     use crate::economy::goods::Good;
     use crate::economy::market::MarketPriceModel;
-    use crate::economy::nation::{NationId, NationInstance};
+    use crate::economy::nation::{NationHandle, NationId, NationInstance};
     use crate::economy::production::Buildings;
     use crate::economy::stockpile::Stockpile;
     use crate::economy::treasury::Treasury;
-    use crate::messages::MarketInterest;
+    use crate::messages::{HireCivilian, MarketInterest};
 
     fn nation_instance(world: &World, entity: Entity) -> NationInstance {
         NationInstance::from_entity(world.entity(entity)).unwrap()
+    }
+
+    fn spawn_ai_nation(app: &mut App) -> Entity {
+        let entity = app
+            .world_mut()
+            .spawn((
+                AiNation,
+                NationId(42),
+                Allocations::default(),
+                Stockpile::default(),
+                Treasury::new(1_000),
+            ))
+            .id();
+
+        let world = app.world_mut();
+        let instance = NationInstance::from_entity(world.entity(entity)).unwrap();
+        world.entity_mut(entity).insert(NationHandle::new(instance));
+        entity
+    }
+
+    fn drain_hires(world: &mut World) -> Vec<HireCivilian> {
+        let mut state: SystemState<MessageReader<HireCivilian>> = SystemState::new(world);
+        let mut reader = state.get_mut(world);
+        let mut hires = Vec::new();
+        for msg in reader.read() {
+            hires.push(*msg);
+        }
+        state.apply(world);
+        hires
     }
 
     #[test]
@@ -527,5 +629,46 @@ mod tests {
         assert!(orders.iter().any(|order| {
             order.kind == MarketInterest::Buy && order.good == Good::Fish && order.requested == 0
         }));
+    }
+
+    #[test]
+    fn hires_civilian_when_below_target() {
+        let mut app = App::new();
+        app.add_message::<HireCivilian>();
+
+        let nation = spawn_ai_nation(&mut app);
+
+        let _ = app.world_mut().run_system_once(plan_ai_civilian_hiring);
+        let hires = drain_hires(app.world_mut());
+
+        assert!(hires.iter().any(|hire| hire.nation.entity() == nation));
+    }
+
+    #[test]
+    fn does_not_hire_when_already_has_targets() {
+        let mut app = App::new();
+        app.add_message::<HireCivilian>();
+
+        let nation = spawn_ai_nation(&mut app);
+        {
+            let world = app.world_mut();
+            for &(kind, target) in AI_CIVILIAN_TARGETS {
+                for _ in 0..target {
+                    world.spawn(Civilian {
+                        kind,
+                        position: TilePos { x: 0, y: 0 },
+                        owner: nation,
+                        owner_id: NationId(42),
+                        selected: false,
+                        has_moved: false,
+                    });
+                }
+            }
+        }
+
+        let _ = app.world_mut().run_system_once(plan_ai_civilian_hiring);
+        let hires = drain_hires(app.world_mut());
+
+        assert!(hires.is_empty());
     }
 }
