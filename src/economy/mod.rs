@@ -156,12 +156,13 @@ impl Plugin for EconomyPlugin {
                 .in_set(EconomySet),
         );
 
+        // Market clearing happens at the START of PlayerTurn (after EnemyTurn decisions)
         app.add_systems(
             Update,
             trade::resolve_market_orders
                 .run_if(resource_changed::<TurnSystem>)
-                .run_if(|turn_system: Res<TurnSystem>| turn_system.phase == TurnPhase::Processing)
-                .after(allocation_systems::finalize_allocations)
+                .run_if(|turn_system: Res<TurnSystem>| turn_system.phase == TurnPhase::PlayerTurn)
+                .before(allocation_systems::reset_allocations)
                 .in_set(EconomySet),
         );
     }
