@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::economy::{
     allocation::Allocations,
     goods::Good,
-    production::{building_for_output, BuildingKind, Buildings},
+    production::{BuildingKind, Buildings, building_for_output},
     reservation::ReservationSystem,
     stockpile::Stockpile,
     treasury::Treasury,

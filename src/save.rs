@@ -263,22 +263,21 @@ fn rebuild_runtime_state_after_load(
     if player_entity.is_some() || !missing_handles.is_empty() {
         commands.queue(move |world: &mut World| {
             for entity in missing_handles {
-                if let Ok(entity_ref) = world.get_entity(entity) {
-                    if let Some(instance) = NationInstance::from_entity(entity_ref) {
-                        if let Ok(mut entity_mut) = world.get_entity_mut(entity) {
-                            entity_mut.insert(NationHandle::new(instance));
-                        }
-                    }
+                if let Ok(entity_ref) = world.get_entity(entity)
+                    && let Some(instance) = NationInstance::from_entity(entity_ref)
+                    && let Ok(mut entity_mut) = world.get_entity_mut(entity)
+                {
+                    entity_mut.insert(NationHandle::new(instance));
                 }
             }
 
-            if let Some(entity) = player_entity {
-                if let Some(nation) = PlayerNation::from_entity(world, entity) {
-                    if world.contains_resource::<PlayerNation>() {
-                        *world.resource_mut::<PlayerNation>() = nation;
-                    } else {
-                        world.insert_resource(nation);
-                    }
+            if let Some(entity) = player_entity
+                && let Some(nation) = PlayerNation::from_entity(world, entity)
+            {
+                if world.contains_resource::<PlayerNation>() {
+                    *world.resource_mut::<PlayerNation>() = nation;
+                } else {
+                    world.insert_resource(nation);
                 }
             }
         });

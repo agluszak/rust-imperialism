@@ -1,24 +1,29 @@
 # AGENTS.md
 
-This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. Last updated: **2025-10-20**.
+This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. Last updated: **2025-11-15**.
 
 **This is an economy-first, turn-based strategy game** inspired by Imperialism (1997). Built with Bevy 0.17 ECS, featuring hex-based maps, multi-nation economies, and a reservation-based resource allocation system.
 
-## Recent Changes (Oct 2025)
+## Recent Changes (Oct-Nov 2025)
 
+- **AI opponents**: Integrated big-brain behavior system with economy planning and civilian management
+- **Save/load system**: Full game persistence using moonshine-save with component serialization
+- **Port fish production**: Connected ports yield 2 fish (bonus from transport connectivity)
+- **Market improvements**: Refactored pricing model, order matching across turn phases
+- **Orders queue**: Centralized command queuing system for deferred execution
 - **Debug overlays**: Transport network connectivity visualization (F3), connected resource display (C key)
 - **Civilian units**: Complete prospector/farmer/forester/engineer system with resource discovery
 - **Prospecting system**: Hidden mineral deposits with visual markers (red X or colored squares)
 - **Rescind orders**: Exclusive-world-access system for immediate component removal
 - **UI patterns**: Documented Bevy 0.17 button requirements (both Button + OldButton components)
-- **Plugin architecture**: `EconomyPlugin`, `MapSetupPlugin`, `CameraPlugin` encapsulate system registration
-- **Resources/messages**: Moved to respective plugins (Economy/Map own their resources)
+- **Plugin architecture**: `EconomyPlugin`, `MapSetupPlugin`, `CameraPlugin`, `AiBehaviorPlugin` encapsulate system registration
+- **Resources/messages**: Moved to respective plugins (Economy/Map/AI own their resources)
 - **Map visibility**: All map visuals use `MapTilemap` marker for automatic show/hide on mode switch
-- **Module structure**: `lib.rs` reduced to 76 lines (pure plugin orchestration), major modules use subdirectories
+- **Module structure**: `lib.rs` reduced to pure plugin orchestration, major modules use subdirectories
 - **Allocation system**: Refactored to atomic reservations (`Vec<ReservationId>` per allocation)
 - **Test organization**: Inline for small tests (<50 lines), separate `tests.rs` for large test suites
 - **Import style**: All code uses explicit `crate::` paths (no `super::`)
-- **Quality**: Zero clippy warnings, 119 unit + 5 integration tests passing
+- **Quality**: Zero clippy warnings policy, comprehensive test coverage
 
 ## Quick Reference
 
@@ -39,20 +44,23 @@ cargo clippy           # Lint checks
   - Color-coded by source (improvements, ports, baseline)
 
 **Where to find things:**
-- Plugins: `src/economy/mod.rs`, `src/map/mod.rs`, `src/helpers/camera.rs`, `src/civilians/mod.rs`
-- App orchestration: `src/lib.rs` (76 lines, no implementation)
+- Plugins: `src/economy/mod.rs`, `src/map/mod.rs`, `src/helpers/camera.rs`, `src/civilians/mod.rs`, `src/ai/mod.rs`
+- App orchestration: `src/lib.rs` (pure plugin orchestration, no implementation)
 - Allocation details: `ai-docs/ALLOCATION_DESIGN.md`
-- Game mechanics reference: `OVERVIEW.md`
+- Game mechanics reference: `OVERVIEW.md` and `manual.pdf`
+- Save system: `src/save.rs`
 
 **Tech stack:**
-- Engine: Bevy 0.17, `bevy_ecs_tilemap` 0.17.0-rc.1, `hexx` 0.21
+- Engine: Bevy 0.17, `bevy_ecs_tilemap` 0.17, `hexx` 0.22
+- AI: `big-brain` (utility-based behavior trees)
+- Save: `moonshine-save` and `moonshine-kind` for serialization
 - States: `AppState` (MainMenu/InGame), `GameMode` (Map/Transport/City/Market/Diplomacy)
 - Turn loop: PlayerTurn → Processing → EnemyTurn
 
 ## Architecture
 
 **Plugin-based:**
-- Each subsystem has its own plugin (Economy, Map, Camera, Civilians, Diplomacy, UI)
+- Each subsystem has its own plugin (Economy, Map, Camera, Civilians, Diplomacy, AI, UI, Save)
 - Plugins register systems, resources, and messages
 - Plugins defined in module `mod.rs` files
 - `lib.rs` only orchestrates plugins
@@ -78,15 +86,25 @@ src/
 ├── lib.rs (plugin orchestration only)
 ├── map/
 │   ├── mod.rs (MapSetupPlugin: tilemap, provinces, terrain atlas)
-│   ├── tiles.rs, terrain_gen.rs, province*.rs
-│   └── rendering/ (borders, cities, transport visuals)
+│   ├── tiles.rs, terrain_gen.rs, province*.rs, prospecting.rs
+│   └── rendering/ (borders, cities, transport visuals, debug overlays)
 ├── economy/
 │   ├── mod.rs (EconomyPlugin: all economy systems + resources)
 │   ├── production.rs, allocation*.rs, goods.rs, stockpile.rs
 │   ├── transport/ (rails, depots, ports, connectivity)
-│   └── workforce/ (recruitment, training, consumption)
+│   ├── workforce/ (recruitment, training, consumption)
+│   └── market.rs, trade.rs
 ├── civilians/ (mod.rs: CivilianPlugin)
-├── helpers/camera.rs (CameraPlugin)
+├── ai/
+│   ├── mod.rs (AiSupportPlugin, exports)
+│   ├── behavior.rs (AiBehaviorPlugin: big-brain integration)
+│   ├── trade.rs (AiEconomyPlugin: market decisions)
+│   ├── context.rs (turn context for AI decisions)
+│   └── markers.rs (AiNation, AiControlledCivilian)
+├── diplomacy/ (mod.rs: DiplomacyPlugin)
+├── orders/ (mod.rs: OrdersQueue for command queueing)
+├── save.rs (GameSavePlugin: moonshine-save integration)
+├── helpers/ (camera.rs: CameraPlugin, picking.rs)
 ├── ui/ (GameUIPlugin, city/, market.rs, transport.rs, diplomacy.rs)
 └── turn_system.rs (TurnSystemPlugin)
 ```
@@ -152,6 +170,13 @@ parent
 - ❌ WRONG: `observe(...)` inside the spawn tuple
 - ✅ CORRECT: `.observe(...)` as method call after `.spawn()`
 
+## Development Guidelines
+
+**Core principles:**
+- **Write testable code**: Structure code to be easily tested, use dependency injection, keep functions pure when possible
+- **Rely on the manual**: Reference `manual.pdf` for game mechanics, rules, and original Imperialism (1997) behavior
+- **When in doubt, ask**: Use the AskUserQuestion tool to clarify requirements rather than making assumptions
+
 ## How to Work on This Codebase
 
 **Adding systems:**
@@ -180,19 +205,23 @@ parent
 ✅ **Complete:**
 - Main menu, province generation, border rendering, city rendering
 - Civilian units (Engineer, Prospector, Farmer, Rancher, Forester, Miner, Driller)
+- AI opponents with big-brain behavior system (rail planning, civilian hiring, economy planning)
+- Save/load system with full game state persistence
 - Prospecting system with hidden minerals and visual discovery markers
 - Rescind orders functionality with refunds for same-turn actions
 - Production system (TextileMill with 2:1 ratios)
 - Allocation/reservation system
-- Market (fixed prices, exclusive buy/sell orders)
+- Market with pricing model and cross-turn order matching
+- Port fish production (2 fish per connected port)
 - Turn system with calendar
 - Transport infrastructure (rails, roads, depots, ports with connectivity)
 - Map visibility system (automatic hide/show on mode switch)
 - Debug overlays (transport connectivity F3, resource production C)
+- Orders queue for centralized command management
 
 🔲 **TODO:**
-- Link cities to provinces (show province resources)
-- Market v2 (order book, uniform-price clearing)
-- Diplomacy (relations, treaties)
-- Transport UX (selection reset, adjacency validation)
-- Test coverage (roads, production math, province generation)
+- Link cities to provinces (show province resources in city view)
+- Market v2 (order book UI, uniform-price clearing algorithm)
+- Diplomacy (relations tracking, treaty system)
+- Transport UX improvements (selection reset, adjacency validation)
+- Test coverage expansion (roads, production math, province generation)
