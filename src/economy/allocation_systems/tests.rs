@@ -641,3 +641,89 @@ fn execute_queued_production_orders_apply_and_clear() {
     );
     assert!(world.resource::<OrdersQueue>().is_empty());
 }
+
+#[test]
+fn execute_queued_production_orders_respect_building_kind_capacity() {
+    let mut world = World::new();
+    world.insert_resource(OrdersQueue::default());
+
+    let nation_entity = world
+        .spawn((
+            NationId(9),
+            Allocations::default(),
+            ReservationSystem::default(),
+            Stockpile::default(),
+            Workforce::new(),
+            Treasury::new(0),
+            Buildings::with_all_initial(),
+        ))
+        .id();
+
+    {
+        let mut stockpile = world
+            .get_mut::<Stockpile>(nation_entity)
+            .expect("stockpile not found");
+        stockpile.add(Good::Grain, 20);
+        stockpile.add(Good::Fruit, 20);
+        stockpile.add(Good::Fish, 20);
+        stockpile.add(Good::Fabric, 20);
+    }
+
+    {
+        let mut workforce = world
+            .get_mut::<Workforce>(nation_entity)
+            .expect("workforce not found");
+        workforce.add_untrained(10);
+        workforce.update_labor_pool();
+    }
+
+    let nation_instance = NationInstance::from_entity(world.entity(nation_entity))
+        .expect("failed to build nation instance");
+
+    world
+        .resource_mut::<OrdersQueue>()
+        .queue_production(AdjustProduction {
+            nation: nation_instance,
+            building: nation_entity,
+            output_good: Good::CannedFood,
+            target_output: 4,
+        });
+
+    world
+        .resource_mut::<OrdersQueue>()
+        .queue_production(AdjustProduction {
+            nation: nation_instance,
+            building: nation_entity,
+            output_good: Good::Clothing,
+            target_output: 2,
+        });
+
+    let mut system_state = SystemState::<(
+        ResMut<OrdersQueue>,
+        Query<(
+            &mut Allocations,
+            &mut ReservationSystem,
+            &mut Stockpile,
+            &mut Workforce,
+        )>,
+        Query<&Buildings>,
+    )>::new(&mut world);
+
+    {
+        let (orders, nations, buildings) = system_state.get_mut(&mut world);
+        execute_queued_production_orders(orders, nations, buildings);
+    }
+    system_state.apply(&mut world);
+
+    let allocations = world
+        .get::<Allocations>(nation_entity)
+        .expect("allocations not found");
+    assert_eq!(
+        allocations.production_count(nation_entity, Good::CannedFood),
+        4
+    );
+    assert_eq!(
+        allocations.production_count(nation_entity, Good::Clothing),
+        2
+    );
+}
