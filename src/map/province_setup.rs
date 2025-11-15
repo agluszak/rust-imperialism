@@ -102,34 +102,7 @@ pub fn assign_provinces_to_countries(
             format!("Nation {}", i + 1)
         };
 
-        let mut stockpile = Stockpile::default();
-        if i == 0 {
-            // Player starts with some resources
-            // Raw materials for textile production
-            stockpile.add(Good::Wool, 10);
-            stockpile.add(Good::Cotton, 10);
-
-            // Raw materials for wood/paper production
-            stockpile.add(Good::Timber, 20);
-
-            // Raw materials for steel production
-            stockpile.add(Good::Coal, 10);
-            stockpile.add(Good::Iron, 10);
-
-            // Raw food for feeding workers
-            stockpile.add(Good::Grain, 20);
-            stockpile.add(Good::Fruit, 20);
-            stockpile.add(Good::Livestock, 20);
-            stockpile.add(Good::Fish, 10);
-
-            // Finished goods for recruiting workers
-            stockpile.add(Good::CannedFood, 10);
-            stockpile.add(Good::Clothing, 10);
-            stockpile.add(Good::Furniture, 10);
-
-            // Paper for training workers
-            stockpile.add(Good::Paper, 5);
-        }
+        let stockpile = baseline_stockpile();
 
         let color = nation_colors[i % nation_colors.len()];
 
@@ -160,27 +133,17 @@ pub fn assign_provinces_to_countries(
             commands.entity(country_entity).insert(AiNation);
         }
 
-        // Player gets starting buildings and workforce
-        if i == 0 {
-            let mut workforce = Workforce::new();
-            // Start with 5 untrained workers
-            workforce.add_untrained(5);
-            // Sync labor pool with worker counts
-            workforce.update_labor_pool();
-
-            // All manufacturories are available at start
-            commands.entity(country_entity).insert((
-                Buildings::with_all_initial(),
-                ProductionSettings::default(),
-                workforce,
-                RecruitmentCapacity::default(),
-                RecruitmentQueue::default(),
-                TrainingQueue::default(),
-            ));
-
-            // Note: Capitol and TradeSchool don't need separate Building entities
-            // They're always available and use the nation's Stockpile/Workforce directly
-        }
+        let mut workforce = Workforce::new();
+        workforce.add_untrained(5);
+        workforce.update_labor_pool();
+        commands.entity(country_entity).insert((
+            Buildings::with_all_initial(),
+            ProductionSettings::default(),
+            workforce,
+            RecruitmentCapacity::default(),
+            RecruitmentQueue::default(),
+            TrainingQueue::default(),
+        ));
         country_entities.push(country_entity);
         info!("Created Nation {} with color", i + 1);
     }
@@ -360,6 +323,24 @@ fn assign_province_to_country(
         info!("Set capital at ({}, {})", city_tile.x, city_tile.y);
         capitals.push((country_entity, city_tile));
     }
+}
+
+fn baseline_stockpile() -> Stockpile {
+    let mut stockpile = Stockpile::default();
+    stockpile.add(Good::Wool, 10);
+    stockpile.add(Good::Cotton, 10);
+    stockpile.add(Good::Timber, 20);
+    stockpile.add(Good::Coal, 10);
+    stockpile.add(Good::Iron, 10);
+    stockpile.add(Good::Grain, 20);
+    stockpile.add(Good::Fruit, 20);
+    stockpile.add(Good::Livestock, 20);
+    stockpile.add(Good::Fish, 10);
+    stockpile.add(Good::CannedFood, 10);
+    stockpile.add(Good::Clothing, 10);
+    stockpile.add(Good::Furniture, 10);
+    stockpile.add(Good::Paper, 5);
+    stockpile
 }
 
 fn gather_spawn_positions(capital_pos: TilePos, count: usize) -> Vec<TilePos> {

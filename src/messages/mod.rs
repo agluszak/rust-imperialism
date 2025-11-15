@@ -4,7 +4,7 @@ pub mod economy;
 pub mod transport;
 pub mod workforce;
 
-pub use civilians::{CivilianCommand, CivilianCommandError, CivilianCommandRejected};
+pub use civilians::{CivilianCommand, CivilianCommandError, CivilianCommandRejected, HireCivilian};
 pub use diplomacy::{DiplomaticOrder, DiplomaticOrderKind};
 pub use economy::{
     AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, MarketInterest,
@@ -35,5 +35,6 @@ mod tests {
         assert_send_sync_static::<DiplomaticOrder>();
         assert_send_sync_static::<CivilianCommand>();
         assert_send_sync_static::<CivilianCommandRejected>();
+        assert_send_sync_static::<HireCivilian>();
     }
 }

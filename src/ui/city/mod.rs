@@ -17,7 +17,7 @@ pub mod components;
 pub mod dialogs;
 pub mod hud;
 pub mod layout;
-pub mod workforce;
+// Worker/civilian recruitment logic lives in crate::civilians::hiring
 
 // No private imports needed - using fully qualified paths in plugin registration
 
@@ -27,7 +27,6 @@ pub struct CityUIPlugin;
 impl Plugin for CityUIPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<dialogs::DialogZIndexCounter>()
-            .add_message::<HireCivilian>()
             .add_message::<RecruitWorkers>()
             .add_message::<TrainWorker>()
             .add_message::<dialogs::OpenBuildingDialog>()
@@ -72,14 +71,6 @@ impl Plugin for CityUIPlugin {
                     dialogs::update_capitol_capacity_display,
                     dialogs::update_trade_school_workforce_display,
                     dialogs::update_trade_school_paper_display,
-                )
-                    .run_if(in_state(GameMode::City)),
-            )
-            .add_systems(
-                Update,
-                (
-                    // Input handlers
-                    workforce::spawn_hired_civilian,
                 )
                     .run_if(in_state(GameMode::City)),
             )
