@@ -675,4 +675,242 @@ mod tests {
             "Seller should have earned money from the sale"
         );
     }
+
+    #[test]
+    fn processes_goods_in_manual_order() {
+        let mut app = App::new();
+        app.insert_resource(MarketPriceModel::default());
+
+        let seller = app
+            .world_mut()
+            .spawn((
+                NationId(1),
+                Name("Seller".into()),
+                Allocations::default(),
+                ReservationSystem::default(),
+                Stockpile::default(),
+                Workforce::new(),
+                Treasury::new(1_000),
+            ))
+            .id();
+
+        let buyer = app
+            .world_mut()
+            .spawn((
+                NationId(2),
+                Name("Buyer".into()),
+                Allocations::default(),
+                ReservationSystem::default(),
+                Stockpile::default(),
+                Workforce::new(),
+                Treasury::new(80),
+            ))
+            .id();
+
+        // Seller reserves one Grain and one Cotton for sale.
+        {
+            let world = app.world_mut();
+            let mut seller_query = world.query::<(
+                &mut Stockpile,
+                &mut ReservationSystem,
+                &mut Allocations,
+                &mut Workforce,
+                &mut Treasury,
+            )>();
+
+            let (mut stockpile, mut reservations, mut allocations, mut workforce, mut treasury) =
+                seller_query.get_mut(world, seller).expect("seller data");
+
+            stockpile.add(Good::Grain, 1);
+            stockpile.add(Good::Cotton, 1);
+
+            for good in [Good::Grain, Good::Cotton] {
+                let res_id = reservations
+                    .try_reserve(
+                        vec![(good, 1u32)],
+                        0,
+                        0,
+                        &mut stockpile,
+                        &mut workforce,
+                        &mut treasury,
+                    )
+                    .expect("reserve good for sale");
+                allocations
+                    .market_sells
+                    .entry(good)
+                    .or_default()
+                    .push(res_id);
+            }
+        }
+
+        // Buyer wants both commodities but only has enough cash for one unit.
+        {
+            let world = app.world_mut();
+            world
+                .get_mut::<Allocations>(buyer)
+                .unwrap()
+                .market_buys
+                .insert(Good::Grain);
+            world
+                .get_mut::<Allocations>(buyer)
+                .unwrap()
+                .market_buys
+                .insert(Good::Cotton);
+        }
+
+        let mut system_state: SystemState<(
+            Query<
+                (
+                    &mut Allocations,
+                    &mut ReservationSystem,
+                    &mut Stockpile,
+                    &mut Workforce,
+                    &mut Treasury,
+                    Option<&Name>,
+                ),
+                With<NationId>,
+            >,
+            Query<Entity, With<NationId>>,
+            Res<MarketPriceModel>,
+        )> = SystemState::new(app.world_mut());
+
+        {
+            let (nations, nation_entities, pricing) = system_state.get_mut(app.world_mut());
+            resolve_market_orders(nations, nation_entities, pricing);
+            system_state.apply(app.world_mut());
+        }
+
+        let world = app.world();
+        let buyer_stockpile = world.get::<Stockpile>(buyer).unwrap();
+        let seller_treasury = world.get::<Treasury>(seller).unwrap();
+
+        assert_eq!(buyer_stockpile.get(Good::Grain), 1);
+        assert_eq!(buyer_stockpile.get(Good::Cotton), 0);
+        assert_eq!(seller_treasury.total(), 1_000 + 60);
+    }
+
+    #[test]
+    fn multiple_buyers_raise_price() {
+        let mut app = App::new();
+        app.insert_resource(MarketPriceModel::default());
+
+        let seller = app
+            .world_mut()
+            .spawn((
+                NationId(1),
+                Name("Seller".into()),
+                Allocations::default(),
+                ReservationSystem::default(),
+                Stockpile::default(),
+                Workforce::new(),
+                Treasury::new(0),
+            ))
+            .id();
+
+        let buyer_a = app
+            .world_mut()
+            .spawn((
+                NationId(2),
+                Name("Buyer A".into()),
+                Allocations::default(),
+                ReservationSystem::default(),
+                Stockpile::default(),
+                Workforce::new(),
+                Treasury::new(1_000),
+            ))
+            .id();
+
+        let buyer_b = app
+            .world_mut()
+            .spawn((
+                NationId(3),
+                Name("Buyer B".into()),
+                Allocations::default(),
+                ReservationSystem::default(),
+                Stockpile::default(),
+                Workforce::new(),
+                Treasury::new(1_000),
+            ))
+            .id();
+
+        // Seller reserves one Coal for sale at the start of the turn.
+        {
+            let world = app.world_mut();
+            let mut seller_query = world.query::<(
+                &mut Stockpile,
+                &mut ReservationSystem,
+                &mut Allocations,
+                &mut Workforce,
+                &mut Treasury,
+            )>();
+
+            let (mut stockpile, mut reservations, mut allocations, mut workforce, mut treasury) =
+                seller_query.get_mut(world, seller).expect("seller data");
+
+            stockpile.add(Good::Coal, 1);
+            let res_id = reservations
+                .try_reserve(
+                    vec![(Good::Coal, 1u32)],
+                    0,
+                    0,
+                    &mut stockpile,
+                    &mut workforce,
+                    &mut treasury,
+                )
+                .expect("reserve coal for sale");
+            allocations
+                .market_sells
+                .entry(Good::Coal)
+                .or_default()
+                .push(res_id);
+        }
+
+        // Both buyers express interest in Coal, pushing demand above supply.
+        {
+            let world = app.world_mut();
+            world
+                .get_mut::<Allocations>(buyer_a)
+                .unwrap()
+                .market_buys
+                .insert(Good::Coal);
+            world
+                .get_mut::<Allocations>(buyer_b)
+                .unwrap()
+                .market_buys
+                .insert(Good::Coal);
+        }
+
+        let mut system_state: SystemState<(
+            Query<
+                (
+                    &mut Allocations,
+                    &mut ReservationSystem,
+                    &mut Stockpile,
+                    &mut Workforce,
+                    &mut Treasury,
+                    Option<&Name>,
+                ),
+                With<NationId>,
+            >,
+            Query<Entity, With<NationId>>,
+            Res<MarketPriceModel>,
+        )> = SystemState::new(app.world_mut());
+
+        {
+            let (nations, nation_entities, pricing) = system_state.get_mut(app.world_mut());
+            resolve_market_orders(nations, nation_entities, pricing);
+            system_state.apply(app.world_mut());
+        }
+
+        let world = app.world();
+        let seller_treasury = world.get::<Treasury>(seller).unwrap();
+        let buyer_a_stockpile = world.get::<Stockpile>(buyer_a).unwrap();
+        let buyer_b_stockpile = world.get::<Stockpile>(buyer_b).unwrap();
+
+        assert_eq!(seller_treasury.total(), 113);
+        assert_eq!(
+            buyer_a_stockpile.get(Good::Coal) + buyer_b_stockpile.get(Good::Coal),
+            1
+        );
+    }
 }
