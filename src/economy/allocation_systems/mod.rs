@@ -517,7 +517,7 @@ fn process_market_adjustment(
     let Ok((mut allocations, mut reservations, mut stockpile, mut workforce, mut treasury)) =
         nations.get_mut(msg.nation.entity())
     else {
-        warn!("Cannot adjust market orders: nation not found");
+        // Silently skip messages for despawned nations
         return;
     };
 

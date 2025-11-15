@@ -5,7 +5,7 @@ use crate::ai::context::enemy_turn_entered;
 use crate::ai::markers::AiNation;
 use crate::economy::allocation_systems;
 use crate::economy::market::{MARKET_RESOURCES, MarketPriceModel, MarketVolume};
-use crate::economy::{Allocations, EconomySet, NationHandle, Stockpile, Treasury};
+use crate::economy::{Allocations, EconomySet, NationHandle, NationId, Stockpile, Treasury};
 use crate::messages::{AdjustMarketOrder, MarketInterest};
 use crate::ui::menu::AppState;
 
@@ -32,10 +32,10 @@ impl Plugin for AiEconomyPlugin {
 
 fn plan_ai_market_orders(
     mut writer: MessageWriter<AdjustMarketOrder>,
-    ai_nations: Query<(&NationHandle, &Allocations, &Stockpile, &Treasury), With<AiNation>>,
+    ai_nations: Query<(&NationHandle, &NationId, &Allocations, &Stockpile, &Treasury), With<AiNation>>,
     pricing: Res<MarketPriceModel>,
 ) {
-    for (handle, allocations, stockpile, treasury) in ai_nations.iter() {
+    for (handle, nation_id, allocations, stockpile, treasury) in ai_nations.iter() {
         let nation = handle.instance();
         let cash_available = treasury.available();
 
@@ -49,6 +49,10 @@ fn plan_ai_market_orders(
             // Express buy interest (boolean) if we have a shortage and can afford it
             if wants_buy && can_afford {
                 if !has_buy_interest {
+                    info!(
+                        "AI Nation {:?}: Expressing buy interest for {:?} (available: {}, price: ${})",
+                        nation_id, good, available, price
+                    );
                     writer.write(AdjustMarketOrder {
                         nation,
                         good,
@@ -58,6 +62,10 @@ fn plan_ai_market_orders(
                 }
             } else if has_buy_interest {
                 // Clear buy interest if we no longer want/can afford it
+                info!(
+                    "AI Nation {:?}: Clearing buy interest for {:?} (available: {}, can_afford: {})",
+                    nation_id, good, available, can_afford
+                );
                 writer.write(AdjustMarketOrder {
                     nation,
                     good,
@@ -74,6 +82,10 @@ fn plan_ai_market_orders(
             let current_sell = allocations.market_sell_count(good) as u32;
 
             if desired_sell != current_sell {
+                info!(
+                    "AI Nation {:?}: Adjusting sell orders for {:?} from {} to {} (available: {})",
+                    nation_id, good, current_sell, desired_sell, available
+                );
                 writer.write(AdjustMarketOrder {
                     nation,
                     good,
