@@ -38,6 +38,7 @@ pub enum Good {
     // Special
     Horses,
     Transport, // Freight cars for moving goods
+    Ship,      // Merchant ships for trade capacity
 
     // Legacy (keeping for compatibility)
     Cloth, // Same as Fabric
@@ -115,6 +116,7 @@ impl fmt::Display for Good {
             Good::CannedFood => write!(f, "Canned Food"),
             Good::Horses => write!(f, "Horses"),
             Good::Transport => write!(f, "Transport"),
+            Good::Ship => write!(f, "Ship"),
             Good::Cloth => write!(f, "Cloth"),
         }
     }

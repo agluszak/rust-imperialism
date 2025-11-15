@@ -46,6 +46,7 @@ pub fn open_building_dialogs(
             BuildingKind::MetalWorks => "Metal Works",
             BuildingKind::Refinery => "Refinery",
             BuildingKind::Railyard => "Railyard",
+            BuildingKind::Shipyard => "Shipyard",
             BuildingKind::Capitol => "Capitol",
             BuildingKind::TradeSchool => "Trade School",
             BuildingKind::PowerPlant => "Power Plant",

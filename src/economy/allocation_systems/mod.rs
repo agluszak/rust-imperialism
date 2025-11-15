@@ -100,6 +100,8 @@ pub(crate) fn calculate_inputs_for_one_unit(
 
         BuildingKind::Railyard => vec![(Good::Steel, 1), (Good::Lumber, 1)],
 
+        BuildingKind::Shipyard => vec![(Good::Steel, 1), (Good::Lumber, 1), (Good::Fuel, 1)],
+
         BuildingKind::Capitol | BuildingKind::TradeSchool | BuildingKind::PowerPlant => vec![],
     }
 }
@@ -198,6 +200,7 @@ fn process_production_adjustment(
         Good::Hardware | Good::Armaments => BuildingKind::MetalWorks,
         Good::Fuel => BuildingKind::Refinery,
         Good::Transport => BuildingKind::Railyard,
+        Good::Ship => BuildingKind::Shipyard,
         _ => {
             warn!(
                 "Cannot determine building for output good: {:?}",

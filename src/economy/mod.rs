@@ -15,6 +15,7 @@ pub mod reservation;
 pub mod stockpile;
 pub mod technology;
 pub mod trade;
+pub mod trade_capacity;
 pub mod transport;
 pub mod treasury;
 pub mod workforce;
@@ -33,6 +34,7 @@ pub use production::{Building, BuildingKind, ConnectedProduction};
 pub use reservation::{ReservationId, ReservationSystem, ResourcePool};
 pub use stockpile::Stockpile;
 pub use technology::{Technologies, Technology};
+pub use trade_capacity::{TradeCapacity, TradeCapacitySnapshot};
 pub use transport::{Depot, ImprovementKind, PlaceImprovement, Port, Rails, Roads};
 pub use treasury::Treasury;
 pub use workforce::{
@@ -56,6 +58,7 @@ impl Plugin for EconomyPlugin {
             .insert_resource(transport::Rails::default())
             .insert_resource(production::ConnectedProduction::default())
             .insert_resource(transport::TransportCapacity::default())
+            .insert_resource(trade_capacity::TradeCapacity::default())
             .insert_resource(transport::TransportAllocations::default())
             .insert_resource(transport::TransportDemandSnapshot::default())
             .insert_resource(OrdersQueue::default());
@@ -77,6 +80,7 @@ impl Plugin for EconomyPlugin {
             Update,
             (
                 transport::initialize_transport_capacity,
+                trade_capacity::initialize_trade_capacity,
                 transport::apply_improvements,
                 transport::compute_rail_connectivity.after(transport::apply_improvements),
                 production::calculate_connected_production
@@ -86,6 +90,7 @@ impl Plugin for EconomyPlugin {
                 transport::apply_transport_allocations,
                 production::run_production,
                 transport::convert_transport_goods_to_capacity.after(production::run_production),
+                trade_capacity::convert_ships_to_trade_capacity.after(production::run_production),
             )
                 .in_set(EconomySet),
         );
