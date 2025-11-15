@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::collections::HashSet;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect)]
 pub enum Technology {
     // Rail construction technologies
     MountainEngineering, // Allows building rails in mountains
@@ -10,7 +10,8 @@ pub enum Technology {
 }
 
 /// Set of technologies owned by a nation
-#[derive(Component, Debug, Default, Clone)]
+#[derive(Component, Debug, Default, Clone, Reflect)]
+#[reflect(Component)]
 pub struct Technologies(pub HashSet<Technology>);
 
 impl Technologies {

@@ -1009,7 +1009,7 @@ mod tests {
     use crate::civilians::types::{
         Civilian, CivilianKind, CivilianOrderKind, ProspectingKnowledge,
     };
-    use crate::economy::nation::Capital;
+    use crate::economy::nation::{Capital, NationId};
     use crate::economy::transport::{Rails, ordered_edge};
     use crate::map::province::{Province, ProvinceId, TileProvince};
     use crate::resources::{DevelopmentLevel, ResourceType, TileResource};
@@ -1018,12 +1018,13 @@ mod tests {
     #[test]
     fn tags_ai_owned_civilians() {
         let mut world = World::new();
-        let ai_nation = world.spawn(AiNation).id();
+        let ai_nation = world.spawn((AiNation, NationId(1))).id();
         let civilian_entity = world
             .spawn(Civilian {
                 kind: CivilianKind::Engineer,
                 position: TilePos { x: 1, y: 1 },
                 owner: ai_nation,
+                owner_id: NationId(1),
                 selected: false,
                 has_moved: false,
             })
@@ -1047,13 +1048,14 @@ mod tests {
     #[test]
     fn removes_tag_from_non_ai_owned_civilians() {
         let mut world = World::new();
-        let player_nation = world.spawn_empty().id();
+        let player_nation = world.spawn(NationId(2)).id();
         let civilian_entity = world
             .spawn((
                 Civilian {
                     kind: CivilianKind::Engineer,
                     position: TilePos { x: 1, y: 1 },
                     owner: player_nation,
+                    owner_id: NationId(2),
                     selected: false,
                     has_moved: false,
                 },
@@ -1086,7 +1088,9 @@ mod tests {
         let improvement_pos = TilePos { x: 3, y: 1 };
         let province_id = ProvinceId(1);
 
-        let ai_nation = world.spawn((AiNation, Capital(capital_pos))).id();
+        let ai_nation = world
+            .spawn((AiNation, NationId(3), Capital(capital_pos)))
+            .id();
 
         {
             let mut rails = world.resource_mut::<Rails>();
@@ -1143,6 +1147,7 @@ mod tests {
                 kind: CivilianKind::Engineer,
                 position: neighbor_pos,
                 owner: ai_nation,
+                owner_id: NationId(3),
                 selected: false,
                 has_moved: false,
             })
@@ -1188,7 +1193,9 @@ mod tests {
         let improvement_pos = TilePos { x: 3, y: 1 };
         let province_id = ProvinceId(1);
 
-        let ai_nation = world.spawn((AiNation, Capital(capital_pos))).id();
+        let ai_nation = world
+            .spawn((AiNation, NationId(4), Capital(capital_pos)))
+            .id();
 
         {
             let mut rails = world.resource_mut::<Rails>();
@@ -1245,6 +1252,7 @@ mod tests {
                 kind: CivilianKind::Engineer,
                 position: capital_pos,
                 owner: ai_nation,
+                owner_id: NationId(4),
                 selected: false,
                 has_moved: false,
             })
@@ -1307,7 +1315,7 @@ mod tests {
     #[test]
     fn selects_owned_neighbor_as_move_target() {
         let mut world = World::new();
-        let ai_nation = world.spawn(AiNation).id();
+        let ai_nation = world.spawn((AiNation, NationId(5))).id();
         let neighbor_pos = TilePos { x: 2, y: 1 };
         let mut storage = TileStorage::empty(TilemapSize { x: 4, y: 4 });
 
@@ -1329,6 +1337,7 @@ mod tests {
             kind: CivilianKind::Engineer,
             position: TilePos { x: 1, y: 1 },
             owner: ai_nation,
+            owner_id: NationId(5),
             selected: false,
             has_moved: false,
         };
@@ -1357,7 +1366,9 @@ mod tests {
         world.insert_resource(ProspectingKnowledge::default());
 
         let capital_pos = TilePos { x: 1, y: 1 };
-        let ai_nation = world.spawn((AiNation, Capital(capital_pos))).id();
+        let ai_nation = world
+            .spawn((AiNation, NationId(6), Capital(capital_pos)))
+            .id();
 
         let mut storage = TileStorage::empty(TilemapSize { x: 4, y: 4 });
         let province_id = ProvinceId(1);
@@ -1390,6 +1401,7 @@ mod tests {
             kind: CivilianKind::Farmer,
             position: capital_pos,
             owner: ai_nation,
+            owner_id: NationId(6),
             selected: false,
             has_moved: false,
         };
@@ -1426,7 +1438,9 @@ mod tests {
         world.insert_resource(ProspectingKnowledge::default());
 
         let capital_pos = TilePos { x: 1, y: 1 };
-        let ai_nation = world.spawn((AiNation, Capital(capital_pos))).id();
+        let ai_nation = world
+            .spawn((AiNation, NationId(7), Capital(capital_pos)))
+            .id();
 
         let mut storage = TileStorage::empty(TilemapSize { x: 4, y: 4 });
         let province_id = ProvinceId(1);
@@ -1459,6 +1473,7 @@ mod tests {
             kind: CivilianKind::Miner,
             position: capital_pos,
             owner: ai_nation,
+            owner_id: NationId(7),
             selected: false,
             has_moved: false,
         };
@@ -1495,7 +1510,9 @@ mod tests {
         world.insert_resource(ProspectingKnowledge::default());
 
         let capital_pos = TilePos { x: 1, y: 1 };
-        let ai_nation = world.spawn((AiNation, Capital(capital_pos))).id();
+        let ai_nation = world
+            .spawn((AiNation, NationId(8), Capital(capital_pos)))
+            .id();
 
         let mut storage = TileStorage::empty(TilemapSize { x: 4, y: 4 });
         let province_id = ProvinceId(1);
@@ -1533,6 +1550,7 @@ mod tests {
             kind: CivilianKind::Miner,
             position: capital_pos,
             owner: ai_nation,
+            owner_id: NationId(8),
             selected: false,
             has_moved: false,
         };

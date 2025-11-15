@@ -22,7 +22,7 @@ pub fn spawn_hired_civilian(
     mut commands: Commands,
     mut hire_events: MessageReader<HireCivilian>,
     player_nation: Option<Res<PlayerNation>>,
-    nations: Query<&Capital>,
+    nations: Query<(&Capital, &crate::economy::nation::NationId)>,
     mut treasuries: Query<&mut Treasury>,
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
     civilians: Query<&Civilian>,
@@ -33,7 +33,7 @@ pub fn spawn_hired_civilian(
         };
 
         // Get capital position
-        let Ok(capital) = nations.get(player.entity()) else {
+        let Ok((capital, nation_id)) = nations.get(player.entity()) else {
             info!("Cannot hire: no capital found");
             continue;
         };
@@ -78,6 +78,7 @@ pub fn spawn_hired_civilian(
             kind: event.kind,
             position: spawn_pos,
             owner: player.entity(),
+            owner_id: *nation_id,
             selected: false,
             has_moved: false,
         });

@@ -1,14 +1,17 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
 use moonshine_kind::Instance;
+use moonshine_save::prelude::Save;
 
 /// Unique identifier for a nation (stable across saves)
 #[derive(Component, Clone, Copy, Debug, Eq, PartialEq, Hash, Reflect)]
 #[reflect(Component)]
+#[require(Save)]
 pub struct NationId(pub u16);
 
 /// Display name for a nation
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, Reflect)]
+#[reflect(Component)]
 pub struct Name(pub String);
 
 /// Type-safe handle to a nation entity.
@@ -29,7 +32,8 @@ impl NationHandle {
 }
 
 /// Capital tile position for a nation (used for rail network connectivity)
-#[derive(Component, Clone, Copy, Debug)]
+#[derive(Component, Clone, Copy, Debug, Reflect)]
+#[reflect(Component)]
 pub struct Capital(pub TilePos);
 
 /// Resource pointing to the player's active nation entity
@@ -65,7 +69,8 @@ impl PlayerNation {
 }
 
 /// Nation display color (for borders and UI)
-#[derive(Component, Clone, Copy, Debug)]
+#[derive(Component, Clone, Copy, Debug, Reflect)]
+#[reflect(Component)]
 pub struct NationColor(pub Color);
 
 #[cfg(test)]

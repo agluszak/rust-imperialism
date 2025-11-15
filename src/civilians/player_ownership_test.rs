@@ -28,6 +28,7 @@ fn test_cannot_select_enemy_units() {
             kind: CivilianKind::Engineer,
             position: TilePos { x: 0, y: 0 },
             owner: enemy_nation_entity,
+            owner_id: NationId(2),
             selected: false,
             has_moved: false,
         })
@@ -83,6 +84,7 @@ fn test_can_select_own_units() {
             kind: CivilianKind::Engineer,
             position: TilePos { x: 0, y: 0 },
             owner: player_nation_entity,
+            owner_id: NationId(1),
             selected: false,
             has_moved: false,
         })
@@ -138,6 +140,7 @@ fn test_selecting_player_unit_deselects_others() {
             kind: CivilianKind::Engineer,
             position: TilePos { x: 0, y: 0 },
             owner: player_nation_entity,
+            owner_id: NationId(1),
             selected: true, // Already selected
             has_moved: false,
         })
@@ -149,6 +152,7 @@ fn test_selecting_player_unit_deselects_others() {
             kind: CivilianKind::Prospector,
             position: TilePos { x: 1, y: 1 },
             owner: player_nation_entity,
+            owner_id: NationId(1),
             selected: false,
             has_moved: false,
         })

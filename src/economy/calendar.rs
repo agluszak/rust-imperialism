@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
+#[reflect(Debug)]
 pub enum Season {
     Spring,
     Summer,
@@ -19,7 +20,8 @@ impl core::fmt::Display for Season {
     }
 }
 
-#[derive(Resource, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Reflect)]
+#[reflect(Resource)]
 pub struct Calendar {
     pub season: Season,
     pub year: u16,

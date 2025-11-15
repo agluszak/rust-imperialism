@@ -7,6 +7,7 @@ use crate::civilians::types::{
     Civilian, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind, JobType,
     PreviousPosition, ProspectingKnowledge,
 };
+use crate::economy::nation::NationId;
 use crate::economy::transport::{PlaceImprovement, Rails, ordered_edge};
 use crate::map::province::{Province, ProvinceId, TileProvince};
 use crate::resources::{DevelopmentLevel, ResourceType, TileResource};
@@ -27,7 +28,7 @@ fn test_engineer_does_not_start_job_on_existing_rail() {
     world.init_resource::<Messages<DeselectCivilian>>();
 
     // Create a nation entity
-    let nation = world.spawn_empty().id();
+    let nation = world.spawn(NationId(1)).id();
 
     // Create a province owned by the nation
     let province_id = ProvinceId(1);
@@ -56,6 +57,7 @@ fn test_engineer_does_not_start_job_on_existing_rail() {
                 kind: CivilianKind::Engineer,
                 position: start_pos,
                 owner: nation,
+                owner_id: NationId(1),
                 selected: false,
                 has_moved: false,
             },
@@ -106,7 +108,7 @@ fn test_engineer_starts_job_on_new_rail() {
     world.init_resource::<Messages<DeselectCivilian>>();
 
     // Create a nation entity
-    let nation = world.spawn_empty().id();
+    let nation = world.spawn(NationId(2)).id();
 
     // Create a province owned by the nation
     let province_id = ProvinceId(1);
@@ -135,6 +137,7 @@ fn test_engineer_starts_job_on_new_rail() {
                 kind: CivilianKind::Engineer,
                 position: start_pos,
                 owner: nation,
+                owner_id: NationId(2),
                 selected: false,
                 has_moved: false,
             },
@@ -256,7 +259,7 @@ fn test_prospector_starts_prospecting_job() {
 
     world.init_resource::<Messages<DeselectCivilian>>();
 
-    let nation = world.spawn_empty().id();
+    let nation = world.spawn(NationId(3)).id();
     let province_id = ProvinceId(1);
     world.spawn(Province {
         id: province_id,
@@ -282,6 +285,7 @@ fn test_prospector_starts_prospecting_job() {
                 kind: CivilianKind::Prospector,
                 position: tile_pos,
                 owner: nation,
+                owner_id: NationId(3),
                 selected: false,
                 has_moved: false,
             },
@@ -327,7 +331,7 @@ fn test_prospecting_job_reveals_resource_on_completion() {
     tile_storage.set(&tile_pos, tile_entity);
     world.spawn(tile_storage);
 
-    let owner = world.spawn_empty().id();
+    let owner = world.spawn(NationId(4)).id();
 
     let prospector = world
         .spawn((
@@ -335,6 +339,7 @@ fn test_prospecting_job_reveals_resource_on_completion() {
                 kind: CivilianKind::Prospector,
                 position: tile_pos,
                 owner,
+                owner_id: NationId(4),
                 selected: false,
                 has_moved: true,
             },
@@ -381,7 +386,7 @@ fn miner_requires_discovery_before_mining() {
     world.init_resource::<ProspectingKnowledge>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
-    let nation = world.spawn_empty().id();
+    let nation = world.spawn(NationId(5)).id();
     let province_id = ProvinceId(5);
     world.spawn(Province {
         id: province_id,
@@ -407,6 +412,7 @@ fn miner_requires_discovery_before_mining() {
                 kind: CivilianKind::Miner,
                 position: tile_pos,
                 owner: nation,
+                owner_id: NationId(5),
                 selected: false,
                 has_moved: false,
             },
@@ -446,8 +452,8 @@ fn new_owner_must_reprospect_before_mining() {
     world.init_resource::<ProspectingKnowledge>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
-    let nation_a = world.spawn_empty().id();
-    let nation_b = world.spawn_empty().id();
+    let nation_a = world.spawn(NationId(6)).id();
+    let nation_b = world.spawn(NationId(7)).id();
     let province_id = ProvinceId(42);
     let province_entity = world
         .spawn(Province {
@@ -475,6 +481,7 @@ fn new_owner_must_reprospect_before_mining() {
                 kind: CivilianKind::Prospector,
                 position: tile_pos,
                 owner: nation_a,
+                owner_id: NationId(6),
                 selected: false,
                 has_moved: false,
             },
@@ -527,6 +534,7 @@ fn new_owner_must_reprospect_before_mining() {
                 kind: CivilianKind::Miner,
                 position: tile_pos,
                 owner: nation_b,
+                owner_id: NationId(7),
                 selected: false,
                 has_moved: false,
             },
@@ -568,6 +576,7 @@ fn test_cannot_assign_order_if_order_already_exists() {
         kind: CivilianKind::Farmer,
         position: tile_pos,
         owner: Entity::PLACEHOLDER,
+        owner_id: NationId(0),
         selected: false,
         has_moved: false,
     };
@@ -627,6 +636,7 @@ fn test_can_assign_order_when_no_existing_order() {
         kind: CivilianKind::Farmer,
         position: tile_pos,
         owner: Entity::PLACEHOLDER,
+        owner_id: NationId(0),
         selected: false,
         has_moved: false,
     };
@@ -676,7 +686,8 @@ fn test_rescind_orders_removes_civilian_order_component() {
     world.init_resource::<Messages<RescindOrders>>();
 
     // Create a nation with treasury
-    let nation = world.spawn(Treasury::new(1000)).id();
+    let nation_id = NationId(8);
+    let nation = world.spawn((nation_id, Treasury::new(1000))).id();
 
     // Create a civilian with an order and previous position
     let tile_pos = TilePos { x: 5, y: 5 };
@@ -687,6 +698,7 @@ fn test_rescind_orders_removes_civilian_order_component() {
                 kind: CivilianKind::Farmer,
                 position: tile_pos,
                 owner: nation,
+                owner_id: nation_id,
                 selected: false,
                 has_moved: false,
             },
@@ -756,7 +768,8 @@ fn test_rescind_orders_removes_civilian_job_and_order() {
     world.init_resource::<Messages<RescindOrders>>();
 
     // Create a nation with treasury
-    let nation = world.spawn(Treasury::new(1000)).id();
+    let nation_id = NationId(9);
+    let nation = world.spawn((nation_id, Treasury::new(1000))).id();
 
     // Create a civilian with both a job and an order
     let tile_pos = TilePos { x: 5, y: 5 };
@@ -767,6 +780,7 @@ fn test_rescind_orders_removes_civilian_job_and_order() {
                 kind: CivilianKind::Engineer,
                 position: tile_pos,
                 owner: nation,
+                owner_id: nation_id,
                 selected: false,
                 has_moved: true,
             },
@@ -834,6 +848,7 @@ fn test_skip_turn_removes_order_after_one_turn() {
                 kind: CivilianKind::Farmer,
                 position: tile_pos,
                 owner: Entity::PLACEHOLDER,
+                owner_id: NationId(0),
                 selected: false,
                 has_moved: false,
             },
@@ -873,6 +888,7 @@ fn test_sleep_order_persists_across_turns() {
                 kind: CivilianKind::Farmer,
                 position: tile_pos,
                 owner: Entity::PLACEHOLDER,
+                owner_id: NationId(0),
                 selected: false,
                 has_moved: false,
             },
@@ -918,6 +934,7 @@ fn test_rescind_wakes_sleeping_civilian() {
                 kind: CivilianKind::Farmer,
                 position: tile_pos,
                 owner: Entity::PLACEHOLDER,
+                owner_id: NationId(0),
                 selected: false,
                 has_moved: true, // Sleeping civilians are marked as moved
             },
@@ -961,7 +978,8 @@ fn miner_respects_max_development_level() {
     world.init_resource::<ProspectingKnowledge>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
-    let nation = world.spawn_empty().id();
+    let nation_id = NationId(10);
+    let nation = world.spawn(nation_id).id();
     let province_id = ProvinceId(6);
     world.spawn(Province {
         id: province_id,
@@ -985,6 +1003,7 @@ fn miner_respects_max_development_level() {
                 kind: CivilianKind::Miner,
                 position: tile_pos,
                 owner: nation,
+                owner_id: nation_id,
                 selected: false,
                 has_moved: false,
             },
@@ -1016,7 +1035,8 @@ fn farmer_starts_improvement_job_on_visible_resource() {
     world.init_resource::<ProspectingKnowledge>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
-    let nation = world.spawn_empty().id();
+    let nation_id = NationId(11);
+    let nation = world.spawn(nation_id).id();
     let province_id = ProvinceId(7);
     world.spawn(Province {
         id: province_id,
@@ -1042,6 +1062,7 @@ fn farmer_starts_improvement_job_on_visible_resource() {
                 kind: CivilianKind::Farmer,
                 position: tile_pos,
                 owner: nation,
+                owner_id: nation_id,
                 selected: false,
                 has_moved: false,
             },
