@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::economy::{
     allocation::Allocations,
     goods::Good,
-    production::{BuildingKind, Buildings},
+    production::{building_for_output, BuildingKind, Buildings},
     reservation::ReservationSystem,
     stockpile::Stockpile,
     treasury::Treasury,
@@ -219,8 +219,16 @@ fn process_production_adjustment(
     let current_count = allocations.production_count(msg.building, msg.output_good);
 
     let mut total_building_production = 0u32;
-    for ((entity, _output), res_ids) in allocations.production.iter() {
-        if *entity == msg.building {
+    for ((entity, output), res_ids) in allocations.production.iter() {
+        if *entity != msg.building {
+            continue;
+        }
+
+        let Some(output_building_kind) = building_for_output(*output) else {
+            continue;
+        };
+
+        if output_building_kind == building_kind {
             total_building_production += res_ids.len() as u32;
         }
     }
