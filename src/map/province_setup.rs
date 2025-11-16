@@ -104,11 +104,12 @@ pub fn assign_provinces_to_countries(
         };
 
         let stockpile = baseline_stockpile();
+        let nation_id = NationId(i as u16 + 1);
 
         let color = nation_colors[i % nation_colors.len()];
 
         let country_builder = commands.spawn((
-            NationId(i as u16 + 1),
+            nation_id,
             Name(name),
             NationColor(color),
             Treasury::new(10_000),
@@ -131,7 +132,7 @@ pub fn assign_provinces_to_countries(
         });
 
         if i > 0 {
-            commands.entity(country_entity).insert(AiNation);
+            commands.entity(country_entity).insert(AiNation(nation_id));
         }
 
         // Give every nation a basic industrial base so AI economies can function
@@ -151,7 +152,7 @@ pub fn assign_provinces_to_countries(
 
         // Note: Capitol and TradeSchool don't need separate Building entities
         // They're always available and use the nation's Stockpile/Workforce directly
-        country_entities.push((country_entity, NationId(i as u16 + 1)));
+        country_entities.push((country_entity, nation_id));
         info!("Created Nation {} with color", i + 1);
     }
 

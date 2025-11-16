@@ -9,21 +9,29 @@ use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::ai::context::enemy_turn_entered;
+use crate::ai::context::{
+    AiPlanLedger, MacroTag, MarketView, TransportAnalysis, TurnCandidates, enemy_turn_entered,
+    gather_turn_candidates, update_belief_state_system, update_market_view_system,
+    update_transport_analysis_system,
+};
 use crate::ai::markers::{AiControlledCivilian, AiNation};
+use crate::ai::trade::build_market_buy_order;
 use crate::civilians::order_validation::tile_owned_by_nation;
-use crate::civilians::systems::handle_civilian_commands;
 use crate::civilians::types::{
     Civilian, CivilianKind, CivilianOrder, CivilianOrderKind, ProspectingKnowledge,
 };
-use crate::economy::nation::Capital;
-use crate::economy::transport::{Rails, ordered_edge};
+use crate::economy::goods::Good;
+use crate::economy::nation::{Capital, NationHandle};
+use crate::economy::stockpile::Stockpile;
+use crate::economy::transport::{ImprovementKind, PlaceImprovement, Rails, ordered_edge};
 use crate::map::province::{Province, TileProvince};
 use crate::map::tile_pos::{HexExt, TilePosExt};
 use crate::messages::civilians::CivilianCommand;
+use crate::orders::{OrdersOut, flush_orders_to_queue};
 use crate::resources::{DevelopmentLevel, TileResource};
 use crate::turn_system::{TurnPhase, TurnSystem};
 use crate::ui::menu::AppState;
+use crate::ui::mode::GameMode;
 
 pub(crate) const RNG_BASE_SEED: u64 = 0xA1_51_23_45;
 
@@ -37,12 +45,108 @@ struct AiOrderCache {
     movement: Option<CivilianOrderKind>,
 }
 
+const COAL_TARGET_DAYS: f32 = 20.0;
+const INVESTMENT_COOLDOWN_TURNS: u8 = 4;
+const RAIL_COOLDOWN_TURNS: u8 = 3;
+
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AiSet {
+    Analysis,
+    EmitOrders,
+}
+
+#[derive(Component, Debug, Clone, ScorerBuilder)]
+pub struct CoalShortage {
+    pub target_days: f32,
+}
+
+#[derive(Component, Debug, Clone, ScorerBuilder)]
+pub struct Bottleneck {
+    pub from: TilePos,
+    pub to: TilePos,
+}
+
+#[derive(Component, Debug, Clone, ScorerBuilder)]
+pub struct InvestMinorScore {
+    pub minor: crate::ai::context::MinorId,
+}
+
+#[derive(Component, Debug, Clone, ActionBuilder)]
+pub struct BuyCoal;
+
+#[derive(Component, Debug, Clone, ActionBuilder)]
+pub struct UpgradeRail {
+    pub from: TilePos,
+    pub to: TilePos,
+}
+
+#[derive(Component, Debug, Clone, ActionBuilder)]
+pub struct InvestInMinor {
+    pub minor: crate::ai::context::MinorId,
+}
+
 impl Plugin for AiBehaviorPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AiRng>()
-            .add_plugins(BigBrainPlugin::new(Update))
+            .init_resource::<OrdersOut>()
+            .add_plugins(BigBrainPlugin::new(PreUpdate))
+            .configure_sets(
+                PreUpdate,
+                (
+                    AiSet::Analysis,
+                    BigBrainSet::Scorers,
+                    BigBrainSet::Actions,
+                    AiSet::EmitOrders,
+                )
+                    .chain(),
+            )
             .add_systems(
-                Update,
+                PreUpdate,
+                gate_ai_turn
+                    .run_if(in_state(AppState::InGame))
+                    .run_if(enemy_turn_active),
+            )
+            .add_systems(
+                PreUpdate,
+                (
+                    update_belief_state_system,
+                    update_market_view_system,
+                    update_transport_analysis_system,
+                    gather_turn_candidates,
+                    rebuild_thinker_if_needed,
+                )
+                    .in_set(AiSet::Analysis)
+                    .run_if(in_state(AppState::InGame))
+                    .run_if(in_state(GameMode::Map))
+                    .run_if(enemy_turn_active),
+            )
+            .add_systems(
+                PreUpdate,
+                (
+                    coal_shortage_scorer,
+                    bottleneck_scorer,
+                    invest_in_minor_scorer,
+                )
+                    .in_set(BigBrainSet::Scorers)
+                    .run_if(in_state(AppState::InGame))
+                    .run_if(enemy_turn_active),
+            )
+            .add_systems(
+                PreUpdate,
+                (buy_coal_action, upgrade_rail_action, invest_in_minor_action)
+                    .in_set(BigBrainSet::Actions)
+                    .run_if(in_state(AppState::InGame))
+                    .run_if(enemy_turn_active),
+            )
+            .add_systems(
+                PreUpdate,
+                flush_orders_to_queue
+                    .in_set(AiSet::EmitOrders)
+                    .run_if(in_state(AppState::InGame))
+                    .run_if(enemy_turn_active),
+            )
+            .add_systems(
+                PreUpdate,
                 (
                     tag_ai_owned_civilians,
                     untag_non_ai_owned_civilians,
@@ -52,7 +156,7 @@ impl Plugin for AiBehaviorPlugin {
                     .run_if(in_state(AppState::InGame)),
             )
             .add_systems(
-                Update,
+                PreUpdate,
                 (
                     reset_ai_rng_on_enemy_turn,
                     reset_ai_civilian_actions,
@@ -63,7 +167,7 @@ impl Plugin for AiBehaviorPlugin {
                     .run_if(enemy_turn_entered),
             )
             .add_systems(
-                Update,
+                PreUpdate,
                 (
                     ready_to_act_scorer,
                     has_rail_target_scorer,
@@ -75,7 +179,7 @@ impl Plugin for AiBehaviorPlugin {
                     .run_if(enemy_turn_active),
             )
             .add_systems(
-                Update,
+                PreUpdate,
                 (
                     build_rail_action,
                     build_improvement_action,
@@ -84,8 +188,7 @@ impl Plugin for AiBehaviorPlugin {
                 )
                     .in_set(BigBrainSet::Actions)
                     .run_if(in_state(AppState::InGame))
-                    .run_if(enemy_turn_active)
-                    .before(handle_civilian_commands),
+                    .run_if(enemy_turn_active),
             );
     }
 }
@@ -168,6 +271,210 @@ pub struct MoveTowardsOwnedTile;
 #[derive(Component, Debug, Clone, Default, ActionBuilder)]
 pub struct SkipTurnOrder;
 
+fn rebuild_thinker_if_needed(
+    mut commands: Commands,
+    ai_query: Query<(Entity, Option<&Thinker>), With<AiNation>>,
+    candidates: Res<TurnCandidates>,
+) {
+    for (entity, thinker) in ai_query.iter() {
+        let mut builder = Thinker::build().label("ai_macro").picker(Highest);
+        let mut attached = false;
+
+        for candidate in candidates.for_actor(entity) {
+            match &candidate.tag {
+                MacroTag::BuyCoal => {
+                    builder = builder.when(
+                        CoalShortage {
+                            target_days: COAL_TARGET_DAYS,
+                        },
+                        BuyCoal,
+                    );
+                }
+                MacroTag::UpgradeRail { from, to } => {
+                    builder = builder.when(
+                        Bottleneck {
+                            from: *from,
+                            to: *to,
+                        },
+                        UpgradeRail {
+                            from: *from,
+                            to: *to,
+                        },
+                    );
+                }
+                MacroTag::InvestMinor { minor } => {
+                    builder = builder.when(
+                        InvestMinorScore { minor: *minor },
+                        InvestInMinor { minor: *minor },
+                    );
+                }
+            }
+            attached = true;
+        }
+
+        if attached {
+            commands.entity(entity).insert(builder);
+        } else if thinker.is_some() {
+            commands.entity(entity).remove::<Thinker>();
+        }
+    }
+}
+
+fn coal_shortage_scorer(
+    stockpiles: Query<&Stockpile>,
+    mut scorers: Query<(&Actor, &CoalShortage, &mut Score)>,
+) {
+    for (Actor(actor), shortage, mut score) in &mut scorers {
+        let Ok(stockpile) = stockpiles.get(*actor) else {
+            score.set(0.0);
+            continue;
+        };
+
+        let available = stockpile.get_available(Good::Coal) as f32;
+        let target = shortage.target_days.max(1.0);
+        let urgency = ((target - available) / target).clamp(0.0, 1.0);
+        score.set(urgency);
+    }
+}
+
+fn bottleneck_scorer(
+    transport: Res<TransportAnalysis>,
+    mut scorers: Query<(&Actor, &Bottleneck, &mut Score)>,
+) {
+    for (Actor(actor), bottleneck, mut score) in &mut scorers {
+        let Some(candidate) = transport
+            .candidates_for(*actor)
+            .iter()
+            .find(|entry| entry.from == bottleneck.from && entry.to == bottleneck.to)
+        else {
+            score.set(0.0);
+            continue;
+        };
+        score.set(candidate.marginal_gain.clamp(0.0, 1.0));
+    }
+}
+
+fn invest_in_minor_scorer(mut scorers: Query<&mut Score, With<InvestMinorScore>>) {
+    for mut score in &mut scorers {
+        score.set(0.2);
+    }
+}
+
+fn buy_coal_action(
+    mut actions: Query<(&Actor, &mut ActionState), With<BuyCoal>>,
+    stockpiles: Query<&Stockpile>,
+    handles: Query<&NationHandle>,
+    market: Res<MarketView>,
+    mut orders: ResMut<OrdersOut>,
+    mut ledger: ResMut<AiPlanLedger>,
+) {
+    for (Actor(actor), mut state) in &mut actions {
+        match *state {
+            ActionState::Requested => {
+                let Ok(stockpile) = stockpiles.get(*actor) else {
+                    *state = ActionState::Failure;
+                    continue;
+                };
+                let Ok(handle) = handles.get(*actor) else {
+                    *state = ActionState::Failure;
+                    continue;
+                };
+
+                let available = stockpile.get_available(Good::Coal);
+                let desired = COAL_TARGET_DAYS as u32;
+                let Some(qty) = market.recommended_buy_qty(Good::Coal, available, desired) else {
+                    *state = ActionState::Failure;
+                    continue;
+                };
+
+                if qty == 0 {
+                    *state = ActionState::Failure;
+                    continue;
+                }
+
+                orders.queue_market(build_market_buy_order(handle, Good::Coal, qty));
+                ledger.apply_cooldown(*actor, MacroTag::BuyCoal, 1);
+                *state = ActionState::Success;
+            }
+            ActionState::Cancelled => {
+                *state = ActionState::Failure;
+            }
+            _ => {}
+        }
+    }
+}
+
+fn upgrade_rail_action(
+    mut actions: Query<(&Actor, &UpgradeRail, &mut ActionState)>,
+    mut orders: ResMut<OrdersOut>,
+    mut ledger: ResMut<AiPlanLedger>,
+) {
+    for (Actor(actor), upgrade, mut state) in &mut actions {
+        match *state {
+            ActionState::Requested => {
+                orders.queue_transport(PlaceImprovement {
+                    a: upgrade.from,
+                    b: upgrade.to,
+                    kind: ImprovementKind::Rail,
+                    engineer: None,
+                });
+                ledger.apply_cooldown(
+                    *actor,
+                    MacroTag::UpgradeRail {
+                        from: upgrade.from,
+                        to: upgrade.to,
+                    },
+                    RAIL_COOLDOWN_TURNS,
+                );
+                *state = ActionState::Success;
+            }
+            ActionState::Cancelled => {
+                *state = ActionState::Failure;
+            }
+            _ => {}
+        }
+    }
+}
+
+fn invest_in_minor_action(
+    mut actions: Query<(&Actor, &InvestInMinor, &mut ActionState)>,
+    mut ledger: ResMut<AiPlanLedger>,
+) {
+    for (Actor(actor), invest, mut state) in &mut actions {
+        match *state {
+            ActionState::Requested => {
+                ledger.apply_cooldown(
+                    *actor,
+                    MacroTag::InvestMinor {
+                        minor: invest.minor,
+                    },
+                    INVESTMENT_COOLDOWN_TURNS,
+                );
+                *state = ActionState::Success;
+            }
+            ActionState::Cancelled => {
+                *state = ActionState::Failure;
+            }
+            _ => {}
+        }
+    }
+}
+
+fn gate_ai_turn(
+    turn: Res<TurnSystem>,
+    mut ledger: ResMut<AiPlanLedger>,
+    mut orders: ResMut<OrdersOut>,
+    mut candidates: ResMut<TurnCandidates>,
+    mut last_turn: Local<Option<u32>>,
+) {
+    if Some(turn.current_turn) != *last_turn {
+        ledger.advance_turn(turn.current_turn);
+        orders.clear();
+        candidates.clear();
+        *last_turn = Some(turn.current_turn);
+    }
+}
+
 fn enemy_turn_active(turn: Res<TurnSystem>) -> bool {
     turn.phase == TurnPhase::EnemyTurn
 }
@@ -195,6 +502,9 @@ fn reset_ai_action_states(
                 With<BuildImprovementOrder>,
                 With<MoveTowardsOwnedTile>,
                 With<SkipTurnOrder>,
+                With<BuyCoal>,
+                With<UpgradeRail>,
+                With<InvestInMinor>,
                 With<crate::ai::trade::PlanBuildingFocus>,
                 With<crate::ai::trade::ApplyProductionPlan>,
                 With<crate::ai::trade::PlanMarketOrders>,
@@ -1059,7 +1369,7 @@ mod tests {
     #[test]
     fn tags_ai_owned_civilians() {
         let mut world = World::new();
-        let ai_nation = world.spawn((AiNation, NationId(1))).id();
+        let ai_nation = world.spawn((AiNation(NationId(1)), NationId(1))).id();
         let civilian_entity = world
             .spawn(Civilian {
                 kind: CivilianKind::Engineer,
@@ -1130,7 +1440,7 @@ mod tests {
         let province_id = ProvinceId(1);
 
         let ai_nation = world
-            .spawn((AiNation, NationId(3), Capital(capital_pos)))
+            .spawn((AiNation(NationId(3)), NationId(3), Capital(capital_pos)))
             .id();
 
         {
@@ -1235,7 +1545,7 @@ mod tests {
         let province_id = ProvinceId(1);
 
         let ai_nation = world
-            .spawn((AiNation, NationId(4), Capital(capital_pos)))
+            .spawn((AiNation(NationId(4)), NationId(4), Capital(capital_pos)))
             .id();
 
         {
@@ -1356,7 +1666,7 @@ mod tests {
     #[test]
     fn selects_owned_neighbor_as_move_target() {
         let mut world = World::new();
-        let ai_nation = world.spawn((AiNation, NationId(5))).id();
+        let ai_nation = world.spawn((AiNation(NationId(5)), NationId(5))).id();
         let neighbor_pos = TilePos { x: 2, y: 1 };
         let mut storage = TileStorage::empty(TilemapSize { x: 4, y: 4 });
 
@@ -1408,7 +1718,7 @@ mod tests {
 
         let capital_pos = TilePos { x: 1, y: 1 };
         let ai_nation = world
-            .spawn((AiNation, NationId(6), Capital(capital_pos)))
+            .spawn((AiNation(NationId(6)), NationId(6), Capital(capital_pos)))
             .id();
 
         let mut storage = TileStorage::empty(TilemapSize { x: 4, y: 4 });
@@ -1480,7 +1790,7 @@ mod tests {
 
         let capital_pos = TilePos { x: 1, y: 1 };
         let ai_nation = world
-            .spawn((AiNation, NationId(7), Capital(capital_pos)))
+            .spawn((AiNation(NationId(7)), NationId(7), Capital(capital_pos)))
             .id();
 
         let mut storage = TileStorage::empty(TilemapSize { x: 4, y: 4 });
@@ -1552,7 +1862,7 @@ mod tests {
 
         let capital_pos = TilePos { x: 1, y: 1 };
         let ai_nation = world
-            .spawn((AiNation, NationId(8), Capital(capital_pos)))
+            .spawn((AiNation(NationId(8)), NationId(8), Capital(capital_pos)))
             .id();
 
         let mut storage = TileStorage::empty(TilemapSize { x: 4, y: 4 });
@@ -1720,8 +2030,7 @@ mod tests {
         use big_brain::prelude::*;
 
         let mut app = App::new();
-        app.add_plugins(BigBrainPlugin::new(bevy::prelude::Update))
-;
+        app.add_plugins(BigBrainPlugin::new(bevy::prelude::Update));
 
         // Spawn actions in various non-terminal states
         let init_action = app
@@ -1780,8 +2089,7 @@ mod tests {
         use big_brain::prelude::*;
 
         let mut app = App::new();
-        app.add_plugins(BigBrainPlugin::new(bevy::prelude::Update))
-;
+        app.add_plugins(BigBrainPlugin::new(bevy::prelude::Update));
 
         // Spawn an action without Actor component (shouldn't be reset)
         let non_actor_action = app
@@ -1808,8 +2116,7 @@ mod tests {
         use big_brain::prelude::*;
 
         let mut app = App::new();
-        app.add_plugins(BigBrainPlugin::new(Update))
-;
+        app.add_plugins(BigBrainPlugin::new(Update));
 
         // Spawn an action WITH Actor component
         let actor_action = app
@@ -1853,8 +2160,7 @@ mod tests {
         use big_brain::prelude::*;
 
         let mut app = App::new();
-        app.add_plugins(BigBrainPlugin::new(bevy::prelude::Update))
-;
+        app.add_plugins(BigBrainPlugin::new(bevy::prelude::Update));
 
         // Spawn multiple AI actions of different types, all in Success
         let actions: Vec<Entity> = vec![
