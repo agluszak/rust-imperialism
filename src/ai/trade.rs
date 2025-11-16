@@ -6,11 +6,10 @@ use std::collections::HashMap;
 use crate::ai::markers::AiNation;
 use crate::civilians::Civilian;
 use crate::civilians::CivilianKind;
-use crate::economy::allocation_systems;
 use crate::economy::goods::Good;
 use crate::economy::market::{MARKET_RESOURCES, MarketPriceModel, MarketVolume};
 use crate::economy::production::{BuildingKind, Buildings};
-use crate::economy::{Allocations, EconomySet, NationHandle, NationInstance, Stockpile, Treasury};
+use crate::economy::{Allocations, NationHandle, NationInstance, Stockpile, Treasury};
 use crate::messages::{AdjustMarketOrder, AdjustProduction, HireCivilian, MarketInterest};
 use crate::turn_system::{TurnPhase, TurnSystem};
 use crate::ui::menu::AppState;
@@ -43,13 +42,11 @@ pub struct AiEconomyPlugin;
 impl Plugin for AiEconomyPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            Update,
-            initialize_ai_economy_thinkers
-                .run_if(in_state(AppState::InGame))
-                .in_set(EconomySet),
+            PreUpdate,
+            initialize_ai_economy_thinkers.run_if(in_state(AppState::InGame)),
         )
         .add_systems(
-            Update,
+            PreUpdate,
             (
                 plan_buildings_scorer,
                 apply_production_scorer,
@@ -58,11 +55,10 @@ impl Plugin for AiEconomyPlugin {
             )
                 .in_set(BigBrainSet::Scorers)
                 .run_if(in_state(AppState::InGame))
-                .run_if(enemy_turn_active)
-                .in_set(EconomySet),
+                .run_if(enemy_turn_active),
         )
         .add_systems(
-            Update,
+            PreUpdate,
             (
                 plan_building_focus_action,
                 apply_production_plan_action,
@@ -71,15 +67,11 @@ impl Plugin for AiEconomyPlugin {
             )
                 .in_set(BigBrainSet::Actions)
                 .run_if(in_state(AppState::InGame))
-                .run_if(enemy_turn_active)
-                .before(allocation_systems::apply_production_adjustments)
-                .before(allocation_systems::apply_market_order_adjustments)
-                .in_set(EconomySet),
+                .run_if(enemy_turn_active),
         )
         .add_systems(
-            Update,
+            PreUpdate,
             plan_ai_civilian_hiring
-                .in_set(EconomySet)
                 .run_if(in_state(AppState::InGame))
                 .run_if(enemy_turn_active),
         );
@@ -129,6 +121,15 @@ fn plan_ai_civilian_hiring(
             remaining_cash -= cost;
             hires_this_turn += 1;
         }
+    }
+}
+
+pub fn build_market_buy_order(handle: &NationHandle, good: Good, qty: u32) -> AdjustMarketOrder {
+    AdjustMarketOrder {
+        nation: handle.instance(),
+        good,
+        kind: MarketInterest::Buy,
+        requested: qty,
     }
 }
 
@@ -528,7 +529,7 @@ mod tests {
         let entity = app
             .world_mut()
             .spawn((
-                AiNation,
+                AiNation(NationId(42)),
                 NationId(42),
                 Allocations::default(),
                 Stockpile::default(),
