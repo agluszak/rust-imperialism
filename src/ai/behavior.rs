@@ -11,8 +11,8 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::ai::context::{
     AiPlanLedger, MacroTag, MarketView, TransportAnalysis, TurnCandidates, enemy_turn_entered,
-    gather_turn_candidates, update_belief_state_system, update_market_view_system,
-    update_transport_analysis_system,
+    gather_turn_candidates, resource_target_days, update_belief_state_system,
+    update_market_view_system, update_transport_analysis_system,
 };
 use crate::ai::markers::{AiControlledCivilian, AiNation};
 use crate::ai::trade::build_market_buy_order;
@@ -45,19 +45,19 @@ struct AiOrderCache {
     movement: Option<CivilianOrderKind>,
 }
 
-const COAL_TARGET_DAYS: f32 = 20.0;
 const INVESTMENT_COOLDOWN_TURNS: u8 = 4;
 const RAIL_COOLDOWN_TURNS: u8 = 3;
+
+#[derive(Component, Debug, Clone, ScorerBuilder)]
+pub struct ResourceShortage {
+    pub good: Good,
+    pub target_days: f32,
+}
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AiSet {
     Analysis,
     EmitOrders,
-}
-
-#[derive(Component, Debug, Clone, ScorerBuilder)]
-pub struct CoalShortage {
-    pub target_days: f32,
 }
 
 #[derive(Component, Debug, Clone, ScorerBuilder)]
@@ -72,7 +72,9 @@ pub struct InvestMinorScore {
 }
 
 #[derive(Component, Debug, Clone, ActionBuilder)]
-pub struct BuyCoal;
+pub struct BuyResource {
+    pub good: Good,
+}
 
 #[derive(Component, Debug, Clone, ActionBuilder)]
 pub struct UpgradeRail {
@@ -123,7 +125,7 @@ impl Plugin for AiBehaviorPlugin {
             .add_systems(
                 PreUpdate,
                 (
-                    coal_shortage_scorer,
+                    resource_shortage_scorer,
                     bottleneck_scorer,
                     invest_in_minor_scorer,
                 )
@@ -133,7 +135,11 @@ impl Plugin for AiBehaviorPlugin {
             )
             .add_systems(
                 PreUpdate,
-                (buy_coal_action, upgrade_rail_action, invest_in_minor_action)
+                (
+                    buy_resource_action,
+                    upgrade_rail_action,
+                    invest_in_minor_action,
+                )
                     .in_set(BigBrainSet::Actions)
                     .run_if(in_state(AppState::InGame))
                     .run_if(enemy_turn_active),
@@ -282,12 +288,13 @@ fn rebuild_thinker_if_needed(
 
         for candidate in candidates.for_actor(entity) {
             match &candidate.tag {
-                MacroTag::BuyCoal => {
+                MacroTag::BuyResource { good } => {
                     builder = builder.when(
-                        CoalShortage {
-                            target_days: COAL_TARGET_DAYS,
+                        ResourceShortage {
+                            good: *good,
+                            target_days: resource_target_days(*good),
                         },
-                        BuyCoal,
+                        BuyResource { good: *good },
                     );
                 }
                 MacroTag::UpgradeRail { from, to } => {
@@ -320,9 +327,9 @@ fn rebuild_thinker_if_needed(
     }
 }
 
-fn coal_shortage_scorer(
+fn resource_shortage_scorer(
     stockpiles: Query<&Stockpile>,
-    mut scorers: Query<(&Actor, &CoalShortage, &mut Score)>,
+    mut scorers: Query<(&Actor, &ResourceShortage, &mut Score)>,
 ) {
     for (Actor(actor), shortage, mut score) in &mut scorers {
         let Ok(stockpile) = stockpiles.get(*actor) else {
@@ -330,7 +337,7 @@ fn coal_shortage_scorer(
             continue;
         };
 
-        let available = stockpile.get_available(Good::Coal) as f32;
+        let available = stockpile.get_available(shortage.good) as f32;
         let target = shortage.target_days.max(1.0);
         let urgency = ((target - available) / target).clamp(0.0, 1.0);
         score.set(urgency);
@@ -360,15 +367,15 @@ fn invest_in_minor_scorer(mut scorers: Query<&mut Score, With<InvestMinorScore>>
     }
 }
 
-fn buy_coal_action(
-    mut actions: Query<(&Actor, &mut ActionState), With<BuyCoal>>,
+fn buy_resource_action(
+    mut actions: Query<(&Actor, &BuyResource, &mut ActionState)>,
     stockpiles: Query<&Stockpile>,
     handles: Query<&NationHandle>,
     market: Res<MarketView>,
     mut orders: ResMut<OrdersOut>,
     mut ledger: ResMut<AiPlanLedger>,
 ) {
-    for (Actor(actor), mut state) in &mut actions {
+    for (Actor(actor), buy, mut state) in &mut actions {
         match *state {
             ActionState::Requested => {
                 let Ok(stockpile) = stockpiles.get(*actor) else {
@@ -380,9 +387,9 @@ fn buy_coal_action(
                     continue;
                 };
 
-                let available = stockpile.get_available(Good::Coal);
-                let desired = COAL_TARGET_DAYS as u32;
-                let Some(qty) = market.recommended_buy_qty(Good::Coal, available, desired) else {
+                let available = stockpile.get_available(buy.good);
+                let desired = resource_target_days(buy.good).round() as u32;
+                let Some(qty) = market.recommended_buy_qty(buy.good, available, desired) else {
                     *state = ActionState::Failure;
                     continue;
                 };
@@ -392,8 +399,8 @@ fn buy_coal_action(
                     continue;
                 }
 
-                orders.queue_market(build_market_buy_order(handle, Good::Coal, qty));
-                ledger.apply_cooldown(*actor, MacroTag::BuyCoal, 1);
+                orders.queue_market(build_market_buy_order(handle, buy.good, qty));
+                ledger.apply_cooldown(*actor, MacroTag::BuyResource { good: buy.good }, 1);
                 *state = ActionState::Success;
             }
             ActionState::Cancelled => {
@@ -502,7 +509,7 @@ fn reset_ai_action_states(
                 With<BuildImprovementOrder>,
                 With<MoveTowardsOwnedTile>,
                 With<SkipTurnOrder>,
-                With<BuyCoal>,
+                With<BuyResource>,
                 With<UpgradeRail>,
                 With<InvestInMinor>,
                 With<crate::ai::trade::PlanBuildingFocus>,
