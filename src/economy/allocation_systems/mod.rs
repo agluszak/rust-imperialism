@@ -1,3 +1,4 @@
+use bevy::ecs::message::{MessageReader, MessageWriter};
 use bevy::prelude::*;
 
 use crate::economy::{
@@ -6,6 +7,7 @@ use crate::economy::{
     production::{BuildingKind, Buildings, building_for_output},
     reservation::ReservationSystem,
     stockpile::Stockpile,
+    transport::PlaceImprovement,
     treasury::Treasury,
     workforce::{RecruitmentCapacity, types::*},
 };
@@ -512,6 +514,20 @@ pub fn execute_queued_market_orders(
 
     for order in queued {
         process_market_adjustment(order, &mut nations);
+    }
+}
+
+pub fn execute_queued_transport_orders(
+    mut orders: ResMut<OrdersQueue>,
+    mut writer: MessageWriter<PlaceImprovement>,
+) {
+    let queued = orders.take_transport();
+    if queued.is_empty() {
+        return;
+    }
+
+    for order in queued {
+        writer.write(order);
     }
 }
 

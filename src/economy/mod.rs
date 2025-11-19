@@ -120,6 +120,7 @@ impl Plugin for EconomyPlugin {
                 allocation_systems::execute_queued_recruitment_orders,
                 allocation_systems::execute_queued_training_orders,
                 allocation_systems::execute_queued_production_orders,
+                allocation_systems::execute_queued_transport_orders,
                 allocation_systems::execute_queued_market_orders,
             )
                 .chain()

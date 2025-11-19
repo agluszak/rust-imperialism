@@ -1,17 +1,214 @@
 use bevy::prelude::*;
+use bevy_ecs_tilemap::prelude::TilePos;
+use std::collections::HashMap;
 
+use crate::ai::markers::AiNation;
 use crate::economy::allocation::Allocations;
 use crate::economy::goods::Good;
-use crate::economy::nation::NationId;
+use crate::economy::market::{MARKET_RESOURCES, MarketPriceModel, MarketVolume};
+use crate::economy::nation::{Capital, NationId};
 use crate::economy::stockpile::{Stockpile, StockpileEntry};
 use crate::economy::transport::{
-    CapacitySnapshot, DemandEntry, TransportAllocations, TransportCapacity, TransportCommodity,
-    TransportDemandSnapshot,
+    CapacitySnapshot, DemandEntry, Depot, Rails, TransportAllocations, TransportCapacity,
+    TransportCommodity, TransportDemandSnapshot,
 };
+use crate::economy::treasury::Treasury;
 use crate::economy::workforce::{WorkerSkill, Workforce};
 use crate::turn_system::{TurnPhase, TurnSystem};
 
 pub type AiStockpileEntry = StockpileEntry;
+
+/// Identifier for minor nations or city-states the AI can invest in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct MinorId(pub u16);
+
+/// Tag describing a macro-level action the AI can pursue this turn.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum MacroTag {
+    BuyCoal,
+    UpgradeRail { from: TilePos, to: TilePos },
+    InvestMinor { minor: MinorId },
+}
+
+/// Candidate macro action generated during the analysis phase.
+#[derive(Debug, Clone)]
+pub struct MacroActionCandidate {
+    pub nation: Entity,
+    pub tag: MacroTag,
+    pub urgency: f32,
+}
+
+/// Turn-scoped list of macro candidates keyed by owning nation.
+#[derive(Resource, Debug, Default)]
+pub struct TurnCandidates(pub Vec<MacroActionCandidate>);
+
+impl TurnCandidates {
+    pub fn for_actor(&self, actor: Entity) -> impl Iterator<Item = &MacroActionCandidate> {
+        self.0
+            .iter()
+            .filter(move |candidate| candidate.nation == actor)
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+}
+
+/// Snapshot of economic and logistical facts the AI reasons over each turn.
+#[derive(Resource, Debug, Clone, Default)]
+pub struct BeliefState {
+    nations: HashMap<Entity, BeliefNation>,
+    turn: u32,
+}
+
+impl BeliefState {
+    pub fn rebuild<I>(&mut self, turn: u32, entries: I)
+    where
+        I: Iterator<Item = BeliefNation>,
+    {
+        self.nations.clear();
+        for entry in entries {
+            self.nations.insert(entry.entity, entry);
+        }
+        self.turn = turn;
+    }
+
+    pub fn nations(&self) -> impl Iterator<Item = &BeliefNation> {
+        self.nations.values()
+    }
+
+    pub fn for_entity(&self, entity: Entity) -> Option<&BeliefNation> {
+        self.nations.get(&entity)
+    }
+
+    pub fn turn(&self) -> u32 {
+        self.turn
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct BeliefNation {
+    pub entity: Entity,
+    pub id: NationId,
+    pub stockpile: Vec<AiStockpileEntry>,
+    pub treasury: i64,
+}
+
+impl BeliefNation {
+    pub fn stockpile_amount(&self, good: Good) -> u32 {
+        self.stockpile
+            .iter()
+            .find(|entry| entry.good == good)
+            .map(|entry| entry.total)
+            .unwrap_or(0)
+    }
+
+    pub fn available_amount(&self, good: Good) -> u32 {
+        self.stockpile
+            .iter()
+            .find(|entry| entry.good == good)
+            .map(|entry| entry.available)
+            .unwrap_or(0)
+    }
+}
+
+/// Aggregated market information exposed to scorers and actions.
+#[derive(Resource, Debug, Clone, Default)]
+pub struct MarketView {
+    observations: HashMap<Good, MarketObservation>,
+}
+
+impl MarketView {
+    pub fn record(&mut self, good: Good, observation: MarketObservation) {
+        self.observations.insert(good, observation);
+    }
+
+    pub fn price_for(&self, good: Good) -> u32 {
+        self.observations
+            .get(&good)
+            .map(|obs| obs.price)
+            .unwrap_or(100)
+    }
+
+    pub fn recommended_buy_qty(&self, good: Good, available: u32, desired: u32) -> Option<u32> {
+        if available >= desired {
+            return None;
+        }
+        let deficit = desired - available;
+        let max_qty = self
+            .observations
+            .get(&good)
+            .map(|obs| obs.demand.saturating_sub(obs.supply))
+            .unwrap_or(deficit);
+        Some(deficit.min(max_qty.max(1)))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct MarketObservation {
+    pub price: u32,
+    pub supply: u32,
+    pub demand: u32,
+}
+
+/// Transport analysis derived from depots, capitals, and existing connectivity.
+#[derive(Resource, Debug, Default)]
+pub struct TransportAnalysis {
+    upgrades: HashMap<Entity, Vec<RailUpgradeCandidate>>,
+}
+
+impl TransportAnalysis {
+    pub fn replace(&mut self, entries: HashMap<Entity, Vec<RailUpgradeCandidate>>) {
+        self.upgrades = entries;
+    }
+
+    pub fn candidates_for(&self, nation: Entity) -> &[RailUpgradeCandidate] {
+        self.upgrades.get(&nation).map(Vec::as_slice).unwrap_or(&[])
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct RailUpgradeCandidate {
+    pub nation: Entity,
+    pub from: TilePos,
+    pub to: TilePos,
+    pub marginal_gain: f32,
+}
+
+/// Tracks long-running macro plans and cooldowns so the AI avoids rapid toggling.
+#[derive(Resource, Debug, Default)]
+pub struct AiPlanLedger {
+    cooldowns: HashMap<(Entity, MacroTag), u8>,
+    last_turn: Option<u32>,
+}
+
+impl AiPlanLedger {
+    pub fn apply_cooldown(&mut self, nation: Entity, tag: MacroTag, turns: u8) {
+        self.cooldowns.insert((nation, tag), turns.max(1));
+    }
+
+    pub fn cooldown_active(&self, nation: Entity, tag: &MacroTag) -> bool {
+        self.cooldowns
+            .get(&(nation, tag.clone()))
+            .map(|value| *value > 0)
+            .unwrap_or(false)
+    }
+
+    pub fn advance_turn(&mut self, turn: u32) {
+        if self.last_turn == Some(turn) {
+            return;
+        }
+
+        self.last_turn = Some(turn);
+
+        self.cooldowns.retain(|_, remaining| {
+            if *remaining > 0 {
+                *remaining -= 1;
+            }
+            *remaining > 0
+        });
+    }
+}
 
 #[derive(Resource, Debug, Clone)]
 pub struct AiTurnContext {
@@ -252,6 +449,162 @@ pub fn enemy_turn_entered(mut last_phase: Local<Option<TurnPhase>>, turn: Res<Tu
     let current = turn.phase;
     *last_phase = Some(current);
     current == TurnPhase::EnemyTurn && previous != Some(TurnPhase::EnemyTurn)
+}
+
+pub fn update_belief_state_system(
+    mut belief: ResMut<BeliefState>,
+    turn: Res<TurnSystem>,
+    nations: Query<(Entity, &NationId, &Stockpile, &Treasury), With<AiNation>>,
+) {
+    let mut entries = Vec::new();
+    for (entity, nation_id, stockpile, treasury) in nations.iter() {
+        let mut stockpile_entries: Vec<_> = stockpile.entries().collect();
+        stockpile_entries.sort_by_key(|entry| entry.good);
+        entries.push(BeliefNation {
+            entity,
+            id: *nation_id,
+            stockpile: stockpile_entries,
+            treasury: treasury.available(),
+        });
+    }
+
+    entries.sort_by_key(|entry| entry.entity.index());
+    belief.rebuild(turn.current_turn, entries.into_iter());
+}
+
+pub fn update_market_view_system(
+    mut view: ResMut<MarketView>,
+    pricing: Res<MarketPriceModel>,
+    context: Res<AiTurnContext>,
+) {
+    view.observations.clear();
+
+    for &good in MARKET_RESOURCES {
+        let mut supply = 0;
+        let mut demand = 0;
+
+        for nation in context.nations() {
+            demand += nation
+                .allocations
+                .market_buys
+                .iter()
+                .filter(|entry| entry.good == good)
+                .count() as u32;
+            supply += nation
+                .allocations
+                .market_sells
+                .iter()
+                .filter(|entry| entry.good == good)
+                .map(|entry| entry.reserved as u32)
+                .sum::<u32>();
+        }
+
+        let observation = MarketObservation {
+            price: pricing.price_for(good, MarketVolume::new(supply, demand)),
+            supply,
+            demand,
+        };
+        view.record(good, observation);
+    }
+}
+
+pub fn update_transport_analysis_system(
+    mut analysis: ResMut<TransportAnalysis>,
+    depots: Query<&Depot>,
+    rails: Res<Rails>,
+    capitals: Query<(Entity, &Capital), With<AiNation>>,
+) {
+    let mut result: HashMap<Entity, Vec<RailUpgradeCandidate>> = HashMap::new();
+
+    for (nation, capital) in capitals.iter() {
+        result.entry(nation).or_default();
+
+        for depot in depots
+            .iter()
+            .filter(|depot| depot.owner == nation && !depot.connected)
+        {
+            let dx = (capital.0.x as i32 - depot.position.x as i32).unsigned_abs();
+            let dy = (capital.0.y as i32 - depot.position.y as i32).unsigned_abs();
+            let distance = (dx + dy) as f32;
+            let marginal_gain = (1.0 / (1.0 + distance)).clamp(0.05, 1.0);
+            let candidate = RailUpgradeCandidate {
+                nation,
+                from: capital.0,
+                to: depot.position,
+                marginal_gain,
+            };
+
+            let list = result.entry(nation).or_default();
+            if !rails.0.contains(&crate::economy::transport::ordered_edge(
+                capital.0,
+                depot.position,
+            )) {
+                list.push(candidate);
+            }
+        }
+    }
+
+    for candidates in result.values_mut() {
+        candidates.sort_by(|a, b| b.marginal_gain.total_cmp(&a.marginal_gain));
+        candidates.truncate(4);
+    }
+
+    analysis.replace(result);
+}
+
+pub fn gather_turn_candidates(
+    belief: Res<BeliefState>,
+    transport: Res<TransportAnalysis>,
+    market: Res<MarketView>,
+    ledger: Res<AiPlanLedger>,
+    mut candidates: ResMut<TurnCandidates>,
+    ai_nations: Query<Entity, With<AiNation>>,
+) {
+    candidates.clear();
+
+    for entity in ai_nations.iter() {
+        if let Some(nation) = belief.for_entity(entity) {
+            let available_coal = nation.available_amount(Good::Coal);
+            let desired = 20;
+            let tag = MacroTag::BuyCoal;
+            if !ledger.cooldown_active(entity, &tag) {
+                if let Some(qty) = market.recommended_buy_qty(Good::Coal, available_coal, desired) {
+                    let urgency = (qty as f32 / desired as f32).clamp(0.0, 1.0);
+                    candidates.0.push(MacroActionCandidate {
+                        nation: entity,
+                        tag,
+                        urgency,
+                    });
+                }
+            }
+        }
+
+        if let Some(candidate) = transport.candidates_for(entity).first() {
+            let tag = MacroTag::UpgradeRail {
+                from: candidate.from,
+                to: candidate.to,
+            };
+            if !ledger.cooldown_active(entity, &tag) {
+                candidates.0.push(MacroActionCandidate {
+                    nation: entity,
+                    tag,
+                    urgency: candidate.marginal_gain,
+                });
+            }
+        }
+
+        // Simple heuristic: periodically consider investing in minors to avoid stagnation
+        let minor_tag = MacroTag::InvestMinor {
+            minor: MinorId(entity.index() as u16 % 5),
+        };
+        if !ledger.cooldown_active(entity, &minor_tag) {
+            candidates.0.push(MacroActionCandidate {
+                nation: entity,
+                tag: minor_tag,
+                urgency: 0.15,
+            });
+        }
+    }
 }
 
 pub fn populate_ai_turn_context(
@@ -551,5 +904,18 @@ mod tests {
         assert!(context.is_empty());
         assert_eq!(context.turn(), 4);
         assert_eq!(context.phase(), TurnPhase::EnemyTurn);
+    }
+
+    #[test]
+    fn ledger_cooldowns_tick_down_on_new_turn() {
+        let mut ledger = AiPlanLedger::default();
+        let nation = Entity::from_bits(1);
+        let tag = MacroTag::BuyCoal;
+        ledger.apply_cooldown(nation, tag.clone(), 2);
+        assert!(ledger.cooldown_active(nation, &tag));
+        ledger.advance_turn(1);
+        assert!(ledger.cooldown_active(nation, &tag));
+        ledger.advance_turn(2);
+        assert!(!ledger.cooldown_active(nation, &tag));
     }
 }
