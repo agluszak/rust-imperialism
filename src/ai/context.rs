@@ -25,9 +25,20 @@ pub struct MinorId(pub u16);
 /// Tag describing a macro-level action the AI can pursue this turn.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MacroTag {
-    BuyCoal,
+    BuyResource { good: Good },
     UpgradeRail { from: TilePos, to: TilePos },
     InvestMinor { minor: MinorId },
+}
+
+/// Target buffer the AI aims to maintain for tradable resources.
+pub const RESOURCE_TARGET_DAYS: f32 = 20.0;
+
+pub fn resource_target_days(good: Good) -> f32 {
+    if good.is_raw_food() {
+        12.0
+    } else {
+        RESOURCE_TARGET_DAYS
+    }
 }
 
 /// Candidate macro action generated during the analysis phase.
@@ -564,11 +575,15 @@ pub fn gather_turn_candidates(
 
     for entity in ai_nations.iter() {
         if let Some(nation) = belief.for_entity(entity) {
-            let available_coal = nation.available_amount(Good::Coal);
-            let desired = 20;
-            let tag = MacroTag::BuyCoal;
-            if !ledger.cooldown_active(entity, &tag) {
-                if let Some(qty) = market.recommended_buy_qty(Good::Coal, available_coal, desired) {
+            for &good in MARKET_RESOURCES {
+                let desired = resource_target_days(good).round() as u32;
+                let tag = MacroTag::BuyResource { good };
+                if desired == 0 || ledger.cooldown_active(entity, &tag) {
+                    continue;
+                }
+
+                let available = nation.available_amount(good);
+                if let Some(qty) = market.recommended_buy_qty(good, available, desired) {
                     let urgency = (qty as f32 / desired as f32).clamp(0.0, 1.0);
                     candidates.0.push(MacroActionCandidate {
                         nation: entity,
@@ -655,9 +670,11 @@ pub fn populate_ai_turn_context(
 
 #[cfg(test)]
 mod tests {
+    use crate::ai::context::{BeliefNation, resource_target_days};
     use crate::ai::*;
     use crate::economy::allocation::Allocations;
     use crate::economy::goods::Good;
+    use crate::economy::market::MARKET_RESOURCES;
     use crate::economy::nation::NationId;
     use crate::economy::reservation::ReservationSystem;
     use crate::economy::stockpile::Stockpile;
@@ -670,6 +687,8 @@ mod tests {
     use crate::turn_system::{TurnPhase, TurnSystem};
     use bevy::ecs::system::SystemState;
     use bevy::prelude::{App, World};
+
+    use super::MarketObservation;
 
     fn rebuild_context(world: &mut World) {
         let mut system_state: SystemState<(
@@ -690,6 +709,108 @@ mod tests {
         let (context, turn, nations, capacity, allocations, demand) = system_state.get_mut(world);
         populate_ai_turn_context(context, turn, nations, capacity, allocations, demand);
         system_state.apply(world);
+    }
+
+    #[test]
+    fn gathers_market_candidates_for_multiple_resources() {
+        let mut app = App::new();
+        app.world_mut().insert_resource(BeliefState::default());
+        app.world_mut().insert_resource(MarketView::default());
+        app.world_mut()
+            .insert_resource(TransportAnalysis::default());
+        app.world_mut().insert_resource(AiPlanLedger::default());
+        app.world_mut().insert_resource(TurnCandidates::default());
+
+        let nation = app.world_mut().spawn(AiNation(NationId(7))).id();
+
+        {
+            let mut stockpile_entries: Vec<AiStockpileEntry> = MARKET_RESOURCES
+                .iter()
+                .copied()
+                .map(|good| {
+                    let target = resource_target_days(good).round() as u32;
+                    AiStockpileEntry {
+                        good,
+                        total: target,
+                        reserved: 0,
+                        available: target,
+                    }
+                })
+                .collect();
+
+            for (good, available) in [(Good::Grain, 4), (Good::Coal, 2)] {
+                if let Some(entry) = stockpile_entries
+                    .iter_mut()
+                    .find(|entry| entry.good == good)
+                {
+                    entry.total = available;
+                    entry.available = available;
+                }
+            }
+
+            let mut belief = app.world_mut().resource_mut::<BeliefState>();
+            belief.rebuild(
+                1,
+                vec![BeliefNation {
+                    entity: nation,
+                    id: NationId(7),
+                    stockpile: stockpile_entries,
+                    treasury: 0,
+                }]
+                .into_iter(),
+            );
+        }
+
+        {
+            let mut market = app.world_mut().resource_mut::<MarketView>();
+            market.record(
+                Good::Grain,
+                MarketObservation {
+                    price: 60,
+                    supply: 1,
+                    demand: 6,
+                },
+            );
+            market.record(
+                Good::Coal,
+                MarketObservation {
+                    price: 100,
+                    supply: 0,
+                    demand: 5,
+                },
+            );
+        }
+
+        let mut system_state: SystemState<(
+            Res<BeliefState>,
+            Res<TransportAnalysis>,
+            Res<MarketView>,
+            Res<AiPlanLedger>,
+            ResMut<TurnCandidates>,
+            Query<Entity, With<AiNation>>,
+        )> = SystemState::new(app.world_mut());
+
+        {
+            let (belief, transport, market, ledger, candidates, ai_nations) =
+                system_state.get_mut(app.world_mut());
+            gather_turn_candidates(belief, transport, market, ledger, candidates, ai_nations);
+            system_state.apply(app.world_mut());
+        }
+
+        let candidates = app.world().resource::<TurnCandidates>();
+        let mut saw_grain = false;
+        let mut saw_coal = false;
+
+        for candidate in candidates.for_actor(nation) {
+            match candidate.tag {
+                MacroTag::BuyResource { good: Good::Grain } => saw_grain = true,
+                MacroTag::BuyResource { good: Good::Coal } => saw_coal = true,
+                _ => {}
+            }
+        }
+
+        assert!(saw_grain);
+        assert!(saw_coal);
     }
 
     #[test]
@@ -910,7 +1031,7 @@ mod tests {
     fn ledger_cooldowns_tick_down_on_new_turn() {
         let mut ledger = AiPlanLedger::default();
         let nation = Entity::from_bits(1);
-        let tag = MacroTag::BuyCoal;
+        let tag = MacroTag::BuyResource { good: Good::Coal };
         ledger.apply_cooldown(nation, tag.clone(), 2);
         assert!(ledger.cooldown_active(nation, &tag));
         ledger.advance_turn(1);
