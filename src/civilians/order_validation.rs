@@ -59,7 +59,14 @@ pub fn validate_command(
             storage
                 .get(to)
                 .ok_or(CivilianCommandError::MissingTargetTile(*to))?;
-            if !tile_owned_by_nation(*to, civilian.owner, storage, map_size, tile_provinces, provinces) {
+            if !tile_owned_by_nation(
+                *to,
+                civilian.owner,
+                storage,
+                map_size,
+                tile_provinces,
+                provinces,
+            ) {
                 return Err(CivilianCommandError::TargetTileUnowned);
             }
             Ok(())
@@ -70,7 +77,14 @@ pub fn validate_command(
                 .get(to)
                 .ok_or(CivilianCommandError::MissingTargetTile(*to))?;
             ensure_current_tile_owned(civilian, storage, map_size, tile_provinces, provinces)?;
-            if !tile_owned_by_nation(*to, civilian.owner, storage, map_size, tile_provinces, provinces) {
+            if !tile_owned_by_nation(
+                *to,
+                civilian.owner,
+                storage,
+                map_size,
+                tile_provinces,
+                provinces,
+            ) {
                 return Err(CivilianCommandError::TargetTileUnowned);
             }
             Ok(())
@@ -87,7 +101,14 @@ pub fn validate_command(
             storage
                 .get(to)
                 .ok_or(CivilianCommandError::MissingTargetTile(*to))?;
-            if !tile_owned_by_nation(*to, civilian.owner, storage, map_size, tile_provinces, provinces) {
+            if !tile_owned_by_nation(
+                *to,
+                civilian.owner,
+                storage,
+                map_size,
+                tile_provinces,
+                provinces,
+            ) {
                 return Err(CivilianCommandError::TargetTileUnowned);
             }
             Ok(())
@@ -99,7 +120,14 @@ pub fn validate_command(
             storage
                 .get(to)
                 .ok_or(CivilianCommandError::MissingTargetTile(*to))?;
-            if !tile_owned_by_nation(*to, civilian.owner, storage, map_size, tile_provinces, provinces) {
+            if !tile_owned_by_nation(
+                *to,
+                civilian.owner,
+                storage,
+                map_size,
+                tile_provinces,
+                provinces,
+            ) {
                 return Err(CivilianCommandError::TargetTileUnowned);
             }
             Ok(())
@@ -120,7 +148,14 @@ pub fn validate_command(
             storage
                 .get(to)
                 .ok_or(CivilianCommandError::MissingTargetTile(*to))?;
-            if !tile_owned_by_nation(*to, civilian.owner, storage, map_size, tile_provinces, provinces) {
+            if !tile_owned_by_nation(
+                *to,
+                civilian.owner,
+                storage,
+                map_size,
+                tile_provinces,
+                provinces,
+            ) {
                 return Err(CivilianCommandError::TargetTileUnowned);
             }
             Ok(())

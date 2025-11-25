@@ -743,8 +743,14 @@ fn has_move_target_scorer(
             continue;
         }
 
-        cache.movement =
-            select_move_target(civilian, storage, *map_size, &tile_provinces, &provinces, &mut rng.0);
+        cache.movement = select_move_target(
+            civilian,
+            storage,
+            *map_size,
+            &tile_provinces,
+            &provinces,
+            &mut rng.0,
+        );
 
         let has_target = cache.movement.is_some();
         score.set(if has_target { 0.6 } else { 0.0 });
@@ -872,7 +878,14 @@ fn select_move_target(
         .iter()
         .filter_map(|hex| hex.to_tile_pos())
         .filter(|pos| {
-            tile_owned_by_nation(*pos, civilian.owner, storage, map_size, tile_provinces, provinces)
+            tile_owned_by_nation(
+                *pos,
+                civilian.owner,
+                storage,
+                map_size,
+                tile_provinces,
+                provinces,
+            )
         })
         .collect();
 
@@ -1195,7 +1208,14 @@ fn shortest_path_to_connected(
                 continue;
             };
 
-            if !tile_owned_by_nation(neighbor, owner, storage, map_size, tile_provinces, provinces) {
+            if !tile_owned_by_nation(
+                neighbor,
+                owner,
+                storage,
+                map_size,
+                tile_provinces,
+                provinces,
+            ) {
                 continue;
             }
 
@@ -1286,7 +1306,14 @@ fn compute_owned_bfs(
                 continue;
             };
 
-            if !tile_owned_by_nation(neighbor, owner, storage, map_size, tile_provinces, provinces) {
+            if !tile_owned_by_nation(
+                neighbor,
+                owner,
+                storage,
+                map_size,
+                tile_provinces,
+                provinces,
+            ) {
                 continue;
             }
 
@@ -1764,8 +1791,14 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(42);
         let order = {
             let (tile_provinces, provinces) = state.get(&mut world);
-            let order =
-                select_move_target(&civilian, &storage, map_size, &tile_provinces, &provinces, &mut rng);
+            let order = select_move_target(
+                &civilian,
+                &storage,
+                map_size,
+                &tile_provinces,
+                &provinces,
+                &mut rng,
+            );
             order
         };
         state.apply(&mut world);

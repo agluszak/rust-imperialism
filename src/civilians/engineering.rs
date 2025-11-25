@@ -123,7 +123,14 @@ fn handle_build_rail_order(
         .iter()
         .next()
         .map(|(tile_storage, map_size)| {
-            tile_owned_by_nation(to, civilian.owner, tile_storage, *map_size, tile_provinces, provinces)
+            tile_owned_by_nation(
+                to,
+                civilian.owner,
+                tile_storage,
+                *map_size,
+                tile_provinces,
+                provinces,
+            )
         })
         .unwrap_or(false);
 
