@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_ecs_tilemap::prelude::TilePos;
+use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
 
 use crate::civilians::commands::DeselectCivilian;
 use crate::civilians::order_validation::tile_owned_by_nation;
@@ -21,7 +21,7 @@ pub fn execute_engineer_orders(
     mut deselect_writer: MessageWriter<DeselectCivilian>,
     rails: Res<Rails>,
     turn: Res<TurnSystem>,
-    tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
+    tile_storage_query: Query<(&TileStorage, &TilemapSize)>,
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
 ) {
@@ -35,11 +35,12 @@ pub fn execute_engineer_orders(
         let has_territory_access = tile_storage_query
             .iter()
             .next()
-            .map(|tile_storage| {
+            .map(|(tile_storage, map_size)| {
                 tile_owned_by_nation(
                     civilian.position,
                     civilian.owner,
                     tile_storage,
+                    *map_size,
                     &tile_provinces,
                     &provinces,
                 )
@@ -113,7 +114,7 @@ fn handle_build_rail_order(
     deselect_writer: &mut MessageWriter<DeselectCivilian>,
     rails: &Res<Rails>,
     turn: &Res<TurnSystem>,
-    tile_storage_query: &Query<&bevy_ecs_tilemap::prelude::TileStorage>,
+    tile_storage_query: &Query<(&TileStorage, &TilemapSize)>,
     tile_provinces: &Query<&TileProvince>,
     provinces: &Query<&Province>,
 ) {
@@ -121,8 +122,8 @@ fn handle_build_rail_order(
     let target_owned = tile_storage_query
         .iter()
         .next()
-        .map(|tile_storage| {
-            tile_owned_by_nation(to, civilian.owner, tile_storage, tile_provinces, provinces)
+        .map(|(tile_storage, map_size)| {
+            tile_owned_by_nation(to, civilian.owner, tile_storage, *map_size, tile_provinces, provinces)
         })
         .unwrap_or(false);
 
@@ -252,7 +253,7 @@ pub fn execute_prospector_orders(
     mut prospectors: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
     mut deselect_writer: MessageWriter<DeselectCivilian>,
     turn: Res<TurnSystem>,
-    tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
+    tile_storage_query: Query<(&TileStorage, &TilemapSize)>,
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
     potential_minerals: Query<&crate::map::PotentialMineral>,
@@ -272,11 +273,12 @@ pub fn execute_prospector_orders(
             let has_territory_access = tile_storage_query
                 .iter()
                 .next()
-                .map(|tile_storage| {
+                .map(|(tile_storage, map_size)| {
                     tile_owned_by_nation(
                         to,
                         civilian.owner,
                         tile_storage,
+                        *map_size,
                         &tile_provinces,
                         &provinces,
                     )
@@ -293,7 +295,7 @@ pub fn execute_prospector_orders(
             }
 
             // Find tile entity and check if it can be prospected
-            if let Some(tile_storage) = tile_storage_query.iter().next()
+            if let Some((tile_storage, _)) = tile_storage_query.iter().next()
                 && let Some(tile_entity) = tile_storage.get(&to)
             {
                 // Check if tile has already been prospected
@@ -354,7 +356,7 @@ pub fn execute_civilian_improvement_orders(
     mut civilians: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
     mut deselect_writer: MessageWriter<DeselectCivilian>,
     turn: Res<TurnSystem>,
-    tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
+    tile_storage_query: Query<(&TileStorage, &TilemapSize)>,
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
     tile_resources: Query<&TileResource>,
@@ -389,11 +391,12 @@ pub fn execute_civilian_improvement_orders(
         let has_territory_access = tile_storage_query
             .iter()
             .next()
-            .map(|tile_storage| {
+            .map(|(tile_storage, map_size)| {
                 tile_owned_by_nation(
                     target_pos,
                     civilian.owner,
                     tile_storage,
+                    *map_size,
                     &tile_provinces,
                     &provinces,
                 )
@@ -410,7 +413,7 @@ pub fn execute_civilian_improvement_orders(
         }
 
         // Find tile entity and validate resource
-        if let Some(tile_storage) = tile_storage_query.iter().next()
+        if let Some((tile_storage, _)) = tile_storage_query.iter().next()
             && let Some(tile_entity) = tile_storage.get(&target_pos)
         {
             if let Ok(resource) = tile_resources.get(tile_entity) {

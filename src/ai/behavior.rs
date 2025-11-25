@@ -2,7 +2,7 @@
 
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
-use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
+use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
 use big_brain::prelude::*;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -565,42 +565,55 @@ fn ready_to_act_scorer(
 
 fn has_rail_target_scorer(
     civilians: Query<&Civilian>,
-    tile_storage_query: Query<&TileStorage>,
+    mut caches: Query<&mut AiOrderCache>,
+    tile_storage_query: Query<(&TileStorage, &TilemapSize)>,
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
     capitals: Query<&Capital>,
     tile_resources: Query<&TileResource>,
     rails: Res<Rails>,
-    mut scores: Query<(&Actor, &mut Score, &mut AiOrderCache, &ScorerSpan), With<HasRailTarget>>,
+    mut scores: Query<(&Actor, &mut Score, &ScorerSpan), With<HasRailTarget>>,
 ) {
-    let tile_storage = tile_storage_query.iter().next();
+    let tile_data = tile_storage_query.iter().next();
 
-    for (Actor(actor), mut score, mut cache, span) in &mut scores {
+    for (Actor(actor), mut score, span) in &mut scores {
         let _guard = span.span().enter();
 
-        let Some(storage) = tile_storage else {
-            cache.rail = None;
+        let Some((storage, map_size)) = tile_data else {
+            if let Ok(mut cache) = caches.get_mut(*actor) {
+                cache.rail = None;
+            }
             score.set(0.0);
             continue;
         };
 
         let Ok(civilian) = civilians.get(*actor) else {
-            cache.rail = None;
+            if let Ok(mut cache) = caches.get_mut(*actor) {
+                cache.rail = None;
+            }
             score.set(0.0);
             continue;
         };
 
         if civilian.has_moved || civilian.kind != CivilianKind::Engineer {
-            cache.rail = None;
+            if let Ok(mut cache) = caches.get_mut(*actor) {
+                cache.rail = None;
+            }
             score.set(0.0);
             continue;
         }
+
+        let Ok(mut cache) = caches.get_mut(*actor) else {
+            score.set(0.0);
+            continue;
+        };
 
         cache.rail = None;
 
         match plan_rail_connection(
             civilian,
             storage,
+            *map_size,
             &tile_provinces,
             &provinces,
             &capitals,
@@ -625,39 +638,48 @@ fn has_rail_target_scorer(
 
 fn has_improvement_target_scorer(
     civilians: Query<&Civilian>,
+    mut caches: Query<&mut AiOrderCache>,
     tile_storage_query: Query<&TileStorage>,
     provinces: Query<&Province>,
     capitals: Query<&Capital>,
     tile_resources: Query<&TileResource>,
     prospecting_knowledge: Option<Res<ProspectingKnowledge>>,
-    mut scores: Query<
-        (&Actor, &mut Score, &mut AiOrderCache, &ScorerSpan),
-        With<HasImprovementTarget>,
-    >,
+    mut scores: Query<(&Actor, &mut Score, &ScorerSpan), With<HasImprovementTarget>>,
 ) {
     let tile_storage = tile_storage_query.iter().next();
     let prospecting_knowledge = prospecting_knowledge.as_deref();
 
-    for (Actor(actor), mut score, mut cache, span) in &mut scores {
+    for (Actor(actor), mut score, span) in &mut scores {
         let _guard = span.span().enter();
 
         let Some(storage) = tile_storage else {
-            cache.improvement = None;
+            if let Ok(mut cache) = caches.get_mut(*actor) {
+                cache.improvement = None;
+            }
             score.set(0.0);
             continue;
         };
 
         let Ok(civilian) = civilians.get(*actor) else {
-            cache.improvement = None;
+            if let Ok(mut cache) = caches.get_mut(*actor) {
+                cache.improvement = None;
+            }
             score.set(0.0);
             continue;
         };
 
         if civilian.has_moved {
-            cache.improvement = None;
+            if let Ok(mut cache) = caches.get_mut(*actor) {
+                cache.improvement = None;
+            }
             score.set(0.0);
             continue;
         }
+
+        let Ok(mut cache) = caches.get_mut(*actor) else {
+            score.set(0.0);
+            continue;
+        };
 
         cache.improvement = select_improvement_target(
             civilian,
@@ -675,34 +697,46 @@ fn has_improvement_target_scorer(
 
 fn has_move_target_scorer(
     civilians: Query<&Civilian>,
-    tile_storage_query: Query<&TileStorage>,
+    mut caches: Query<&mut AiOrderCache>,
+    tile_storage_query: Query<(&TileStorage, &TilemapSize)>,
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
     mut rng: ResMut<AiRng>,
-    mut scores: Query<(&Actor, &mut Score, &mut AiOrderCache, &ScorerSpan), With<HasMoveTarget>>,
+    mut scores: Query<(&Actor, &mut Score, &ScorerSpan), With<HasMoveTarget>>,
 ) {
-    let tile_storage = tile_storage_query.iter().next();
+    let tile_data = tile_storage_query.iter().next();
 
-    for (Actor(actor), mut score, mut cache, span) in &mut scores {
+    for (Actor(actor), mut score, span) in &mut scores {
         let _guard = span.span().enter();
 
-        let Some(storage) = tile_storage else {
-            cache.movement = None;
+        let Some((storage, map_size)) = tile_data else {
+            if let Ok(mut cache) = caches.get_mut(*actor) {
+                cache.movement = None;
+            }
             score.set(0.0);
             continue;
         };
 
         let Ok(civilian) = civilians.get(*actor) else {
-            cache.movement = None;
+            if let Ok(mut cache) = caches.get_mut(*actor) {
+                cache.movement = None;
+            }
             score.set(0.0);
             continue;
         };
 
         if civilian.has_moved {
-            cache.movement = None;
+            if let Ok(mut cache) = caches.get_mut(*actor) {
+                cache.movement = None;
+            }
             score.set(0.0);
             continue;
         }
+
+        let Ok(mut cache) = caches.get_mut(*actor) else {
+            score.set(0.0);
+            continue;
+        };
 
         if cache.movement.is_some() {
             score.set(0.7);
@@ -710,7 +744,7 @@ fn has_move_target_scorer(
         }
 
         cache.movement =
-            select_move_target(civilian, storage, &tile_provinces, &provinces, &mut rng.0);
+            select_move_target(civilian, storage, *map_size, &tile_provinces, &provinces, &mut rng.0);
 
         let has_target = cache.movement.is_some();
         score.set(if has_target { 0.6 } else { 0.0 });
@@ -720,12 +754,10 @@ fn has_move_target_scorer(
 fn build_rail_action(
     mut command_writer: MessageWriter<CivilianCommand>,
     civilians: Query<(&Civilian, Option<&CivilianOrder>)>,
-    mut actions: Query<
-        (&Actor, &mut ActionState, &mut AiOrderCache, &ActionSpan),
-        With<BuildRailOrder>,
-    >,
+    mut caches: Query<&mut AiOrderCache>,
+    mut actions: Query<(&Actor, &mut ActionState, &ActionSpan), With<BuildRailOrder>>,
 ) {
-    for (Actor(actor), mut state, mut cache, span) in &mut actions {
+    for (Actor(actor), mut state, span) in &mut actions {
         let _guard = span.span().enter();
 
         match *state {
@@ -748,6 +780,11 @@ fn build_rail_action(
                     *state = ActionState::Success;
                     continue;
                 }
+
+                let Ok(mut cache) = caches.get_mut(*actor) else {
+                    *state = ActionState::Failure;
+                    continue;
+                };
 
                 let Some(order) = cache.rail.take() else {
                     *state = ActionState::Failure;
@@ -770,12 +807,10 @@ fn build_rail_action(
 fn build_improvement_action(
     mut command_writer: MessageWriter<CivilianCommand>,
     civilians: Query<(&Civilian, Option<&CivilianOrder>)>,
-    mut actions: Query<
-        (&Actor, &mut ActionState, &mut AiOrderCache, &ActionSpan),
-        With<BuildImprovementOrder>,
-    >,
+    mut caches: Query<&mut AiOrderCache>,
+    mut actions: Query<(&Actor, &mut ActionState, &ActionSpan), With<BuildImprovementOrder>>,
 ) {
-    for (Actor(actor), mut state, mut cache, span) in &mut actions {
+    for (Actor(actor), mut state, span) in &mut actions {
         let _guard = span.span().enter();
 
         match *state {
@@ -798,6 +833,11 @@ fn build_improvement_action(
                     *state = ActionState::Success;
                     continue;
                 }
+
+                let Ok(mut cache) = caches.get_mut(*actor) else {
+                    *state = ActionState::Failure;
+                    continue;
+                };
 
                 let Some(order) = cache.improvement.take() else {
                     *state = ActionState::Failure;
@@ -820,6 +860,7 @@ fn build_improvement_action(
 fn select_move_target(
     civilian: &Civilian,
     storage: &TileStorage,
+    map_size: TilemapSize,
     tile_provinces: &Query<&TileProvince>,
     provinces: &Query<&Province>,
     rng: &mut StdRng,
@@ -831,7 +872,7 @@ fn select_move_target(
         .iter()
         .filter_map(|hex| hex.to_tile_pos())
         .filter(|pos| {
-            tile_owned_by_nation(*pos, civilian.owner, storage, tile_provinces, provinces)
+            tile_owned_by_nation(*pos, civilian.owner, storage, map_size, tile_provinces, provinces)
         })
         .collect();
 
@@ -844,12 +885,10 @@ fn select_move_target(
 fn move_to_target_action(
     mut command_writer: MessageWriter<CivilianCommand>,
     civilians: Query<(&Civilian, Option<&CivilianOrder>)>,
-    mut actions: Query<
-        (&Actor, &mut ActionState, &mut AiOrderCache, &ActionSpan),
-        With<MoveTowardsOwnedTile>,
-    >,
+    mut caches: Query<&mut AiOrderCache>,
+    mut actions: Query<(&Actor, &mut ActionState, &ActionSpan), With<MoveTowardsOwnedTile>>,
 ) {
-    for (Actor(actor), mut state, mut cache, span) in &mut actions {
+    for (Actor(actor), mut state, span) in &mut actions {
         let _guard = span.span().enter();
 
         match *state {
@@ -872,6 +911,11 @@ fn move_to_target_action(
                     *state = ActionState::Success;
                     continue;
                 }
+
+                let Ok(mut cache) = caches.get_mut(*actor) else {
+                    *state = ActionState::Failure;
+                    continue;
+                };
 
                 let Some(order) = cache.movement.take() else {
                     *state = ActionState::Failure;
@@ -894,12 +938,10 @@ fn move_to_target_action(
 fn skip_turn_action(
     mut command_writer: MessageWriter<CivilianCommand>,
     civilians: Query<(&Civilian, Option<&CivilianOrder>)>,
-    mut actions: Query<
-        (&Actor, &mut ActionState, &mut AiOrderCache, &ActionSpan),
-        With<SkipTurnOrder>,
-    >,
+    mut caches: Query<&mut AiOrderCache>,
+    mut actions: Query<(&Actor, &mut ActionState, &ActionSpan), With<SkipTurnOrder>>,
 ) {
-    for (Actor(actor), mut state, mut cache, span) in &mut actions {
+    for (Actor(actor), mut state, span) in &mut actions {
         let _guard = span.span().enter();
 
         match *state {
@@ -923,9 +965,11 @@ fn skip_turn_action(
                     continue;
                 }
 
-                cache.improvement = None;
-                cache.rail = None;
-                cache.movement = None;
+                if let Ok(mut cache) = caches.get_mut(*actor) {
+                    cache.improvement = None;
+                    cache.rail = None;
+                    cache.movement = None;
+                }
 
                 command_writer.write(CivilianCommand {
                     civilian: *actor,
@@ -948,6 +992,7 @@ enum RailDecision {
 fn plan_rail_connection(
     civilian: &Civilian,
     storage: &TileStorage,
+    map_size: TilemapSize,
     tile_provinces: &Query<&TileProvince>,
     provinces: &Query<&Province>,
     capitals: &Query<&Capital>,
@@ -963,6 +1008,7 @@ fn plan_rail_connection(
         capital_pos,
         civilian.owner,
         storage,
+        map_size,
         tile_provinces,
         provinces,
         rails,
@@ -972,6 +1018,7 @@ fn plan_rail_connection(
         civilian.position,
         civilian.owner,
         storage,
+        map_size,
         tile_provinces,
         provinces,
     );
@@ -1005,6 +1052,7 @@ fn plan_rail_connection(
                 civilian.owner,
                 &connected,
                 storage,
+                map_size,
                 tile_provinces,
                 provinces,
             ) else {
@@ -1082,6 +1130,7 @@ fn gather_connected_tiles(
     capital_pos: TilePos,
     owner: Entity,
     storage: &TileStorage,
+    map_size: TilemapSize,
     tile_provinces: &Query<&TileProvince>,
     provinces: &Query<&Province>,
     rails: &Rails,
@@ -1089,8 +1138,8 @@ fn gather_connected_tiles(
     let mut graph: HashMap<TilePos, Vec<TilePos>> = HashMap::new();
 
     for &(a, b) in rails.0.iter() {
-        if !tile_owned_by_nation(a, owner, storage, tile_provinces, provinces)
-            || !tile_owned_by_nation(b, owner, storage, tile_provinces, provinces)
+        if !tile_owned_by_nation(a, owner, storage, map_size, tile_provinces, provinces)
+            || !tile_owned_by_nation(b, owner, storage, map_size, tile_provinces, provinces)
         {
             continue;
         }
@@ -1123,6 +1172,7 @@ fn shortest_path_to_connected(
     owner: Entity,
     connected: &HashSet<TilePos>,
     storage: &TileStorage,
+    map_size: TilemapSize,
     tile_provinces: &Query<&TileProvince>,
     provinces: &Query<&Province>,
 ) -> Option<Vec<TilePos>> {
@@ -1145,7 +1195,7 @@ fn shortest_path_to_connected(
                 continue;
             };
 
-            if !tile_owned_by_nation(neighbor, owner, storage, tile_provinces, provinces) {
+            if !tile_owned_by_nation(neighbor, owner, storage, map_size, tile_provinces, provinces) {
                 continue;
             }
 
@@ -1216,6 +1266,7 @@ fn compute_owned_bfs(
     start: TilePos,
     owner: Entity,
     storage: &TileStorage,
+    map_size: TilemapSize,
     tile_provinces: &Query<&TileProvince>,
     provinces: &Query<&Province>,
 ) -> OwnedBfs {
@@ -1235,7 +1286,7 @@ fn compute_owned_bfs(
                 continue;
             };
 
-            if !tile_owned_by_nation(neighbor, owner, storage, tile_provinces, provinces) {
+            if !tile_owned_by_nation(neighbor, owner, storage, map_size, tile_provinces, provinces) {
                 continue;
             }
 
@@ -1511,6 +1562,8 @@ mod tests {
             })
             .id();
 
+        let map_size = TilemapSize { x: 6, y: 6 };
+
         let mut state: SystemState<(
             Query<&TileProvince>,
             Query<&Province>,
@@ -1527,6 +1580,7 @@ mod tests {
             plan_rail_connection(
                 civilian,
                 &storage,
+                map_size,
                 &tile_provinces,
                 &provinces,
                 &capitals,
@@ -1616,6 +1670,8 @@ mod tests {
             })
             .id();
 
+        let map_size = TilemapSize { x: 6, y: 6 };
+
         let mut state: SystemState<(
             Query<&TileProvince>,
             Query<&Province>,
@@ -1632,6 +1688,7 @@ mod tests {
             plan_rail_connection(
                 civilian,
                 &storage,
+                map_size,
                 &tile_provinces,
                 &provinces,
                 &capitals,
@@ -1675,7 +1732,8 @@ mod tests {
         let mut world = World::new();
         let ai_nation = world.spawn((AiNation(NationId(5)), NationId(5))).id();
         let neighbor_pos = TilePos { x: 2, y: 1 };
-        let mut storage = TileStorage::empty(TilemapSize { x: 4, y: 4 });
+        let map_size = TilemapSize { x: 4, y: 4 };
+        let mut storage = TileStorage::empty(map_size);
 
         let province_id = ProvinceId(1);
         let start_tile = world.spawn(TileProvince { province_id }).id();
@@ -1707,7 +1765,7 @@ mod tests {
         let order = {
             let (tile_provinces, provinces) = state.get(&mut world);
             let order =
-                select_move_target(&civilian, &storage, &tile_provinces, &provinces, &mut rng);
+                select_move_target(&civilian, &storage, map_size, &tile_provinces, &provinces, &mut rng);
             order
         };
         state.apply(&mut world);

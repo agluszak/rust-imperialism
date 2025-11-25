@@ -95,12 +95,13 @@ fn test_ai_move_command_executes() {
 
     let start = TilePos { x: 1, y: 1 };
     let target = TilePos { x: 1, y: 2 };
-    let mut storage = TileStorage::empty(TilemapSize { x: 4, y: 4 });
+    let map_size = TilemapSize { x: 4, y: 4 };
+    let mut storage = TileStorage::empty(map_size);
     let start_tile = world.spawn(TileProvince { province_id }).id();
     let target_tile = world.spawn(TileProvince { province_id }).id();
     storage.set(&start, start_tile);
     storage.set(&target, target_tile);
-    world.spawn(storage);
+    world.spawn((storage, map_size));
 
     let civilian = world
         .spawn(Civilian {
@@ -183,7 +184,8 @@ fn test_illegal_rail_command_rejected() {
 
     let start = TilePos { x: 2, y: 2 };
     let target = TilePos { x: 2, y: 3 };
-    let mut storage = TileStorage::empty(TilemapSize { x: 5, y: 5 });
+    let map_size = TilemapSize { x: 5, y: 5 };
+    let mut storage = TileStorage::empty(map_size);
     let start_tile = world
         .spawn(TileProvince {
             province_id: player_province,
@@ -196,7 +198,7 @@ fn test_illegal_rail_command_rejected() {
         .id();
     storage.set(&start, start_tile);
     storage.set(&target, target_tile);
-    world.spawn(storage);
+    world.spawn((storage, map_size));
 
     let engineer = world
         .spawn(Civilian {

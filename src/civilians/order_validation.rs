@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
+use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
 
 use crate::civilians::types::{
     Civilian, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind,
@@ -7,13 +7,21 @@ use crate::civilians::types::{
 use crate::map::province::{Province, TileProvince};
 use crate::messages::civilians::CivilianCommandError;
 
+/// Returns true if the tile at `tile_pos` is owned by `nation_entity`.
+/// Returns false if the position is out of bounds or not owned.
 pub fn tile_owned_by_nation(
     tile_pos: TilePos,
     nation_entity: Entity,
     tile_storage: &TileStorage,
+    map_size: TilemapSize,
     tile_provinces: &Query<&TileProvince>,
     provinces: &Query<&Province>,
 ) -> bool {
+    // Bounds check to prevent panic in TileStorage::get
+    if tile_pos.x >= map_size.x || tile_pos.y >= map_size.y {
+        return false;
+    }
+
     if let Some(tile_entity) = tile_storage.get(&tile_pos)
         && let Ok(tile_province) = tile_provinces.get(tile_entity)
     {
@@ -32,6 +40,7 @@ pub fn validate_command(
     existing_order: Option<&CivilianOrder>,
     order: &CivilianOrderKind,
     tile_storage: Option<&TileStorage>,
+    map_size: TilemapSize,
     tile_provinces: &Query<&TileProvince>,
     provinces: &Query<&Province>,
 ) -> Result<(), CivilianCommandError> {
@@ -50,7 +59,7 @@ pub fn validate_command(
             storage
                 .get(to)
                 .ok_or(CivilianCommandError::MissingTargetTile(*to))?;
-            if !tile_owned_by_nation(*to, civilian.owner, storage, tile_provinces, provinces) {
+            if !tile_owned_by_nation(*to, civilian.owner, storage, map_size, tile_provinces, provinces) {
                 return Err(CivilianCommandError::TargetTileUnowned);
             }
             Ok(())
@@ -60,15 +69,15 @@ pub fn validate_command(
             storage
                 .get(to)
                 .ok_or(CivilianCommandError::MissingTargetTile(*to))?;
-            ensure_current_tile_owned(civilian, storage, tile_provinces, provinces)?;
-            if !tile_owned_by_nation(*to, civilian.owner, storage, tile_provinces, provinces) {
+            ensure_current_tile_owned(civilian, storage, map_size, tile_provinces, provinces)?;
+            if !tile_owned_by_nation(*to, civilian.owner, storage, map_size, tile_provinces, provinces) {
                 return Err(CivilianCommandError::TargetTileUnowned);
             }
             Ok(())
         }
         CivilianOrderKind::BuildDepot | CivilianOrderKind::BuildPort => {
             require_engineer(civilian)?;
-            ensure_current_tile_owned(civilian, storage, tile_provinces, provinces)
+            ensure_current_tile_owned(civilian, storage, map_size, tile_provinces, provinces)
         }
         CivilianOrderKind::SkipTurn | CivilianOrderKind::Sleep => Ok(()), // No validation needed
         CivilianOrderKind::Prospect { to } => {
@@ -78,7 +87,7 @@ pub fn validate_command(
             storage
                 .get(to)
                 .ok_or(CivilianCommandError::MissingTargetTile(*to))?;
-            if !tile_owned_by_nation(*to, civilian.owner, storage, tile_provinces, provinces) {
+            if !tile_owned_by_nation(*to, civilian.owner, storage, map_size, tile_provinces, provinces) {
                 return Err(CivilianCommandError::TargetTileUnowned);
             }
             Ok(())
@@ -90,7 +99,7 @@ pub fn validate_command(
             storage
                 .get(to)
                 .ok_or(CivilianCommandError::MissingTargetTile(*to))?;
-            if !tile_owned_by_nation(*to, civilian.owner, storage, tile_provinces, provinces) {
+            if !tile_owned_by_nation(*to, civilian.owner, storage, map_size, tile_provinces, provinces) {
                 return Err(CivilianCommandError::TargetTileUnowned);
             }
             Ok(())
@@ -111,7 +120,7 @@ pub fn validate_command(
             storage
                 .get(to)
                 .ok_or(CivilianCommandError::MissingTargetTile(*to))?;
-            if !tile_owned_by_nation(*to, civilian.owner, storage, tile_provinces, provinces) {
+            if !tile_owned_by_nation(*to, civilian.owner, storage, map_size, tile_provinces, provinces) {
                 return Err(CivilianCommandError::TargetTileUnowned);
             }
             Ok(())
@@ -122,6 +131,7 @@ pub fn validate_command(
 fn ensure_current_tile_owned(
     civilian: &Civilian,
     storage: &TileStorage,
+    map_size: TilemapSize,
     tile_provinces: &Query<&TileProvince>,
     provinces: &Query<&Province>,
 ) -> Result<(), CivilianCommandError> {
@@ -129,6 +139,7 @@ fn ensure_current_tile_owned(
         civilian.position,
         civilian.owner,
         storage,
+        map_size,
         tile_provinces,
         provinces,
     ) {
@@ -158,7 +169,8 @@ mod tests {
     #[test]
     fn rejects_mismatched_kind() {
         let mut world = World::new();
-        let mut storage = TileStorage::empty(TilemapSize { x: 4, y: 4 });
+        let map_size = TilemapSize { x: 4, y: 4 };
+        let mut storage = TileStorage::empty(map_size);
         let province_id = ProvinceId(1);
         world.spawn(Province {
             id: province_id,
@@ -195,6 +207,7 @@ mod tests {
             None,
             &order,
             Some(storage),
+            map_size,
             &tile_provinces,
             &provinces,
         );

@@ -40,7 +40,8 @@ fn test_engineer_does_not_start_job_on_existing_rail() {
     });
 
     // Create tile storage with tiles for the two positions
-    let mut tile_storage = TileStorage::empty(TilemapSize { x: 10, y: 10 });
+    let map_size = TilemapSize { x: 10, y: 10 };
+    let mut tile_storage = TileStorage::empty(map_size);
     let start_pos = TilePos { x: 0, y: 0 };
     let target_pos = TilePos { x: 1, y: 0 };
 
@@ -48,7 +49,7 @@ fn test_engineer_does_not_start_job_on_existing_rail() {
     let tile2 = world.spawn(TileProvince { province_id }).id();
     tile_storage.set(&start_pos, tile1);
     tile_storage.set(&target_pos, tile2);
-    world.spawn(tile_storage);
+    world.spawn((tile_storage, map_size));
 
     // Create engineer at (0, 0)
     let engineer = world
@@ -120,7 +121,8 @@ fn test_engineer_starts_job_on_new_rail() {
     });
 
     // Create tile storage with tiles for the two positions
-    let mut tile_storage = TileStorage::empty(TilemapSize { x: 10, y: 10 });
+    let map_size = TilemapSize { x: 10, y: 10 };
+    let mut tile_storage = TileStorage::empty(map_size);
     let start_pos = TilePos { x: 0, y: 0 };
     let target_pos = TilePos { x: 1, y: 0 };
 
@@ -128,7 +130,7 @@ fn test_engineer_starts_job_on_new_rail() {
     let tile2 = world.spawn(TileProvince { province_id }).id();
     tile_storage.set(&start_pos, tile1);
     tile_storage.set(&target_pos, tile2);
-    world.spawn(tile_storage);
+    world.spawn((tile_storage, map_size));
 
     // Create engineer at (0, 0)
     let engineer = world
@@ -268,7 +270,8 @@ fn test_prospector_starts_prospecting_job() {
         city_tile: TilePos { x: 0, y: 0 },
     });
 
-    let mut tile_storage = TileStorage::empty(TilemapSize { x: 3, y: 3 });
+    let map_size = TilemapSize { x: 3, y: 3 };
+    let mut tile_storage = TileStorage::empty(map_size);
     let tile_pos = TilePos { x: 0, y: 0 };
     let tile_entity = world
         .spawn((
@@ -277,7 +280,7 @@ fn test_prospector_starts_prospecting_job() {
         ))
         .id();
     tile_storage.set(&tile_pos, tile_entity);
-    world.spawn(tile_storage);
+    world.spawn((tile_storage, map_size));
 
     let prospector = world
         .spawn((
@@ -464,7 +467,8 @@ fn new_owner_must_reprospect_before_mining() {
         })
         .id();
 
-    let mut tile_storage = TileStorage::empty(TilemapSize { x: 3, y: 3 });
+    let map_size = TilemapSize { x: 3, y: 3 };
+    let mut tile_storage = TileStorage::empty(map_size);
     let tile_pos = TilePos { x: 0, y: 0 };
     let tile_entity = world
         .spawn((
@@ -473,7 +477,7 @@ fn new_owner_must_reprospect_before_mining() {
         ))
         .id();
     tile_storage.set(&tile_pos, tile_entity);
-    world.spawn(tile_storage);
+    world.spawn((tile_storage, map_size));
 
     let prospector = world
         .spawn((
@@ -559,7 +563,8 @@ fn test_cannot_assign_order_if_order_already_exists() {
     use crate::messages::civilians::CivilianCommandError;
 
     let mut world = World::new();
-    let mut storage = TileStorage::empty(TilemapSize { x: 4, y: 4 });
+    let map_size = TilemapSize { x: 4, y: 4 };
+    let mut storage = TileStorage::empty(map_size);
     let province_id = ProvinceId(1);
     world.spawn(Province {
         id: province_id,
@@ -603,6 +608,7 @@ fn test_cannot_assign_order_if_order_already_exists() {
         Some(&existing_order),
         &order,
         Some(storage),
+        map_size,
         &tile_provinces,
         &provinces,
     );
@@ -619,7 +625,8 @@ fn test_can_assign_order_when_no_existing_order() {
     use crate::civilians::order_validation::validate_command;
 
     let mut world = World::new();
-    let mut storage = TileStorage::empty(TilemapSize { x: 4, y: 4 });
+    let map_size = TilemapSize { x: 4, y: 4 };
+    let mut storage = TileStorage::empty(map_size);
     let province_id = ProvinceId(1);
     world.spawn(Province {
         id: province_id,
@@ -658,6 +665,7 @@ fn test_can_assign_order_when_no_existing_order() {
         None,
         &order,
         Some(storage),
+        map_size,
         &tile_provinces,
         &provinces,
     );
@@ -1045,7 +1053,8 @@ fn farmer_starts_improvement_job_on_visible_resource() {
         city_tile: TilePos { x: 0, y: 0 },
     });
 
-    let mut tile_storage = TileStorage::empty(TilemapSize { x: 3, y: 3 });
+    let map_size = TilemapSize { x: 3, y: 3 };
+    let mut tile_storage = TileStorage::empty(map_size);
     let tile_pos = TilePos { x: 0, y: 0 };
     let tile_entity = world
         .spawn((
@@ -1054,7 +1063,7 @@ fn farmer_starts_improvement_job_on_visible_resource() {
         ))
         .id();
     tile_storage.set(&tile_pos, tile_entity);
-    world.spawn(tile_storage);
+    world.spawn((tile_storage, map_size));
 
     let farmer = world
         .spawn((

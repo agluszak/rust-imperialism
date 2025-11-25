@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_ecs_tilemap::prelude::TileStorage;
+use bevy_ecs_tilemap::prelude::{TileStorage, TilemapSize};
 
 use crate::civilians::commands::{
     DeselectAllCivilians, DeselectCivilian, RescindOrders, SelectCivilian,
@@ -139,12 +139,12 @@ pub fn handle_civilian_commands(
     mut commands: Commands,
     mut events: MessageReader<CivilianCommand>,
     civilians: Query<(&Civilian, Option<&CivilianJob>, Option<&CivilianOrder>)>,
-    tile_storage_query: Query<&TileStorage>,
+    tile_storage_query: Query<(&TileStorage, &TilemapSize)>,
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
     mut rejection_writer: MessageWriter<CivilianCommandRejected>,
 ) {
-    let tile_storage = tile_storage_query.iter().next();
+    let tile_data = tile_storage_query.iter().next();
 
     for command in events.read() {
         let (civilian, job, existing_order) = match civilians.get(command.civilian) {
@@ -165,12 +165,18 @@ pub fn handle_civilian_commands(
             }
         };
 
+        let (tile_storage, map_size) = match tile_data {
+            Some((storage, size)) => (Some(storage), *size),
+            None => (None, TilemapSize { x: 0, y: 0 }),
+        };
+
         match validate_command(
             civilian,
             job,
             existing_order,
             &command.order,
             tile_storage,
+            map_size,
             &tile_provinces,
             &provinces,
         ) {
