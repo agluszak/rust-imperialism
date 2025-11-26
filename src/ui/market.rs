@@ -27,6 +27,11 @@ struct MarketInventoryText {
 }
 
 #[derive(Component)]
+struct MarketPriceText {
+    good: Good,
+}
+
+#[derive(Component)]
 struct MarketTreasuryText;
 
 #[derive(Component)]
@@ -69,6 +74,7 @@ impl Plugin for MarketUIPlugin {
                     update_market_treasury_text,
                     update_market_trade_capacity_text,
                     update_market_inventory_texts,
+                    update_market_price_texts,
                     update_buy_interest_indicators,
                     update_sell_controls_visibility,
                 )
@@ -191,6 +197,7 @@ pub fn ensure_market_screen_visible(
                                             ..default()
                                         },
                                         TextColor(Color::srgb(0.95, 0.95, 0.9)),
+                                        MarketPriceText { good },
                                     ));
                                     info.spawn((
                                         Text::new("0 / 0"),
@@ -420,6 +427,22 @@ fn update_market_inventory_texts(
         let total = stockpile.get(marker.good);
         let available = stockpile.get_available(marker.good);
         text.0 = format!("{} / {}", available, total);
+    }
+}
+
+fn update_market_price_texts(
+    pricing: Res<MarketPriceModel>,
+    mut texts: Query<(&mut Text, &MarketPriceText)>,
+) {
+    // Update whenever pricing resource changes
+    if !pricing.is_changed() {
+        return;
+    }
+
+    for (mut text, marker) in texts.iter_mut() {
+        let price = pricing.current_price(marker.good);
+        let good_name = marker.good.to_string();
+        text.0 = format!("{} (${})  ", good_name, price);
     }
 }
 

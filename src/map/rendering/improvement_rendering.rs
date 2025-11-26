@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
 
+use crate::economy::PlayerNation;
+use crate::economy::production::ConnectedProduction;
 use crate::map::tile_pos::TilePosExt;
 use crate::resources::{DevelopmentLevel, TileResource};
 use crate::ui::components::MapTilemap;
@@ -30,6 +32,22 @@ impl TileImprovementMarker {
     }
 }
 
+/// Relationship for connectivity indicator sprite
+#[derive(Component)]
+#[relationship(relationship_target = TileConnectivityMarker)]
+struct ConnectivityMarkerFor(Entity);
+
+/// Reverse relationship for connectivity indicator
+#[derive(Component)]
+#[relationship_target(relationship = ConnectivityMarkerFor)]
+struct TileConnectivityMarker(Entity);
+
+impl TileConnectivityMarker {
+    fn entity(&self) -> Entity {
+        self.0
+    }
+}
+
 /// Plugin to render improvement markers on tiles
 pub struct ImprovementRenderingPlugin;
 
@@ -41,6 +59,9 @@ impl Plugin for ImprovementRenderingPlugin {
                 render_improvement_markers,
                 update_improvement_markers,
                 cleanup_removed_improvement_markers,
+                render_connectivity_indicators,
+                update_connectivity_indicators,
+                cleanup_removed_connectivity_indicators,
             ),
         );
     }
@@ -48,6 +69,9 @@ impl Plugin for ImprovementRenderingPlugin {
 
 const IMPROVEMENT_SIZE: f32 = 16.0; // Small indicator
 const IMPROVEMENT_OFFSET_Y: f32 = 20.0; // Offset from tile center
+const CONNECTIVITY_SIZE: f32 = 10.0; // Small connectivity indicator
+const CONNECTIVITY_OFFSET_X: f32 = -12.0; // Offset to the left of tile center
+const CONNECTIVITY_OFFSET_Y: f32 = 20.0; // Same vertical level as improvement marker
 
 /// Render visual markers for newly improved tiles
 fn render_improvement_markers(
@@ -149,5 +173,120 @@ fn spawn_marker(commands: &mut Commands, tile_entity: Entity, pos: Vec2, color: 
         ViewVisibility::default(),
         MapTilemap,
         ImprovementMarkerFor(tile_entity),
+    ));
+}
+
+/// Render connectivity indicators for newly improved tiles
+fn render_connectivity_indicators(
+    mut commands: Commands,
+    new_improvements: Query<(Entity, &TilePos), Added<TileImprovement>>,
+    connected_production: Res<ConnectedProduction>,
+    player_nation: Option<Res<PlayerNation>>,
+) {
+    let Some(player) = player_nation else {
+        return;
+    };
+    let player_entity = *player.0;
+
+    for (tile_entity, tile_pos) in new_improvements.iter() {
+        let mut pos = tile_pos.to_world_pos();
+        pos.x += CONNECTIVITY_OFFSET_X;
+        pos.y += CONNECTIVITY_OFFSET_Y;
+
+        // Check if this tile is in the connected production list for the player
+        let is_connected = connected_production
+            .tiles
+            .iter()
+            .any(|t| t.owner == player_entity && t.tile_pos == *tile_pos);
+
+        let color = if is_connected {
+            Color::srgb(0.2, 0.9, 0.2) // Green = connected
+        } else {
+            Color::srgb(0.9, 0.2, 0.2) // Red = not connected
+        };
+
+        spawn_connectivity_marker(&mut commands, tile_entity, pos, color);
+    }
+}
+
+/// Update connectivity indicators when connected production changes
+fn update_connectivity_indicators(
+    connected_production: Res<ConnectedProduction>,
+    player_nation: Option<Res<PlayerNation>>,
+    improved_tiles: Query<
+        (Entity, &TilePos, Option<&TileConnectivityMarker>),
+        With<TileImprovement>,
+    >,
+    mut marker_sprites: Query<&mut Sprite, With<ConnectivityMarkerFor>>,
+    mut commands: Commands,
+) {
+    // Only update when connected production changes
+    if !connected_production.is_changed() {
+        return;
+    }
+
+    let Some(player) = player_nation else {
+        return;
+    };
+    let player_entity = *player.0;
+
+    for (tile_entity, tile_pos, maybe_marker) in improved_tiles.iter() {
+        let is_connected = connected_production
+            .tiles
+            .iter()
+            .any(|t| t.owner == player_entity && t.tile_pos == *tile_pos);
+
+        let color = if is_connected {
+            Color::srgb(0.2, 0.9, 0.2) // Green = connected
+        } else {
+            Color::srgb(0.9, 0.2, 0.2) // Red = not connected
+        };
+
+        if let Some(marker) = maybe_marker {
+            if let Ok(mut sprite) = marker_sprites.get_mut(marker.entity()) {
+                sprite.color = color;
+            }
+        } else {
+            // Spawn new marker if it doesn't exist
+            let mut pos = tile_pos.to_world_pos();
+            pos.x += CONNECTIVITY_OFFSET_X;
+            pos.y += CONNECTIVITY_OFFSET_Y;
+            spawn_connectivity_marker(&mut commands, tile_entity, pos, color);
+        }
+    }
+}
+
+/// Remove connectivity indicators when the tile loses its improvement
+fn cleanup_removed_connectivity_indicators(
+    mut removed_improvements: RemovedComponents<TileImprovement>,
+    markers: Query<&TileConnectivityMarker>,
+    mut commands: Commands,
+) {
+    for tile_entity in removed_improvements.read() {
+        if let Ok(marker) = markers.get(tile_entity) {
+            commands.entity(marker.entity()).despawn();
+        }
+    }
+}
+
+fn spawn_connectivity_marker(
+    commands: &mut Commands,
+    tile_entity: Entity,
+    pos: Vec2,
+    color: Color,
+) {
+    commands.spawn((
+        Sprite {
+            color,
+            custom_size: Some(Vec2::new(CONNECTIVITY_SIZE, CONNECTIVITY_SIZE)),
+            ..default()
+        },
+        Transform::from_translation(pos.extend(1.6)), // Slightly above improvement marker
+        GlobalTransform::default(),
+        Visibility::default(),
+        InheritedVisibility::default(),
+        ViewVisibility::default(),
+        MapTilemap,
+        ConnectivityMarkerFor(tile_entity),
     ));
 }

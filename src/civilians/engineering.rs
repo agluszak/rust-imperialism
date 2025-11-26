@@ -454,12 +454,22 @@ pub fn execute_civilian_improvement_orders(
                     civilian.position = target_pos;
 
                     // Start improvement job
+                    let job = CivilianJob {
+                        job_type,
+                        turns_remaining: job_type.duration(),
+                        target: target_pos,
+                    };
+                    info!(
+                        "CREATING JOB: {:?} for entity {:?} - {:?} at ({}, {}), {} turns",
+                        job.job_type,
+                        entity,
+                        resource.resource_type,
+                        target_pos.x,
+                        target_pos.y,
+                        job.turns_remaining
+                    );
                     commands.entity(entity).insert((
-                        CivilianJob {
-                            job_type,
-                            turns_remaining: job_type.duration(),
-                            target: target_pos,
-                        },
+                        job,
                         PreviousPosition(previous_pos),
                         ActionTurn(turn.current_turn),
                     ));

@@ -15,7 +15,6 @@ use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
 
 use crate::economy::workforce::Workforce;
 use crate::economy::{goods::Good, stockpile::Stockpile};
-use crate::turn_system::{TurnPhase, TurnSystem};
 
 /// Resource that stores the total connected production output for each nation.
 #[derive(Resource, Default, Debug)]
@@ -227,6 +226,28 @@ pub fn calculate_connected_production(
                             ConnectedTileSource::Baseline,
                         );
                     }
+                }
+            }
+        }
+    }
+}
+
+/// Collects resources from connected production and adds them to nation stockpiles.
+/// Runs at the start of each turn (PlayerTurn phase) to harvest resources.
+pub fn collect_connected_production(
+    connected: Res<ConnectedProduction>,
+    mut nations: Query<(Entity, &mut Stockpile)>,
+) {
+    for (nation_entity, mut stockpile) in nations.iter_mut() {
+        if let Some(nation_totals) = connected.totals.get(&nation_entity) {
+            for (resource_type, (_improvement_count, total_output)) in nation_totals.iter() {
+                if *total_output > 0 {
+                    let good = resource_type.to_good();
+                    stockpile.add(good, *total_output);
+                    info!(
+                        "Nation {:?} collected {} {:?} from connected production",
+                        nation_entity, total_output, good
+                    );
                 }
             }
         }
@@ -973,8 +994,10 @@ impl Buildings {
 /// Consumes reserved resources and produces outputs.
 /// Production rules follow 2:1 ratios (2 inputs → 1 output).
 /// Production now requires labor points from workers.
+///
+/// Note: This system runs via OnEnter(TurnPhase::Processing) in ProcessingSet::Production,
+/// so no phase check is needed.
 pub fn run_production(
-    turn: Res<TurnSystem>,
     mut q: Query<(
         Option<&Workforce>,
         &mut Stockpile,
@@ -982,10 +1005,6 @@ pub fn run_production(
         &mut ProductionSettings,
     )>,
 ) {
-    if turn.phase != TurnPhase::Processing {
-        return;
-    }
-
     for (workforce_opt, mut stock, building, mut settings) in q.iter_mut() {
         // Calculate available labor (0 if no workforce)
         let available_labor = workforce_opt.map(|w| w.available_labor()).unwrap_or(0);

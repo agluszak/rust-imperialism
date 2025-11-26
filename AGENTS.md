@@ -1,11 +1,18 @@
 # AGENTS.md
 
-This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. Last updated: **2025-11-15**.
+This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. Last updated: **2025-11-27**.
 
 **This is an economy-first, turn-based strategy game** inspired by Imperialism (1997). Built with Bevy 0.17 ECS, featuring hex-based maps, multi-nation economies, and a reservation-based resource allocation system.
 
 ## Recent Changes (Oct-Nov 2025)
 
+- **Turn system refactor**: Complete rewrite using Bevy States for phase management
+  - `TurnPhase` is now a proper Bevy State with `OnEnter`/`OnExit` schedules
+  - SystemSets guarantee execution order: `PlayerTurnSet`, `ProcessingSet`, `EnemyTurnSet`
+  - Auto-transitions: Processing→EnemyTurn→PlayerTurn happen automatically
+  - No more `resource_changed::<TurnSystem>` pattern (fired multiple times)
+  - Legacy `TurnSystem` resource kept for backward compatibility (synced from state)
+- **Transport to stockpile**: Connected resources now properly collected into nation stockpiles
 - **AI opponents**: Integrated big-brain behavior system with economy planning and civilian management
 - **Save/load system**: Full game persistence using moonshine-save with component serialization
 - **Port fish production**: Connected ports yield 2 fish (bonus from transport connectivity)
@@ -54,8 +61,8 @@ cargo clippy           # Lint checks
 - Engine: Bevy 0.17, `bevy_ecs_tilemap` 0.17, `hexx` 0.22
 - AI: `big-brain` (utility-based behavior trees)
 - Save: `moonshine-save` and `moonshine-kind` for serialization
-- States: `AppState` (MainMenu/InGame), `GameMode` (Map/Transport/City/Market/Diplomacy)
-- Turn loop: PlayerTurn → Processing → EnemyTurn
+- States: `AppState` (MainMenu/InGame), `GameMode` (Map/Transport/City/Market/Diplomacy), `TurnPhase` (PlayerTurn/Processing/EnemyTurn)
+- Turn loop: PlayerTurn → Processing → EnemyTurn (auto-transitions)
 
 ## Architecture
 
@@ -76,8 +83,25 @@ Input Layer (observers, events) → Logic Layer (systems, state) → Rendering L
 
 **ECS patterns:**
 - Per-nation data: Components (`Stockpile`, `Treasury`, `Workforce`)
-- Global state: Resources (`Calendar`, `TurnSystem`, `PlayerNation`)
+- Global state: Resources (`Calendar`, `TurnCounter`, `PlayerNation`)
+- Turn phase: Bevy State (`TurnPhase`) with `OnEnter` schedules
 - Visibility control: `MapTilemap` marker on all map visuals
+
+**Turn System Architecture:**
+```
+TurnPhase (Bevy State)        SystemSets (execution order)
+─────────────────────         ──────────────────────────────
+PlayerTurn                    PlayerTurnSet: Collection → Maintenance → Market → Reset → Ui
+    ↓ (Space key)
+Processing                    ProcessingSet: Finalize → Production → Conversion
+    ↓ (auto)
+EnemyTurn                     EnemyTurnSet: Setup → Analysis → Decisions → Actions → Orders
+    ↓ (auto)
+PlayerTurn (next turn)
+```
+- Use `OnEnter(TurnPhase::*)` for systems that run once per phase entry
+- Use `in_state(TurnPhase::*)` for continuous systems during a phase
+- Legacy `TurnSystem` resource is synced for backward compatibility
 
 ## Project Structure
 
@@ -182,7 +206,25 @@ parent
 **Adding systems:**
 - Register in appropriate plugin (`EconomyPlugin`, `MapSetupPlugin`, etc.)
 - Use run conditions: `in_state(AppState::InGame)`, `in_state(GameMode::Map)`, etc.
+- For turn-based systems: use `OnEnter(TurnPhase::*)` with appropriate SystemSet
 - Group related systems with `.add_systems()`
+
+**Turn-based systems pattern:**
+```rust
+// System runs once when entering Processing phase
+app.add_systems(
+    OnEnter(TurnPhase::Processing),
+    my_system.in_set(ProcessingSet::Production),
+);
+
+// System runs continuously during EnemyTurn
+app.add_systems(
+    PreUpdate,
+    my_ai_system
+        .run_if(in_state(AppState::InGame))
+        .run_if(in_state(TurnPhase::EnemyTurn)),
+);
+```
 
 **Data organization:**
 - Per-nation data → Components on nation entities
@@ -213,7 +255,7 @@ parent
 - Allocation/reservation system
 - Market with pricing model and cross-turn order matching
 - Port fish production (2 fish per connected port)
-- Turn system with calendar
+- Turn system with calendar and state-based phase management
 - Transport infrastructure (rails, roads, depots, ports with connectivity)
 - Map visibility system (automatic hide/show on mode switch)
 - Debug overlays (transport connectivity F3, resource production C)

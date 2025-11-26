@@ -7,16 +7,20 @@ use crate::ai::markers::AiNation;
 use crate::civilians::Civilian;
 use crate::civilians::CivilianKind;
 use crate::economy::goods::Good;
-use crate::economy::market::{MARKET_RESOURCES, MarketPriceModel, MarketVolume};
+use crate::economy::market::{MARKET_RESOURCES, MarketPriceModel};
 use crate::economy::production::{BuildingKind, Buildings};
 use crate::economy::{Allocations, NationHandle, NationInstance, Stockpile, Treasury};
 use crate::messages::{AdjustMarketOrder, AdjustProduction, HireCivilian, MarketInterest};
-use crate::turn_system::{TurnPhase, TurnSystem};
+use crate::turn_system::{TurnCounter, TurnPhase};
 use crate::ui::menu::AppState;
 
-const BUY_SHORTAGE_THRESHOLD: u32 = 2;
-const SELL_RESERVE: u32 = 5;
-const SELL_MAX_PER_GOOD: u32 = 6;
+/// AI will express buy interest when stockpile is at or below this level
+/// Nations start with 10-20 of most goods, so threshold must be high enough to trigger
+const BUY_SHORTAGE_THRESHOLD: u32 = 12;
+/// AI will keep this many units in reserve before selling
+const SELL_RESERVE: u32 = 8;
+/// Maximum units to sell per good per turn
+const SELL_MAX_PER_GOOD: u32 = 8;
 const AI_CIVILIAN_MAX_HIRES_PER_TURN: usize = 1;
 const AI_CIVILIAN_TARGETS: &[(CivilianKind, u32)] = &[
     (CivilianKind::Engineer, 2),
@@ -55,7 +59,7 @@ impl Plugin for AiEconomyPlugin {
             )
                 .in_set(BigBrainSet::Scorers)
                 .run_if(in_state(AppState::InGame))
-                .run_if(enemy_turn_active),
+                .run_if(in_state(TurnPhase::EnemyTurn)),
         )
         .add_systems(
             PreUpdate,
@@ -67,13 +71,13 @@ impl Plugin for AiEconomyPlugin {
             )
                 .in_set(BigBrainSet::Actions)
                 .run_if(in_state(AppState::InGame))
-                .run_if(enemy_turn_active),
+                .run_if(in_state(TurnPhase::EnemyTurn)),
         )
         .add_systems(
             PreUpdate,
             plan_ai_civilian_hiring
                 .run_if(in_state(AppState::InGame))
-                .run_if(enemy_turn_active),
+                .run_if(in_state(TurnPhase::EnemyTurn)),
         );
     }
 }
@@ -184,14 +188,14 @@ fn initialize_ai_economy_thinkers(
 }
 
 fn plan_buildings_scorer(
-    turn: Res<TurnSystem>,
+    turn: Res<TurnCounter>,
     mut scores: Query<
         (&Actor, &mut Score, &AiEconomyBrain, &ScorerSpan),
         With<ShouldPlanBuildings>,
     >,
 ) {
     for (_, mut score, brain, span) in &mut scores {
-        let ready = brain.last_building_turn != Some(turn.current_turn);
+        let ready = brain.last_building_turn != Some(turn.current);
         span.span().in_scope(|| {
             trace!(
                 "AI economy building score: {}",
@@ -203,14 +207,14 @@ fn plan_buildings_scorer(
 }
 
 fn apply_production_scorer(
-    turn: Res<TurnSystem>,
+    turn: Res<TurnCounter>,
     mut scores: Query<
         (&Actor, &mut Score, &AiEconomyBrain, &ScorerSpan),
         With<ShouldApplyProduction>,
     >,
 ) {
     for (_, mut score, brain, span) in &mut scores {
-        let ready = brain.last_production_turn != Some(turn.current_turn)
+        let ready = brain.last_production_turn != Some(turn.current)
             && !brain.planned_production.is_empty();
         span.span().in_scope(|| {
             trace!(
@@ -223,15 +227,19 @@ fn apply_production_scorer(
 }
 
 fn plan_market_scorer(
-    turn: Res<TurnSystem>,
+    turn: Res<TurnCounter>,
     mut scores: Query<(&Actor, &mut Score, &AiEconomyBrain, &ScorerSpan), With<ShouldPlanMarket>>,
 ) {
-    for (_, mut score, brain, span) in &mut scores {
-        let ready = brain.last_market_turn != Some(turn.current_turn);
+    for (actor, mut score, brain, span) in &mut scores {
+        let ready = brain.last_market_turn != Some(turn.current);
+        let score_value = if ready { 0.8 } else { 0.0 };
         span.span().in_scope(|| {
-            trace!("AI economy market score: {}", if ready { 0.8 } else { 0.0 });
+            debug!(
+                "AI market scorer {:?}: ready={}, last_turn={:?}, current={}, score={}",
+                actor.0, ready, brain.last_market_turn, turn.current, score_value
+            );
         });
-        score.set(if ready { 0.8 } else { 0.0 });
+        score.set(score_value);
     }
 }
 
@@ -244,7 +252,7 @@ fn economy_idle_scorer(mut scores: Query<(&Actor, &mut Score, &ScorerSpan), With
 }
 
 fn plan_building_focus_action(
-    turn: Res<TurnSystem>,
+    turn: Res<TurnCounter>,
     mut actions: Query<
         (&Actor, &mut ActionState, &mut AiEconomyBrain, &ActionSpan),
         With<PlanBuildingFocus>,
@@ -266,7 +274,7 @@ fn plan_building_focus_action(
 
         brain.planned_production.clear();
         brain.planned_production.extend(plans.into_iter());
-        brain.last_building_turn = Some(turn.current_turn);
+        brain.last_building_turn = Some(turn.current);
 
         span.span().in_scope(|| {
             trace!(
@@ -282,7 +290,7 @@ fn plan_building_focus_action(
 
 fn apply_production_plan_action(
     mut writer: MessageWriter<AdjustProduction>,
-    turn: Res<TurnSystem>,
+    turn: Res<TurnCounter>,
     mut actions: Query<
         (&Actor, &mut ActionState, &mut AiEconomyBrain, &ActionSpan),
         With<ApplyProductionPlan>,
@@ -302,7 +310,7 @@ fn apply_production_plan_action(
             writer.write(order);
         }
 
-        brain.last_production_turn = Some(turn.current_turn);
+        brain.last_production_turn = Some(turn.current);
         span.span()
             .in_scope(|| trace!("AI economy applied production plan"));
         *state = ActionState::Success;
@@ -312,7 +320,7 @@ fn apply_production_plan_action(
 fn plan_market_orders_action(
     mut writer: MessageWriter<AdjustMarketOrder>,
     pricing: Res<MarketPriceModel>,
-    turn: Res<TurnSystem>,
+    turn: Res<TurnCounter>,
     mut actions: Query<
         (&Actor, &mut ActionState, &mut AiEconomyBrain, &ActionSpan),
         With<PlanMarketOrders>,
@@ -341,7 +349,7 @@ fn plan_market_orders_action(
             writer.write(order);
         }
 
-        brain.last_market_turn = Some(turn.current_turn);
+        brain.last_market_turn = Some(turn.current);
         span.span().in_scope(|| {
             trace!(
                 "AI Nation {:?}: queued {} market orders",
@@ -364,10 +372,6 @@ fn idle_economy_action(
         span.span().in_scope(|| trace!("AI economy idle action"));
         *state = ActionState::Success;
     }
-}
-
-fn enemy_turn_active(turn: Res<TurnSystem>) -> bool {
-    turn.phase == TurnPhase::EnemyTurn
 }
 
 fn building_for_good(good: Good) -> Option<BuildingKind> {
@@ -426,6 +430,19 @@ fn evaluate_production_plan(
     plans
 }
 
+/// Returns the base/default price for a good (for price comparison)
+fn default_price(good: Good) -> u32 {
+    match good {
+        Good::Grain | Good::Fruit => 60,
+        Good::Livestock | Good::Fish => 80,
+        Good::Cotton | Good::Wool => 90,
+        Good::Timber => 70,
+        Good::Coal | Good::Iron => 100,
+        Good::Oil => 110,
+        _ => 100,
+    }
+}
+
 fn evaluate_market_orders(
     nation: NationInstance,
     allocations: &Allocations,
@@ -436,21 +453,60 @@ fn evaluate_market_orders(
     let mut orders = Vec::new();
     let cash_available = treasury.available();
 
+    info!(
+        "AI Nation {:?}: evaluating market orders (cash: ${})",
+        nation.entity(),
+        cash_available
+    );
+
     for &good in MARKET_RESOURCES {
         let available = stockpile.get_available(good);
-        let price = pricing.price_for(good, MarketVolume::default()) as i64;
+        let current_price = pricing.current_price(good);
+        let base_price = default_price(good);
+
+        // Price ratio: >1 means prices are high, <1 means prices are low
+        let price_ratio = current_price as f32 / base_price as f32;
+
         let has_buy_interest = allocations.has_buy_interest(good);
-        let wants_buy = available <= BUY_SHORTAGE_THRESHOLD;
-        let can_afford = cash_available >= price && price > 0;
+
+        // Buy logic: more eager to buy when prices are low (good deal)
+        // Adjust threshold based on price - buy even with more stock if price is very low
+        let price_adjusted_threshold = if price_ratio < 0.8 {
+            // Prices are low - be more eager to buy (stock up)
+            BUY_SHORTAGE_THRESHOLD + 5
+        } else if price_ratio > 1.2 {
+            // Prices are high - be less eager to buy
+            BUY_SHORTAGE_THRESHOLD.saturating_sub(4)
+        } else {
+            BUY_SHORTAGE_THRESHOLD
+        };
+
+        let wants_buy = available <= price_adjusted_threshold;
+        let can_afford = cash_available >= current_price as i64 && current_price > 0;
+
+        // Log what AI is considering
+        if available <= 10 {
+            debug!(
+                "AI {:?} {:?}: have {}, threshold {}, wants_buy={}, can_afford={} (price ${})",
+                nation.entity(),
+                good,
+                available,
+                price_adjusted_threshold,
+                wants_buy,
+                can_afford,
+                current_price
+            );
+        }
 
         if wants_buy && can_afford {
             if !has_buy_interest {
                 info!(
-                    "AI Nation {:?}: expressing buy interest for {:?} (available: {}, price: ${})",
+                    "AI Nation {:?}: expressing buy interest for {:?} (available: {}, price: ${}, ratio: {:.2})",
                     nation.entity(),
                     good,
                     available,
-                    price
+                    current_price,
+                    price_ratio
                 );
                 orders.push(AdjustMarketOrder {
                     nation,
@@ -473,8 +529,20 @@ fn evaluate_market_orders(
             });
         }
 
-        let desired_sell = if available > SELL_RESERVE {
-            (available - SELL_RESERVE).min(SELL_MAX_PER_GOOD)
+        // Sell logic: more eager to sell when prices are high (profitable)
+        // Adjust reserve based on price - sell even with less stock if price is very high
+        let price_adjusted_reserve = if price_ratio > 1.2 {
+            // Prices are high - be more eager to sell
+            SELL_RESERVE.saturating_sub(3)
+        } else if price_ratio < 0.8 {
+            // Prices are low - hold onto stock
+            SELL_RESERVE + 4
+        } else {
+            SELL_RESERVE
+        };
+
+        let desired_sell = if available > price_adjusted_reserve {
+            (available - price_adjusted_reserve).min(SELL_MAX_PER_GOOD)
         } else {
             0
         };
@@ -482,11 +550,14 @@ fn evaluate_market_orders(
 
         if desired_sell != current_sell {
             info!(
-                "AI Nation {:?}: adjusting sell orders for {:?} from {} to {}",
+                "AI Nation {:?}: adjusting sell orders for {:?} from {} to {} (available: {}, price: ${}, ratio: {:.2})",
                 nation.entity(),
                 good,
                 current_sell,
-                desired_sell
+                desired_sell,
+                available,
+                current_price,
+                price_ratio
             );
             orders.push(AdjustMarketOrder {
                 nation,

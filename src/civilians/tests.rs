@@ -377,8 +377,8 @@ fn test_prospecting_job_reveals_resource_on_completion() {
     );
 
     assert!(
-        world.get::<CivilianJob>(prospector).is_some(),
-        "complete_improvement_jobs should not remove job components"
+        world.get::<CivilianJob>(prospector).is_none(),
+        "complete_improvement_jobs should remove job components after completion"
     );
 }
 
@@ -688,6 +688,7 @@ fn test_rescind_orders_removes_civilian_order_component() {
     world.insert_resource(TurnSystem {
         current_turn: 1,
         phase: TurnPhase::PlayerTurn,
+        last_job_processing_turn: 0,
     });
 
     // Initialize message resources
@@ -770,6 +771,7 @@ fn test_rescind_orders_removes_civilian_job_and_order() {
     world.insert_resource(TurnSystem {
         current_turn: 1,
         phase: TurnPhase::PlayerTurn,
+        last_job_processing_turn: 0,
     });
 
     // Initialize message resources
@@ -931,6 +933,7 @@ fn test_rescind_wakes_sleeping_civilian() {
     world.insert_resource(TurnSystem {
         current_turn: 1,
         phase: TurnPhase::PlayerTurn,
+        last_job_processing_turn: 0,
     });
     world.init_resource::<Messages<RescindOrders>>();
 

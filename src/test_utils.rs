@@ -96,10 +96,22 @@ pub fn create_test_tile(
 
 // Macros removed - use regular test functions with explicit setup instead
 
-/// Advances the turn system by the specified number of phases
+/// Advances the turn phase by cycling through phases.
+///
+/// Note: This is a test utility that directly manipulates the legacy TurnSystem.
+/// In production code, use state transitions via NextState<TurnPhase>.
 pub fn advance_turns(world: &mut World, phases: usize) {
+    use crate::turn_system::TurnPhase;
     for _ in 0..phases {
-        world.resource_mut::<TurnSystem>().advance_turn();
+        let mut turn_system = world.resource_mut::<TurnSystem>();
+        turn_system.phase = match turn_system.phase {
+            TurnPhase::PlayerTurn => TurnPhase::Processing,
+            TurnPhase::Processing => TurnPhase::EnemyTurn,
+            TurnPhase::EnemyTurn => {
+                turn_system.current_turn += 1;
+                TurnPhase::PlayerTurn
+            }
+        };
     }
 }
 

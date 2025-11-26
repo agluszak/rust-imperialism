@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::ui::menu::AppState;
+use crate::turn_system::{EnemyTurnSet, TurnPhase};
 
 pub mod behavior;
 pub mod context;
@@ -12,9 +12,8 @@ pub use context::{
     AiAllocationSnapshot, AiMarketBuy, AiNationSnapshot, AiPlanLedger, AiStockpileEntry,
     AiTransportAllocation, AiTransportDemand, AiTransportSnapshot, AiTurnContext,
     AiWorkforceSnapshot, BeliefState, MacroActionCandidate, MacroTag, MarketView, MinorId,
-    TransportAnalysis, TurnCandidates, enemy_turn_entered, gather_turn_candidates,
-    populate_ai_turn_context, update_belief_state_system, update_market_view_system,
-    update_transport_analysis_system,
+    TransportAnalysis, TurnCandidates, gather_turn_candidates, populate_ai_turn_context,
+    update_belief_state_system, update_market_view_system, update_transport_analysis_system,
 };
 pub use markers::{AiControlledCivilian, AiNation};
 pub use trade::AiEconomyPlugin;
@@ -30,11 +29,10 @@ impl Plugin for AiSupportPlugin {
             .init_resource::<TransportAnalysis>()
             .init_resource::<TurnCandidates>()
             .init_resource::<AiPlanLedger>()
+            // Populate AI turn context once when entering EnemyTurn
             .add_systems(
-                Update,
-                populate_ai_turn_context
-                    .run_if(in_state(AppState::InGame))
-                    .run_if(enemy_turn_entered),
+                OnEnter(TurnPhase::EnemyTurn),
+                populate_ai_turn_context.in_set(EnemyTurnSet::Setup),
             );
     }
 }

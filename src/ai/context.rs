@@ -14,7 +14,7 @@ use crate::economy::transport::{
 };
 use crate::economy::treasury::Treasury;
 use crate::economy::workforce::{WorkerSkill, Workforce};
-use crate::turn_system::{TurnPhase, TurnSystem};
+use crate::turn_system::{TurnCounter, TurnPhase};
 
 pub type AiStockpileEntry = StockpileEntry;
 
@@ -454,17 +454,9 @@ impl AiTransportSnapshot {
     }
 }
 
-/// Run condition that returns true when the enemy turn has just begun.
-pub fn enemy_turn_entered(mut last_phase: Local<Option<TurnPhase>>, turn: Res<TurnSystem>) -> bool {
-    let previous = *last_phase;
-    let current = turn.phase;
-    *last_phase = Some(current);
-    current == TurnPhase::EnemyTurn && previous != Some(TurnPhase::EnemyTurn)
-}
-
 pub fn update_belief_state_system(
     mut belief: ResMut<BeliefState>,
-    turn: Res<TurnSystem>,
+    turn: Res<TurnCounter>,
     nations: Query<(Entity, &NationId, &Stockpile, &Treasury), With<AiNation>>,
 ) {
     let mut entries = Vec::new();
@@ -480,7 +472,7 @@ pub fn update_belief_state_system(
     }
 
     entries.sort_by_key(|entry| entry.entity.index());
-    belief.rebuild(turn.current_turn, entries.into_iter());
+    belief.rebuild(turn.current, entries.into_iter());
 }
 
 pub fn update_market_view_system(
@@ -622,9 +614,13 @@ pub fn gather_turn_candidates(
     }
 }
 
+/// Populates the AI turn context with current game state snapshots.
+///
+/// Note: Runs via OnEnter(TurnPhase::EnemyTurn) in EnemyTurnSet::Setup.
 pub fn populate_ai_turn_context(
     mut context: ResMut<AiTurnContext>,
-    turn: Res<TurnSystem>,
+    turn: Res<TurnCounter>,
+    phase: Res<State<TurnPhase>>,
     nations: Query<(
         Entity,
         &NationId,
@@ -663,8 +659,8 @@ pub fn populate_ai_turn_context(
 
     snapshots.sort_by_key(|snapshot| snapshot.entity.index());
 
-    context.turn = turn.current_turn;
-    context.phase = turn.phase;
+    context.turn = turn.current;
+    context.phase = *phase.get();
     context.nations = snapshots;
 }
 
@@ -684,7 +680,7 @@ mod tests {
     };
     use crate::economy::treasury::Treasury;
     use crate::economy::workforce::{Worker, WorkerHealth, WorkerSkill, Workforce};
-    use crate::turn_system::{TurnPhase, TurnSystem};
+    use crate::turn_system::{TurnCounter, TurnPhase};
     use bevy::ecs::system::SystemState;
     use bevy::prelude::{App, World};
 
@@ -693,7 +689,8 @@ mod tests {
     fn rebuild_context(world: &mut World) {
         let mut system_state: SystemState<(
             ResMut<AiTurnContext>,
-            Res<TurnSystem>,
+            Res<TurnCounter>,
+            Res<State<TurnPhase>>,
             Query<(
                 Entity,
                 &NationId,
@@ -706,8 +703,9 @@ mod tests {
             Option<Res<TransportDemandSnapshot>>,
         )> = SystemState::new(world);
 
-        let (context, turn, nations, capacity, allocations, demand) = system_state.get_mut(world);
-        populate_ai_turn_context(context, turn, nations, capacity, allocations, demand);
+        let (context, turn, phase, nations, capacity, allocations, demand) =
+            system_state.get_mut(world);
+        populate_ai_turn_context(context, turn, phase, nations, capacity, allocations, demand);
         system_state.apply(world);
     }
 
@@ -816,11 +814,16 @@ mod tests {
     #[test]
     fn builds_snapshot_for_enemy_turn() {
         let mut app = App::new();
+        app.add_plugins(bevy::state::app::StatesPlugin);
+        app.init_state::<TurnPhase>();
         app.world_mut().insert_resource(AiTurnContext::default());
-        app.world_mut().insert_resource(TurnSystem {
-            current_turn: 3,
-            phase: TurnPhase::EnemyTurn,
-        });
+        app.world_mut().insert_resource(TurnCounter { current: 3 });
+
+        // Set state to EnemyTurn
+        app.world_mut()
+            .resource_mut::<NextState<TurnPhase>>()
+            .set(TurnPhase::EnemyTurn);
+        app.update(); // Apply state transition
 
         app.world_mut()
             .insert_resource(TransportCapacity::default());
@@ -980,11 +983,16 @@ mod tests {
     #[test]
     fn clears_previous_snapshots_when_no_nations() {
         let mut app = App::new();
+        app.add_plugins(bevy::state::app::StatesPlugin);
+        app.init_state::<TurnPhase>();
         app.world_mut().insert_resource(AiTurnContext::default());
-        app.world_mut().insert_resource(TurnSystem {
-            current_turn: 2,
-            phase: TurnPhase::EnemyTurn,
-        });
+        app.world_mut().insert_resource(TurnCounter { current: 2 });
+
+        // Set state to EnemyTurn
+        app.world_mut()
+            .resource_mut::<NextState<TurnPhase>>()
+            .set(TurnPhase::EnemyTurn);
+        app.update();
 
         let nation = app
             .world_mut()
@@ -1007,18 +1015,20 @@ mod tests {
 
         app.world_mut().entity_mut(nation).despawn();
 
-        {
-            let mut turn = app.world_mut().resource_mut::<TurnSystem>();
-            turn.phase = TurnPhase::PlayerTurn;
-            turn.current_turn = 3;
-        }
+        // Change state to PlayerTurn
+        app.world_mut()
+            .resource_mut::<NextState<TurnPhase>>()
+            .set(TurnPhase::PlayerTurn);
+        app.world_mut().resource_mut::<TurnCounter>().current = 3;
+        app.update();
         rebuild_context(app.world_mut());
 
-        {
-            let mut turn = app.world_mut().resource_mut::<TurnSystem>();
-            turn.phase = TurnPhase::EnemyTurn;
-            turn.current_turn = 4;
-        }
+        // Change state to EnemyTurn
+        app.world_mut()
+            .resource_mut::<NextState<TurnPhase>>()
+            .set(TurnPhase::EnemyTurn);
+        app.world_mut().resource_mut::<TurnCounter>().current = 4;
+        app.update();
         rebuild_context(app.world_mut());
 
         let context = app.world().resource::<AiTurnContext>();

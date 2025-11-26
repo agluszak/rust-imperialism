@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::turn_system::{PlayerTurnSet, TurnPhase};
+
 // Re-exports for public API
 pub use crate::messages::civilians::{
     CivilianCommand, CivilianCommandError, CivilianCommandRejected, HireCivilian,
@@ -27,10 +29,34 @@ mod player_ownership_test;
 
 // No private imports needed - using fully qualified paths in plugin registration
 
+/// System set for civilian job processing during turn start.
+/// Runs within PlayerTurnSet::Maintenance.
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub enum CivilianJobSet {
+    /// Advance job timers (decrement turns_remaining)
+    Advance,
+    /// Complete jobs that finished (turns_remaining == 0)
+    Complete,
+    /// Reset civilian movement flags for new turn
+    Reset,
+}
+
 pub struct CivilianPlugin;
 
 impl Plugin for CivilianPlugin {
     fn build(&self, app: &mut App) {
+        // Configure civilian job set ordering
+        app.configure_sets(
+            OnEnter(TurnPhase::PlayerTurn),
+            (
+                CivilianJobSet::Advance,
+                CivilianJobSet::Complete,
+                CivilianJobSet::Reset,
+            )
+                .chain()
+                .in_set(PlayerTurnSet::Maintenance),
+        );
+
         app.init_resource::<crate::civilians::types::ProspectingKnowledge>()
             .add_message::<SelectCivilian>()
             .add_message::<CivilianCommand>()
@@ -63,6 +89,8 @@ impl Plugin for CivilianPlugin {
                 Update,
                 (
                     systems::handle_civilian_commands,
+                    // Apply deferred commands so CivilianOrder is visible to execution systems
+                    bevy::ecs::schedule::ApplyDeferred,
                     systems::execute_move_orders,
                     systems::execute_skip_and_sleep_orders,
                     engineering::execute_engineer_orders,
@@ -75,27 +103,28 @@ impl Plugin for CivilianPlugin {
                 )
                     .chain()
                     .run_if(in_state(crate::ui::mode::GameMode::Map)),
-            )
-            // Turn-based systems (run when turn phase changes)
-            .add_systems(
-                Update,
-                (
-                    jobs::advance_civilian_jobs
-                        .run_if(resource_changed::<crate::turn_system::TurnSystem>)
-                        .run_if(|turn_system: Res<crate::turn_system::TurnSystem>| {
-                            turn_system.phase == crate::turn_system::TurnPhase::PlayerTurn
-                        }),
-                    jobs::complete_improvement_jobs
-                        .run_if(resource_changed::<crate::turn_system::TurnSystem>)
-                        .run_if(|turn_system: Res<crate::turn_system::TurnSystem>| {
-                            turn_system.phase == crate::turn_system::TurnPhase::PlayerTurn
-                        }),
-                    jobs::reset_civilian_actions
-                        .run_if(resource_changed::<crate::turn_system::TurnSystem>)
-                        .run_if(|turn_system: Res<crate::turn_system::TurnSystem>| {
-                            turn_system.phase == crate::turn_system::TurnPhase::PlayerTurn
-                        }),
-                ),
             );
+
+        // ====================================================================
+        // Turn-based systems (run once on PlayerTurn entry)
+        // ====================================================================
+        // Order: advance first (decrements counter), then complete (checks for 0 and applies effect)
+        // The advance system removes CivilianJob via deferred commands, so complete must see it
+        // before the removal is applied
+
+        app.add_systems(
+            OnEnter(TurnPhase::PlayerTurn),
+            jobs::advance_civilian_jobs.in_set(CivilianJobSet::Advance),
+        );
+
+        app.add_systems(
+            OnEnter(TurnPhase::PlayerTurn),
+            jobs::complete_improvement_jobs.in_set(CivilianJobSet::Complete),
+        );
+
+        app.add_systems(
+            OnEnter(TurnPhase::PlayerTurn),
+            jobs::reset_civilian_actions.in_set(CivilianJobSet::Reset),
+        );
     }
 }

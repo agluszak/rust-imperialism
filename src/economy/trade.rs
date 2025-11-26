@@ -29,6 +29,8 @@ struct PlannedTrade {
 /// Matches sell reservations against nations with buy interest and transfers goods
 /// and cash between their stockpiles and treasuries. Unsold reservations remain
 /// in place so they can be released when allocations reset at the start of the next turn.
+///
+/// After resolution, base prices are updated based on observed supply/demand.
 pub fn resolve_market_orders(
     mut nations: Query<
         (
@@ -42,7 +44,7 @@ pub fn resolve_market_orders(
         With<NationId>,
     >,
     nation_entities: Query<Entity, With<NationId>>,
-    pricing: Res<MarketPriceModel>,
+    mut pricing: ResMut<MarketPriceModel>,
     mut trade_capacity: ResMut<TradeCapacity>,
 ) {
     let mut snapshots = Vec::new();
@@ -88,6 +90,9 @@ pub fn resolve_market_orders(
         .collect();
     let mut planned_trades: Vec<PlannedTrade> = Vec::new();
 
+    // Track supply/demand volumes for price adjustment at end
+    let mut observed_volumes: HashMap<Good, MarketVolume> = HashMap::new();
+
     for &good in MARKET_RESOURCES {
         let mut sellers: Vec<(Entity, Vec<ReservationId>)> = snapshots
             .iter()
@@ -116,12 +121,15 @@ pub fn resolve_market_orders(
             .collect();
 
         if interested_buyers.is_empty() {
+            let supply_units: u32 = sellers.iter().map(|(_, r)| r.len() as u32).sum();
             info!(
                 "Market {:?}: {} sellers but no buyers (supply: {} units)",
                 good,
                 sellers.len(),
-                sellers.iter().map(|(_, r)| r.len()).sum::<usize>()
+                supply_units
             );
+            // Record supply with no demand - prices should drop
+            observed_volumes.insert(good, MarketVolume::new(supply_units, 0));
             continue;
         }
 
@@ -145,6 +153,8 @@ pub fn resolve_market_orders(
             .sum();
 
         let volume = MarketVolume::new(total_supply, total_demand);
+        observed_volumes.insert(good, volume);
+
         let price = pricing.price_for(good, volume) as i64;
         if price <= 0 {
             continue;
@@ -255,6 +265,18 @@ pub fn resolve_market_orders(
     }
 
     if planned_trades.is_empty() {
+        // Still update prices based on observed supply/demand even if no trades completed
+        for (good, volume) in observed_volumes {
+            let old_price = pricing.current_price(good);
+            pricing.update_price_from_volume(good, volume);
+            let new_price = pricing.current_price(good);
+            if old_price != new_price {
+                info!(
+                    "Market {:?}: price adjusted ${} → ${} (supply: {}, demand: {}, no trades)",
+                    good, old_price, new_price, volume.supply_units, volume.demand_units
+                );
+            }
+        }
         return;
     }
 
@@ -328,12 +350,25 @@ pub fn resolve_market_orders(
             trade.good, trade.price
         );
     }
+
+    // Update base prices for next turn based on observed supply/demand
+    for (good, volume) in observed_volumes {
+        let old_price = pricing.current_price(good);
+        pricing.update_price_from_volume(good, volume);
+        let new_price = pricing.current_price(good);
+        if old_price != new_price {
+            info!(
+                "Market {:?}: price adjusted ${} → ${} (supply: {}, demand: {})",
+                good, old_price, new_price, volume.supply_units, volume.demand_units
+            );
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use bevy::ecs::system::SystemState;
-    use bevy::prelude::{App, Entity, Query, Res, ResMut, With};
+    use bevy::prelude::{App, Entity, Query, ResMut, With};
 
     use crate::economy::market::MarketPriceModel;
     use crate::economy::trade::resolve_market_orders;
@@ -449,7 +484,7 @@ mod tests {
                 With<NationId>,
             >,
             Query<Entity, With<NationId>>,
-            Res<MarketPriceModel>,
+            ResMut<MarketPriceModel>,
             ResMut<TradeCapacity>,
         )> = SystemState::new(app.world_mut());
 
@@ -572,7 +607,7 @@ mod tests {
                 With<NationId>,
             >,
             Query<Entity, With<NationId>>,
-            Res<MarketPriceModel>,
+            ResMut<MarketPriceModel>,
             ResMut<TradeCapacity>,
         )> = SystemState::new(app.world_mut());
 
@@ -690,7 +725,7 @@ mod tests {
                 With<NationId>,
             >,
             Query<Entity, With<NationId>>,
-            Res<MarketPriceModel>,
+            ResMut<MarketPriceModel>,
             ResMut<TradeCapacity>,
         )> = SystemState::new(app.world_mut());
 
@@ -821,7 +856,7 @@ mod tests {
                 With<NationId>,
             >,
             Query<Entity, With<NationId>>,
-            Res<MarketPriceModel>,
+            ResMut<MarketPriceModel>,
             ResMut<TradeCapacity>,
         )> = SystemState::new(app.world_mut());
 
@@ -963,7 +998,7 @@ mod tests {
                 With<NationId>,
             >,
             Query<Entity, With<NationId>>,
-            Res<MarketPriceModel>,
+            ResMut<MarketPriceModel>,
             ResMut<TradeCapacity>,
         )> = SystemState::new(app.world_mut());
 
@@ -1092,7 +1127,7 @@ mod tests {
                 With<NationId>,
             >,
             Query<Entity, With<NationId>>,
-            Res<MarketPriceModel>,
+            ResMut<MarketPriceModel>,
             ResMut<TradeCapacity>,
         )> = SystemState::new(app.world_mut());
 
@@ -1112,6 +1147,274 @@ mod tests {
         assert_eq!(
             buyer_a_stockpile.get(Good::Coal) + buyer_b_stockpile.get(Good::Coal),
             1
+        );
+    }
+
+    #[test]
+    fn prices_adjust_based_on_supply_demand() {
+        // Test that prices rise when demand exceeds supply
+        let mut app = App::new();
+        app.insert_resource(MarketPriceModel::default());
+        app.insert_resource(TradeCapacity::default());
+
+        let seller = app
+            .world_mut()
+            .spawn((
+                NationId(1),
+                Name("Seller".into()),
+                Allocations::default(),
+                ReservationSystem::default(),
+                Stockpile::default(),
+                Workforce::new(),
+                Treasury::new(1_000),
+            ))
+            .id();
+
+        let buyer_a = app
+            .world_mut()
+            .spawn((
+                NationId(2),
+                Name("Buyer A".into()),
+                Allocations::default(),
+                ReservationSystem::default(),
+                Stockpile::default(),
+                Workforce::new(),
+                Treasury::new(5_000),
+            ))
+            .id();
+
+        let buyer_b = app
+            .world_mut()
+            .spawn((
+                NationId(3),
+                Name("Buyer B".into()),
+                Allocations::default(),
+                ReservationSystem::default(),
+                Stockpile::default(),
+                Workforce::new(),
+                Treasury::new(5_000),
+            ))
+            .id();
+
+        set_trade_capacity(&mut app, seller, 5);
+        set_trade_capacity(&mut app, buyer_a, 5);
+        set_trade_capacity(&mut app, buyer_b, 5);
+
+        // Record initial price
+        let initial_price = app
+            .world()
+            .resource::<MarketPriceModel>()
+            .current_price(Good::Iron);
+
+        // Seller reserves just 1 Iron, but two buyers want it (high demand, low supply)
+        {
+            let world = app.world_mut();
+            world
+                .get_mut::<Stockpile>(seller)
+                .unwrap()
+                .add(Good::Iron, 1);
+
+            let mut seller_query = world.query::<(
+                &mut Stockpile,
+                &mut ReservationSystem,
+                &mut Allocations,
+                &mut Workforce,
+                &mut Treasury,
+            )>();
+
+            let (mut stockpile, mut reservations, mut allocations, mut workforce, mut treasury) =
+                seller_query.get_mut(world, seller).expect("seller data");
+
+            let res_id = reservations
+                .try_reserve(
+                    vec![(Good::Iron, 1u32)],
+                    0,
+                    0,
+                    &mut stockpile,
+                    &mut workforce,
+                    &mut treasury,
+                )
+                .expect("reserve iron for sale");
+            allocations
+                .market_sells
+                .entry(Good::Iron)
+                .or_default()
+                .push(res_id);
+
+            // Both buyers express interest
+            world
+                .get_mut::<Allocations>(buyer_a)
+                .unwrap()
+                .market_buys
+                .insert(Good::Iron);
+            world
+                .get_mut::<Allocations>(buyer_b)
+                .unwrap()
+                .market_buys
+                .insert(Good::Iron);
+        }
+
+        // Run market resolution
+        let mut system_state: SystemState<(
+            Query<
+                (
+                    &mut Allocations,
+                    &mut ReservationSystem,
+                    &mut Stockpile,
+                    &mut Workforce,
+                    &mut Treasury,
+                    Option<&Name>,
+                ),
+                With<NationId>,
+            >,
+            Query<Entity, With<NationId>>,
+            ResMut<MarketPriceModel>,
+            ResMut<TradeCapacity>,
+        )> = SystemState::new(app.world_mut());
+
+        {
+            let (nations, nation_entities, pricing, trade_capacity) =
+                system_state.get_mut(app.world_mut());
+            resolve_market_orders(nations, nation_entities, pricing, trade_capacity);
+            system_state.apply(app.world_mut());
+        }
+
+        // Price should have increased due to high demand (2 buyers), low supply (1 unit)
+        let new_price = app
+            .world()
+            .resource::<MarketPriceModel>()
+            .current_price(Good::Iron);
+        assert!(
+            new_price > initial_price,
+            "Price should increase when demand exceeds supply: {} should be > {}",
+            new_price,
+            initial_price
+        );
+    }
+
+    #[test]
+    fn prices_drop_when_supply_exceeds_demand() {
+        let mut app = App::new();
+        app.insert_resource(MarketPriceModel::default());
+        app.insert_resource(TradeCapacity::default());
+
+        let seller = app
+            .world_mut()
+            .spawn((
+                NationId(1),
+                Name("Seller".into()),
+                Allocations::default(),
+                ReservationSystem::default(),
+                Stockpile::default(),
+                Workforce::new(),
+                Treasury::new(1_000),
+            ))
+            .id();
+
+        // Only one buyer with limited cash
+        let buyer = app
+            .world_mut()
+            .spawn((
+                NationId(2),
+                Name("Buyer".into()),
+                Allocations::default(),
+                ReservationSystem::default(),
+                Stockpile::default(),
+                Workforce::new(),
+                Treasury::new(100), // Can only afford 1 unit at ~60 price
+            ))
+            .id();
+
+        set_trade_capacity(&mut app, seller, 10);
+        set_trade_capacity(&mut app, buyer, 10);
+
+        // Record initial price
+        let initial_price = app
+            .world()
+            .resource::<MarketPriceModel>()
+            .current_price(Good::Grain);
+
+        // Seller has lots of grain for sale (high supply)
+        {
+            let world = app.world_mut();
+            world
+                .get_mut::<Stockpile>(seller)
+                .unwrap()
+                .add(Good::Grain, 10);
+
+            let mut seller_query = world.query::<(
+                &mut Stockpile,
+                &mut ReservationSystem,
+                &mut Allocations,
+                &mut Workforce,
+                &mut Treasury,
+            )>();
+
+            let (mut stockpile, mut reservations, mut allocations, mut workforce, mut treasury) =
+                seller_query.get_mut(world, seller).expect("seller data");
+
+            // Sell 5 units - high supply
+            for _ in 0..5 {
+                let res_id = reservations
+                    .try_reserve(
+                        vec![(Good::Grain, 1u32)],
+                        0,
+                        0,
+                        &mut stockpile,
+                        &mut workforce,
+                        &mut treasury,
+                    )
+                    .expect("reserve grain for sale");
+                allocations
+                    .market_sells
+                    .entry(Good::Grain)
+                    .or_default()
+                    .push(res_id);
+            }
+
+            // Just one buyer with limited buying power
+            world
+                .get_mut::<Allocations>(buyer)
+                .unwrap()
+                .market_buys
+                .insert(Good::Grain);
+        }
+
+        // Run market resolution
+        let mut system_state: SystemState<(
+            Query<
+                (
+                    &mut Allocations,
+                    &mut ReservationSystem,
+                    &mut Stockpile,
+                    &mut Workforce,
+                    &mut Treasury,
+                    Option<&Name>,
+                ),
+                With<NationId>,
+            >,
+            Query<Entity, With<NationId>>,
+            ResMut<MarketPriceModel>,
+            ResMut<TradeCapacity>,
+        )> = SystemState::new(app.world_mut());
+
+        {
+            let (nations, nation_entities, pricing, trade_capacity) =
+                system_state.get_mut(app.world_mut());
+            resolve_market_orders(nations, nation_entities, pricing, trade_capacity);
+            system_state.apply(app.world_mut());
+        }
+
+        // Price should have dropped due to high supply (5 units), low demand
+        let new_price = app
+            .world()
+            .resource::<MarketPriceModel>()
+            .current_price(Good::Grain);
+        assert!(
+            new_price < initial_price,
+            "Price should decrease when supply exceeds demand: {} should be < {}",
+            new_price,
+            initial_price
         );
     }
 }

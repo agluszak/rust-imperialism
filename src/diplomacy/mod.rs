@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::economy::{Name, NationId, Treasury};
 pub use crate::messages::diplomacy::{DiplomaticOrder, DiplomaticOrderKind};
-use crate::turn_system::{TurnPhase, TurnSystem};
+use crate::turn_system::{PlayerTurnSet, ProcessingSet, TurnPhase};
 use crate::ui::menu::AppState;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -293,23 +293,25 @@ impl Plugin for DiplomacyPlugin {
             .init_resource::<ForeignAidLedger>()
             .init_resource::<DiplomaticOffers>()
             .init_resource::<DiplomacySelection>()
-            .add_message::<DiplomaticOrder>()
-            .add_systems(
-                Update,
-                (
-                    sync_diplomatic_pairs,
-                    process_diplomatic_orders
-                        .run_if(resource_changed::<TurnSystem>)
-                        .run_if(|turn: Res<TurnSystem>| turn.phase == TurnPhase::Processing),
-                    apply_recurring_aid
-                        .run_if(resource_changed::<TurnSystem>)
-                        .run_if(|turn: Res<TurnSystem>| turn.phase == TurnPhase::PlayerTurn),
-                    decay_relationships
-                        .run_if(resource_changed::<TurnSystem>)
-                        .run_if(|turn: Res<TurnSystem>| turn.phase == TurnPhase::PlayerTurn),
-                )
-                    .run_if(in_state(AppState::InGame)),
-            );
+            .add_message::<DiplomaticOrder>();
+
+        // Sync diplomatic pairs every frame (runs in Update)
+        app.add_systems(
+            Update,
+            sync_diplomatic_pairs.run_if(in_state(AppState::InGame)),
+        );
+
+        // Processing phase: execute diplomatic orders
+        app.add_systems(
+            OnEnter(TurnPhase::Processing),
+            process_diplomatic_orders.in_set(ProcessingSet::Production),
+        );
+
+        // PlayerTurn phase: apply recurring aid and decay relationships
+        app.add_systems(
+            OnEnter(TurnPhase::PlayerTurn),
+            (apply_recurring_aid, decay_relationships).in_set(PlayerTurnSet::Maintenance),
+        );
     }
 }
 

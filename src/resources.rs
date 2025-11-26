@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::economy::goods::Good;
+
 /// Types of resources that can be found/developed on tiles
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ResourceType {
@@ -20,6 +22,26 @@ pub enum ResourceType {
     Gems,
     // Oil (requires Oil Drilling tech to prospect)
     Oil,
+}
+
+impl ResourceType {
+    /// Convert a ResourceType to its corresponding Good for stockpile storage
+    pub fn to_good(self) -> Good {
+        match self {
+            ResourceType::Grain => Good::Grain,
+            ResourceType::Fruit => Good::Fruit,
+            ResourceType::Cotton => Good::Cotton,
+            ResourceType::Wool => Good::Wool,
+            ResourceType::Livestock => Good::Livestock,
+            ResourceType::Fish => Good::Fish,
+            ResourceType::Timber => Good::Timber,
+            ResourceType::Coal => Good::Coal,
+            ResourceType::Iron => Good::Iron,
+            ResourceType::Gold => Good::Gold,
+            ResourceType::Gems => Good::Gems,
+            ResourceType::Oil => Good::Oil,
+        }
+    }
 }
 
 /// Static list of all resource types for easy iteration.

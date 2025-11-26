@@ -80,11 +80,11 @@ impl JobType {
         match self {
             JobType::BuildingRail => 3,
             JobType::BuildingDepot => 2,
-            JobType::BuildingPort => 2,
-            JobType::Mining => 2,
-            JobType::Drilling => 3,
-            JobType::Prospecting => 1,
-            JobType::ImprovingTile => 1,
+            JobType::BuildingPort => 3,
+            JobType::Mining => 3,
+            JobType::Drilling => 4,
+            JobType::Prospecting => 2,
+            JobType::ImprovingTile => 2, // Was 1, now takes 2 turns
         }
     }
 }

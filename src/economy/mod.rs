@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::orders::OrdersQueue;
-use crate::turn_system::{TurnPhase, TurnSystem};
+use crate::turn_system::{PlayerTurnSet, ProcessingSet, TurnPhase};
 use crate::ui::menu::AppState;
 
 pub mod allocation;
@@ -75,7 +75,11 @@ impl Plugin for EconomyPlugin {
         // Configure the economy system set to run only in-game
         app.configure_sets(Update, EconomySet.run_if(in_state(AppState::InGame)));
 
-        // Core transport and production systems (run every frame when in-game)
+        // ====================================================================
+        // Core systems that run every frame (Update schedule)
+        // ====================================================================
+
+        // Transport and connectivity (must run every frame to track changes)
         app.add_systems(
             Update,
             (
@@ -88,14 +92,11 @@ impl Plugin for EconomyPlugin {
                 transport::update_transport_demand_snapshot
                     .after(production::calculate_connected_production),
                 transport::apply_transport_allocations,
-                production::run_production,
-                transport::convert_transport_goods_to_capacity.after(production::run_production),
-                trade_capacity::convert_ships_to_trade_capacity.after(production::run_production),
             )
                 .in_set(EconomySet),
         );
 
-        // Allocation adjustment systems (run every frame when in-game)
+        // Allocation adjustment systems (player can adjust during their turn)
         app.add_systems(
             Update,
             (
@@ -114,6 +115,7 @@ impl Plugin for EconomyPlugin {
                 .in_set(EconomySet),
         );
 
+        // Execute queued orders (run every frame, but only when queue is not empty)
         app.add_systems(
             Update,
             (
@@ -125,51 +127,66 @@ impl Plugin for EconomyPlugin {
             )
                 .chain()
                 .run_if(|orders: Res<OrdersQueue>| !orders.is_empty())
-                .before(allocation_systems::finalize_allocations)
                 .in_set(EconomySet),
         );
 
-        // Turn-based economy systems (run when turn changes)
+        // ====================================================================
+        // PlayerTurn phase systems (OnEnter - run once when phase starts)
+        // ====================================================================
+
+        // Collection: Gather resources from transport network
         app.add_systems(
-            Update,
+            OnEnter(TurnPhase::PlayerTurn),
             (
-                transport::advance_rail_construction
-                    .run_if(resource_changed::<TurnSystem>)
-                    .run_if(|turn_system: Res<TurnSystem>| {
-                        turn_system.phase == TurnPhase::PlayerTurn
-                    }),
-                workforce::feed_workers
-                    .run_if(resource_changed::<TurnSystem>)
-                    .run_if(|turn_system: Res<TurnSystem>| {
-                        turn_system.phase == TurnPhase::PlayerTurn
-                    }),
-                allocation_systems::finalize_allocations
-                    .run_if(resource_changed::<TurnSystem>)
-                    .run_if(|turn_system: Res<TurnSystem>| {
-                        turn_system.phase == TurnPhase::Processing
-                    }),
-                allocation_systems::reset_allocations
-                    .run_if(resource_changed::<TurnSystem>)
-                    .run_if(|turn_system: Res<TurnSystem>| {
-                        turn_system.phase == TurnPhase::PlayerTurn
-                    }),
-                workforce::update_labor_pools
-                    .run_if(resource_changed::<TurnSystem>)
-                    .run_if(|turn_system: Res<TurnSystem>| {
-                        turn_system.phase == TurnPhase::PlayerTurn
-                    }),
+                transport::advance_rail_construction,
+                production::collect_connected_production,
             )
-                .in_set(EconomySet),
+                .in_set(PlayerTurnSet::Collection),
         );
 
-        // Market clearing happens at the START of PlayerTurn (after EnemyTurn decisions)
+        // Maintenance: Feed workers, apply recurring effects
         app.add_systems(
-            Update,
-            trade::resolve_market_orders
-                .run_if(resource_changed::<TurnSystem>)
-                .run_if(|turn_system: Res<TurnSystem>| turn_system.phase == TurnPhase::PlayerTurn)
-                .before(allocation_systems::reset_allocations)
-                .in_set(EconomySet),
+            OnEnter(TurnPhase::PlayerTurn),
+            (workforce::feed_workers, workforce::update_labor_pools)
+                .in_set(PlayerTurnSet::Maintenance),
+        );
+
+        // Market: Resolve orders from previous turn
+        app.add_systems(
+            OnEnter(TurnPhase::PlayerTurn),
+            trade::resolve_market_orders.in_set(PlayerTurnSet::Market),
+        );
+
+        // Reset: Clear allocations for new turn
+        app.add_systems(
+            OnEnter(TurnPhase::PlayerTurn),
+            allocation_systems::reset_allocations.in_set(PlayerTurnSet::Reset),
+        );
+
+        // ====================================================================
+        // Processing phase systems (OnEnter - run once when phase starts)
+        // ====================================================================
+
+        // Finalize: Commit reservations
+        app.add_systems(
+            OnEnter(TurnPhase::Processing),
+            allocation_systems::finalize_allocations.in_set(ProcessingSet::Finalize),
+        );
+
+        // Production: Execute production
+        app.add_systems(
+            OnEnter(TurnPhase::Processing),
+            production::run_production.in_set(ProcessingSet::Production),
+        );
+
+        // Conversion: Convert goods to capacity
+        app.add_systems(
+            OnEnter(TurnPhase::Processing),
+            (
+                transport::convert_transport_goods_to_capacity,
+                trade_capacity::convert_ships_to_trade_capacity,
+            )
+                .in_set(ProcessingSet::Conversion),
         );
     }
 }

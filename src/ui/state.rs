@@ -92,7 +92,7 @@ mod tests {
     #[test]
     fn test_turn_state_conversion() {
         let mut turn_system = TurnSystem::default();
-        turn_system.advance_turn(); // Move to Processing
+        turn_system.phase = TurnPhase::Processing; // Manually set phase
 
         let turn_state = TurnState::from(&turn_system);
         assert_eq!(turn_state.current_turn, 1);
@@ -107,8 +107,8 @@ mod tests {
         // Initially, UI does not need update for the same turn state
         assert!(!ui_state.needs_update(&turn_system));
 
-        // Simulate a phase advancement that should trigger UI update
-        turn_system.advance_turn(); // PlayerTurn -> Processing
+        // Simulate a phase change that should trigger UI update
+        turn_system.phase = TurnPhase::Processing; // Manually set phase
         assert!(ui_state.needs_update(&turn_system));
 
         // Apply update and verify text

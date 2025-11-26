@@ -10,9 +10,9 @@ use rand::seq::SliceRandom;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::ai::context::{
-    AiPlanLedger, MacroTag, MarketView, TransportAnalysis, TurnCandidates, enemy_turn_entered,
-    gather_turn_candidates, resource_target_days, update_belief_state_system,
-    update_market_view_system, update_transport_analysis_system,
+    AiPlanLedger, MacroTag, MarketView, TransportAnalysis, TurnCandidates, gather_turn_candidates,
+    resource_target_days, update_belief_state_system, update_market_view_system,
+    update_transport_analysis_system,
 };
 use crate::ai::markers::{AiControlledCivilian, AiNation};
 use crate::ai::trade::build_market_buy_order;
@@ -29,7 +29,7 @@ use crate::map::tile_pos::{HexExt, TilePosExt};
 use crate::messages::civilians::CivilianCommand;
 use crate::orders::{OrdersOut, flush_orders_to_queue};
 use crate::resources::{DevelopmentLevel, TileResource};
-use crate::turn_system::{TurnPhase, TurnSystem};
+use crate::turn_system::{EnemyTurnSet, TurnCounter, TurnPhase};
 use crate::ui::menu::AppState;
 use crate::ui::mode::GameMode;
 
@@ -101,101 +101,103 @@ impl Plugin for AiBehaviorPlugin {
                     AiSet::EmitOrders,
                 )
                     .chain(),
-            )
-            .add_systems(
-                PreUpdate,
-                gate_ai_turn
-                    .run_if(in_state(AppState::InGame))
-                    .run_if(enemy_turn_active),
-            )
-            .add_systems(
-                PreUpdate,
-                (
-                    update_belief_state_system,
-                    update_market_view_system,
-                    update_transport_analysis_system,
-                    gather_turn_candidates,
-                    rebuild_thinker_if_needed,
-                )
-                    .in_set(AiSet::Analysis)
-                    .run_if(in_state(AppState::InGame))
-                    .run_if(in_state(GameMode::Map))
-                    .run_if(enemy_turn_active),
-            )
-            .add_systems(
-                PreUpdate,
-                (
-                    resource_shortage_scorer,
-                    bottleneck_scorer,
-                    invest_in_minor_scorer,
-                )
-                    .in_set(BigBrainSet::Scorers)
-                    .run_if(in_state(AppState::InGame))
-                    .run_if(enemy_turn_active),
-            )
-            .add_systems(
-                PreUpdate,
-                (
-                    buy_resource_action,
-                    upgrade_rail_action,
-                    invest_in_minor_action,
-                )
-                    .in_set(BigBrainSet::Actions)
-                    .run_if(in_state(AppState::InGame))
-                    .run_if(enemy_turn_active),
-            )
-            .add_systems(
-                PreUpdate,
-                flush_orders_to_queue
-                    .in_set(AiSet::EmitOrders)
-                    .run_if(in_state(AppState::InGame))
-                    .run_if(enemy_turn_active),
-            )
-            .add_systems(
-                PreUpdate,
-                (
-                    tag_ai_owned_civilians,
-                    untag_non_ai_owned_civilians,
-                    initialize_ai_thinkers,
-                )
-                    .chain()
-                    .run_if(in_state(AppState::InGame)),
-            )
-            .add_systems(
-                PreUpdate,
-                (
-                    reset_ai_rng_on_enemy_turn,
-                    reset_ai_civilian_actions,
-                    reset_ai_action_states,
-                )
-                    .chain()
-                    .run_if(in_state(AppState::InGame))
-                    .run_if(enemy_turn_entered),
-            )
-            .add_systems(
-                PreUpdate,
-                (
-                    ready_to_act_scorer,
-                    has_rail_target_scorer,
-                    has_improvement_target_scorer,
-                    has_move_target_scorer,
-                )
-                    .in_set(BigBrainSet::Scorers)
-                    .run_if(in_state(AppState::InGame))
-                    .run_if(enemy_turn_active),
-            )
-            .add_systems(
-                PreUpdate,
-                (
-                    build_rail_action,
-                    build_improvement_action,
-                    move_to_target_action,
-                    skip_turn_action,
-                )
-                    .in_set(BigBrainSet::Actions)
-                    .run_if(in_state(AppState::InGame))
-                    .run_if(enemy_turn_active),
             );
+
+        // ====================================================================
+        // EnemyTurn setup systems (run once on entry via OnEnter)
+        // ====================================================================
+        app.add_systems(
+            OnEnter(TurnPhase::EnemyTurn),
+            (
+                reset_ai_rng_on_enemy_turn,
+                reset_ai_civilian_actions,
+                reset_ai_action_states,
+                gate_ai_turn,
+            )
+                .chain()
+                .in_set(EnemyTurnSet::Setup),
+        );
+
+        // ====================================================================
+        // Continuous systems (run every frame during EnemyTurn)
+        // ====================================================================
+        app.add_systems(
+            PreUpdate,
+            (
+                update_belief_state_system,
+                update_market_view_system,
+                update_transport_analysis_system,
+                gather_turn_candidates,
+                rebuild_thinker_if_needed,
+            )
+                .in_set(AiSet::Analysis)
+                .run_if(in_state(AppState::InGame))
+                .run_if(in_state(GameMode::Map))
+                .run_if(in_state(TurnPhase::EnemyTurn)),
+        )
+        .add_systems(
+            PreUpdate,
+            (
+                resource_shortage_scorer,
+                bottleneck_scorer,
+                invest_in_minor_scorer,
+            )
+                .in_set(BigBrainSet::Scorers)
+                .run_if(in_state(AppState::InGame))
+                .run_if(in_state(TurnPhase::EnemyTurn)),
+        )
+        .add_systems(
+            PreUpdate,
+            (
+                buy_resource_action,
+                upgrade_rail_action,
+                invest_in_minor_action,
+            )
+                .in_set(BigBrainSet::Actions)
+                .run_if(in_state(AppState::InGame))
+                .run_if(in_state(TurnPhase::EnemyTurn)),
+        )
+        .add_systems(
+            PreUpdate,
+            flush_orders_to_queue
+                .in_set(AiSet::EmitOrders)
+                .run_if(in_state(AppState::InGame))
+                .run_if(in_state(TurnPhase::EnemyTurn)),
+        )
+        .add_systems(
+            PreUpdate,
+            (
+                tag_ai_owned_civilians,
+                untag_non_ai_owned_civilians,
+                initialize_ai_thinkers,
+            )
+                .chain()
+                .run_if(in_state(AppState::InGame)),
+        )
+        .add_systems(
+            PreUpdate,
+            (
+                ready_to_act_scorer,
+                has_rail_target_scorer,
+                has_improvement_target_scorer,
+                has_move_target_scorer,
+            )
+                .in_set(BigBrainSet::Scorers)
+                .run_if(in_state(AppState::InGame))
+                .run_if(in_state(TurnPhase::EnemyTurn)),
+        )
+        .add_systems(
+            PreUpdate,
+            (
+                build_rail_action,
+                build_improvement_action,
+                move_to_target_action,
+                skip_turn_action,
+            )
+                .in_set(BigBrainSet::Actions)
+                .run_if(in_state(AppState::InGame))
+                .run_if(in_state(TurnPhase::EnemyTurn)),
+        );
     }
 }
 
@@ -467,27 +469,25 @@ fn invest_in_minor_action(
     }
 }
 
+/// Gate function that runs once on EnemyTurn entry to clear/advance turn state.
+///
+/// Note: Runs via OnEnter(TurnPhase::EnemyTurn) in EnemyTurnSet::Setup.
 fn gate_ai_turn(
-    turn: Res<TurnSystem>,
+    turn: Res<TurnCounter>,
     mut ledger: ResMut<AiPlanLedger>,
     mut orders: ResMut<OrdersOut>,
     mut candidates: ResMut<TurnCandidates>,
-    mut last_turn: Local<Option<u32>>,
 ) {
-    if Some(turn.current_turn) != *last_turn {
-        ledger.advance_turn(turn.current_turn);
-        orders.clear();
-        candidates.clear();
-        *last_turn = Some(turn.current_turn);
-    }
+    ledger.advance_turn(turn.current);
+    orders.clear();
+    candidates.clear();
 }
 
-fn enemy_turn_active(turn: Res<TurnSystem>) -> bool {
-    turn.phase == TurnPhase::EnemyTurn
-}
-
-fn reset_ai_rng_on_enemy_turn(mut rng: ResMut<AiRng>, turn: Res<TurnSystem>) {
-    rng.0 = StdRng::seed_from_u64(RNG_BASE_SEED ^ u64::from(turn.current_turn));
+/// Reset AI RNG for deterministic behavior each turn.
+///
+/// Note: Runs via OnEnter(TurnPhase::EnemyTurn) in EnemyTurnSet::Setup.
+fn reset_ai_rng_on_enemy_turn(mut rng: ResMut<AiRng>, turn: Res<TurnCounter>) {
+    rng.0 = StdRng::seed_from_u64(RNG_BASE_SEED ^ u64::from(turn.current));
 }
 
 /// Reset has_moved for AI-controlled civilians at the start of enemy turn.
@@ -1449,7 +1449,7 @@ mod tests {
     use crate::economy::transport::{Rails, ordered_edge};
     use crate::map::province::{Province, ProvinceId, TileProvince};
     use crate::resources::{DevelopmentLevel, ResourceType, TileResource};
-    use crate::turn_system::{TurnPhase, TurnSystem};
+    use crate::turn_system::TurnCounter;
 
     #[test]
     fn tags_ai_owned_civilians() {
@@ -1734,12 +1734,10 @@ mod tests {
     fn reseeds_rng_when_enemy_turn_begins() {
         let mut world = World::new();
         world.insert_resource(AiRng(StdRng::seed_from_u64(0xDEADBEEF)));
-        world.insert_resource(TurnSystem {
-            current_turn: 7,
-            phase: TurnPhase::EnemyTurn,
-        });
+        world.insert_resource(TurnCounter { current: 7 });
 
-        let mut state: SystemState<(ResMut<AiRng>, Res<TurnSystem>)> = SystemState::new(&mut world);
+        let mut state: SystemState<(ResMut<AiRng>, Res<TurnCounter>)> =
+            SystemState::new(&mut world);
 
         {
             let (rng, turn) = state.get_mut(&mut world);
