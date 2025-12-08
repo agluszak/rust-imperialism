@@ -42,12 +42,13 @@ pub fn apply_improvements(
                 );
             }
             ImprovementKind::Depot => {
-                handle_depot_placement(&mut commands, e.a, &player, &mut treasuries);
+                handle_depot_placement(&mut commands, e.a, e.nation, &player, &mut treasuries);
             }
             ImprovementKind::Port => {
                 handle_port_placement(
                     &mut commands,
                     e.a,
+                    e.nation,
                     &player,
                     &mut treasuries,
                     &tile_storage_query,
@@ -124,10 +125,12 @@ fn handle_rail_construction(
     }
 
     // Check terrain buildability for both endpoints
-    if let Some(player) = &player {
-        // Get player nation's technologies
-        let player_entity = player.entity();
-        let player_techs = nations.get(player_entity).ok();
+    // Determine builder nation (AI or Player)
+    let builder_nation = e.nation.or_else(|| player.as_ref().map(|p| p.entity()));
+
+    if let Some(nation_entity) = builder_nation {
+        // Get builder nation's technologies
+        let builder_techs = nations.get(nation_entity).ok();
 
         // Check both tiles for terrain restrictions
         let mut can_build = true;
@@ -138,7 +141,7 @@ fn handle_rail_construction(
             match tile_storage.get(&e.a) {
                 Some(tile_entity_a) => {
                     if let Ok(terrain_a) = tile_types.get(tile_entity_a)
-                        && let Some(techs) = player_techs
+                        && let Some(techs) = builder_techs
                     {
                         let (buildable, reason) = can_build_rail_on_terrain(terrain_a, techs);
                         if !buildable {
@@ -165,7 +168,7 @@ fn handle_rail_construction(
             match tile_storage.get(&e.b) {
                 Some(tile_entity_b) => {
                     if let Ok(terrain_b) = tile_types.get(tile_entity_b)
-                        && let Some(techs) = player_techs
+                        && let Some(techs) = builder_techs
                     {
                         let (buildable, reason) = can_build_rail_on_terrain(terrain_b, techs);
                         if !buildable {
@@ -200,35 +203,30 @@ fn handle_rail_construction(
 
     // Start rail construction (takes 3 turns)
     let cost: i64 = 50;
-    if let Some(player) = &player {
-        let player_entity = player.entity();
+    if let Some(nation_entity) = builder_nation
+        && let Ok(mut treasury) = treasuries.get_mut(nation_entity)
+    {
+        if treasury.total() >= cost {
+            treasury.subtract(cost);
 
-        if let Ok(mut treasury) = treasuries.get_mut(player_entity) {
-            if treasury.total() >= cost {
-                treasury.subtract(cost);
+            commands.spawn(RailConstruction {
+                from: edge.0,
+                to: edge.1,
+                turns_remaining: 3,
+                owner: nation_entity,
+                engineer: e.engineer.unwrap_or(nation_entity),
+            });
 
-                // Use the engineer from the message, or a dummy entity if not provided
-                let engineer = e.engineer.unwrap_or(player_entity);
-
-                commands.spawn(RailConstruction {
-                    from: edge.0,
-                    to: edge.1,
-                    turns_remaining: 3,
-                    owner: player_entity,
-                    engineer,
-                });
-
-                info!(
-                    "Started rail construction from ({}, {}) to ({}, {}) for ${} (3 turns)",
-                    edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost
-                );
-            } else {
-                info!(
-                    "Not enough money to build rail (need ${}, have ${})",
-                    cost,
-                    treasury.total()
-                );
-            }
+            info!(
+                "Started rail construction from ({}, {}) to ({}, {}) for ${} (3 turns)",
+                edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost
+            );
+        } else {
+            info!(
+                "Not enough money to build rail (need ${}, have ${})",
+                cost,
+                treasury.total()
+            );
         }
     }
 }
@@ -236,30 +234,33 @@ fn handle_rail_construction(
 fn handle_depot_placement(
     commands: &mut Commands,
     a: TilePos,
+    nation: Option<Entity>,
     player: &Option<Res<PlayerNation>>,
     treasuries: &mut Query<&mut Treasury>,
 ) {
     // Depot is placed on a single tile (use position 'a', ignore 'b')
     let cost: i64 = 100;
-    if let Some(player) = &player {
-        let player_entity = player.entity();
 
-        if let Ok(mut treasury) = treasuries.get_mut(player_entity) {
-            if treasury.total() >= cost {
-                treasury.subtract(cost);
-                commands.spawn(Depot {
-                    position: a,
-                    owner: player_entity, // Set owner to player nation
-                    connected: false,     // Will be computed by connectivity system
-                });
-                info!("Built depot at ({}, {}) for ${}", a.x, a.y, cost);
-            } else {
-                info!(
-                    "Not enough money to build depot (need ${}, have ${})",
-                    cost,
-                    treasury.total()
-                );
-            }
+    // Determine owner: prefer explicit nation, fallback to player
+    let owner = nation.or_else(|| player.as_ref().map(|p| p.entity()));
+
+    if let Some(owner_entity) = owner
+        && let Ok(mut treasury) = treasuries.get_mut(owner_entity)
+    {
+        if treasury.total() >= cost {
+            treasury.subtract(cost);
+            commands.spawn(Depot {
+                position: a,
+                owner: owner_entity,
+                connected: false, // Will be computed by connectivity system
+            });
+            info!("Built depot at ({}, {}) for ${}", a.x, a.y, cost);
+        } else {
+            info!(
+                "Not enough money to build depot (need ${}, have ${})",
+                cost,
+                treasury.total()
+            );
         }
     }
 }
@@ -267,6 +268,7 @@ fn handle_depot_placement(
 fn handle_port_placement(
     commands: &mut Commands,
     a: TilePos,
+    nation: Option<Entity>,
     player: &Option<Res<PlayerNation>>,
     treasuries: &mut Query<&mut Treasury>,
     tile_storage_query: &Query<&TileStorage>,
@@ -304,26 +306,28 @@ fn handle_port_placement(
 
     // Port is placed on a single tile
     let cost: i64 = 150;
-    if let Some(player) = &player {
-        let player_entity = player.entity();
 
-        if let Ok(mut treasury) = treasuries.get_mut(player_entity) {
-            if treasury.total() >= cost {
-                treasury.subtract(cost);
-                commands.spawn(Port {
-                    position: a,
-                    owner: player_entity, // Set owner to player nation
-                    connected: false,
-                    is_river: false, // TODO: detect from terrain
-                });
-                info!("Built port at ({}, {}) for ${}", a.x, a.y, cost);
-            } else {
-                info!(
-                    "Not enough money to build port (need ${}, have ${})",
-                    cost,
-                    treasury.total()
-                );
-            }
+    // Determine owner: prefer explicit nation, fallback to player
+    let owner = nation.or_else(|| player.as_ref().map(|p| p.entity()));
+
+    if let Some(owner_entity) = owner
+        && let Ok(mut treasury) = treasuries.get_mut(owner_entity)
+    {
+        if treasury.total() >= cost {
+            treasury.subtract(cost);
+            commands.spawn(Port {
+                position: a,
+                owner: owner_entity,
+                connected: false,
+                is_river: false, // TODO: detect from terrain
+            });
+            info!("Built port at ({}, {}) for ${}", a.x, a.y, cost);
+        } else {
+            info!(
+                "Not enough money to build port (need ${}, have ${})",
+                cost,
+                treasury.total()
+            );
         }
     }
 }

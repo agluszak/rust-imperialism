@@ -23,9 +23,12 @@ use crate::civilians::types::{
 use crate::economy::goods::Good;
 use crate::economy::nation::{Capital, NationHandle};
 use crate::economy::stockpile::Stockpile;
-use crate::economy::transport::{ImprovementKind, PlaceImprovement, Rails, ordered_edge};
+use crate::economy::technology::Technologies;
+use crate::economy::transport::validation::can_build_rail_on_terrain;
+use crate::economy::transport::{Depot, ImprovementKind, PlaceImprovement, Rails, ordered_edge};
 use crate::map::province::{Province, TileProvince};
 use crate::map::tile_pos::{HexExt, TilePosExt};
+use crate::map::tiles::TerrainType;
 use crate::messages::civilians::CivilianCommand;
 use crate::orders::{OrdersOut, flush_orders_to_queue};
 use crate::resources::{DevelopmentLevel, TileResource};
@@ -42,6 +45,7 @@ pub struct AiBehaviorPlugin;
 struct AiOrderCache {
     improvement: Option<CivilianOrderKind>,
     rail: Option<CivilianOrderKind>,
+    depot: Option<CivilianOrderKind>,
     movement: Option<CivilianOrderKind>,
 }
 
@@ -179,9 +183,11 @@ impl Plugin for AiBehaviorPlugin {
             (
                 ready_to_act_scorer,
                 has_rail_target_scorer,
+                has_depot_target_scorer,
                 has_improvement_target_scorer,
                 has_move_target_scorer,
             )
+                .chain()
                 .in_set(BigBrainSet::Scorers)
                 .run_if(in_state(AppState::InGame))
                 .run_if(in_state(TurnPhase::EnemyTurn)),
@@ -190,6 +196,7 @@ impl Plugin for AiBehaviorPlugin {
             PreUpdate,
             (
                 build_rail_action,
+                build_depot_action,
                 build_improvement_action,
                 move_to_target_action,
                 skip_turn_action,
@@ -237,9 +244,11 @@ fn untag_non_ai_owned_civilians(
                 .remove::<Thinker>()
                 .remove::<ReadyToAct>()
                 .remove::<HasRailTarget>()
+                .remove::<HasDepotTarget>()
                 .remove::<HasImprovementTarget>()
                 .remove::<HasMoveTarget>()
                 .remove::<BuildRailOrder>()
+                .remove::<BuildDepotOrder>()
                 .remove::<BuildImprovementOrder>()
                 .remove::<MoveTowardsOwnedTile>()
                 .remove::<SkipTurnOrder>();
@@ -258,6 +267,14 @@ pub struct HasRailTarget;
 /// Issues a rail construction order gathered during scoring.
 #[derive(Component, Debug, Clone, Default, ActionBuilder)]
 pub struct BuildRailOrder;
+
+/// Checks whether an engineer should build a depot to collect resources.
+#[derive(Component, Debug, Clone, ScorerBuilder)]
+pub struct HasDepotTarget;
+
+/// Issues a depot construction order gathered during scoring.
+#[derive(Component, Debug, Clone, Default, ActionBuilder)]
+pub struct BuildDepotOrder;
 
 /// Checks whether a civilian has a nearby tile they can improve.
 #[derive(Component, Debug, Clone, ScorerBuilder)]
@@ -425,6 +442,7 @@ fn upgrade_rail_action(
                     a: upgrade.from,
                     b: upgrade.to,
                     kind: ImprovementKind::Rail,
+                    nation: Some(*actor),
                     engineer: None,
                 });
                 ledger.apply_cooldown(
@@ -538,6 +556,7 @@ fn initialize_ai_thinkers(
                 .label("ai_civilian")
                 .picker(FirstToScore { threshold: 0.5 })
                 .when(HasRailTarget, BuildRailOrder)
+                .when(HasDepotTarget, BuildDepotOrder)
                 .when(HasImprovementTarget, BuildImprovementOrder)
                 .when(HasMoveTarget, MoveTowardsOwnedTile)
                 .when(ReadyToAct, SkipTurnOrder),
@@ -571,6 +590,9 @@ fn has_rail_target_scorer(
     provinces: Query<&Province>,
     capitals: Query<&Capital>,
     tile_resources: Query<&TileResource>,
+    terrain_types: Query<&TerrainType>,
+    nation_technologies: Query<&Technologies>,
+    depots: Query<&Depot>,
     rails: Res<Rails>,
     mut scores: Query<(&Actor, &mut Score, &ScorerSpan), With<HasRailTarget>>,
 ) {
@@ -610,7 +632,10 @@ fn has_rail_target_scorer(
 
         cache.rail = None;
 
-        match plan_rail_connection(
+        // Get this nation's technologies for terrain checks
+        let nation_techs = nation_technologies.get(civilian.owner).ok();
+
+        let rail_decision = plan_rail_connection(
             civilian,
             storage,
             *map_size,
@@ -618,8 +643,13 @@ fn has_rail_target_scorer(
             &provinces,
             &capitals,
             &tile_resources,
+            &terrain_types,
+            nation_techs,
+            &depots,
             &rails,
-        ) {
+        );
+
+        match rail_decision {
             Some(RailDecision::Build(target)) => {
                 cache.rail = Some(CivilianOrderKind::BuildRail { to: target });
                 cache.movement = None;
@@ -865,29 +895,23 @@ fn build_improvement_action(
 
 fn select_move_target(
     civilian: &Civilian,
-    storage: &TileStorage,
-    map_size: TilemapSize,
-    tile_provinces: &Query<&TileProvince>,
+    _storage: &TileStorage,
+    _map_size: TilemapSize,
+    _tile_provinces: &Query<&TileProvince>,
     provinces: &Query<&Province>,
     rng: &mut StdRng,
 ) -> Option<CivilianOrderKind> {
-    let mut candidates: Vec<TilePos> = civilian
-        .position
-        .to_hex()
-        .all_neighbors()
+    // Collect ALL tiles from owned provinces (civilians can move anywhere in their territory)
+    let mut candidates: Vec<TilePos> = provinces
         .iter()
-        .filter_map(|hex| hex.to_tile_pos())
-        .filter(|pos| {
-            tile_owned_by_nation(
-                *pos,
-                civilian.owner,
-                storage,
-                map_size,
-                tile_provinces,
-                provinces,
-            )
-        })
+        .filter(|province| province.owner == Some(civilian.owner))
+        .flat_map(|province| province.tiles.iter().copied())
+        .filter(|pos| *pos != civilian.position) // Don't pick current position
         .collect();
+
+    if candidates.is_empty() {
+        return None;
+    }
 
     candidates.shuffle(rng);
     let target = candidates.first().copied()?;
@@ -1010,6 +1034,9 @@ fn plan_rail_connection(
     provinces: &Query<&Province>,
     capitals: &Query<&Capital>,
     tile_resources: &Query<&TileResource>,
+    terrain_types: &Query<&TerrainType>,
+    nation_techs: Option<&Technologies>,
+    depots: &Query<&Depot>,
     rails: &Rails,
 ) -> Option<RailDecision> {
     if civilian.kind != CivilianKind::Engineer {
@@ -1036,7 +1063,7 @@ fn plan_rail_connection(
         provinces,
     );
 
-    let mut best: Option<(RailDecision, (u8, u32, u32, u32))> = None;
+    let mut best: Option<(RailDecision, (u32, u32, u8, u32))> = None;
 
     for province in provinces.iter() {
         if province.owner != Some(civilian.owner) {
@@ -1052,7 +1079,12 @@ fn plan_rail_connection(
                 continue;
             };
 
-            if !resource.discovered || resource.development <= DevelopmentLevel::Lv0 {
+            let has_depot = depots
+                .iter()
+                .any(|d| d.position == *tile_pos && d.owner == civilian.owner);
+
+            if !has_depot && (!resource.discovered || resource.development <= DevelopmentLevel::Lv0)
+            {
                 continue;
             }
 
@@ -1068,6 +1100,8 @@ fn plan_rail_connection(
                 map_size,
                 tile_provinces,
                 provinces,
+                terrain_types,
+                nation_techs,
             ) else {
                 continue;
             };
@@ -1085,7 +1119,11 @@ fn plan_rail_connection(
                 let step_index = index as u32;
 
                 if civilian.position == from {
-                    let priority = (0, 0, step_index, path_len);
+                    // Priority: (PathLen, NetworkProximity, ActionType, Distance)
+                    // ActionType: 0=Build, 1=Move.
+                    // We prefer building on GOOD edges (High NetworkProx) over Move.
+                    // But we prefer Moving to GOOD edge over Building on BAD edge.
+                    let priority = (path_len, u32::MAX - step_index, 0, 0);
                     let decision = RailDecision::Build(to);
                     if best.as_ref().map(|(_, p)| priority < *p).unwrap_or(true) {
                         best = Some((decision, priority));
@@ -1094,7 +1132,7 @@ fn plan_rail_connection(
                 }
 
                 if civilian.position == to {
-                    let priority = (0, 0, step_index, path_len);
+                    let priority = (path_len, u32::MAX - step_index, 0, 0);
                     let decision = RailDecision::Build(from);
                     if best.as_ref().map(|(_, p)| priority < *p).unwrap_or(true) {
                         best = Some((decision, priority));
@@ -1126,7 +1164,12 @@ fn plan_rail_connection(
                     continue;
                 };
 
-                let priority = (1, distance, step_index, path_len);
+                // Move priority:
+                // 1. Path Length (Prioritize shorter paths)
+                // 2. Network Proximity (Prioritize segments connected to network)
+                // 3. Action type (1 = Move)
+                // 4. Travel Distance (Prioritize closer segments if all else equal)
+                let priority = (path_len, u32::MAX - step_index, 1, distance);
                 let decision = RailDecision::Move(step);
 
                 if best.as_ref().map(|(_, p)| priority < *p).unwrap_or(true) {
@@ -1188,10 +1231,16 @@ fn shortest_path_to_connected(
     map_size: TilemapSize,
     tile_provinces: &Query<&TileProvince>,
     provinces: &Query<&Province>,
+    terrain_types: &Query<&TerrainType>,
+    nation_techs: Option<&Technologies>,
 ) -> Option<Vec<TilePos>> {
     if connected.contains(&start) {
         return None;
     }
+
+    // Default empty technologies if nation has none
+    let default_techs = Technologies::default();
+    let techs = nation_techs.unwrap_or(&default_techs);
 
     let mut queue: VecDeque<TilePos> = VecDeque::new();
     let mut parents: HashMap<TilePos, TilePos> = HashMap::new();
@@ -1217,6 +1266,16 @@ fn shortest_path_to_connected(
                 provinces,
             ) {
                 continue;
+            }
+
+            // Check if rail can be built on this terrain
+            if let Some(tile_entity) = storage.get(&neighbor)
+                && let Ok(terrain) = terrain_types.get(tile_entity)
+            {
+                let (can_build, _) = can_build_rail_on_terrain(terrain, techs);
+                if !can_build {
+                    continue;
+                }
             }
 
             if !visited.insert(neighbor) {
@@ -1427,6 +1486,365 @@ fn select_improvement_target(
     None
 }
 
+fn has_depot_target_scorer(
+    civilians: Query<&Civilian>,
+    mut caches: Query<&mut AiOrderCache>,
+    tile_storage_query: Query<(&TileStorage, &TilemapSize)>,
+    tile_provinces: Query<&TileProvince>,
+    provinces: Query<&Province>,
+    capitals: Query<&Capital>,
+    tile_resources: Query<&TileResource>,
+    depots: Query<&Depot>,
+    rails: Res<Rails>,
+    mut scores: Query<(&Actor, &mut Score, Option<&ScorerSpan>), With<HasDepotTarget>>,
+) {
+    let tile_data = tile_storage_query.iter().next();
+
+    // Cache connectivity per owner to avoid re-calculating for every civilian
+    let mut connectivity_cache: HashMap<Entity, HashSet<TilePos>> = HashMap::new();
+
+    for (Actor(actor), mut score, span) in &mut scores {
+        let _guard = span.map(|s| s.span().enter());
+
+        let Some((storage, map_size)) = tile_data else {
+            if let Ok(mut cache) = caches.get_mut(*actor) {
+                cache.depot = None;
+            }
+            score.set(0.0);
+            continue;
+        };
+
+        let Ok(civilian) = civilians.get(*actor) else {
+            if let Ok(mut cache) = caches.get_mut(*actor) {
+                cache.depot = None;
+            }
+            score.set(0.0);
+            continue;
+        };
+
+        // Pre-calculate connectivity if not already cached
+        let connected_tiles = connectivity_cache.entry(civilian.owner).or_insert_with(|| {
+            let capital_pos = capitals.get(civilian.owner).ok().map(|c| c.0);
+            if let Some(cap_pos) = capital_pos {
+                gather_connected_tiles(
+                    cap_pos,
+                    civilian.owner,
+                    storage,
+                    *map_size,
+                    &tile_provinces,
+                    &provinces,
+                    &rails,
+                )
+            } else {
+                HashSet::new()
+            }
+        });
+
+        let distance_map = compute_network_distance_map(
+            connected_tiles,
+            civilian.owner,
+            storage,
+            *map_size,
+            &tile_provinces,
+            &provinces,
+        );
+
+        if civilian.has_moved || civilian.kind != CivilianKind::Engineer {
+            if let Ok(mut cache) = caches.get_mut(*actor) {
+                cache.depot = None;
+            }
+            score.set(0.0);
+            continue;
+        }
+
+        let Ok(mut cache) = caches.get_mut(*actor) else {
+            score.set(0.0);
+            continue;
+        };
+
+        cache.depot = None;
+
+        if let Some(target) = select_depot_target(
+            civilian,
+            storage,
+            *map_size,
+            &tile_provinces,
+            &provinces,
+            &capitals,
+            &tile_resources,
+            &depots,
+            &distance_map,
+        ) {
+            // Check if there are any unconnected depots first.
+            // Reliance on Depot.connected component can be buggy if connectivity system lags.
+            // Check against connected_tiles set which is ground truth for this frame.
+            let has_unconnected_depots = depots
+                .iter()
+                .any(|d| d.owner == civilian.owner && !connected_tiles.contains(&d.position));
+
+            if has_unconnected_depots {
+                // strict block: prioritize connecting existing infrastructure
+                score.set(0.0);
+                continue;
+            }
+
+            if target == civilian.position {
+                cache.depot = Some(CivilianOrderKind::BuildDepot);
+                cache.movement = None;
+                // If we are already there, just build it.
+                score.set(0.94);
+            } else {
+                cache.movement = Some(CivilianOrderKind::Move { to: target });
+                score.set(0.0);
+            }
+        } else {
+            score.set(0.0);
+        }
+    }
+}
+
+fn build_depot_action(
+    mut command_writer: MessageWriter<CivilianCommand>,
+    civilians: Query<(&Civilian, Option<&CivilianOrder>)>,
+    mut caches: Query<&mut AiOrderCache>,
+    mut actions: Query<(&Actor, &mut ActionState, &ActionSpan), With<BuildDepotOrder>>,
+) {
+    for (Actor(actor), mut state, span) in &mut actions {
+        let _guard = span.span().enter();
+
+        match *state {
+            ActionState::Init => {
+                *state = ActionState::Requested;
+            }
+            ActionState::Requested => {
+                *state = ActionState::Executing;
+            }
+            ActionState::Cancelled => {
+                *state = ActionState::Failure;
+            }
+            ActionState::Executing => {
+                let Ok((civilian, pending_order)) = civilians.get(*actor) else {
+                    *state = ActionState::Failure;
+                    continue;
+                };
+
+                if civilian.has_moved || pending_order.is_some() {
+                    *state = ActionState::Success;
+                    continue;
+                }
+
+                let Ok(mut cache) = caches.get_mut(*actor) else {
+                    *state = ActionState::Failure;
+                    continue;
+                };
+
+                let Some(order) = cache.depot.take() else {
+                    *state = ActionState::Failure;
+                    continue;
+                };
+
+                command_writer.write(CivilianCommand {
+                    civilian: *actor,
+                    order,
+                });
+
+                cache.movement = None;
+                *state = ActionState::Success;
+            }
+            ActionState::Success | ActionState::Failure => {}
+        }
+    }
+}
+
+fn select_depot_target(
+    civilian: &Civilian,
+    storage: &TileStorage,
+    map_size: TilemapSize,
+    _tile_provinces: &Query<&TileProvince>,
+    provinces: &Query<&Province>,
+    capitals: &Query<&Capital>,
+    tile_resources: &Query<&TileResource>,
+    depots: &Query<&Depot>,
+    distance_map: &HashMap<TilePos, u32>,
+) -> Option<TilePos> {
+    if civilian.kind != CivilianKind::Engineer {
+        return None;
+    }
+
+    let capital_pos = capitals.get(civilian.owner).ok()?.0;
+
+    let mut best_target: Option<(u32, u32, TilePos)> = None;
+
+    for province in provinces.iter() {
+        if province.owner != Some(civilian.owner) {
+            continue;
+        }
+
+        for tile_pos in &province.tiles {
+            // Check if tile already has a depot
+            let has_depot = depots.iter().any(|d| d.position == *tile_pos);
+            if has_depot {
+                continue;
+            }
+
+            if *tile_pos == capital_pos {
+                continue;
+            }
+
+            // FILTER: Must be reachable (have a distance cost) or be connected (dist 0)
+            // If it's not in the map, it's unreachable.
+            let Some(&connection_cost) = distance_map.get(tile_pos) else {
+                continue;
+            };
+
+            let mut yield_score = 0;
+            let center_hex = tile_pos.to_hex();
+
+            // Check center tile
+            if let Some(entity) = storage.get(tile_pos)
+                && let Ok(resource) = tile_resources.get(entity)
+                && resource.discovered
+            {
+                yield_score += resource.get_output();
+            }
+
+            // Check neighbors
+            for neighbor_hex in center_hex.all_neighbors() {
+                let Some(neighbor_pos) = neighbor_hex.to_tile_pos() else {
+                    continue;
+                };
+
+                // Bounds check
+                if neighbor_pos.x >= map_size.x || neighbor_pos.y >= map_size.y {
+                    continue;
+                }
+
+                if let Some(entity) = storage.get(&neighbor_pos)
+                    && let Ok(resource) = tile_resources.get(entity)
+                    && resource.discovered
+                {
+                    yield_score += resource.get_output();
+                }
+            }
+
+            if yield_score == 0 {
+                continue;
+            }
+
+            // SCORING:
+            // We want high Yield and low Connection Cost.
+            // Using a simple ROI-like metric: Yield / (Cost + 1)
+            // Or Yield - Cost.
+            // Let's try: Yield * 10 - Cost.
+            // This emphasizes Yield but penalizes very long rails.
+            // Example:
+            // Yield 5, Cost 0 -> 50
+            // Yield 5, Cost 5 -> 45
+            // Yield 5, Cost 20 -> 30
+            // Yield 2, Cost 0 -> 20
+            // So a high yield distant spot is still better than low yield close spot?
+            // Maybe Yield / Sqrt(Cost+1)?
+
+            // Let's stick to the tuples for simpler debug:
+            // (Yield, -Cost)
+            // We want to maximize Yield, then minimize Cost.
+            // No, user specifically complains about unconnected.
+            // If Cost is high, it's "impossible" or "bad".
+
+            // Let's maximize `Yield - Cost`.
+            // But yield is ~1-10? Cost can be ~1-50?
+            // If yield is small (1 grain), and cost is 5, 1-5 = -4.
+            // If yield is big (3 gold), and cost is 20, 3-20 = -17.
+            // Simple subtraction punishes distance heavily. This is good.
+
+            // Let's shift it to be positive u32.
+            let score = (yield_score * 4).saturating_sub(connection_cost);
+
+            if score == 0 {
+                continue; // Not worth building validation
+            }
+
+            // Break ties with connection cost (closer is better)
+            let priority = (score, u32::MAX - connection_cost, *tile_pos);
+
+            best_target = match best_target {
+                Some(current) => {
+                    if priority > current {
+                        Some(priority)
+                    } else {
+                        Some(current)
+                    }
+                }
+                None => Some(priority),
+            };
+        }
+    }
+
+    best_target.map(|(_, _, pos)| pos)
+}
+
+fn compute_network_distance_map(
+    connected_tiles: &HashSet<TilePos>,
+    owner: Entity,
+    storage: &TileStorage,
+    map_size: TilemapSize,
+    tile_provinces: &Query<&TileProvince>,
+    provinces: &Query<&Province>,
+) -> HashMap<TilePos, u32> {
+    let mut distances = HashMap::new();
+    let mut queue = VecDeque::new();
+
+    // Initialize with connected tiles (distance 0)
+    for pos in connected_tiles {
+        distances.insert(*pos, 0);
+        queue.push_back(*pos);
+    }
+
+    // BFS
+    while let Some(current) = queue.pop_front() {
+        let current_distance = *distances.get(&current).unwrap();
+        let current_hex = current.to_hex();
+
+        // Limit search depth to avoid scanning whole map?
+        // Let's say max 100 tiles from network? Increased from 15.
+        if current_distance >= 100 {
+            continue;
+        }
+
+        for neighbor_hex in current_hex.all_neighbors() {
+            let Some(neighbor) = neighbor_hex.to_tile_pos() else {
+                continue;
+            };
+
+            // Bounds check
+            if neighbor.x >= map_size.x || neighbor.y >= map_size.y {
+                continue;
+            }
+
+            // Ownership check (can only build rails on owned)
+            if !tile_owned_by_nation(
+                neighbor,
+                owner,
+                storage,
+                map_size,
+                tile_provinces,
+                provinces,
+            ) {
+                continue;
+            }
+
+            if distances.contains_key(&neighbor) {
+                continue;
+            }
+
+            distances.insert(neighbor, current_distance + 1);
+            queue.push_back(neighbor);
+        }
+    }
+
+    distances
+}
+
 #[cfg(test)]
 mod tests {
     use bevy::ecs::system::{RunSystemOnce, SystemState};
@@ -1446,8 +1864,10 @@ mod tests {
         Civilian, CivilianKind, CivilianOrderKind, ProspectingKnowledge,
     };
     use crate::economy::nation::{Capital, NationId};
-    use crate::economy::transport::{Rails, ordered_edge};
+    use crate::economy::technology::Technologies;
+    use crate::economy::transport::{Depot, Rails, ordered_edge};
     use crate::map::province::{Province, ProvinceId, TileProvince};
+    use crate::map::tiles::TerrainType;
     use crate::resources::{DevelopmentLevel, ResourceType, TileResource};
     use crate::turn_system::TurnCounter;
 
@@ -1596,14 +2016,28 @@ mod tests {
             Query<&Province>,
             Query<&Capital>,
             Query<&TileResource>,
+            Query<&TerrainType>,
+            Query<&Technologies>,
             Res<Rails>,
             Query<&Civilian>,
+            Query<&Depot>,
         )> = SystemState::new(&mut world);
 
         let decision = {
-            let (tile_provinces, provinces, capitals, tile_resources, rails, civilians) =
-                state.get(&mut world);
-            let civilian = civilians.get(engineer_entity).unwrap();
+            let (
+                tile_provinces,
+                provinces,
+                capitals,
+                tile_resources,
+                terrain_types,
+                techs_query,
+                rails,
+                civilians,
+                depots,
+            ) = state.get(&mut world);
+            let civilians: Query<&Civilian> = civilians;
+            let civilian: &Civilian = civilians.get(engineer_entity).unwrap();
+            let nation_techs = techs_query.get(civilian.owner).ok();
             plan_rail_connection(
                 civilian,
                 &storage,
@@ -1612,6 +2046,9 @@ mod tests {
                 &provinces,
                 &capitals,
                 &tile_resources,
+                &terrain_types,
+                nation_techs,
+                &depots,
                 &rails,
             )
         };
@@ -1704,14 +2141,28 @@ mod tests {
             Query<&Province>,
             Query<&Capital>,
             Query<&TileResource>,
+            Query<&TerrainType>,
+            Query<&Technologies>,
             Res<Rails>,
             Query<&Civilian>,
+            Query<&Depot>,
         )> = SystemState::new(&mut world);
 
         let decision = {
-            let (tile_provinces, provinces, capitals, tile_resources, rails, civilians) =
-                state.get(&mut world);
+            let (
+                tile_provinces,
+                provinces,
+                capitals,
+                tile_resources,
+                terrain_types,
+                techs_query,
+                rails,
+                civilians,
+                depots,
+            ) = state.get(&mut world);
+            let civilians: Query<&Civilian> = civilians;
             let civilian = civilians.get(engineer_entity).unwrap();
+            let nation_techs = techs_query.get(civilian.owner).ok();
             plan_rail_connection(
                 civilian,
                 &storage,
@@ -1720,6 +2171,9 @@ mod tests {
                 &provinces,
                 &capitals,
                 &tile_resources,
+                &terrain_types,
+                nation_techs,
+                &depots,
                 &rails,
             )
         };
@@ -2331,5 +2785,243 @@ mod tests {
                 "All AI actions should be reset to Init"
             );
         }
+    }
+    #[test]
+    fn engineer_prioritizes_extending_connection_from_network() {
+        let mut world = World::new();
+        world.insert_resource(Rails::default());
+
+        let capital_pos = TilePos { x: 1, y: 1 };
+        let middle_pos = TilePos { x: 2, y: 1 };
+        let target_pos = TilePos { x: 3, y: 1 };
+        let province_id = ProvinceId(1);
+
+        let ai_nation = world
+            .spawn((AiNation(NationId(9)), NationId(9), Capital(capital_pos)))
+            .id();
+
+        let mut storage = TileStorage::empty(TilemapSize { x: 6, y: 6 });
+
+        let capital_tile = world
+            .spawn((
+                TileProvince { province_id },
+                TileResource {
+                    resource_type: ResourceType::Grain,
+                    development: DevelopmentLevel::Lv1,
+                    discovered: true,
+                },
+            ))
+            .id();
+        storage.set(&capital_pos, capital_tile);
+
+        let middle_tile = world
+            .spawn((
+                TileProvince { province_id },
+                TileResource {
+                    resource_type: ResourceType::Grain,
+                    development: DevelopmentLevel::Lv0,
+                    discovered: true,
+                },
+            ))
+            .id();
+        storage.set(&middle_pos, middle_tile);
+
+        let target_tile = world
+            .spawn((
+                TileProvince { province_id },
+                TileResource {
+                    resource_type: ResourceType::Coal,
+                    development: DevelopmentLevel::Lv1, // Worth connecting
+                    discovered: true,
+                },
+            ))
+            .id();
+        storage.set(&target_pos, target_tile);
+
+        world.spawn(Province {
+            id: province_id,
+            tiles: vec![capital_pos, middle_pos, target_pos],
+            city_tile: capital_pos,
+            owner: Some(ai_nation),
+        });
+
+        let engineer_entity = world
+            .spawn(Civilian {
+                kind: CivilianKind::Engineer,
+                position: target_pos, // At unconnected target
+                owner: ai_nation,
+                owner_id: NationId(9),
+                selected: false,
+                has_moved: false,
+            })
+            .id();
+
+        let map_size = TilemapSize { x: 6, y: 6 };
+
+        let mut state: SystemState<(
+            Query<&TileProvince>,
+            Query<&Province>,
+            Query<&Capital>,
+            Query<&TileResource>,
+            Query<&TerrainType>,
+            Query<&Technologies>,
+            Res<Rails>,
+            Query<&Civilian>,
+            Query<&Depot>,
+        )> = SystemState::new(&mut world);
+
+        let decision = {
+            let (
+                tile_provinces,
+                provinces,
+                capitals,
+                tile_resources,
+                terrain_types,
+                techs_query,
+                rails,
+                civilians,
+                depots,
+            ) = state.get(&mut world);
+            let civilians: Query<&Civilian> = civilians;
+            let civilian: &Civilian = civilians.get(engineer_entity).unwrap();
+            let nation_techs = techs_query.get(civilian.owner).ok();
+            plan_rail_connection(
+                civilian,
+                &storage,
+                map_size,
+                &tile_provinces,
+                &provinces,
+                &capitals,
+                &tile_resources,
+                &terrain_types,
+                nation_techs,
+                &depots,
+                &rails,
+            )
+        };
+
+        match decision {
+            Some(RailDecision::Move(target)) => assert_eq!(
+                target, middle_pos,
+                "Should move to middle tile to build from network out"
+            ),
+            Some(RailDecision::Build(_)) => panic!("Should not build isolated rail at target"),
+            None => panic!("Should have a decision"),
+        }
+    }
+    #[test]
+    fn cannot_build_depot_if_unconnected_depots_exist() {
+        use crate::ai::behavior::{AiOrderCache, HasDepotTarget, has_depot_target_scorer};
+        use bevy::ecs::schedule::Schedule;
+        use big_brain::prelude::{Actor, Score};
+
+        let mut world = World::new();
+        world.insert_resource(Rails::default());
+
+        let capital_pos = TilePos { x: 1, y: 1 };
+        let unconnected_depot_pos = TilePos { x: 5, y: 5 };
+        let valid_depot_pos = TilePos { x: 10, y: 10 };
+
+        let province_id = ProvinceId(1);
+
+        let ai_nation = world
+            .spawn((AiNation(NationId(9)), NationId(9), Capital(capital_pos)))
+            .id();
+
+        let mut storage = TileStorage::empty(TilemapSize { x: 20, y: 20 });
+
+        let capital_tile = world
+            .spawn((
+                TileProvince { province_id },
+                TileResource {
+                    resource_type: ResourceType::Grain,
+                    development: DevelopmentLevel::Lv1,
+                    discovered: true,
+                },
+            ))
+            .id();
+        storage.set(&capital_pos, capital_tile);
+
+        // An existing, unconnected depot
+        let depot_tile = world
+            .spawn((
+                TileProvince { province_id },
+                TileResource {
+                    resource_type: ResourceType::Coal,
+                    development: DevelopmentLevel::Lv0,
+                    discovered: true,
+                },
+            ))
+            .id();
+        storage.set(&unconnected_depot_pos, depot_tile);
+
+        world.spawn(Depot {
+            position: unconnected_depot_pos,
+            owner: ai_nation,
+            connected: false, // Explicitly false
+        });
+
+        // A potential new depot spot
+        let potential_tile = world
+            .spawn((
+                TileProvince { province_id },
+                TileResource {
+                    resource_type: ResourceType::Iron,
+                    development: DevelopmentLevel::Lv0,
+                    discovered: true,
+                },
+            ))
+            .id();
+        storage.set(&valid_depot_pos, potential_tile);
+
+        world.spawn(Province {
+            id: province_id,
+            tiles: vec![capital_pos, unconnected_depot_pos, valid_depot_pos],
+            city_tile: capital_pos,
+            owner: Some(ai_nation),
+        });
+
+        // Engineer at the potential spot, ready to build
+        let engineer_entity = world
+            .spawn((
+                Civilian {
+                    kind: CivilianKind::Engineer,
+                    position: valid_depot_pos,
+                    owner: ai_nation,
+                    owner_id: NationId(9),
+                    selected: false,
+                    has_moved: false,
+                },
+                Actor(Entity::PLACEHOLDER),
+                Score::default(),
+                HasDepotTarget, // The component we are testing
+            ))
+            .id();
+
+        // We need an AiOrderCache
+        world
+            .entity_mut(engineer_entity)
+            .insert(AiOrderCache::default());
+
+        // Update the Actor component to point to itself (as the system expects Actor(entity))
+        world
+            .entity_mut(engineer_entity)
+            .insert(Actor(engineer_entity));
+
+        let mut schedule = Schedule::default();
+        schedule.add_systems(has_depot_target_scorer);
+
+        // Run system
+        schedule.run(&mut world);
+
+        // Check score
+        let score = world.get::<Score>(engineer_entity).unwrap();
+
+        // Should be 0.0 because of the unconnected depot
+        assert_eq!(
+            score.get(),
+            0.0,
+            "Score should be 0.0 due to existing unconnected depot"
+        );
     }
 }

@@ -173,6 +173,7 @@ mod tests {
             a: bevy_ecs_tilemap::prelude::TilePos { x: 1, y: 2 },
             b: bevy_ecs_tilemap::prelude::TilePos { x: 1, y: 3 },
             kind: ImprovementKind::Rail,
+            nation: None,
             engineer: None,
         };
 
@@ -210,6 +211,7 @@ mod tests {
             a: bevy_ecs_tilemap::prelude::TilePos { x: 0, y: 0 },
             b: bevy_ecs_tilemap::prelude::TilePos { x: 1, y: 0 },
             kind: ImprovementKind::Road,
+            nation: None,
             engineer: None,
         });
 
@@ -237,6 +239,7 @@ mod tests {
                 a: bevy_ecs_tilemap::prelude::TilePos { x: 0, y: 0 },
                 b: bevy_ecs_tilemap::prelude::TilePos { x: 0, y: 1 },
                 kind: ImprovementKind::Rail,
+                nation: None,
                 engineer: None,
             });
         }

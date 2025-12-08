@@ -139,6 +139,7 @@ pub fn handle_transport_selection(
                 a,
                 b,
                 kind: ImprovementKind::Road,
+                nation: None,
                 engineer: None,
             });
         } else {

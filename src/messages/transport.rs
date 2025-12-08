@@ -9,6 +9,7 @@ pub struct PlaceImprovement {
     pub a: TilePos,
     pub b: TilePos,
     pub kind: ImprovementKind,
+    pub nation: Option<Entity>,
     pub engineer: Option<Entity>,
 }
 

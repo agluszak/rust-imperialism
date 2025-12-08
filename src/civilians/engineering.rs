@@ -170,6 +170,7 @@ fn handle_build_rail_order(
             a: civilian.position,
             b: to,
             kind: ImprovementKind::Rail,
+            nation: Some(civilian.owner),
             engineer: Some(entity),
         });
         // Move Engineer to the target tile after starting construction
@@ -205,6 +206,7 @@ fn handle_build_depot_order(
         a: civilian.position,
         b: civilian.position, // Depot is single-tile
         kind: ImprovementKind::Depot,
+        nation: Some(civilian.owner),
         engineer: Some(entity),
     });
     civilian.has_moved = true;
@@ -237,6 +239,7 @@ fn handle_build_port_order(
         a: civilian.position,
         b: civilian.position,
         kind: ImprovementKind::Port,
+        nation: Some(civilian.owner),
         engineer: Some(entity),
     });
     civilian.has_moved = true;

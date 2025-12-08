@@ -1,11 +1,13 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
 
-use crate::economy::PlayerNation;
+use crate::economy::NationColor;
 use crate::economy::production::ConnectedProduction;
 use crate::map::tile_pos::TilePosExt;
 use crate::resources::{DevelopmentLevel, TileResource};
 use crate::ui::components::MapTilemap;
+use crate::ui::menu::AppState;
+use crate::ui::mode::GameMode;
 
 /// Marker component indicating a tile has a visible improvement building
 #[derive(Component, Debug, Clone, Copy)]
@@ -32,38 +34,36 @@ impl TileImprovementMarker {
     }
 }
 
-/// Relationship for connectivity indicator sprite
-#[derive(Component)]
-#[relationship(relationship_target = TileConnectivityMarker)]
-struct ConnectivityMarkerFor(Entity);
-
-/// Reverse relationship for connectivity indicator
-#[derive(Component)]
-#[relationship_target(relationship = ConnectivityMarkerFor)]
-struct TileConnectivityMarker(Entity);
-
-impl TileConnectivityMarker {
-    fn entity(&self) -> Entity {
-        self.0
-    }
+/// Runtime toggle for connectivity indicator overlay (C key)
+#[derive(Resource, Default)]
+pub struct ConnectivityOverlaySettings {
+    pub enabled: bool,
 }
+
+/// Marker component for connectivity indicator sprites
+#[derive(Component)]
+struct ConnectivityIndicator;
 
 /// Plugin to render improvement markers on tiles
 pub struct ImprovementRenderingPlugin;
 
 impl Plugin for ImprovementRenderingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                render_improvement_markers,
-                update_improvement_markers,
-                cleanup_removed_improvement_markers,
-                render_connectivity_indicators,
-                update_connectivity_indicators,
-                cleanup_removed_connectivity_indicators,
-            ),
-        );
+        app.init_resource::<ConnectivityOverlaySettings>()
+            .add_systems(
+                Update,
+                (
+                    render_improvement_markers,
+                    update_improvement_markers,
+                    cleanup_removed_improvement_markers,
+                ),
+            )
+            .add_systems(
+                Update,
+                (toggle_connectivity_overlay, update_connectivity_overlay)
+                    .run_if(in_state(AppState::InGame))
+                    .run_if(in_state(GameMode::Map)),
+            );
     }
 }
 
@@ -176,117 +176,154 @@ fn spawn_marker(commands: &mut Commands, tile_entity: Entity, pos: Vec2, color: 
     ));
 }
 
-/// Render connectivity indicators for newly improved tiles
-fn render_connectivity_indicators(
-    mut commands: Commands,
-    new_improvements: Query<(Entity, &TilePos), Added<TileImprovement>>,
-    connected_production: Res<ConnectedProduction>,
-    player_nation: Option<Res<PlayerNation>>,
+/// Toggle connectivity overlay with C key
+fn toggle_connectivity_overlay(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut settings: ResMut<ConnectivityOverlaySettings>,
 ) {
-    let Some(player) = player_nation else {
-        return;
-    };
-    let player_entity = *player.0;
-
-    for (tile_entity, tile_pos) in new_improvements.iter() {
-        let mut pos = tile_pos.to_world_pos();
-        pos.x += CONNECTIVITY_OFFSET_X;
-        pos.y += CONNECTIVITY_OFFSET_Y;
-
-        // Check if this tile is in the connected production list for the player
-        let is_connected = connected_production
-            .tiles
-            .iter()
-            .any(|t| t.owner == player_entity && t.tile_pos == *tile_pos);
-
-        let color = if is_connected {
-            Color::srgb(0.2, 0.9, 0.2) // Green = connected
-        } else {
-            Color::srgb(0.9, 0.2, 0.2) // Red = not connected
-        };
-
-        spawn_connectivity_marker(&mut commands, tile_entity, pos, color);
+    if keys.just_pressed(KeyCode::KeyC) {
+        settings.enabled = !settings.enabled;
+        info!(
+            "Connectivity overlay: {}",
+            if settings.enabled {
+                "enabled"
+            } else {
+                "disabled"
+            }
+        );
     }
 }
 
-/// Update connectivity indicators when connected production changes
-fn update_connectivity_indicators(
-    connected_production: Res<ConnectedProduction>,
-    player_nation: Option<Res<PlayerNation>>,
-    improved_tiles: Query<
-        (Entity, &TilePos, Option<&TileConnectivityMarker>),
-        With<TileImprovement>,
-    >,
-    mut marker_sprites: Query<&mut Sprite, With<ConnectivityMarkerFor>>,
+/// Update connectivity overlay - spawn/despawn/update indicators based on settings
+///
+/// Shows colored indicators for ALL nations:
+/// - Square (■) = connected to transport network
+/// - Cross (X) = not connected (improved tiles only)
+///
+/// Color matches the nation's border color.
+fn update_connectivity_overlay(
     mut commands: Commands,
+    settings: Res<ConnectivityOverlaySettings>,
+    connected_production: Res<ConnectedProduction>,
+    nations: Query<(Entity, &NationColor)>,
+    improved_tiles: Query<(&TilePos, &TileResource), With<TileImprovement>>,
+    existing_indicators: Query<Entity, With<ConnectivityIndicator>>,
 ) {
-    // Only update when connected production changes
-    if !connected_production.is_changed() {
+    // If disabled, despawn all indicators
+    if !settings.enabled {
+        for entity in existing_indicators.iter() {
+            commands.entity(entity).despawn();
+        }
         return;
     }
 
-    let Some(player) = player_nation else {
-        return;
-    };
-    let player_entity = *player.0;
+    // Rebuild indicators when settings or connected_production changes
+    if settings.is_changed() || connected_production.is_changed() {
+        // Despawn existing indicators
+        for entity in existing_indicators.iter() {
+            commands.entity(entity).despawn();
+        }
 
-    for (tile_entity, tile_pos, maybe_marker) in improved_tiles.iter() {
-        let is_connected = connected_production
+        // Build a map of nation entity -> color
+        let nation_colors: std::collections::HashMap<Entity, Color> = nations
+            .iter()
+            .map(|(entity, color)| (entity, color.0))
+            .collect();
+
+        // Collect all connected tile positions (across all nations)
+        let all_connected_positions: std::collections::HashSet<TilePos> = connected_production
             .tiles
             .iter()
-            .any(|t| t.owner == player_entity && t.tile_pos == *tile_pos);
+            .map(|t| t.tile_pos)
+            .collect();
 
-        let color = if is_connected {
-            Color::srgb(0.2, 0.9, 0.2) // Green = connected
-        } else {
-            Color::srgb(0.9, 0.2, 0.2) // Red = not connected
-        };
+        // Show SQUARE indicators for all connected tiles (all nations)
+        for tile in &connected_production.tiles {
+            let color = nation_colors
+                .get(&tile.owner)
+                .copied()
+                .unwrap_or(Color::WHITE);
 
-        if let Some(marker) = maybe_marker {
-            if let Ok(mut sprite) = marker_sprites.get_mut(marker.entity()) {
-                sprite.color = color;
-            }
-        } else {
-            // Spawn new marker if it doesn't exist
-            let mut pos = tile_pos.to_world_pos();
+            let mut pos = tile.tile_pos.to_world_pos();
             pos.x += CONNECTIVITY_OFFSET_X;
             pos.y += CONNECTIVITY_OFFSET_Y;
-            spawn_connectivity_marker(&mut commands, tile_entity, pos, color);
+
+            // Spawn a filled square for connected tiles
+            commands.spawn((
+                Sprite {
+                    color,
+                    custom_size: Some(Vec2::new(CONNECTIVITY_SIZE, CONNECTIVITY_SIZE)),
+                    ..default()
+                },
+                Transform::from_translation(pos.extend(1.6)),
+                GlobalTransform::default(),
+                Visibility::default(),
+                InheritedVisibility::default(),
+                ViewVisibility::default(),
+                MapTilemap,
+                ConnectivityIndicator,
+            ));
+        }
+
+        // Show CROSS (X) indicators for improved tiles that are NOT connected
+        // Use a dark red/gray color for unconnected since we don't know the owner
+        let unconnected_color = Color::srgb(0.6, 0.2, 0.2);
+        let cross_thickness = 3.0;
+        let cross_length = CONNECTIVITY_SIZE;
+
+        for (tile_pos, _resource) in improved_tiles.iter() {
+            if !all_connected_positions.contains(tile_pos) {
+                let mut pos = tile_pos.to_world_pos();
+                pos.x += CONNECTIVITY_OFFSET_X;
+                pos.y += CONNECTIVITY_OFFSET_Y;
+
+                // Spawn two rectangles rotated 45 degrees to form an X
+                // First diagonal (\)
+                commands.spawn((
+                    Sprite {
+                        color: unconnected_color,
+                        custom_size: Some(Vec2::new(cross_length, cross_thickness)),
+                        ..default()
+                    },
+                    Transform::from_translation(pos.extend(1.6))
+                        .with_rotation(Quat::from_rotation_z(std::f32::consts::FRAC_PI_4)),
+                    GlobalTransform::default(),
+                    Visibility::default(),
+                    InheritedVisibility::default(),
+                    ViewVisibility::default(),
+                    MapTilemap,
+                    ConnectivityIndicator,
+                ));
+
+                // Second diagonal (/)
+                commands.spawn((
+                    Sprite {
+                        color: unconnected_color,
+                        custom_size: Some(Vec2::new(cross_length, cross_thickness)),
+                        ..default()
+                    },
+                    Transform::from_translation(pos.extend(1.6))
+                        .with_rotation(Quat::from_rotation_z(-std::f32::consts::FRAC_PI_4)),
+                    GlobalTransform::default(),
+                    Visibility::default(),
+                    InheritedVisibility::default(),
+                    ViewVisibility::default(),
+                    MapTilemap,
+                    ConnectivityIndicator,
+                ));
+            }
+        }
+
+        if settings.is_changed() && settings.enabled {
+            let unconnected_count = improved_tiles
+                .iter()
+                .filter(|(pos, _)| !all_connected_positions.contains(*pos))
+                .count();
+            info!(
+                "Connectivity overlay: {} connected, {} unconnected improvements",
+                connected_production.tiles.len(),
+                unconnected_count
+            );
         }
     }
-}
-
-/// Remove connectivity indicators when the tile loses its improvement
-fn cleanup_removed_connectivity_indicators(
-    mut removed_improvements: RemovedComponents<TileImprovement>,
-    markers: Query<&TileConnectivityMarker>,
-    mut commands: Commands,
-) {
-    for tile_entity in removed_improvements.read() {
-        if let Ok(marker) = markers.get(tile_entity) {
-            commands.entity(marker.entity()).despawn();
-        }
-    }
-}
-
-fn spawn_connectivity_marker(
-    commands: &mut Commands,
-    tile_entity: Entity,
-    pos: Vec2,
-    color: Color,
-) {
-    commands.spawn((
-        Sprite {
-            color,
-            custom_size: Some(Vec2::new(CONNECTIVITY_SIZE, CONNECTIVITY_SIZE)),
-            ..default()
-        },
-        Transform::from_translation(pos.extend(1.6)), // Slightly above improvement marker
-        GlobalTransform::default(),
-        Visibility::default(),
-        InheritedVisibility::default(),
-        ViewVisibility::default(),
-        MapTilemap,
-        ConnectivityMarkerFor(tile_entity),
-    ));
 }
