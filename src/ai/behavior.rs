@@ -1107,6 +1107,14 @@ fn plan_rail_connection(
             };
 
             let path_len = path.len() as u32;
+            
+            // Calculate resource value for this target to prioritize high-value connections
+            let resource_value = if has_depot {
+                // Depots are valuable - worth connecting
+                10u32
+            } else {
+                resource.get_output() * (resource.development as u32 + 1)
+            };
 
             for (index, window) in path.windows(2).enumerate() {
                 let from = window[0];
@@ -1119,11 +1127,10 @@ fn plan_rail_connection(
                 let step_index = index as u32;
 
                 if civilian.position == from {
-                    // Priority: (PathLen, NetworkProximity, ActionType, Distance)
-                    // ActionType: 0=Build, 1=Move.
-                    // We prefer building on GOOD edges (High NetworkProx) over Move.
-                    // But we prefer Moving to GOOD edge over Building on BAD edge.
-                    let priority = (path_len, u32::MAX - step_index, 0, 0);
+                    // Priority: (PathLen, ResourceValue, NetworkProximity, ActionType, Distance)
+                    // Lower path_len is better, higher resource_value is better
+                    // We invert resource_value so higher values have lower (better) priority
+                    let priority = (path_len, u32::MAX - resource_value, u32::MAX - step_index, 0, 0);
                     let decision = RailDecision::Build(to);
                     if best.as_ref().map(|(_, p)| priority < *p).unwrap_or(true) {
                         best = Some((decision, priority));
@@ -1132,7 +1139,7 @@ fn plan_rail_connection(
                 }
 
                 if civilian.position == to {
-                    let priority = (path_len, u32::MAX - step_index, 0, 0);
+                    let priority = (path_len, u32::MAX - resource_value, u32::MAX - step_index, 0, 0);
                     let decision = RailDecision::Build(from);
                     if best.as_ref().map(|(_, p)| priority < *p).unwrap_or(true) {
                         best = Some((decision, priority));
@@ -1166,10 +1173,11 @@ fn plan_rail_connection(
 
                 // Move priority:
                 // 1. Path Length (Prioritize shorter paths)
-                // 2. Network Proximity (Prioritize segments connected to network)
-                // 3. Action type (1 = Move)
-                // 4. Travel Distance (Prioritize closer segments if all else equal)
-                let priority = (path_len, u32::MAX - step_index, 1, distance);
+                // 2. Resource Value (Prioritize higher value targets)
+                // 3. Network Proximity (Prioritize segments connected to network)
+                // 4. Action type (1 = Move)
+                // 5. Travel Distance (Prioritize closer segments if all else equal)
+                let priority = (path_len, u32::MAX - resource_value, u32::MAX - step_index, 1, distance);
                 let decision = RailDecision::Move(step);
 
                 if best.as_ref().map(|(_, p)| priority < *p).unwrap_or(true) {
@@ -1443,31 +1451,37 @@ fn select_improvement_target(
             }
 
             let distance = capital_hex.distance_to(tile_pos.to_hex()) as u32;
+            
+            // Calculate priority score: lower is better
+            // Consider: resource output potential, distance, and current development
+            let base_output = resource.get_output();
+            let potential_gain = (DevelopmentLevel::Lv3 as u32) - (resource.development as u32);
+            // Resources with higher base output and more room for improvement are prioritized
+            // Distance penalty: each tile away reduces priority
+            let priority_score = (distance * 2) + (10 - base_output.min(10)) - potential_gain;
 
             if distance == 0 {
                 capital_candidate = match capital_candidate {
-                    Some((best_level, best_pos)) => {
-                        if resource.development < best_level {
-                            Some((resource.development, *tile_pos))
+                    Some((best_score, best_pos)) => {
+                        if priority_score < best_score {
+                            Some((priority_score, *tile_pos))
                         } else {
-                            Some((best_level, best_pos))
+                            Some((best_score, best_pos))
                         }
                     }
-                    None => Some((resource.development, *tile_pos)),
+                    None => Some((priority_score, *tile_pos)),
                 };
                 continue;
             }
 
-            let candidate = (distance, resource.development, *tile_pos);
+            let candidate = (priority_score, *tile_pos);
 
             best_target = match best_target {
-                Some((best_distance, best_level, best_pos)) => {
-                    if distance < best_distance
-                        || (distance == best_distance && resource.development < best_level)
-                    {
+                Some((best_score, best_pos)) => {
+                    if priority_score < best_score {
                         Some(candidate)
                     } else {
-                        Some((best_distance, best_level, best_pos))
+                        Some((best_score, best_pos))
                     }
                 }
                 None => Some(candidate),
@@ -1475,7 +1489,7 @@ fn select_improvement_target(
         }
     }
 
-    if let Some((_, _, target_pos)) = best_target {
+    if let Some((_, target_pos)) = best_target {
         return civilian.kind.default_tile_action_order(target_pos);
     }
 
@@ -1575,24 +1589,20 @@ fn has_depot_target_scorer(
             &depots,
             &distance_map,
         ) {
-            // Check if there are any unconnected depots first.
-            // Reliance on Depot.connected component can be buggy if connectivity system lags.
-            // Check against connected_tiles set which is ground truth for this frame.
-            let has_unconnected_depots = depots
+            // Count unconnected depots to inform scoring priority
+            let unconnected_depot_count = depots
                 .iter()
-                .any(|d| d.owner == civilian.owner && !connected_tiles.contains(&d.position));
-
-            if has_unconnected_depots {
-                // strict block: prioritize connecting existing infrastructure
-                score.set(0.0);
-                continue;
-            }
+                .filter(|d| d.owner == civilian.owner && !connected_tiles.contains(&d.position))
+                .count();
 
             if target == civilian.position {
                 cache.depot = Some(CivilianOrderKind::BuildDepot);
                 cache.movement = None;
-                // If we are already there, just build it.
-                score.set(0.94);
+                
+                // Reduce priority when unconnected depots exist, but don't block entirely
+                // Base score: 0.94, reduced by 0.1 per unconnected depot (min 0.5)
+                let priority_penalty = (unconnected_depot_count as f32 * 0.1).min(0.44);
+                score.set(0.94 - priority_penalty);
             } else {
                 cache.movement = Some(CivilianOrderKind::Move { to: target });
                 score.set(0.0);
