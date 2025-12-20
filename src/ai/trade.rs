@@ -21,16 +21,32 @@ const BUY_SHORTAGE_THRESHOLD: u32 = 12;
 const SELL_RESERVE: u32 = 8;
 /// Maximum units to sell per good per turn
 const SELL_MAX_PER_GOOD: u32 = 8;
-/// Maximum civilian hires per turn (increased to allow faster expansion)
-const AI_CIVILIAN_MAX_HIRES_PER_TURN: usize = 2;
-/// Target civilian counts by type (increased for more active economy)
-const AI_CIVILIAN_TARGETS: &[(CivilianKind, u32)] = &[
-    (CivilianKind::Engineer, 4),     // Increased for faster rail building
-    (CivilianKind::Prospector, 2),   // Keep same, not many minerals
-    (CivilianKind::Farmer, 3),       // Increased for food production
-    (CivilianKind::Miner, 3),        // Increased for mineral extraction
-    (CivilianKind::Rancher, 2),      // Increased for livestock
-    (CivilianKind::Forester, 2),     // Increased for timber
+const AI_CIVILIAN_MAX_HIRES_PER_TURN: usize = 1;
+// Dynamic civilian targets that adapt to game state
+// Initial phase: focus on exploration and basic development
+const AI_CIVILIAN_TARGETS_EARLY: &[(CivilianKind, u32)] = &[
+    (CivilianKind::Engineer, 3),     // More engineers early for infrastructure
+    (CivilianKind::Prospector, 2),   // Find resources
+    (CivilianKind::Farmer, 1),       // Basic food
+];
+// Mid-game: balanced development
+const AI_CIVILIAN_TARGETS_MID: &[(CivilianKind, u32)] = &[
+    (CivilianKind::Engineer, 4),
+    (CivilianKind::Prospector, 2),
+    (CivilianKind::Farmer, 3),
+    (CivilianKind::Miner, 2),
+    (CivilianKind::Rancher, 2),
+    (CivilianKind::Forester, 2),
+];
+// Late-game: maximize all resources
+const AI_CIVILIAN_TARGETS_LATE: &[(CivilianKind, u32)] = &[
+    (CivilianKind::Engineer, 5),
+    (CivilianKind::Prospector, 3),
+    (CivilianKind::Farmer, 4),
+    (CivilianKind::Miner, 3),
+    (CivilianKind::Rancher, 3),
+    (CivilianKind::Forester, 3),
+    (CivilianKind::Driller, 2),
 ];
 
 const PRODUCTION_PRIORITIES: &[(Good, u32)] = &[
@@ -88,6 +104,7 @@ fn plan_ai_civilian_hiring(
     mut writer: MessageWriter<HireCivilian>,
     ai_nations: Query<(&NationHandle, &Treasury), With<AiNation>>,
     civilians: Query<&Civilian>,
+    turn: Res<TurnCounter>,
 ) {
     let mut counts: HashMap<Entity, HashMap<CivilianKind, u32>> = HashMap::new();
     for civilian in civilians.iter() {
@@ -104,8 +121,17 @@ fn plan_ai_civilian_hiring(
         let mut remaining_cash = treasury.available();
         let mut hires_this_turn = 0;
         let nation_counts = counts.get(&nation.entity());
+        
+        // Select target distribution based on turn count
+        let targets = if turn.current <= 20 {
+            AI_CIVILIAN_TARGETS_EARLY
+        } else if turn.current <= 50 {
+            AI_CIVILIAN_TARGETS_MID
+        } else {
+            AI_CIVILIAN_TARGETS_LATE
+        };
 
-        for &(kind, target) in AI_CIVILIAN_TARGETS {
+        for &(kind, target) in targets {
             if hires_this_turn >= AI_CIVILIAN_MAX_HIRES_PER_TURN {
                 break;
             }
@@ -399,32 +425,8 @@ fn evaluate_production_plan(
     allocations: &Allocations,
 ) -> Vec<AdjustProduction> {
     let mut plans = Vec::new();
-    
-    // Build urgency-sorted list of production needs
-    let mut production_needs: Vec<(Good, u32, u32, f32)> = Vec::new(); // (good, desired, available, urgency)
 
     for &(good, desired_stock) in PRODUCTION_PRIORITIES {
-        let available = stockpile.get_available(good);
-        let shortage = desired_stock.saturating_sub(available);
-        
-        if shortage == 0 {
-            continue;
-        }
-        
-        // Calculate urgency: 1.0 = critically low, 0.0 = at target
-        let urgency = if desired_stock > 0 {
-            1.0 - (available as f32 / desired_stock as f32).min(1.0)
-        } else {
-            0.0
-        };
-        
-        production_needs.push((good, desired_stock, available, urgency));
-    }
-    
-    // Sort by urgency (highest first)
-    production_needs.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal));
-
-    for (good, desired_stock, available, _urgency) in production_needs {
         let Some(kind) = building_for_good(good) else {
             continue;
         };
@@ -432,6 +434,7 @@ fn evaluate_production_plan(
             continue;
         };
 
+        let available = stockpile.get_available(good);
         let current = allocations.production_count(nation_entity, good) as u32;
         let shortage = desired_stock.saturating_sub(available);
         let target = shortage.min(building.capacity);

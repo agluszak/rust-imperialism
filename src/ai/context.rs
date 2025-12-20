@@ -34,10 +34,15 @@ pub enum MacroTag {
 pub const RESOURCE_TARGET_DAYS: f32 = 20.0;
 
 pub fn resource_target_days(good: Good) -> f32 {
-    if good.is_raw_food() {
-        12.0
-    } else {
-        RESOURCE_TARGET_DAYS
+    match good {
+        // Food resources - smaller buffer since they're consumed quickly
+        Good::Grain | Good::Livestock | Good::Fish | Good::Fruit => 12.0,
+        // Strategic industrial inputs - higher buffer
+        Good::Iron | Good::Coal | Good::Steel => 25.0,
+        // Valuable exports and finished goods - standard buffer
+        Good::Gold | Good::Gems => 15.0,
+        // Other resources - standard buffer
+        _ => RESOURCE_TARGET_DAYS,
     }
 }
 
