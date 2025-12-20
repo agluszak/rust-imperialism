@@ -467,10 +467,21 @@ fn evaluate_production_plan(
             continue;
         };
 
+        // Consider both available AND reserved amounts when planning
+        // This prevents AI from over-producing when resources are already allocated
+        let total = stockpile.get_total(good);
         let available = stockpile.get_available(good);
         let current = allocations.production_count(nation_entity, good) as u32;
-        let shortage = desired_stock.saturating_sub(available);
-        let target = shortage.min(building.capacity);
+        
+        // If total stock (including reserved) is adequate, reduce or stop production
+        // If only available is low but total is high, resources are just allocated elsewhere
+        let effective_shortage = if total >= desired_stock {
+            0  // Already have enough total, stop production
+        } else {
+            desired_stock.saturating_sub(available)
+        };
+        
+        let target = effective_shortage.min(building.capacity);
 
         if target == current {
             continue;
