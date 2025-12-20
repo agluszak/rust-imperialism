@@ -30,16 +30,27 @@ pub enum MacroTag {
     InvestMinor { minor: MinorId },
 }
 
-/// Target buffer the AI aims to maintain for tradable resources.
+// ============================================================================
+// AI RESOURCE PLANNING CONSTANTS
+// ============================================================================
+
+/// Target buffer (in days/turns) the AI aims to maintain for tradable resources
+/// Higher values make AI more conservative with resources
+/// Default: 20 turns of supply
 pub const RESOURCE_TARGET_DAYS: f32 = 20.0;
 
+/// Calculate desired stockpile target for a specific good
+/// Raw food gets lower target (12 days) due to spoilage concerns
+/// All other goods use the standard RESOURCE_TARGET_DAYS
 pub fn resource_target_days(good: Good) -> f32 {
     if good.is_raw_food() {
-        12.0
+        12.0  // Lower target for perishables
     } else {
         RESOURCE_TARGET_DAYS
     }
 }
+
+// ============================================================================
 
 /// Candidate macro action generated during the analysis phase.
 #[derive(Debug, Clone)]

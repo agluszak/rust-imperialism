@@ -36,7 +36,24 @@ use crate::turn_system::{EnemyTurnSet, TurnCounter, TurnPhase};
 use crate::ui::menu::AppState;
 use crate::ui::mode::GameMode;
 
+// ============================================================================
+// AI BEHAVIOR TUNING CONSTANTS
+// ============================================================================
+// These constants control AI civilian management and infrastructure decisions
+
+/// Base seed for AI RNG - ensures deterministic behavior across playthroughs
+/// XOR'd with turn number for turn-specific randomization
 pub(crate) const RNG_BASE_SEED: u64 = 0xA1_51_23_45;
+
+/// Cooldown period (in turns) after AI invests in a minor nation
+/// Prevents rapid repeated investments in same target
+const INVESTMENT_COOLDOWN_TURNS: u8 = 4;
+
+/// Cooldown period (in turns) after AI upgrades a rail segment
+/// Prevents redundant rail building attempts on same edge
+const RAIL_COOLDOWN_TURNS: u8 = 3;
+
+// ============================================================================
 
 /// Registers Big Brain and the systems that drive simple AI-controlled civilians.
 pub struct AiBehaviorPlugin;
@@ -48,9 +65,6 @@ struct AiOrderCache {
     depot: Option<CivilianOrderKind>,
     movement: Option<CivilianOrderKind>,
 }
-
-const INVESTMENT_COOLDOWN_TURNS: u8 = 4;
-const RAIL_COOLDOWN_TURNS: u8 = 3;
 
 #[derive(Component, Debug, Clone, ScorerBuilder)]
 pub struct ResourceShortage {
@@ -1119,11 +1133,10 @@ fn plan_rail_connection(
                 let step_index = index as u32;
 
                 if civilian.position == from {
-                    // Priority: (PathLen, NetworkProximity, ActionType, Distance)
-                    // ActionType: 0=Build, 1=Move.
-                    // We prefer building on GOOD edges (High NetworkProx) over Move.
-                    // But we prefer Moving to GOOD edge over Building on BAD edge.
-                    let priority = (path_len, u32::MAX - step_index, 0, 0);
+                    // Build action priority: prefer shorter paths, prioritize segments close to network
+                    // Priority tuple: (path_length, network_distance, action_type, movement_cost)
+                    // action_type: 0 = Build (preferred), 1 = Move
+                    let priority = (path_len, step_index, 0, 0);
                     let decision = RailDecision::Build(to);
                     if best.as_ref().map(|(_, p)| priority < *p).unwrap_or(true) {
                         best = Some((decision, priority));
@@ -1132,7 +1145,7 @@ fn plan_rail_connection(
                 }
 
                 if civilian.position == to {
-                    let priority = (path_len, u32::MAX - step_index, 0, 0);
+                    let priority = (path_len, step_index, 0, 0);
                     let decision = RailDecision::Build(from);
                     if best.as_ref().map(|(_, p)| priority < *p).unwrap_or(true) {
                         best = Some((decision, priority));
@@ -1164,12 +1177,9 @@ fn plan_rail_connection(
                     continue;
                 };
 
-                // Move priority:
-                // 1. Path Length (Prioritize shorter paths)
-                // 2. Network Proximity (Prioritize segments connected to network)
-                // 3. Action type (1 = Move)
-                // 4. Travel Distance (Prioritize closer segments if all else equal)
-                let priority = (path_len, u32::MAX - step_index, 1, distance);
+                // Move action priority: same logic but action_type=1 makes it lower priority than build
+                // Prefer moving toward network-proximate segments
+                let priority = (path_len, step_index, 1, distance);
                 let decision = RailDecision::Move(step);
 
                 if best.as_ref().map(|(_, p)| priority < *p).unwrap_or(true) {
@@ -1731,40 +1741,23 @@ fn select_depot_target(
                 continue;
             }
 
-            // SCORING:
-            // We want high Yield and low Connection Cost.
-            // Using a simple ROI-like metric: Yield / (Cost + 1)
-            // Or Yield - Cost.
-            // Let's try: Yield * 10 - Cost.
-            // This emphasizes Yield but penalizes very long rails.
-            // Example:
-            // Yield 5, Cost 0 -> 50
-            // Yield 5, Cost 5 -> 45
-            // Yield 5, Cost 20 -> 30
-            // Yield 2, Cost 0 -> 20
-            // So a high yield distant spot is still better than low yield close spot?
-            // Maybe Yield / Sqrt(Cost+1)?
-
-            // Let's stick to the tuples for simpler debug:
-            // (Yield, -Cost)
-            // We want to maximize Yield, then minimize Cost.
-            // No, user specifically complains about unconnected.
-            // If Cost is high, it's "impossible" or "bad".
-
-            // Let's maximize `Yield - Cost`.
-            // But yield is ~1-10? Cost can be ~1-50?
-            // If yield is small (1 grain), and cost is 5, 1-5 = -4.
-            // If yield is big (3 gold), and cost is 20, 3-20 = -17.
-            // Simple subtraction punishes distance heavily. This is good.
-
-            // Let's shift it to be positive u32.
-            let score = (yield_score * 4).saturating_sub(connection_cost);
+            // SCORING: Balance yield vs connection cost
+            // Use ROI-style metric: yield value per rail tile needed
+            // Multiply yield by 100 to avoid integer division precision loss
+            // Higher score = better depot location
+            // Example: Yield 5 at dist 10 = 50 score, Yield 3 at dist 3 = 100 score
+            let score = if connection_cost > 0 {
+                (yield_score as u64 * 100) / (connection_cost as u64)
+            } else {
+                // Already connected - very high value
+                yield_score as u64 * 200
+            };
 
             if score == 0 {
-                continue; // Not worth building validation
+                continue;
             }
 
-            // Break ties with connection cost (closer is better)
+            // Use score as primary sort key, tie-break with lower cost
             let priority = (score, u32::MAX - connection_cost, *tile_pos);
 
             best_target = match best_target {
