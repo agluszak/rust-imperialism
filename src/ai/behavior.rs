@@ -46,6 +46,18 @@ const MAX_DEPOT_PENALTY: f32 = 0.44;
 const PRIORITY_DISTANCE_WEIGHT: u32 = 2;
 const PRIORITY_OUTPUT_SCALE: u32 = 10;
 
+// Game phase thresholds for adaptive AI behavior
+const EARLY_GAME_TURN_THRESHOLD: u32 = 30;
+const MID_GAME_TURN_THRESHOLD: u32 = 60;
+
+// Task priority scores by game phase
+const RAIL_PRIORITY_EARLY: f32 = 0.96;
+const RAIL_PRIORITY_MID: f32 = 0.95;
+const RAIL_PRIORITY_LATE: f32 = 0.93;
+const IMPROVEMENT_PRIORITY_EARLY: f32 = 0.88;
+const IMPROVEMENT_PRIORITY_MID: f32 = 0.90;
+const IMPROVEMENT_PRIORITY_LATE: f32 = 0.92;
+
 /// Registers Big Brain and the systems that drive simple AI-controlled civilians.
 pub struct AiBehaviorPlugin;
 
@@ -662,15 +674,13 @@ fn has_rail_target_scorer(
             Some(RailDecision::Build(target)) => {
                 cache.rail = Some(CivilianOrderKind::BuildRail { to: target });
                 cache.movement = None;
-                // Early game (turns 1-30): High priority for rail building
-                // Mid-game (turns 31-60): Balanced priority
-                // Late game (turns 61+): Lower priority, focus on production
-                let base_score = if turn.current <= 30 {
-                    0.96  // Very high priority early
-                } else if turn.current <= 60 {
-                    0.95  // High priority mid-game
+                // Adjust rail priority based on game phase
+                let base_score = if turn.current <= EARLY_GAME_TURN_THRESHOLD {
+                    RAIL_PRIORITY_EARLY
+                } else if turn.current <= MID_GAME_TURN_THRESHOLD {
+                    RAIL_PRIORITY_MID
                 } else {
-                    0.93  // Still important but allow other tasks
+                    RAIL_PRIORITY_LATE
                 };
                 score.set(base_score);
             }
@@ -764,14 +774,13 @@ fn has_improvement_target_scorer(
         };
 
         let has_target = cache.improvement.is_some();
-        // Late game: Higher priority for improvements (resource development)
-        // Early/mid game: Lower priority (infrastructure first)
-        let base_score = if turn.current <= 30 {
-            0.88  // Lower priority early game
-        } else if turn.current <= 60 {
-            0.90  // Balanced mid-game
+        // Adjust improvement priority based on game phase
+        let base_score = if turn.current <= EARLY_GAME_TURN_THRESHOLD {
+            IMPROVEMENT_PRIORITY_EARLY
+        } else if turn.current <= MID_GAME_TURN_THRESHOLD {
+            IMPROVEMENT_PRIORITY_MID
         } else {
-            0.92  // Higher priority late game
+            IMPROVEMENT_PRIORITY_LATE
         };
         score.set(if has_target { base_score } else { 0.0 });
     }
@@ -1509,6 +1518,27 @@ fn select_prospecting_target(
     best_target.map(|(_, pos)| CivilianOrderKind::Prospect { to: pos })
 }
 
+/// Calculates improvement priority score for a resource tile.
+/// Lower scores indicate higher priority (better targets).
+///
+/// The score considers:
+/// - Distance from capital (closer is better)
+/// - Base resource output (higher output is better)
+/// - Development potential (more room for improvement is better)
+fn calculate_improvement_priority(
+    distance: u32,
+    resource: &TileResource,
+) -> u32 {
+    let base_output = resource.get_output();
+    let potential_gain = (DevelopmentLevel::Lv3 as u32) - (resource.development as u32);
+    
+    // Formula: distance_penalty + output_penalty - development_bonus
+    // Using saturating arithmetic to prevent underflow
+    (distance * PRIORITY_DISTANCE_WEIGHT)
+        .saturating_add(PRIORITY_OUTPUT_SCALE.saturating_sub(base_output.min(PRIORITY_OUTPUT_SCALE)))
+        .saturating_sub(potential_gain)
+}
+
 fn select_improvement_target(
     civilian: &Civilian,
     storage: &TileStorage,
@@ -1563,17 +1593,7 @@ fn select_improvement_target(
             }
 
             let distance = capital_hex.distance_to(tile_pos.to_hex()) as u32;
-            
-            // Calculate priority score: lower is better
-            // Consider: resource output potential, distance, and current development
-            let base_output = resource.get_output();
-            let potential_gain = (DevelopmentLevel::Lv3 as u32) - (resource.development as u32);
-            // Resources with higher base output and more room for improvement are prioritized
-            // Distance penalty: each tile away reduces priority
-            // Use saturating_sub to ensure we never go negative
-            let priority_score = (distance * PRIORITY_DISTANCE_WEIGHT) 
-                .saturating_add(PRIORITY_OUTPUT_SCALE.saturating_sub(base_output.min(PRIORITY_OUTPUT_SCALE)))
-                .saturating_sub(potential_gain);
+            let priority_score = calculate_improvement_priority(distance, resource);
 
             if distance == 0 {
                 capital_candidate = match capital_candidate {
