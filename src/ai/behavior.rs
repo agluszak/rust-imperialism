@@ -38,6 +38,14 @@ use crate::ui::mode::GameMode;
 
 pub(crate) const RNG_BASE_SEED: u64 = 0xA1_51_23_45;
 
+// AI scoring and priority constants
+const DEPOT_VALUE_SCORE: u32 = 10;
+const DEPOT_BASE_PRIORITY: f32 = 0.94;
+const DEPOT_PENALTY_PER_UNCONNECTED: f32 = 0.1;
+const MAX_DEPOT_PENALTY: f32 = 0.44;
+const PRIORITY_DISTANCE_WEIGHT: u32 = 2;
+const PRIORITY_OUTPUT_SCALE: u32 = 10;
+
 /// Registers Big Brain and the systems that drive simple AI-controlled civilians.
 pub struct AiBehaviorPlugin;
 
@@ -1146,7 +1154,7 @@ fn plan_rail_connection(
                 provinces,
                 terrain_types,
                 nation_techs,
-            ) else {
+            } else {
                 continue;
             };
 
@@ -1155,7 +1163,7 @@ fn plan_rail_connection(
             // Calculate resource value for this target to prioritize high-value connections
             let resource_value = if has_depot {
                 // Depots are valuable - worth connecting
-                10u32
+                DEPOT_VALUE_SCORE
             } else {
                 resource.get_output() * (resource.development as u32 + 1)
             };
@@ -1562,7 +1570,9 @@ fn select_improvement_target(
             let potential_gain = (DevelopmentLevel::Lv3 as u32) - (resource.development as u32);
             // Resources with higher base output and more room for improvement are prioritized
             // Distance penalty: each tile away reduces priority
-            let priority_score = (distance * 2) + (10 - base_output.min(10)) - potential_gain;
+            let priority_score = (distance * PRIORITY_DISTANCE_WEIGHT) 
+                + (PRIORITY_OUTPUT_SCALE - base_output.min(PRIORITY_OUTPUT_SCALE)) 
+                - potential_gain;
 
             if distance == 0 {
                 capital_candidate = match capital_candidate {
@@ -1704,9 +1714,9 @@ fn has_depot_target_scorer(
                 cache.movement = None;
                 
                 // Reduce priority when unconnected depots exist, but don't block entirely
-                // Base score: 0.94, reduced by 0.1 per unconnected depot (min 0.5)
-                let priority_penalty = (unconnected_depot_count as f32 * 0.1).min(0.44);
-                score.set(0.94 - priority_penalty);
+                let priority_penalty = (unconnected_depot_count as f32 * DEPOT_PENALTY_PER_UNCONNECTED)
+                    .min(MAX_DEPOT_PENALTY);
+                score.set(DEPOT_BASE_PRIORITY - priority_penalty);
             } else {
                 cache.movement = Some(CivilianOrderKind::Move { to: target });
                 score.set(0.0);
@@ -3261,13 +3271,17 @@ mod tests {
         // Run system
         schedule.run(&mut world);
 
-        // Check score - should be reduced (0.84) due to one unconnected depot
-        // Base: 0.94, penalty: 0.1 for 1 unconnected depot = 0.84
+        // Check score - should be reduced due to one unconnected depot
+        // Using constants from production code
+        let expected_score = DEPOT_BASE_PRIORITY - DEPOT_PENALTY_PER_UNCONNECTED;
         let score = world.get::<Score>(engineer_entity).unwrap();
         assert_eq!(
             score.get(),
-            0.84,
-            "Score should be 0.84 (0.94 base - 0.1 penalty) due to existing unconnected depot"
+            expected_score,
+            "Score should be {} (base {} - penalty {}) due to existing unconnected depot",
+            expected_score,
+            DEPOT_BASE_PRIORITY,
+            DEPOT_PENALTY_PER_UNCONNECTED
         );
     }
 }
