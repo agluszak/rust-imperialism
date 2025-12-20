@@ -711,14 +711,37 @@ fn has_improvement_target_scorer(
             continue;
         };
 
-        cache.improvement = select_improvement_target(
-            civilian,
-            storage,
-            &provinces,
-            &capitals,
-            &tile_resources,
-            prospecting_knowledge,
-        );
+        // Prospectors should prioritize prospecting undiscovered minerals
+        cache.improvement = if civilian.kind == CivilianKind::Prospector {
+            select_prospecting_target(
+                civilian,
+                storage,
+                &provinces,
+                &capitals,
+                &tile_resources,
+                prospecting_knowledge,
+            )
+            .or_else(|| {
+                // If no prospecting targets, fall back to improvement
+                select_improvement_target(
+                    civilian,
+                    storage,
+                    &provinces,
+                    &capitals,
+                    &tile_resources,
+                    prospecting_knowledge,
+                )
+            })
+        } else {
+            select_improvement_target(
+                civilian,
+                storage,
+                &provinces,
+                &capitals,
+                &tile_resources,
+                prospecting_knowledge,
+            )
+        };
 
         let has_target = cache.improvement.is_some();
         score.set(if has_target { 0.9 } else { 0.0 });
@@ -1395,6 +1418,66 @@ fn compute_owned_bfs(
     }
 
     OwnedBfs { parents, distances }
+}
+
+/// Selects prospecting targets for Prospectors, prioritizing unexplored mineral-bearing terrain
+fn select_prospecting_target(
+    civilian: &Civilian,
+    storage: &TileStorage,
+    provinces: &Query<&Province>,
+    capitals: &Query<&Capital>,
+    tile_resources: &Query<&TileResource>,
+    prospecting_knowledge: Option<&ProspectingKnowledge>,
+) -> Option<CivilianOrderKind> {
+    if civilian.kind != CivilianKind::Prospector {
+        return None;
+    }
+    
+    let capital_pos = capitals.get(civilian.owner).ok()?.0;
+    let capital_hex = capital_pos.to_hex();
+    let mut best_target: Option<(u32, TilePos)> = None;
+    
+    for province in provinces.iter() {
+        if province.owner != Some(civilian.owner) {
+            continue;
+        }
+        
+        for tile_pos in &province.tiles {
+            let Some(tile_entity) = storage.get(tile_pos) else {
+                continue;
+            };
+            
+            let Ok(resource) = tile_resources.get(tile_entity) else {
+                continue;
+            };
+            
+            // Skip if this tile doesn't need prospecting or is already prospected
+            if !resource.requires_prospecting() {
+                continue;
+            }
+            
+            if prospecting_knowledge
+                .map(|k| k.is_discovered_by(tile_entity, civilian.owner))
+                .unwrap_or(false)
+            {
+                continue;
+            }
+            
+            // This is an unprospected mineral tile - calculate priority
+            let distance = capital_hex.distance_to(tile_pos.to_hex()) as u32;
+            
+            // Prioritize closer tiles for prospecting
+            let priority = distance;
+            
+            best_target = match best_target {
+                Some((best_priority, _)) if priority < best_priority => Some((priority, *tile_pos)),
+                None => Some((priority, *tile_pos)),
+                other => other,
+            };
+        }
+    }
+    
+    best_target.map(|(_, pos)| CivilianOrderKind::Prospect { to: pos })
 }
 
 fn select_improvement_target(
