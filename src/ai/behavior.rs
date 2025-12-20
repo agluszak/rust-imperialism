@@ -594,6 +594,7 @@ fn has_rail_target_scorer(
     nation_technologies: Query<&Technologies>,
     depots: Query<&Depot>,
     rails: Res<Rails>,
+    turn: Res<TurnCounter>,
     mut scores: Query<(&Actor, &mut Score, &ScorerSpan), With<HasRailTarget>>,
 ) {
     let tile_data = tile_storage_query.iter().next();
@@ -653,7 +654,17 @@ fn has_rail_target_scorer(
             Some(RailDecision::Build(target)) => {
                 cache.rail = Some(CivilianOrderKind::BuildRail { to: target });
                 cache.movement = None;
-                score.set(0.95);
+                // Early game (turns 1-30): High priority for rail building
+                // Mid-game (turns 31-60): Balanced priority
+                // Late game (turns 61+): Lower priority, focus on production
+                let base_score = if turn.current <= 30 {
+                    0.96  // Very high priority early
+                } else if turn.current <= 60 {
+                    0.95  // High priority mid-game
+                } else {
+                    0.93  // Still important but allow other tasks
+                };
+                score.set(base_score);
             }
             Some(RailDecision::Move(target)) => {
                 cache.movement = Some(CivilianOrderKind::Move { to: target });
@@ -674,6 +685,7 @@ fn has_improvement_target_scorer(
     capitals: Query<&Capital>,
     tile_resources: Query<&TileResource>,
     prospecting_knowledge: Option<Res<ProspectingKnowledge>>,
+    turn: Res<TurnCounter>,
     mut scores: Query<(&Actor, &mut Score, &ScorerSpan), With<HasImprovementTarget>>,
 ) {
     let tile_storage = tile_storage_query.iter().next();
@@ -744,7 +756,16 @@ fn has_improvement_target_scorer(
         };
 
         let has_target = cache.improvement.is_some();
-        score.set(if has_target { 0.9 } else { 0.0 });
+        // Late game: Higher priority for improvements (resource development)
+        // Early/mid game: Lower priority (infrastructure first)
+        let base_score = if turn.current <= 30 {
+            0.88  // Lower priority early game
+        } else if turn.current <= 60 {
+            0.90  // Balanced mid-game
+        } else {
+            0.92  // Higher priority late game
+        };
+        score.set(if has_target { base_score } else { 0.0 });
     }
 }
 
