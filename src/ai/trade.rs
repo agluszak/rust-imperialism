@@ -21,14 +21,16 @@ const BUY_SHORTAGE_THRESHOLD: u32 = 12;
 const SELL_RESERVE: u32 = 8;
 /// Maximum units to sell per good per turn
 const SELL_MAX_PER_GOOD: u32 = 8;
-const AI_CIVILIAN_MAX_HIRES_PER_TURN: usize = 1;
+/// Maximum civilian hires per turn (increased to allow faster expansion)
+const AI_CIVILIAN_MAX_HIRES_PER_TURN: usize = 2;
+/// Target civilian counts by type (increased for more active economy)
 const AI_CIVILIAN_TARGETS: &[(CivilianKind, u32)] = &[
-    (CivilianKind::Engineer, 2),
-    (CivilianKind::Prospector, 2),
-    (CivilianKind::Farmer, 2),
-    (CivilianKind::Miner, 2),
-    (CivilianKind::Rancher, 1),
-    (CivilianKind::Forester, 1),
+    (CivilianKind::Engineer, 4),     // Increased for faster rail building
+    (CivilianKind::Prospector, 2),   // Keep same, not many minerals
+    (CivilianKind::Farmer, 3),       // Increased for food production
+    (CivilianKind::Miner, 3),        // Increased for mineral extraction
+    (CivilianKind::Rancher, 2),      // Increased for livestock
+    (CivilianKind::Forester, 2),     // Increased for timber
 ];
 
 const PRODUCTION_PRIORITIES: &[(Good, u32)] = &[
@@ -397,8 +399,32 @@ fn evaluate_production_plan(
     allocations: &Allocations,
 ) -> Vec<AdjustProduction> {
     let mut plans = Vec::new();
+    
+    // Build urgency-sorted list of production needs
+    let mut production_needs: Vec<(Good, u32, u32, f32)> = Vec::new(); // (good, desired, available, urgency)
 
     for &(good, desired_stock) in PRODUCTION_PRIORITIES {
+        let available = stockpile.get_available(good);
+        let shortage = desired_stock.saturating_sub(available);
+        
+        if shortage == 0 {
+            continue;
+        }
+        
+        // Calculate urgency: 1.0 = critically low, 0.0 = at target
+        let urgency = if desired_stock > 0 {
+            1.0 - (available as f32 / desired_stock as f32).min(1.0)
+        } else {
+            0.0
+        };
+        
+        production_needs.push((good, desired_stock, available, urgency));
+    }
+    
+    // Sort by urgency (highest first)
+    production_needs.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal));
+
+    for (good, desired_stock, available, _urgency) in production_needs {
         let Some(kind) = building_for_good(good) else {
             continue;
         };
@@ -406,7 +432,6 @@ fn evaluate_production_plan(
             continue;
         };
 
-        let available = stockpile.get_available(good);
         let current = allocations.production_count(nation_entity, good) as u32;
         let shortage = desired_stock.saturating_sub(available);
         let target = shortage.min(building.capacity);

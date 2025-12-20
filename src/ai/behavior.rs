@@ -1063,7 +1063,13 @@ fn plan_rail_connection(
         provinces,
     );
 
-    let mut best: Option<(RailDecision, (u32, u32, u8, u32))> = None;
+    // Priority tuple: (ResourceValue, PathLen, NetworkProximity, ActionType, Distance)
+    // ResourceValue: Higher is better (inverted to sort correctly)
+    // PathLen: Shorter paths preferred
+    // NetworkProximity: Closer to network preferred (inverted step_index)
+    // ActionType: 0=Build, 1=Move (Build preferred when at location)
+    // Distance: Closer movement preferred
+    let mut best: Option<(RailDecision, (u32, u32, u32, u8, u32))> = None;
 
     for province in provinces.iter() {
         if province.owner != Some(civilian.owner) {
@@ -1091,6 +1097,15 @@ fn plan_rail_connection(
             if connected.contains(tile_pos) {
                 continue;
             }
+            
+            // Calculate resource value: depots are high value, then by resource output
+            let resource_value = if has_depot {
+                1000 // Depots are very valuable (collect from multiple tiles)
+            } else {
+                // Higher development level = more output = higher value
+                let base_output = resource.get_output() as u32;
+                base_output * 100 // Scale to make it significant in priority
+            };
 
             let Some(path) = shortest_path_to_connected(
                 *tile_pos,
@@ -1107,6 +1122,8 @@ fn plan_rail_connection(
             };
 
             let path_len = path.len() as u32;
+            // Invert resource_value so higher values have lower (better) priority
+            let resource_priority = u32::MAX - resource_value;
 
             for (index, window) in path.windows(2).enumerate() {
                 let from = window[0];
@@ -1119,11 +1136,9 @@ fn plan_rail_connection(
                 let step_index = index as u32;
 
                 if civilian.position == from {
-                    // Priority: (PathLen, NetworkProximity, ActionType, Distance)
-                    // ActionType: 0=Build, 1=Move.
-                    // We prefer building on GOOD edges (High NetworkProx) over Move.
-                    // But we prefer Moving to GOOD edge over Building on BAD edge.
-                    let priority = (path_len, u32::MAX - step_index, 0, 0);
+                    // Priority: (ResourceValue, PathLen, NetworkProximity, ActionType, Distance)
+                    // Lower values are better. Resource value already inverted above.
+                    let priority = (resource_priority, path_len, u32::MAX - step_index, 0, 0);
                     let decision = RailDecision::Build(to);
                     if best.as_ref().map(|(_, p)| priority < *p).unwrap_or(true) {
                         best = Some((decision, priority));
@@ -1132,7 +1147,7 @@ fn plan_rail_connection(
                 }
 
                 if civilian.position == to {
-                    let priority = (path_len, u32::MAX - step_index, 0, 0);
+                    let priority = (resource_priority, path_len, u32::MAX - step_index, 0, 0);
                     let decision = RailDecision::Build(from);
                     if best.as_ref().map(|(_, p)| priority < *p).unwrap_or(true) {
                         best = Some((decision, priority));
@@ -1164,12 +1179,8 @@ fn plan_rail_connection(
                     continue;
                 };
 
-                // Move priority:
-                // 1. Path Length (Prioritize shorter paths)
-                // 2. Network Proximity (Prioritize segments connected to network)
-                // 3. Action type (1 = Move)
-                // 4. Travel Distance (Prioritize closer segments if all else equal)
-                let priority = (path_len, u32::MAX - step_index, 1, distance);
+                // Move priority includes resource value
+                let priority = (resource_priority, path_len, u32::MAX - step_index, 1, distance);
                 let decision = RailDecision::Move(step);
 
                 if best.as_ref().map(|(_, p)| priority < *p).unwrap_or(true) {
@@ -1575,15 +1586,23 @@ fn has_depot_target_scorer(
             &depots,
             &distance_map,
         ) {
-            // Check if there are any unconnected depots first.
-            // Reliance on Depot.connected component can be buggy if connectivity system lags.
-            // Check against connected_tiles set which is ground truth for this frame.
-            let has_unconnected_depots = depots
+            // Check if there are nearby unconnected depots that this engineer could help connect.
+            // Only block depot building if an unconnected depot is within reasonable distance.
+            // This prevents blocking all depot construction when an unreachable depot exists.
+            const MAX_PRIORITY_DISTANCE: u32 = 15;
+            let engineer_hex = civilian.position.to_hex();
+            
+            let has_nearby_unconnected_depot = depots
                 .iter()
-                .any(|d| d.owner == civilian.owner && !connected_tiles.contains(&d.position));
+                .filter(|d| d.owner == civilian.owner && !connected_tiles.contains(&d.position))
+                .any(|d| {
+                    let depot_hex = d.position.to_hex();
+                    let distance = engineer_hex.distance_to(depot_hex) as u32;
+                    distance <= MAX_PRIORITY_DISTANCE
+                });
 
-            if has_unconnected_depots {
-                // strict block: prioritize connecting existing infrastructure
+            if has_nearby_unconnected_depot {
+                // Prioritize connecting nearby unconnected depots over building new ones
                 score.set(0.0);
                 continue;
             }
@@ -2910,7 +2929,7 @@ mod tests {
         }
     }
     #[test]
-    fn cannot_build_depot_if_unconnected_depots_exist() {
+    fn cannot_build_depot_if_nearby_unconnected_depots_exist() {
         use crate::ai::behavior::{AiOrderCache, HasDepotTarget, has_depot_target_scorer};
         use bevy::ecs::schedule::Schedule;
         use big_brain::prelude::{Actor, Score};
@@ -2919,7 +2938,7 @@ mod tests {
         world.insert_resource(Rails::default());
 
         let capital_pos = TilePos { x: 1, y: 1 };
-        let unconnected_depot_pos = TilePos { x: 5, y: 5 };
+        let unconnected_depot_pos = TilePos { x: 5, y: 5 };  // Distance ~6 in hex
         let valid_depot_pos = TilePos { x: 10, y: 10 };
 
         let province_id = ProvinceId(1);
@@ -2942,7 +2961,7 @@ mod tests {
             .id();
         storage.set(&capital_pos, capital_tile);
 
-        // An existing, unconnected depot
+        // An existing, unconnected depot that's close enough to block
         let depot_tile = world
             .spawn((
                 TileProvince { province_id },
@@ -3017,11 +3036,142 @@ mod tests {
         // Check score
         let score = world.get::<Score>(engineer_entity).unwrap();
 
-        // Should be 0.0 because of the unconnected depot
+        // Should be 0.0 because of the nearby unconnected depot (within MAX_PRIORITY_DISTANCE)
         assert_eq!(
             score.get(),
             0.0,
-            "Score should be 0.0 due to existing unconnected depot"
+            "Score should be 0.0 due to nearby unconnected depot that should be connected first"
+        );
+    }
+    
+    #[test]
+    fn can_build_depot_if_unconnected_depots_are_far_away() {
+        use crate::ai::behavior::{AiOrderCache, HasDepotTarget, has_depot_target_scorer};
+        use bevy::ecs::schedule::Schedule;
+        use big_brain::prelude::{Actor, Score};
+
+        let mut world = World::new();
+        world.insert_resource(Rails::default());
+
+        let capital_pos = TilePos { x: 1, y: 1 };
+        let far_unconnected_depot_pos = TilePos { x: 50, y: 50 };  // Very far away (>15 distance)
+        let valid_depot_pos = TilePos { x: 3, y: 3 };  // Close to engineer
+
+        let province_id = ProvinceId(1);
+
+        let ai_nation = world
+            .spawn((AiNation(NationId(10)), NationId(10), Capital(capital_pos)))
+            .id();
+
+        let mut storage = TileStorage::empty(TilemapSize { x: 60, y: 60 });
+
+        let capital_tile = world
+            .spawn((
+                TileProvince { province_id },
+                TileResource {
+                    resource_type: ResourceType::Grain,
+                    development: DevelopmentLevel::Lv1,
+                    discovered: true,
+                },
+            ))
+            .id();
+        storage.set(&capital_pos, capital_tile);
+
+        // An existing, unconnected depot that's far away (should not block)
+        let far_depot_tile = world
+            .spawn((
+                TileProvince { province_id },
+                TileResource {
+                    resource_type: ResourceType::Coal,
+                    development: DevelopmentLevel::Lv0,
+                    discovered: true,
+                },
+            ))
+            .id();
+        storage.set(&far_unconnected_depot_pos, far_depot_tile);
+
+        world.spawn(Depot {
+            position: far_unconnected_depot_pos,
+            owner: ai_nation,
+            connected: false,
+        });
+
+        // A potential new depot spot with good resources
+        let potential_tile = world
+            .spawn((
+                TileProvince { province_id },
+                TileResource {
+                    resource_type: ResourceType::Iron,
+                    development: DevelopmentLevel::Lv2,
+                    discovered: true,
+                },
+            ))
+            .id();
+        storage.set(&valid_depot_pos, potential_tile);
+
+        // Add neighboring resource tiles to make depot attractive
+        for (dx, dy) in [(1, 0), (0, 1), (-1, 0), (0, -1)].iter() {
+            let neighbor_pos = TilePos {
+                x: (valid_depot_pos.x as i32 + dx) as u32,
+                y: (valid_depot_pos.y as i32 + dy) as u32,
+            };
+            let neighbor_tile = world
+                .spawn((
+                    TileProvince { province_id },
+                    TileResource {
+                        resource_type: ResourceType::Iron,
+                        development: DevelopmentLevel::Lv1,
+                        discovered: true,
+                    },
+                ))
+                .id();
+            storage.set(&neighbor_pos, neighbor_tile);
+        }
+
+        world.spawn(Province {
+            id: province_id,
+            tiles: vec![capital_pos, far_unconnected_depot_pos, valid_depot_pos],
+            city_tile: capital_pos,
+            owner: Some(ai_nation),
+        });
+
+        // Engineer at the potential spot, ready to build
+        let engineer_entity = world
+            .spawn((
+                Civilian {
+                    kind: CivilianKind::Engineer,
+                    position: valid_depot_pos,
+                    owner: ai_nation,
+                    owner_id: NationId(10),
+                    selected: false,
+                    has_moved: false,
+                },
+                Actor(Entity::PLACEHOLDER),
+                Score::default(),
+                HasDepotTarget,
+            ))
+            .id();
+
+        world
+            .entity_mut(engineer_entity)
+            .insert(AiOrderCache::default());
+
+        world
+            .entity_mut(engineer_entity)
+            .insert(Actor(engineer_entity));
+
+        let mut schedule = Schedule::default();
+        schedule.add_systems(has_depot_target_scorer);
+
+        schedule.run(&mut world);
+
+        let score = world.get::<Score>(engineer_entity).unwrap();
+
+        // Should be > 0 because the unconnected depot is too far to matter
+        assert!(
+            score.get() > 0.0,
+            "Score should be > 0 because far unconnected depot shouldn't block new depot construction. Got: {}",
+            score.get()
         );
     }
 }
