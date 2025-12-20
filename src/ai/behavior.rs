@@ -3298,14 +3298,10 @@ mod tests {
         // Using constants from production code
         let expected_score = DEPOT_BASE_PRIORITY - DEPOT_PENALTY_PER_UNCONNECTED;
         let score = world.get::<Score>(engineer_entity).unwrap();
-        assert_eq!(
-            score.get(),
-            expected_score,
-            "{}",
-            format!(
-                "Score should be {} (base {} - penalty {}) due to existing unconnected depot",
-                expected_score, DEPOT_BASE_PRIORITY, DEPOT_PENALTY_PER_UNCONNECTED
-            )
+        let message = format!(
+            "Score should be {} (base {} - penalty {}) due to existing unconnected depot",
+            expected_score, DEPOT_BASE_PRIORITY, DEPOT_PENALTY_PER_UNCONNECTED
         );
+        assert_eq!(score.get(), expected_score, "{}", message);
     }
 }
