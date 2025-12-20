@@ -1570,9 +1570,10 @@ fn select_improvement_target(
             let potential_gain = (DevelopmentLevel::Lv3 as u32) - (resource.development as u32);
             // Resources with higher base output and more room for improvement are prioritized
             // Distance penalty: each tile away reduces priority
+            // Use saturating_sub to ensure we never go negative
             let priority_score = (distance * PRIORITY_DISTANCE_WEIGHT) 
-                + (PRIORITY_OUTPUT_SCALE - base_output.min(PRIORITY_OUTPUT_SCALE)) 
-                - potential_gain;
+                .saturating_add(PRIORITY_OUTPUT_SCALE.saturating_sub(base_output.min(PRIORITY_OUTPUT_SCALE)))
+                .saturating_sub(potential_gain);
 
             if distance == 0 {
                 capital_candidate = match capital_candidate {
