@@ -1595,6 +1595,8 @@ fn select_improvement_target(
             let distance = capital_hex.distance_to(tile_pos.to_hex()) as u32;
             let priority_score = calculate_improvement_priority(distance, resource);
 
+            // Special handling for capital tile (distance == 0)
+            // We track it separately to ensure it's always considered as a fallback
             if distance == 0 {
                 capital_candidate = match capital_candidate {
                     Some((best_score, best_pos)) => {
@@ -3299,10 +3301,11 @@ mod tests {
         assert_eq!(
             score.get(),
             expected_score,
-            "Score should be {} (base {} - penalty {}) due to existing unconnected depot",
-            expected_score,
-            DEPOT_BASE_PRIORITY,
-            DEPOT_PENALTY_PER_UNCONNECTED
+            "{}",
+            format!(
+                "Score should be {} (base {} - penalty {}) due to existing unconnected depot",
+                expected_score, DEPOT_BASE_PRIORITY, DEPOT_PENALTY_PER_UNCONNECTED
+            )
         );
     }
 }

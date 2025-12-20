@@ -22,6 +22,13 @@ const SELL_RESERVE: u32 = 8;
 /// Maximum units to sell per good per turn
 const SELL_MAX_PER_GOOD: u32 = 8;
 const AI_CIVILIAN_MAX_HIRES_PER_TURN: usize = 1;
+
+// Game phase thresholds for civilian hiring
+// Note: These differ from behavior.rs thresholds (30, 60) because civilian hiring
+// needs to be more aggressive in early game to bootstrap economy
+const CIVILIAN_HIRING_EARLY_THRESHOLD: u32 = 20;
+const CIVILIAN_HIRING_MID_THRESHOLD: u32 = 50;
+
 // Dynamic civilian targets that adapt to game state
 // Initial phase: focus on exploration and basic development
 const AI_CIVILIAN_TARGETS_EARLY: &[(CivilianKind, u32)] = &[
@@ -123,9 +130,10 @@ fn plan_ai_civilian_hiring(
         let nation_counts = counts.get(&nation.entity());
         
         // Select target distribution based on turn count
-        let targets = if turn.current <= 20 {
+        // Earlier thresholds than task priority to bootstrap economy faster
+        let targets = if turn.current <= CIVILIAN_HIRING_EARLY_THRESHOLD {
             AI_CIVILIAN_TARGETS_EARLY
-        } else if turn.current <= 50 {
+        } else if turn.current <= CIVILIAN_HIRING_MID_THRESHOLD {
             AI_CIVILIAN_TARGETS_MID
         } else {
             AI_CIVILIAN_TARGETS_LATE
