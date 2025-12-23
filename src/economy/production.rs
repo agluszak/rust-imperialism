@@ -1,3 +1,4 @@
+use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::iter;
@@ -58,8 +59,9 @@ impl ConnectedTileSource {
 }
 
 /// Calculates the total production from all resource tiles connected to the rail network.
-/// This system runs after `compute_rail_connectivity`.
+/// This system runs after `compute_rail_connectivity` and only when connectivity changes.
 pub fn calculate_connected_production(
+    connectivity_events: Option<MessageReader<crate::economy::transport::RecomputeConnectivity>>,
     mut production: ResMut<ConnectedProduction>,
     connected_depots: Query<&Depot>,
     connected_ports: Query<&Port>,
@@ -68,7 +70,15 @@ pub fn calculate_connected_production(
     tile_resources: Query<&TileResource>,
     prospecting_knowledge: Res<ProspectingKnowledge>,
 ) {
-    // Clear previous turn's data
+    // Only recompute when connectivity changed (or always in tests where message isn't registered)
+    if let Some(events) = connectivity_events
+        && events.is_empty()
+    {
+        return;
+    }
+    // Note: we don't consume the events here because compute_rail_connectivity already did
+
+    // Clear previous data
     production.totals.clear();
     production.tiles.clear();
 
