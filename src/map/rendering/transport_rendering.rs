@@ -332,7 +332,8 @@ fn render_shadow_rail(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     // Find selected Engineer
-    let selected_engineer = selected_civilian.0
+    let selected_engineer = selected_civilian
+        .0
         .and_then(|selected| civilians.iter().find(|(entity, _)| *entity == selected))
         .filter(|(_, c)| c.kind == CivilianKind::Engineer)
         .map(|(_, c)| c);

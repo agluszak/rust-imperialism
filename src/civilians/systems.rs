@@ -40,10 +40,10 @@ pub fn handle_deselect_key(
     keys: Option<Res<ButtonInput<KeyCode>>>,
     mut writer: MessageWriter<DeselectCivilian>,
 ) {
-    if let Some(keys) = keys {
-        if keys.just_pressed(KeyCode::Escape) {
-            writer.write(DeselectCivilian);
-        }
+    if let Some(keys) = keys
+        && keys.just_pressed(KeyCode::Escape)
+    {
+        writer.write(DeselectCivilian);
     }
 }
 

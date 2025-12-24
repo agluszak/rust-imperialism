@@ -2,9 +2,7 @@ use bevy::prelude::*;
 use bevy::ui::widget::Button as OldButton;
 use bevy::ui_widgets::{Activate, Button};
 
-use crate::civilians::commands::{
-    DeselectCivilian, RescindOrders, SelectCivilian,
-};
+use crate::civilians::commands::{DeselectCivilian, RescindOrders, SelectCivilian};
 use crate::civilians::types::{Civilian, CivilianOrderDefinition, PreviousPosition};
 use crate::messages::civilians::CivilianCommand;
 use crate::ui::button_style::*;

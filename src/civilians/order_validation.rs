@@ -221,7 +221,7 @@ mod tests {
             kind: CivilianKind::Prospector,
             position: tile_pos,
             owner: Entity::PLACEHOLDER,
-            
+
             has_moved: false,
         };
 

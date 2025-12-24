@@ -32,7 +32,9 @@ pub fn handle_tile_click(
     let Some(selected) = selected_civilian.0 else {
         return;
     };
-    let Some((civilian_entity, civilian)) = civilians.iter().find(|(entity, _)| *entity == selected) else {
+    let Some((civilian_entity, civilian)) =
+        civilians.iter().find(|(entity, _)| *entity == selected)
+    else {
         return;
     };
 

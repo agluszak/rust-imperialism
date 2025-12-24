@@ -299,12 +299,12 @@ pub(crate) fn remap_civilian_owners(
     // Since moonshine-save doesn't automatically remap entity references,
     // the civilian's owner field points to an old entity ID that no longer exists.
     // Without additional data, we can't know which nation this civilian belonged to.
-    
+
     // Workaround for tests: if there's exactly one nation and one civilian,
     // assign the civilian to that nation.
     let nation_count = nations.iter().count();
     let civilian_count = civilians.iter().count();
-    
+
     if nation_count == 1 && civilian_count == 1 {
         let (nation_entity, _) = nations.iter().next().unwrap();
         for mut civilian in civilians.iter_mut() {
@@ -328,8 +328,8 @@ mod tests {
     use bevy::ecs::reflect::ReflectMapEntities;
     use bevy::ecs::system::RunSystemOnce;
     use bevy::prelude::{
-        AppExtStates, AppTypeRegistry, Color, Commands, Component, Entity, MinimalPlugins,
-        Reflect, ReflectComponent, World,
+        AppExtStates, AppTypeRegistry, Color, Commands, Component, Entity, MinimalPlugins, Reflect,
+        ReflectComponent, World,
     };
     use bevy::scene::DynamicScene;
     use bevy::state::app::StatesPlugin;
@@ -499,7 +499,7 @@ mod tests {
 
         // Use EntityHashMap for entity mapping
         let mut entity_map = EntityHashMap::<Entity>::default();
-        
+
         scene
             .write_to_world(&mut dest, &mut entity_map)
             .expect("scene loads");
@@ -523,7 +523,10 @@ mod tests {
             .expect("owner spawned");
 
         let civilian = dest.query::<&Civilian>().single(&dest).unwrap();
-        assert_eq!(civilian.owner, new_owner, "MapEntities should have remapped owner field during scene deserialization");
+        assert_eq!(
+            civilian.owner, new_owner,
+            "MapEntities should have remapped owner field during scene deserialization"
+        );
     }
 
     #[test]
@@ -631,7 +634,7 @@ mod tests {
             kind: CivilianKind::Engineer,
             position: TilePos { x: 4, y: 9 },
             owner: nation_entity,
-            
+
             has_moved: false,
         });
 
@@ -680,7 +683,7 @@ mod tests {
             let mut nation_query =
                 world.query::<(Entity, &NationId, &Name, &Treasury, &Stockpile)>();
             let (nation_entity, _, name, treasury, stockpile) = nation_query
-                .iter(&world)
+                .iter(world)
                 .find(|(_, id, _, _, _)| id.0 == 7)
                 .expect("nation restored");
 
@@ -691,13 +694,13 @@ mod tests {
 
             let mut tech_query = world.query::<&Technologies>();
             let techs = tech_query
-                .get(&world, nation_entity)
+                .get(world, nation_entity)
                 .expect("technologies restored");
             assert!(techs.has(Technology::MountainEngineering));
 
             let mut civilian_query = world.query::<&Civilian>();
             let civilian = civilian_query
-                .iter(&world)
+                .iter(world)
                 .find(|civilian| civilian.owner == nation_entity)
                 .expect("civilian restored");
             assert_eq!(civilian.kind, CivilianKind::Engineer);

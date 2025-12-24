@@ -349,7 +349,9 @@ fn plan_engineer_depot_task(
             .iter()
             .min_by_key(|t| engineer_pos.to_hex().distance_to(t.to_hex()));
         if let Some(&connected_tile) = closest_connected {
-            return Some(CivilianTask::MoveTo { target: connected_tile });
+            return Some(CivilianTask::MoveTo {
+                target: connected_tile,
+            });
         }
     }
 
@@ -388,7 +390,9 @@ fn plan_engineer_rail_task(
             .iter()
             .min_by_key(|t| engineer_pos.to_hex().distance_to(t.to_hex()));
         if let Some(&connected_tile) = closest_connected {
-            return Some(CivilianTask::MoveTo { target: connected_tile });
+            return Some(CivilianTask::MoveTo {
+                target: connected_tile,
+            });
         }
     } else {
         // We're on connected tiles - move directly toward the depot
@@ -461,20 +465,20 @@ mod tests {
     #[test]
     fn test_engineer_moves_directly_to_connected_tile() {
         use std::collections::HashSet;
-        
+
         // Engineer is far from connected tiles, should move directly to closest one
         let engineer_pos = TilePos::new(10, 10);
         let connected_tile = TilePos::new(5, 5);
         let target = TilePos::new(8, 8);
-        
+
         let mut connected_tiles = HashSet::new();
         connected_tiles.insert(connected_tile);
-        
+
         let mut owned_tiles = HashSet::new();
         owned_tiles.insert(engineer_pos);
         owned_tiles.insert(connected_tile);
         owned_tiles.insert(target);
-        
+
         let snapshot = NationSnapshot {
             entity: Entity::PLACEHOLDER,
             id: crate::economy::nation::NationId(1),
@@ -489,9 +493,9 @@ mod tests {
             owned_tiles,
             depot_positions: HashSet::new(),
         };
-        
+
         let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);
-        
+
         // Should move directly to connected tile, not incremental step
         assert!(matches!(task, Some(CivilianTask::MoveTo { target: t }) if t == connected_tile));
     }
@@ -499,20 +503,20 @@ mod tests {
     #[test]
     fn test_engineer_builds_rail_when_on_connected_tile() {
         use std::collections::HashSet;
-        
+
         // Engineer is on a connected tile, should build rail toward target
         let engineer_pos = TilePos::new(5, 5);
         let target = TilePos::new(8, 8);
         let next_step = TilePos::new(6, 5); // Adjacent tile toward target
-        
+
         let mut connected_tiles = HashSet::new();
         connected_tiles.insert(engineer_pos);
-        
+
         let mut owned_tiles = HashSet::new();
         owned_tiles.insert(engineer_pos);
         owned_tiles.insert(next_step);
         owned_tiles.insert(target);
-        
+
         let snapshot = NationSnapshot {
             entity: Entity::PLACEHOLDER,
             id: crate::economy::nation::NationId(1),
@@ -527,9 +531,9 @@ mod tests {
             owned_tiles,
             depot_positions: HashSet::new(),
         };
-        
+
         let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);
-        
+
         // Should build rail to adjacent tile toward target
         assert!(matches!(task, Some(CivilianTask::BuildRailTo { target: t }) if t == next_step));
     }

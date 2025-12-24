@@ -110,7 +110,7 @@ fn test_ai_move_command_executes() {
             kind: CivilianKind::Engineer,
             position: start,
             owner: nation,
-            
+
             has_moved: false,
         })
         .id();
@@ -206,7 +206,7 @@ fn test_illegal_rail_command_rejected() {
             kind: CivilianKind::Engineer,
             position: start,
             owner: player,
-            
+
             has_moved: false,
         })
         .id();
@@ -240,7 +240,9 @@ fn test_illegal_rail_command_rejected() {
 /// Encapsulates the double-update pattern needed for state transitions
 fn transition_to_phase(app: &mut bevy::app::App, phase: rust_imperialism::turn_system::TurnPhase) {
     use bevy::prelude::NextState;
-    app.world_mut().resource_mut::<NextState<rust_imperialism::turn_system::TurnPhase>>().set(phase);
+    app.world_mut()
+        .resource_mut::<NextState<rust_imperialism::turn_system::TurnPhase>>()
+        .set(phase);
     app.update(); // Apply state transition
     app.update(); // Run systems in the new phase
 }
@@ -257,29 +259,27 @@ fn test_ai_resource_discovery_and_collection() {
     use rust_imperialism::ai::{AiControlledCivilian, AiNation};
     use rust_imperialism::civilians::{Civilian, CivilianKind};
     use rust_imperialism::economy::{
+        EconomyPlugin,
         nation::{Capital, NationId},
         stockpile::Stockpile,
         transport::Depot,
-        EconomyPlugin,
     };
     use rust_imperialism::map::{
         prospecting::{PotentialMineral, ProspectedMineral},
         province::{Province, ProvinceId, TileProvince},
     };
     use rust_imperialism::resources::{ResourceType, TileResource};
-    use rust_imperialism::turn_system::{
-        TurnPhase, TurnSystemPlugin,
-    };
+    use rust_imperialism::turn_system::{TurnPhase, TurnSystemPlugin};
     use rust_imperialism::ui::menu::AppState;
 
     // Create a headless app with minimal plugins
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, StatesPlugin));
-    
+
     // Initialize game states
     app.init_state::<TurnPhase>();
     app.insert_state(AppState::InGame);
-    
+
     // Add only the necessary game plugins (no rendering)
     app.add_plugins((
         TurnSystemPlugin,
@@ -300,7 +300,7 @@ fn test_ai_resource_discovery_and_collection() {
     // Create province for AI nation
     let province_id = ProvinceId(1);
     let mut province_tiles = vec![];
-    
+
     // Create tiles in a 5x5 area around capital
     for x in 3..8 {
         for y in 3..8 {
@@ -308,16 +308,16 @@ fn test_ai_resource_discovery_and_collection() {
             let tile_entity = app.world_mut().spawn(TileProvince { province_id }).id();
             tile_storage.set(&pos, tile_entity);
             province_tiles.push(pos);
-            
+
             // Add hidden mineral resources (only PotentialMineral, TileResource added after prospecting)
             if pos == coal_pos {
-                app.world_mut().entity_mut(tile_entity).insert(
-                    PotentialMineral::new(Some(ResourceType::Coal)),
-                );
+                app.world_mut()
+                    .entity_mut(tile_entity)
+                    .insert(PotentialMineral::new(Some(ResourceType::Coal)));
             } else if pos == iron_pos {
-                app.world_mut().entity_mut(tile_entity).insert(
-                    PotentialMineral::new(Some(ResourceType::Iron)),
-                );
+                app.world_mut()
+                    .entity_mut(tile_entity)
+                    .insert(PotentialMineral::new(Some(ResourceType::Iron)));
             }
         }
     }
@@ -352,7 +352,7 @@ fn test_ai_resource_discovery_and_collection() {
                 kind: CivilianKind::Prospector,
                 position: TilePos { x: 5, y: 6 }, // 1 tile from capital
                 owner: ai_nation,
-                
+
                 has_moved: false,
             },
             AiControlledCivilian,
@@ -366,7 +366,7 @@ fn test_ai_resource_discovery_and_collection() {
                 kind: CivilianKind::Miner,
                 position: TilePos { x: 6, y: 6 },
                 owner: ai_nation,
-                
+
                 has_moved: false,
             },
             AiControlledCivilian,
@@ -380,7 +380,7 @@ fn test_ai_resource_discovery_and_collection() {
                 kind: CivilianKind::Engineer,
                 position: TilePos { x: 4, y: 5 }, // Adjacent to capital
                 owner: ai_nation,
-                
+
                 has_moved: false,
             },
             AiControlledCivilian,
@@ -391,16 +391,28 @@ fn test_ai_resource_discovery_and_collection() {
     println!("Capital at: {:?}", capital_pos);
     println!("Coal at: {:?} (hidden)", coal_pos);
     println!("Iron at: {:?} (hidden)", iron_pos);
-    println!("Prospector at: {:?}", app.world().get::<Civilian>(prospector).unwrap().position);
-    println!("Miner at: {:?}", app.world().get::<Civilian>(miner).unwrap().position);
-    println!("Engineer at: {:?}", app.world().get::<Civilian>(engineer).unwrap().position);
-    
+    println!(
+        "Prospector at: {:?}",
+        app.world().get::<Civilian>(prospector).unwrap().position
+    );
+    println!(
+        "Miner at: {:?}",
+        app.world().get::<Civilian>(miner).unwrap().position
+    );
+    println!(
+        "Engineer at: {:?}",
+        app.world().get::<Civilian>(engineer).unwrap().position
+    );
+
     // Debug: Check AI nation and civilians are set up correctly
     println!("AI Nation ID: {:?}", ai_nation);
     let ai_marker = app.world().get::<AiNation>(ai_nation);
     println!("AI Nation has AiNation marker: {}", ai_marker.is_some());
     let prospector_ai = app.world().get::<AiControlledCivilian>(prospector);
-    println!("Prospector has AiControlledCivilian marker: {}", prospector_ai.is_some());
+    println!(
+        "Prospector has AiControlledCivilian marker: {}",
+        prospector_ai.is_some()
+    );
 
     // Run the game for multiple turns
     let max_turns = 30; // Increased to give more time
@@ -410,56 +422,68 @@ fn test_ai_resource_discovery_and_collection() {
     let mut resources_collected = false;
 
     for turn in 1..=max_turns {
-        println!("\n--- Turn {} (Phase: {:?}) ---", turn, app.world().resource::<State<TurnPhase>>().get());
-        
+        println!(
+            "\n--- Turn {} (Phase: {:?}) ---",
+            turn,
+            app.world().resource::<State<TurnPhase>>().get()
+        );
+
         // Manually transition through phases for better control
         // PlayerTurn phase
         app.update();
-        
+
         // Transition to Processing
         transition_to_phase(&mut app, TurnPhase::Processing);
         println!("Processing phase complete");
-        
-        // Transition to EnemyTurn  
+
+        // Transition to EnemyTurn
         transition_to_phase(&mut app, TurnPhase::EnemyTurn);
         println!("EnemyTurn phase complete");
-        
+
         // Transition back to PlayerTurn
         transition_to_phase(&mut app, TurnPhase::PlayerTurn);
-        println!("After manual transitions, phase: {:?}", app.world().resource::<State<TurnPhase>>().get());
-        
+        println!(
+            "After manual transitions, phase: {:?}",
+            app.world().resource::<State<TurnPhase>>().get()
+        );
+
         // Debug civilian positions periodically
-        if turn % 5 == 0 {
-            if let Some(civ) = app.world().get::<Civilian>(prospector) {
-                println!("  Prospector now at: {:?}", civ.position);
-            }
+        if turn % 5 == 0
+            && let Some(civ) = app.world().get::<Civilian>(prospector)
+        {
+            println!("  Prospector now at: {:?}", civ.position);
         }
 
         // Check for discovered resources and mines
-        let (discovered, mine_developed) = app.world_mut().run_system_once(
-            move |tile_storage_q: Query<&TileStorage>,
-             prospected: Query<&ProspectedMineral>,
-             resources: Query<&TileResource>| {
-                let Some(tile_storage) = tile_storage_q.iter().next() else {
-                    return (false, false);
-                };
-                let mut discovered = false;
-                let mut developed = false;
-                
-                if let Some(coal_tile) = tile_storage.get(&coal_pos) {
-                    if prospected.get(coal_tile).is_ok() {
-                        discovered = true;
-                    }
-                    if let Ok(resource) = resources.get(coal_tile) {
-                        if resource.discovered && resource.development != rust_imperialism::resources::DevelopmentLevel::Lv0 {
+        let (discovered, mine_developed) = app
+            .world_mut()
+            .run_system_once(
+                move |tile_storage_q: Query<&TileStorage>,
+                      prospected: Query<&ProspectedMineral>,
+                      resources: Query<&TileResource>| {
+                    let Some(tile_storage) = tile_storage_q.iter().next() else {
+                        return (false, false);
+                    };
+                    let mut discovered = false;
+                    let mut developed = false;
+
+                    if let Some(coal_tile) = tile_storage.get(&coal_pos) {
+                        if prospected.get(coal_tile).is_ok() {
+                            discovered = true;
+                        }
+                        if let Ok(resource) = resources.get(coal_tile)
+                            && resource.discovered
+                            && resource.development
+                                != rust_imperialism::resources::DevelopmentLevel::Lv0
+                        {
                             developed = true;
                         }
                     }
-                }
-                (discovered, developed)
-            }
-        ).unwrap();
-        
+                    (discovered, developed)
+                },
+            )
+            .unwrap();
+
         if discovered && !resources_discovered {
             println!("✓ Resources discovered!");
             resources_discovered = true;
@@ -471,24 +495,32 @@ fn test_ai_resource_discovery_and_collection() {
         }
 
         // Check for depots
-        let depot_count = app.world_mut().run_system_once(
-            move |depots: Query<&Depot>| {
-                depots.iter().filter(|depot| depot.owner == ai_nation).count()
-            }
-        ).unwrap();
-        
+        let depot_count = app
+            .world_mut()
+            .run_system_once(move |depots: Query<&Depot>| {
+                depots
+                    .iter()
+                    .filter(|depot| depot.owner == ai_nation)
+                    .count()
+            })
+            .unwrap();
+
         if depot_count > 0 && !depot_built {
             println!("✓ Depot built!");
             depot_built = true;
         }
 
         // Check for connected depots
-        let connected_depots = app.world_mut().run_system_once(
-            move |depots: Query<&Depot>| {
-                depots.iter().filter(|depot| depot.owner == ai_nation && depot.connected).count()
-            }
-        ).unwrap();
-        
+        let connected_depots = app
+            .world_mut()
+            .run_system_once(move |depots: Query<&Depot>| {
+                depots
+                    .iter()
+                    .filter(|depot| depot.owner == ai_nation && depot.connected)
+                    .count()
+            })
+            .unwrap();
+
         if connected_depots > 0 {
             println!("✓ Depot connected to capital!");
         }
@@ -497,9 +529,12 @@ fn test_ai_resource_discovery_and_collection() {
         if let Some(stockpile) = app.world().get::<Stockpile>(ai_nation) {
             let coal_amount = stockpile.get(rust_imperialism::economy::goods::Good::Coal);
             let iron_amount = stockpile.get(rust_imperialism::economy::goods::Good::Iron);
-            
+
             if (coal_amount > 0 || iron_amount > 0) && !resources_collected {
-                println!("✓ Resources collected in stockpile! Coal: {}, Iron: {}", coal_amount, iron_amount);
+                println!(
+                    "✓ Resources collected in stockpile! Coal: {}, Iron: {}",
+                    coal_amount, iron_amount
+                );
                 resources_collected = true;
             }
         }
@@ -513,7 +548,7 @@ fn test_ai_resource_discovery_and_collection() {
 
     // Verify test objectives
     println!("\n=== Final State ===");
-    
+
     // At minimum, verify that resources were discovered
     assert!(
         resources_discovered,
@@ -530,12 +565,16 @@ fn test_ai_resource_discovery_and_collection() {
 
     // If depot was built and connected, verify it's connected
     if depot_built {
-        let connected_depots = app.world_mut().run_system_once(
-            move |depots: Query<&Depot>| {
-                depots.iter().filter(|depot| depot.owner == ai_nation && depot.connected).count()
-            }
-        ).unwrap();
-        
+        let connected_depots = app
+            .world_mut()
+            .run_system_once(move |depots: Query<&Depot>| {
+                depots
+                    .iter()
+                    .filter(|depot| depot.owner == ai_nation && depot.connected)
+                    .count()
+            })
+            .unwrap();
+
         if connected_depots > 0 {
             println!("✓ Depot is connected to capital via rails");
         }

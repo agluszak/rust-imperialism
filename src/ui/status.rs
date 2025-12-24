@@ -150,8 +150,11 @@ pub fn update_tile_info_display(
                     }
 
                     // If an engineer is selected, show buildability
-                    let selected_engineer = selected_civilian.0
-                        .and_then(|selected| civilians.iter().find(|(entity, _)| *entity == selected))
+                    let selected_engineer = selected_civilian
+                        .0
+                        .and_then(|selected| {
+                            civilians.iter().find(|(entity, _)| *entity == selected)
+                        })
                         .filter(|(_, c)| c.kind == CivilianKind::Engineer);
 
                     if selected_engineer.is_some()

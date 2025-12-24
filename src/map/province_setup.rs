@@ -255,7 +255,7 @@ pub fn assign_provinces_to_countries(
                 kind: *kind,
                 position: *pos,
                 owner: player_entity,
-                
+
                 has_moved: false,
             });
             info!("Spawned {:?} for player at ({}, {})", kind, pos.x, pos.y);
@@ -282,7 +282,7 @@ pub fn assign_provinces_to_countries(
                     kind: *kind,
                     position: *pos,
                     owner: nation_entity,
-                    
+
                     has_moved: false,
                 },
                 AiControlledCivilian,
@@ -578,7 +578,7 @@ mod tests {
         let mut ai_nation_query = world.query_filtered::<Entity, With<AiNation>>();
         let ai_nations: Vec<Entity> = ai_nation_query.iter(&world).collect();
         assert!(
-            ai_nations.len() >= 1,
+            !ai_nations.is_empty(),
             "expected at least one AI nation to be created"
         );
 
