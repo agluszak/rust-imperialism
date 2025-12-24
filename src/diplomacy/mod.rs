@@ -295,11 +295,8 @@ impl Plugin for DiplomacyPlugin {
             .init_resource::<DiplomacySelection>()
             .add_message::<DiplomaticOrder>();
 
-        // Sync diplomatic pairs every frame (runs in Update)
-        app.add_systems(
-            Update,
-            sync_diplomatic_pairs.run_if(in_state(AppState::InGame)),
-        );
+        // Sync diplomatic pairs once when game starts (nations are static after setup)
+        app.add_systems(OnEnter(AppState::InGame), sync_diplomatic_pairs);
 
         // Processing phase: execute diplomatic orders
         app.add_systems(
