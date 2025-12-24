@@ -200,7 +200,7 @@ pub fn execute_move_orders(
             // Simple movement: just set position (TODO: implement pathfinding)
             civilian.position = to;
             civilian.has_moved = true;
-            // Auto-deselect after moving (note: DeselectCivilian only works if a civilian is currently selected)
+            // Auto-deselect after moving (note: DeselectCivilian has no effect if no civilian is selected)
             deselect_writer.write(DeselectCivilian);
 
             // Add PreviousPosition and ActionTurn to allow rescinding

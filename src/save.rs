@@ -311,8 +311,9 @@ pub(crate) fn remap_civilian_owners(
             civilian.owner = nation_entity;
         }
     }
-    // For production use, we need persistent identifiers (e.g., CivilianId, stable NationId)
-    // to properly remap entity references across save/load.
+    // For production use, we need persistent identifiers (e.g., CivilianId) to properly
+    // remap entity references across save/load. While NationId exists, we need similar
+    // IDs for all entity types that reference each other.
     // See issue: https://github.com/agluszak/rust-imperialism/issues/XXX
 }
 
