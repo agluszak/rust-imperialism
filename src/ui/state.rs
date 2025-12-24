@@ -91,8 +91,10 @@ mod tests {
 
     #[test]
     fn test_turn_state_conversion() {
-        let mut turn_system = TurnSystem::default();
-        turn_system.phase = TurnPhase::Processing; // Manually set phase
+        let turn_system = TurnSystem {
+            phase: TurnPhase::Processing,
+            ..Default::default()
+        };
 
         let turn_state = TurnState::from(&turn_system);
         assert_eq!(turn_state.current_turn, 1);
