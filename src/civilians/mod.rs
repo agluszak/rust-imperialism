@@ -41,6 +41,8 @@ pub enum CivilianJobSet {
     Reset,
 }
 
+/// Core civilian gameplay plugin (logic, no rendering).
+/// Use this in headless tests.
 pub struct CivilianPlugin;
 
 impl Plugin for CivilianPlugin {
@@ -97,8 +99,6 @@ impl Plugin for CivilianPlugin {
                     engineering::execute_civilian_improvement_orders,
                     ui_components::update_civilian_orders_ui,
                     ui_components::update_rescind_orders_ui,
-                    rendering::render_civilian_visuals,
-                    rendering::update_civilian_visual_colors,
                 )
                     .chain()
                     .run_if(in_state(crate::ui::mode::GameMode::Map)),
@@ -124,6 +124,24 @@ impl Plugin for CivilianPlugin {
         app.add_systems(
             OnEnter(TurnPhase::PlayerTurn),
             jobs::reset_civilian_actions.in_set(CivilianJobSet::Reset),
+        );
+    }
+}
+
+/// Civilian rendering plugin (sprites and visual updates).
+/// Requires AssetServer and should not be added in headless tests.
+pub struct CivilianRenderingPlugin;
+
+impl Plugin for CivilianRenderingPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            Update,
+            (
+                rendering::render_civilian_visuals,
+                rendering::update_civilian_visual_colors,
+            )
+                .chain()
+                .run_if(in_state(crate::ui::mode::GameMode::Map)),
         );
     }
 }

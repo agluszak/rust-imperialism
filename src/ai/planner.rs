@@ -31,6 +31,8 @@ pub enum NationGoal {
         civilian_kind: CivilianKind,
         priority: f32,
     },
+    /// Prospect a tile for minerals.
+    ProspectTile { tile: TilePos, priority: f32 },
     /// Hire a new civilian.
     HireCivilian { kind: CivilianKind, priority: f32 },
 }
@@ -43,6 +45,7 @@ impl NationGoal {
             NationGoal::BuildDepotAt { priority, .. } => *priority,
             NationGoal::ConnectDepot { priority, .. } => *priority,
             NationGoal::ImproveTile { priority, .. } => *priority,
+            NationGoal::ProspectTile { priority, .. } => *priority,
             NationGoal::HireCivilian { priority, .. } => *priority,
         }
     }
@@ -67,6 +70,8 @@ pub enum CivilianTask {
     BuildDepot,
     /// Improve the tile at target position.
     ImproveTile { target: TilePos },
+    /// Prospect a tile for minerals.
+    ProspectTile { target: TilePos },
     /// Move toward a target tile.
     MoveTo { target: TilePos },
     /// Skip turn (no action).
@@ -96,6 +101,7 @@ pub fn plan_nation(nation: &NationSnapshot, snapshot: &AiSnapshot) -> NationPlan
     generate_market_goals(nation, snapshot, &mut plan.goals);
     generate_infrastructure_goals(nation, &mut plan.goals);
     generate_improvement_goals(nation, &mut plan.goals);
+    generate_prospecting_goals(nation, &mut plan.goals);
     generate_hiring_goals(nation, &mut plan.goals);
 
     // 2. Sort goals by priority (highest first)
@@ -224,6 +230,19 @@ fn generate_improvement_goals(nation: &NationSnapshot, goals: &mut Vec<NationGoa
     }
 }
 
+fn generate_prospecting_goals(nation: &NationSnapshot, goals: &mut Vec<NationGoal>) {
+    for tile in &nation.prospectable_tiles {
+        // Priority: closer tiles are higher priority, prospecting is important for resource discovery
+        let distance_factor = 1.0 / (1.0 + tile.distance_from_capital as f32 * 0.15);
+        let priority = distance_factor * 0.7; // High priority - finding resources is valuable
+
+        goals.push(NationGoal::ProspectTile {
+            tile: tile.position,
+            priority,
+        });
+    }
+}
+
 fn generate_hiring_goals(nation: &NationSnapshot, goals: &mut Vec<NationGoal>) {
     for &(kind, target) in CIVILIAN_TARGETS {
         let current = nation.civilian_count(kind);
@@ -280,7 +299,37 @@ fn assign_civilians_to_goals(
         }
     }
 
-    // Second pass: Improvement specialists
+    // Second pass: Prospectors for resource discovery
+    for civilian in nation.available_civilians() {
+        if tasks.contains_key(&civilian.entity) {
+            continue;
+        }
+
+        if civilian.kind != CivilianKind::Prospector {
+            continue;
+        }
+
+        for (i, goal) in goals.iter().enumerate() {
+            if assigned_goals.contains(&i) {
+                continue;
+            }
+
+            if let NationGoal::ProspectTile { tile, .. } = goal {
+                if civilian.position == *tile || is_adjacent(civilian.position, *tile) {
+                    tasks.insert(
+                        civilian.entity,
+                        CivilianTask::ProspectTile { target: *tile },
+                    );
+                } else {
+                    tasks.insert(civilian.entity, CivilianTask::MoveTo { target: *tile });
+                }
+                assigned_goals.insert(i);
+                break;
+            }
+        }
+    }
+
+    // Third pass: Improvement specialists
     for civilian in nation.available_civilians() {
         if tasks.contains_key(&civilian.entity) {
             continue;
@@ -492,6 +541,7 @@ mod tests {
             improvable_tiles: vec![],
             owned_tiles,
             depot_positions: HashSet::new(),
+            prospectable_tiles: vec![],
         };
 
         let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);
@@ -530,6 +580,7 @@ mod tests {
             improvable_tiles: vec![],
             owned_tiles,
             depot_positions: HashSet::new(),
+            prospectable_tiles: vec![],
         };
 
         let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);

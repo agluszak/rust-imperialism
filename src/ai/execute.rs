@@ -101,6 +101,7 @@ fn task_to_order(task: &CivilianTask) -> Option<CivilianOrderKind> {
             // Use the ImproveTile order - the civilian's kind determines improvement type
             Some(CivilianOrderKind::ImproveTile { to: *target })
         }
+        CivilianTask::ProspectTile { target } => Some(CivilianOrderKind::Prospect { to: *target }),
         CivilianTask::MoveTo { target } => Some(CivilianOrderKind::Move { to: *target }),
         CivilianTask::Idle => None, // Skip turn, no order needed
     }

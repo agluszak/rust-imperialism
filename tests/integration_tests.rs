@@ -249,14 +249,7 @@ fn transition_to_phase(app: &mut bevy::app::App, phase: rust_imperialism::turn_s
 
 /// Integration test: AI discovers resources, mines them, builds depot, and collects resources
 /// This test runs in headless mode with a manually created map
-///
-/// NOTE: This test currently fails because AI systems don't execute properly in the minimal
-/// test environment. The test infrastructure is correct (all required plugins and components
-/// are present), but the AI logic requires additional game state or systems that aren't yet
-/// identified. This test serves as documentation of the expected behavior and will pass once
-/// the AI implementation is complete.
 #[test]
-#[ignore = "AI execution not working in headless test environment yet"]
 fn test_ai_resource_discovery_and_collection() {
     use bevy::ecs::system::RunSystemOnce;
     use bevy::prelude::*;
@@ -271,6 +264,7 @@ fn test_ai_resource_discovery_and_collection() {
         nation::{Capital, NationHandle, NationId},
         stockpile::Stockpile,
         transport::Depot,
+        treasury::Treasury,
     };
     use rust_imperialism::map::{
         prospecting::{PotentialMineral, ProspectedMineral},
@@ -279,6 +273,7 @@ fn test_ai_resource_discovery_and_collection() {
     use rust_imperialism::resources::{ResourceType, TileResource};
     use rust_imperialism::turn_system::{TurnPhase, TurnSystemPlugin};
     use rust_imperialism::ui::menu::AppState;
+    use rust_imperialism::ui::mode::GameMode;
 
     // Create a headless app with minimal plugins
     let mut app = App::new();
@@ -287,6 +282,7 @@ fn test_ai_resource_discovery_and_collection() {
     // Initialize game states
     app.init_state::<TurnPhase>();
     app.insert_state(AppState::InGame);
+    app.add_sub_state::<GameMode>(); // Required for CivilianPlugin systems
 
     // Add only the necessary game plugins (no rendering)
     app.add_plugins((
@@ -341,6 +337,7 @@ fn test_ai_resource_discovery_and_collection() {
             NationId(1),
             Capital(capital_pos),
             Stockpile::default(),
+            Treasury::default(), // Required for build_ai_snapshot query
         ))
         .id();
 

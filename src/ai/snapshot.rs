@@ -15,6 +15,7 @@ use crate::economy::nation::{Capital, NationId};
 use crate::economy::stockpile::{Stockpile, StockpileEntry};
 use crate::economy::transport::{Depot, Rails};
 use crate::economy::treasury::Treasury;
+use crate::map::prospecting::PotentialMineral;
 use crate::map::province::Province;
 use crate::map::tile_pos::{HexExt, TilePosExt};
 use crate::resources::{DevelopmentLevel, TileResource};
@@ -50,6 +51,8 @@ pub struct NationSnapshot {
     pub improvable_tiles: Vec<ImprovableTile>,
     pub owned_tiles: HashSet<TilePos>,
     pub depot_positions: HashSet<TilePos>,
+    /// Tiles with potential minerals that haven't been prospected by this nation.
+    pub prospectable_tiles: Vec<ProspectableTile>,
 }
 
 impl NationSnapshot {
@@ -179,6 +182,13 @@ pub struct ImprovableTile {
     pub distance_from_capital: u32,
 }
 
+/// A tile with potential minerals that can be prospected.
+#[derive(Debug, Clone)]
+pub struct ProspectableTile {
+    pub position: TilePos,
+    pub distance_from_capital: u32,
+}
+
 /// Snapshot of market state.
 #[derive(Debug, Clone, Default)]
 pub struct MarketSnapshot {
@@ -214,6 +224,7 @@ pub fn build_ai_snapshot(
     provinces: Query<&Province>,
     tile_storage: Query<&TileStorage>,
     tile_resources: Query<&TileResource>,
+    potential_minerals: Query<&PotentialMineral>,
     prospecting: Option<Res<ProspectingKnowledge>>,
 ) {
     snapshot.turn = turn.current;
@@ -318,6 +329,29 @@ pub fn build_ai_snapshot(
         }
         improvable_tiles.sort_by_key(|t| (t.distance_from_capital, t.development as u8));
 
+        // Find prospectable tiles (owned tiles with PotentialMineral not yet prospected by this nation)
+        let mut prospectable_tiles = Vec::new();
+        for &tile_pos in &owned_tiles {
+            let Some(tile_entity) = storage.get(&tile_pos) else {
+                continue;
+            };
+            // Check if tile has potential minerals
+            if potential_minerals.get(tile_entity).is_ok() {
+                // Check if we've already prospected this tile
+                let already_prospected = prospecting
+                    .as_ref()
+                    .is_some_and(|k| k.is_discovered_by(tile_entity, entity));
+                if !already_prospected {
+                    let distance = capital_hex.distance_to(tile_pos.to_hex()) as u32;
+                    prospectable_tiles.push(ProspectableTile {
+                        position: tile_pos,
+                        distance_from_capital: distance,
+                    });
+                }
+            }
+        }
+        prospectable_tiles.sort_by_key(|t| t.distance_from_capital);
+
         // Calculate optimal depot locations using greedy set-cover algorithm
         let suggested_depots = calculate_suggested_depots(
             &resource_tiles,
@@ -353,6 +387,7 @@ pub fn build_ai_snapshot(
                 improvable_tiles,
                 owned_tiles,
                 depot_positions,
+                prospectable_tiles,
             },
         );
     }
