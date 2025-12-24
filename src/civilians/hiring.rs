@@ -24,7 +24,7 @@ pub fn spawn_hired_civilian(
     for event in hire_events.read() {
         let nation_entity = event.nation.entity();
 
-        let Ok((capital, nation_id)) = capitals.get(nation_entity) else {
+        let Ok((capital, _nation_id)) = capitals.get(nation_entity) else {
             info!(
                 "Cannot hire {:?} for {:?}: no capital found",
                 event.kind, nation_entity
@@ -63,8 +63,7 @@ pub fn spawn_hired_civilian(
             kind: event.kind,
             position: spawn_pos,
             owner: nation_entity,
-            owner_id: *nation_id,
-            selected: false,
+
             has_moved: false,
         });
 

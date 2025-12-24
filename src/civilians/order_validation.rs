@@ -198,7 +198,6 @@ mod tests {
     use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
 
     use crate::civilians::order_validation::validate_command;
-    use crate::economy::nation::NationId;
     use crate::map::province::{Province, ProvinceId, TileProvince};
 
     #[test]
@@ -222,8 +221,7 @@ mod tests {
             kind: CivilianKind::Prospector,
             position: tile_pos,
             owner: Entity::PLACEHOLDER,
-            owner_id: NationId(0),
-            selected: false,
+
             has_moved: false,
         };
 

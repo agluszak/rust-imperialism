@@ -4,10 +4,7 @@ use bevy::prelude::*;
 pub use components::*;
 pub use layout::ensure_city_screen_visible;
 
-use crate::{
-    economy::{RecruitWorkers, TrainWorker},
-    ui::mode::GameMode,
-};
+use crate::ui::mode::GameMode;
 
 // Module declarations
 pub mod allocation_ui_unified; // Unified allocation UI systems
@@ -27,8 +24,6 @@ pub struct CityUIPlugin;
 impl Plugin for CityUIPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<dialogs::DialogZIndexCounter>()
-            .add_message::<RecruitWorkers>()
-            .add_message::<TrainWorker>()
             .add_message::<dialogs::OpenBuildingDialog>()
             .add_message::<dialogs::CloseBuildingDialog>()
             .add_systems(OnEnter(GameMode::City), layout::ensure_city_screen_visible)

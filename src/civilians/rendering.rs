@@ -2,6 +2,7 @@ use bevy::picking::prelude::Pickable;
 use bevy::prelude::*;
 
 use crate::assets::civilian_asset_path;
+use crate::civilians::commands::SelectedCivilian;
 use crate::civilians::systems::handle_civilian_click;
 use crate::civilians::types::{Civilian, CivilianJob};
 use crate::map::rendering::{MapVisual, MapVisualFor};
@@ -24,12 +25,8 @@ pub fn render_civilian_visuals(
         // Load the appropriate sprite for this civilian type
         let texture: Handle<Image> = asset_server.load(civilian_asset_path(civilian.kind));
 
-        // Tint sprite based on selection (white = normal, yellow = selected)
-        let color = if civilian.selected {
-            ENGINEER_SELECTED_COLOR
-        } else {
-            Color::WHITE // No tint for unselected
-        };
+        // Initial color is white (selection state will be updated by update_civilian_visual_colors)
+        let color = Color::WHITE;
 
         info!(
             "Creating visual for {:?} at tile ({}, {}) -> world pos ({}, {})",
@@ -58,6 +55,7 @@ pub fn render_civilian_visuals(
 /// Update civilian visual colors based on selection, job status, and movement
 /// Uses relationship pattern for O(1) sprite lookups
 pub fn update_civilian_visual_colors(
+    selected: Res<SelectedCivilian>,
     civilians: Query<(Entity, &Civilian, Option<&CivilianJob>, Option<&MapVisual>)>,
     mut visuals: Query<(&mut Sprite, &mut Transform)>,
     time: Res<Time>,
@@ -66,7 +64,7 @@ pub fn update_civilian_visual_colors(
     let blink_factor = (time.elapsed_secs() * 2.0).sin() * 0.25 + 0.75;
 
     // Update visuals based on civilian state - O(1) lookup via relationship
-    for (_civilian_entity, civilian, job, visual) in civilians.iter() {
+    for (civilian_entity, civilian, job, visual) in civilians.iter() {
         // If civilian has a visual, update it
         if let Some(visual) = visual
             && let Ok((mut sprite, mut transform)) = visuals.get_mut(visual.entity())
@@ -76,7 +74,8 @@ pub fn update_civilian_visual_colors(
             // 2. Working on job (green blink)
             // 3. Moved this turn (desaturated)
             // 4. Default (white)
-            let color = if civilian.selected {
+            let is_selected = selected.0 == Some(civilian_entity);
+            let color = if is_selected {
                 ENGINEER_SELECTED_COLOR
             } else if job.is_some() {
                 // Working: blink green

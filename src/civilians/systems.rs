@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::{TileStorage, TilemapSize};
 
 use crate::civilians::commands::{
-    DeselectAllCivilians, DeselectCivilian, RescindOrders, SelectCivilian,
+    DeselectCivilian, RescindOrders, SelectCivilian, SelectedCivilian,
 };
 use crate::civilians::order_validation::validate_command;
 use crate::civilians::types::{
@@ -35,41 +35,28 @@ pub fn handle_civilian_click(
     }
 }
 
-/// Handle Escape key to deselect all civilians
+/// Handle Escape key to deselect the selected civilian
 pub fn handle_deselect_key(
-    keys: Res<ButtonInput<KeyCode>>,
-    mut writer: MessageWriter<DeselectAllCivilians>,
+    keys: Option<Res<ButtonInput<KeyCode>>>,
+    mut writer: MessageWriter<DeselectCivilian>,
 ) {
-    if keys.just_pressed(KeyCode::Escape) {
-        writer.write(DeselectAllCivilians);
+    if let Some(keys) = keys
+        && keys.just_pressed(KeyCode::Escape)
+    {
+        writer.write(DeselectCivilian);
     }
 }
 
-/// Handle deselection of specific civilians
+/// Handle deselection event
 pub fn handle_deselection(
     mut events: MessageReader<DeselectCivilian>,
-    mut civilians: Query<&mut Civilian>,
-) {
-    for event in events.read() {
-        if let Ok(mut civilian) = civilians.get_mut(event.entity) {
-            civilian.selected = false;
-            info!("Deselected civilian {:?}", event.entity);
-        }
-    }
-}
-
-/// Handle deselect-all events
-pub fn handle_deselect_all(
-    mut events: MessageReader<DeselectAllCivilians>,
-    mut civilians: Query<&mut Civilian>,
+    mut selected: ResMut<SelectedCivilian>,
 ) {
     for _ in events.read() {
-        for mut civilian in civilians.iter_mut() {
-            if civilian.selected {
-                civilian.selected = false;
-            }
+        if let Some(entity) = selected.0 {
+            info!("Deselected civilian {:?}", entity);
+            selected.0 = None;
         }
-        info!("Deselected all civilians via Escape key");
     }
 }
 
@@ -77,7 +64,8 @@ pub fn handle_deselect_all(
 pub fn handle_civilian_selection(
     player_nation: Option<Res<crate::economy::PlayerNation>>,
     mut events: MessageReader<SelectCivilian>,
-    mut civilians: Query<&mut Civilian>,
+    mut selected: ResMut<SelectedCivilian>,
+    civilians: Query<&Civilian>,
 ) {
     let Some(player) = player_nation else {
         return; // No player nation set yet
@@ -96,41 +84,22 @@ pub fn handle_civilian_selection(
         };
 
         if civilian_check.owner != player.entity() {
-            info!(
-                "Ignoring selection of non-player unit {:?} (owner: {:?}, player: {:?})",
-                event.entity,
-                civilian_check.owner,
-                player.entity()
+            warn!(
+                "Attempted to select enemy civilian {:?} owned by {:?}",
+                event.entity, civilian_check.owner
             );
             continue;
         }
 
-        // Check if clicking on already-selected unit (toggle deselect)
-        let is_already_selected = civilian_check.selected;
-
-        if is_already_selected {
-            // Deselect the unit (toggle off)
-            if let Ok(mut civilian) = civilians.get_mut(event.entity) {
-                civilian.selected = false;
-                info!("Toggled deselect for entity {:?}", event.entity);
-            }
-        } else {
-            // Deselect all units first
-            for mut civilian in civilians.iter_mut() {
-                civilian.selected = false;
-            }
-
-            // Select the requested unit
-            if let Ok(mut civilian) = civilians.get_mut(event.entity) {
-                civilian.selected = true;
-                info!(
-                    "Successfully set civilian.selected = true for entity {:?}",
-                    event.entity
-                );
-            } else {
-                warn!("Failed to get civilian entity {:?}", event.entity);
-            }
+        // If this unit is already selected, do nothing
+        if selected.0 == Some(event.entity) {
+            info!("Civilian {:?} is already selected", event.entity);
+            continue;
         }
+
+        // Select the new civilian (automatically deselects any previously selected one)
+        selected.0 = Some(event.entity);
+        info!("Selected civilian {:?}", event.entity);
     }
 }
 
@@ -231,7 +200,8 @@ pub fn execute_move_orders(
             // Simple movement: just set position (TODO: implement pathfinding)
             civilian.position = to;
             civilian.has_moved = true;
-            deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after moving
+            // Auto-deselect after moving (note: DeselectCivilian has no effect if no civilian is selected)
+            deselect_writer.write(DeselectCivilian);
 
             // Add PreviousPosition and ActionTurn to allow rescinding
             commands.entity(entity).insert((

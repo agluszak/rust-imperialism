@@ -1,7 +1,7 @@
 use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
 
-use crate::civilians::commands::SelectCivilian;
+use crate::civilians::commands::{SelectCivilian, SelectedCivilian};
 use crate::civilians::systems::handle_civilian_selection;
 use crate::civilians::types::{Civilian, CivilianKind};
 use crate::economy::{NationId, PlayerNation};
@@ -11,6 +11,7 @@ use bevy_ecs_tilemap::prelude::TilePos;
 fn test_cannot_select_enemy_units() {
     let mut world = World::new();
     world.init_resource::<Messages<SelectCivilian>>();
+    world.init_resource::<SelectedCivilian>();
 
     // Create player nation
     let player_nation_entity = world.spawn(NationId(1)).id();
@@ -28,8 +29,6 @@ fn test_cannot_select_enemy_units() {
             kind: CivilianKind::Engineer,
             position: TilePos { x: 0, y: 0 },
             owner: enemy_nation_entity,
-            owner_id: NationId(2),
-            selected: false,
             has_moved: false,
         })
         .id();
@@ -50,18 +49,19 @@ fn test_cannot_select_enemy_units() {
         let mut system_state: SystemState<(
             Option<Res<PlayerNation>>,
             MessageReader<SelectCivilian>,
-            Query<&mut Civilian>,
+            ResMut<SelectedCivilian>,
+            Query<&Civilian>,
         )> = SystemState::new(&mut world);
 
-        let (player_nation, events, civilians) = system_state.get_mut(&mut world);
-        handle_civilian_selection(player_nation, events, civilians);
+        let (player_nation, events, selected, civilians) = system_state.get_mut(&mut world);
+        handle_civilian_selection(player_nation, events, selected, civilians);
         system_state.apply(&mut world);
     }
 
     // Verify that the enemy unit was NOT selected
-    let enemy_civilian = world.get::<Civilian>(enemy_civilian_entity).unwrap();
+    let selected = world.resource::<SelectedCivilian>();
     assert!(
-        !enemy_civilian.selected,
+        selected.0 != Some(enemy_civilian_entity),
         "Enemy units should not be selectable by player"
     );
 }
@@ -70,6 +70,7 @@ fn test_cannot_select_enemy_units() {
 fn test_can_select_own_units() {
     let mut world = World::new();
     world.init_resource::<Messages<SelectCivilian>>();
+    world.init_resource::<SelectedCivilian>();
 
     // Create player nation
     let player_nation_entity = world.spawn(NationId(1)).id();
@@ -84,8 +85,6 @@ fn test_can_select_own_units() {
             kind: CivilianKind::Engineer,
             position: TilePos { x: 0, y: 0 },
             owner: player_nation_entity,
-            owner_id: NationId(1),
-            selected: false,
             has_moved: false,
         })
         .id();
@@ -106,18 +105,19 @@ fn test_can_select_own_units() {
         let mut system_state: SystemState<(
             Option<Res<PlayerNation>>,
             MessageReader<SelectCivilian>,
-            Query<&mut Civilian>,
+            ResMut<SelectedCivilian>,
+            Query<&Civilian>,
         )> = SystemState::new(&mut world);
 
-        let (player_nation, events, civilians) = system_state.get_mut(&mut world);
-        handle_civilian_selection(player_nation, events, civilians);
+        let (player_nation, events, selected, civilians) = system_state.get_mut(&mut world);
+        handle_civilian_selection(player_nation, events, selected, civilians);
         system_state.apply(&mut world);
     }
 
     // Verify that the player unit WAS selected
-    let player_civilian = world.get::<Civilian>(player_civilian_entity).unwrap();
+    let selected = world.resource::<SelectedCivilian>();
     assert!(
-        player_civilian.selected,
+        selected.0 == Some(player_civilian_entity),
         "Player should be able to select their own units"
     );
 }
@@ -126,6 +126,7 @@ fn test_can_select_own_units() {
 fn test_selecting_player_unit_deselects_others() {
     let mut world = World::new();
     world.init_resource::<Messages<SelectCivilian>>();
+    world.init_resource::<SelectedCivilian>();
 
     // Create player nation
     let player_nation_entity = world.spawn(NationId(1)).id();
@@ -134,14 +135,12 @@ fn test_selecting_player_unit_deselects_others() {
             .unwrap();
     world.insert_resource(PlayerNation::new(player_instance));
 
-    // Create first player-owned civilian (already selected)
+    // Create first player-owned civilian
     let first_civilian_entity = world
         .spawn(Civilian {
             kind: CivilianKind::Engineer,
             position: TilePos { x: 0, y: 0 },
             owner: player_nation_entity,
-            owner_id: NationId(1),
-            selected: true, // Already selected
             has_moved: false,
         })
         .id();
@@ -152,11 +151,33 @@ fn test_selecting_player_unit_deselects_others() {
             kind: CivilianKind::Prospector,
             position: TilePos { x: 1, y: 1 },
             owner: player_nation_entity,
-            owner_id: NationId(1),
-            selected: false,
             has_moved: false,
         })
         .id();
+
+    // Select the first civilian first
+    {
+        let mut system_state: SystemState<MessageWriter<SelectCivilian>> =
+            SystemState::new(&mut world);
+        let mut writer = system_state.get_mut(&mut world);
+        writer.write(SelectCivilian {
+            entity: first_civilian_entity,
+        });
+        system_state.apply(&mut world);
+    }
+
+    {
+        let mut system_state: SystemState<(
+            Option<Res<PlayerNation>>,
+            MessageReader<SelectCivilian>,
+            ResMut<SelectedCivilian>,
+            Query<&Civilian>,
+        )> = SystemState::new(&mut world);
+
+        let (player_nation, events, selected, civilians) = system_state.get_mut(&mut world);
+        handle_civilian_selection(player_nation, events, selected, civilians);
+        system_state.apply(&mut world);
+    }
 
     // Select the second civilian
     {
@@ -174,21 +195,23 @@ fn test_selecting_player_unit_deselects_others() {
         let mut system_state: SystemState<(
             Option<Res<PlayerNation>>,
             MessageReader<SelectCivilian>,
-            Query<&mut Civilian>,
+            ResMut<SelectedCivilian>,
+            Query<&Civilian>,
         )> = SystemState::new(&mut world);
 
-        let (player_nation, events, civilians) = system_state.get_mut(&mut world);
-        handle_civilian_selection(player_nation, events, civilians);
+        let (player_nation, events, selected, civilians) = system_state.get_mut(&mut world);
+        handle_civilian_selection(player_nation, events, selected, civilians);
         system_state.apply(&mut world);
     }
 
-    // Verify that the second unit is selected and first unit is deselected
-    let first_civilian = world.get::<Civilian>(first_civilian_entity).unwrap();
-    let second_civilian = world.get::<Civilian>(second_civilian_entity).unwrap();
-
+    // Verify that only the second unit is selected
+    let selected = world.resource::<SelectedCivilian>();
     assert!(
-        !first_civilian.selected,
+        selected.0 == Some(second_civilian_entity),
+        "Second unit should be selected"
+    );
+    assert!(
+        selected.0 != Some(first_civilian_entity),
         "First unit should be deselected when second unit is selected"
     );
-    assert!(second_civilian.selected, "Second unit should be selected");
 }

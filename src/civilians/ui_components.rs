@@ -2,9 +2,7 @@ use bevy::prelude::*;
 use bevy::ui::widget::Button as OldButton;
 use bevy::ui_widgets::{Activate, Button};
 
-use crate::civilians::commands::{
-    DeselectAllCivilians, DeselectCivilian, RescindOrders, SelectCivilian,
-};
+use crate::civilians::commands::{DeselectCivilian, RescindOrders, SelectCivilian};
 use crate::civilians::types::{Civilian, CivilianOrderDefinition, PreviousPosition};
 use crate::messages::civilians::CivilianCommand;
 use crate::ui::button_style::*;
@@ -21,13 +19,13 @@ pub struct RescindOrdersPanel;
 pub fn update_civilian_orders_ui(
     mut commands: Commands,
     mut select_events: MessageReader<SelectCivilian>,
-    mut deselect_all_events: MessageReader<DeselectAllCivilians>,
+    mut deselect_events: MessageReader<DeselectCivilian>,
     civilians: Query<&Civilian>,
     existing_panel: Query<Entity, With<CivilianOrdersPanel>>,
 ) {
-    // Handle deselect-all first (always hides panel)
-    if !deselect_all_events.is_empty() {
-        deselect_all_events.clear();
+    // Handle deselect first (always hides panel)
+    if !deselect_events.is_empty() {
+        deselect_events.clear();
         for entity in existing_panel.iter() {
             commands.entity(entity).despawn();
         }
@@ -156,13 +154,12 @@ pub fn update_rescind_orders_ui(
     mut commands: Commands,
     mut select_events: MessageReader<SelectCivilian>,
     mut deselect_events: MessageReader<DeselectCivilian>,
-    mut deselect_all_events: MessageReader<DeselectAllCivilians>,
     civilians_with_prev: Query<&PreviousPosition, With<Civilian>>,
     existing_panel: Query<Entity, With<RescindOrdersPanel>>,
 ) {
-    // Handle deselect-all first (always hides panel)
-    if !deselect_all_events.is_empty() {
-        deselect_all_events.clear();
+    // Handle deselect first (always hides panel)
+    if !deselect_events.is_empty() {
+        deselect_events.clear();
         for entity in existing_panel.iter() {
             commands.entity(entity).despawn();
         }
