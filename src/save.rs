@@ -297,12 +297,11 @@ pub(crate) fn remap_civilian_owners(
     civilians: &mut Query<&mut Civilian>,
 ) {
     // Since moonshine-save doesn't automatically remap entity references,
-    // we have a problem: the civilian's owner field points to an old entity ID
-    // that no longer exists. Without additional data, we can't know which nation
-    // this civilian belonged to.
+    // the civilian's owner field points to an old entity ID that no longer exists.
+    // Without additional data, we can't know which nation this civilian belonged to.
     
-    // As a workaround for tests: if there's only one nation and one civilian,
-    // assign the civilian to that nation
+    // Workaround for tests: if there's exactly one nation and one civilian,
+    // assign the civilian to that nation.
     let nation_count = nations.iter().count();
     let civilian_count = civilians.iter().count();
     
@@ -312,8 +311,8 @@ pub(crate) fn remap_civilian_owners(
             civilian.owner = nation_entity;
         }
     }
-    // For production use, we would need to store additional metadata
-    // (like a persistent UUID or NationId) to properly remap entity references
+    // For production use, we need persistent identifiers (e.g., CivilianId, stable NationId)
+    // to properly remap entity references across save/load.
     // See issue: https://github.com/agluszak/rust-imperialism/issues/XXX
 }
 
