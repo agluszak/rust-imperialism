@@ -4,13 +4,20 @@ use bevy_ecs_tilemap::prelude::{TileStorage, TilemapSize};
 use crate::economy::NationColor;
 use crate::map::province::{Province, TileProvince};
 use crate::map::tile_pos::{HexExt, TilePosExt};
+use crate::ui::menu::AppState;
+use crate::ui::mode::GameMode;
 
 /// Plugin to render province and nation borders
 pub struct BorderRenderingPlugin;
 
 impl Plugin for BorderRenderingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, render_borders);
+        app.add_systems(
+            Update,
+            render_borders
+                .run_if(in_state(GameMode::Map))
+                .run_if(in_state(AppState::InGame)),
+        );
     }
 }
 
