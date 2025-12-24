@@ -6,7 +6,6 @@ use moonshine_save::prelude::Save;
 use std::collections::{HashMap, HashSet};
 use std::mem;
 
-use crate::economy::nation::NationId;
 use crate::resources::TileResource;
 
 /// Unique identifier for a civilian (stable across saves)
@@ -357,14 +356,14 @@ impl CivilianKind {
 }
 
 /// Civilian unit component
-#[derive(Component, Debug, Reflect)]
+#[derive(Component, Debug, Reflect, MapEntities)]
 #[reflect(Component, MapEntities)]
 #[require(Save)]
 pub struct Civilian {
     pub kind: CivilianKind,
     pub position: TilePos,
-    pub owner: Entity,      // Nation entity that owns this unit
-    pub owner_id: NationId, // Stable ID for save/load remapping
+    #[entities]
+    pub owner: Entity, // Nation entity that owns this unit (remapped via MapEntities)
     pub civilian_id: CivilianId,
     pub has_moved: bool, // True if unit has used its action this turn
 }
@@ -414,10 +413,4 @@ pub enum CivilianOrderKind {
     BuildOrchard { to: TilePos }, // Move to tile and build orchard on fruit (Farmer)
     SkipTurn,                    // Skip only this turn, then become available again
     Sleep,                       // Keep skipping turns until explicitly woken up (rescinded)
-}
-
-impl MapEntities for Civilian {
-    fn map_entities<M: EntityMapper>(&mut self, mapper: &mut M) {
-        self.owner = mapper.get_mapped(self.owner);
-    }
 }

@@ -221,7 +221,6 @@ mod tests {
             kind: CivilianKind::Prospector,
             position: tile_pos,
             owner: Entity::PLACEHOLDER,
-            owner_id: crate::economy::nation::NationId(1),
             civilian_id: CivilianId(0),
             has_moved: false,
         };

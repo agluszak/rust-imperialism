@@ -100,7 +100,6 @@ impl Plugin for GameSavePlugin {
             .add_observer(emit_save_completion)
             .add_observer(emit_load_completion)
             .add_observer(rebuild_runtime_state_after_load)
-            .add_observer(restore_civilian_owners_after_load)
             .add_systems(
                 Update,
                 (process_save_requests, process_load_requests).run_if(in_state(AppState::InGame)),
@@ -287,39 +286,6 @@ fn rebuild_runtime_state_after_load(
     }
 }
 
-fn restore_civilian_owners_after_load(
-    _: On<Loaded>,
-    nations: Query<(Entity, &NationId)>,
-    mut civilians: Query<&mut Civilian>,
-) {
-    remap_civilian_owners(&nations, &mut civilians);
-}
-
-pub(crate) fn remap_civilian_owners(
-    nations: &Query<(Entity, &NationId)>,
-    civilians: &mut Query<&mut Civilian>,
-) {
-    use std::collections::HashMap;
-
-    // Build a lookup table from NationId to Entity
-    let mut nation_entities = HashMap::new();
-    for (entity, nation_id) in nations.iter() {
-        nation_entities.insert(*nation_id, entity);
-    }
-
-    // Remap each civilian's owner using their owner_id
-    for mut civilian in civilians.iter_mut() {
-        if let Some(&entity) = nation_entities.get(&civilian.owner_id) {
-            civilian.owner = entity;
-        } else {
-            warn!(
-                "Could not remap civilian owner for CivilianId({}) with owner_id NationId({})",
-                civilian.civilian_id.0, civilian.owner_id.0
-            );
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -450,87 +416,24 @@ mod tests {
 
     #[test]
     fn civilian_owner_is_remapped_when_loading_scene() {
+        // This test verifies that Civilian's MapEntities derive is properly registered
+        // and that moonshine-save will use it during load.
+        // The actual remapping behavior is tested by saving_and_loading_persists_core_state.
         let registry = AppTypeRegistry::default();
         {
             let mut writer = registry.write();
             writer.register::<Civilian>();
             writer.register::<NationId>();
-            writer.register::<Name>();
-            writer.register::<NationColor>();
-            writer.register::<Capital>();
-            writer.register::<Treasury>();
-            writer.register::<Stockpile>();
-            writer.register::<Technologies>();
-            writer.register::<RecruitmentQueue>();
-            writer.register::<TrainingQueue>();
-            writer.register::<Workforce>();
         }
 
-        let mut source = World::new();
-        source.insert_resource(registry.clone());
-
-        let owner = source
-            .spawn((
-                NationId(1),
-                Name("Owner".into()),
-                NationColor(Color::WHITE),
-                Capital(TilePos { x: 0, y: 0 }),
-                Treasury::new(0),
-                Stockpile::default(),
-                Technologies::default(),
-                Workforce::default(),
-                RecruitmentQueue::default(),
-                TrainingQueue::default(),
-                Save,
-            ))
-            .id();
-
-        source.spawn((
-            Civilian {
-                kind: CivilianKind::Engineer,
-                position: TilePos { x: 1, y: 1 },
-                owner,
-                owner_id: NationId(1),
-                civilian_id: CivilianId(1),
-                has_moved: false,
-            },
-            Save,
-        ));
-
-        let scene = DynamicScene::from_world(&source);
-
-        let mut dest = World::new();
-        dest.insert_resource(registry);
-
-        // Use EntityHashMap for entity mapping
-        let mut entity_map = EntityHashMap::<Entity>::default();
-
-        scene
-            .write_to_world(&mut dest, &mut entity_map)
-            .expect("scene loads");
-
-        // Manually remap Civilian owner fields
-        // write_to_world populates entity_map with old->new entity mappings,
-        // but doesn't automatically call MapEntities. We need to manually remap.
-        let mut civilians_query = dest.query::<&mut Civilian>();
-        for mut civilian in civilians_query.iter_mut(&mut dest) {
-            if let Some(&new_owner) = entity_map.get(&civilian.owner) {
-                civilian.owner = new_owner;
-            }
-        }
-
-        // MapEntities should have automatically remapped the owner field
-        let new_owner = dest
-            .query::<(Entity, &NationId)>()
-            .iter(&dest)
-            .find(|(_, id)| id.0 == 1)
-            .map(|(entity, _)| entity)
-            .expect("owner spawned");
-
-        let civilian = dest.query::<&Civilian>().single(&dest).unwrap();
-        assert_eq!(
-            civilian.owner, new_owner,
-            "MapEntities should have remapped owner field during scene deserialization"
+        // Verify MapEntities is registered for Civilian
+        let reader = registry.read();
+        let registration = reader
+            .get(std::any::TypeId::of::<Civilian>())
+            .expect("Civilian type registered");
+        assert!(
+            registration.data::<ReflectMapEntities>().is_some(),
+            "Civilian should have MapEntities reflection data"
         );
     }
 
@@ -639,7 +542,6 @@ mod tests {
             kind: CivilianKind::Engineer,
             position: TilePos { x: 4, y: 9 },
             owner: nation_entity,
-            owner_id: NationId(7),
             civilian_id: CivilianId(1),
             has_moved: false,
         });
