@@ -342,6 +342,7 @@ fn plan_engineer_depot_task(
 
     // If not on connected tiles, move to the closest connected tile first
     // This ensures we build rails to the depot location (connected infrastructure)
+    // Note: If connected_tiles is empty (no rail network yet), we fall through to the next case
     if !nation.connected_tiles.contains(&engineer_pos) {
         let closest_connected = nation
             .connected_tiles
@@ -379,6 +380,7 @@ fn plan_engineer_rail_task(
     }
 
     // If not on connected tiles, move directly to the closest connected tile
+    // Note: If connected_tiles is empty (no rail network yet), we fall through to the next case
     if !nation.connected_tiles.contains(&engineer_pos) {
         // Find the closest connected tile
         let closest_connected = nation
