@@ -479,7 +479,6 @@ mod tests {
                 position: TilePos { x: 1, y: 1 },
                 owner,
                 owner_id: NationId(1),
-                selected: false,
                 has_moved: false,
             },
             Save,
@@ -618,7 +617,6 @@ mod tests {
             position: TilePos { x: 4, y: 9 },
             owner: nation_entity,
             owner_id: NationId(7),
-            selected: false,
             has_moved: false,
         });
 

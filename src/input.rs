@@ -16,6 +16,7 @@ impl Plugin for InputPlugin {
 pub fn handle_tile_click(
     trigger: On<Pointer<Click>>,
     tile_positions: Query<&TilePos>,
+    selected: Res<crate::civilians::types::SelectedCivilian>,
     civilians: Query<(Entity, &Civilian)>,
     potential_minerals: Query<&crate::map::PotentialMineral>,
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
@@ -26,8 +27,13 @@ pub fn handle_tile_click(
         return;
     };
 
-    // Find any selected civilian
-    let Some((civilian_entity, civilian)) = civilians.iter().find(|(_, c)| c.selected) else {
+    // Check if there is a selected civilian
+    let Some(selected_entity) = selected.0 else {
+        return;
+    };
+
+    // Get the selected civilian
+    let Some((civilian_entity, civilian)) = civilians.iter().find(|(e, _)| *e == selected_entity) else {
         return;
     };
 

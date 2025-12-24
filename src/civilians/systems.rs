@@ -47,12 +47,15 @@ pub fn handle_deselect_key(
 
 /// Handle deselection of specific civilians
 pub fn handle_deselection(
+    mut commands: Commands,
     mut events: MessageReader<DeselectCivilian>,
-    mut civilians: Query<&mut Civilian>,
+    mut selected: ResMut<crate::civilians::types::SelectedCivilian>,
 ) {
     for event in events.read() {
-        if let Ok(mut civilian) = civilians.get_mut(event.entity) {
-            civilian.selected = false;
+        // If this entity is the selected one, clear it
+        if selected.0 == Some(event.entity) {
+            selected.0 = None;
+            commands.entity(event.entity).remove::<crate::civilians::types::Selected>();
             info!("Deselected civilian {:?}", event.entity);
         }
     }
@@ -60,14 +63,17 @@ pub fn handle_deselection(
 
 /// Handle deselect-all events
 pub fn handle_deselect_all(
+    mut commands: Commands,
     mut events: MessageReader<DeselectAllCivilians>,
-    mut civilians: Query<&mut Civilian>,
+    mut selected: ResMut<crate::civilians::types::SelectedCivilian>,
+    marked_selected: Query<Entity, With<crate::civilians::types::Selected>>,
 ) {
     for _ in events.read() {
-        for mut civilian in civilians.iter_mut() {
-            if civilian.selected {
-                civilian.selected = false;
-            }
+        // Clear the resource
+        selected.0 = None;
+        // Remove all Selected markers
+        for entity in marked_selected.iter() {
+            commands.entity(entity).remove::<crate::civilians::types::Selected>();
         }
         info!("Deselected all civilians via Escape key");
     }
@@ -75,9 +81,12 @@ pub fn handle_deselect_all(
 
 /// Handle civilian selection events
 pub fn handle_civilian_selection(
+    mut commands: Commands,
     player_nation: Option<Res<crate::economy::PlayerNation>>,
     mut events: MessageReader<SelectCivilian>,
-    mut civilians: Query<&mut Civilian>,
+    mut selected: ResMut<crate::civilians::types::SelectedCivilian>,
+    civilians: Query<&Civilian>,
+    marked_selected: Query<Entity, With<crate::civilians::types::Selected>>,
 ) {
     let Some(player) = player_nation else {
         return; // No player nation set yet
@@ -106,30 +115,26 @@ pub fn handle_civilian_selection(
         }
 
         // Check if clicking on already-selected unit (toggle deselect)
-        let is_already_selected = civilian_check.selected;
+        let is_already_selected = selected.0 == Some(event.entity);
 
         if is_already_selected {
             // Deselect the unit (toggle off)
-            if let Ok(mut civilian) = civilians.get_mut(event.entity) {
-                civilian.selected = false;
-                info!("Toggled deselect for entity {:?}", event.entity);
-            }
+            selected.0 = None;
+            commands.entity(event.entity).remove::<crate::civilians::types::Selected>();
+            info!("Toggled deselect for entity {:?}", event.entity);
         } else {
-            // Deselect all units first
-            for mut civilian in civilians.iter_mut() {
-                civilian.selected = false;
+            // Remove Selected marker from all previously selected units
+            for entity in marked_selected.iter() {
+                commands.entity(entity).remove::<crate::civilians::types::Selected>();
             }
 
-            // Select the requested unit
-            if let Ok(mut civilian) = civilians.get_mut(event.entity) {
-                civilian.selected = true;
-                info!(
-                    "Successfully set civilian.selected = true for entity {:?}",
-                    event.entity
-                );
-            } else {
-                warn!("Failed to get civilian entity {:?}", event.entity);
-            }
+            // Update resource and add marker
+            selected.0 = Some(event.entity);
+            commands.entity(event.entity).insert(crate::civilians::types::Selected);
+            info!(
+                "Successfully selected civilian entity {:?}",
+                event.entity
+            );
         }
     }
 }

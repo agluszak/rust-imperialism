@@ -84,7 +84,8 @@ pub fn update_tile_info_display(
     provinces: Query<&Province>,
     cities: Query<&City>,
     nations_query: Query<(Entity, &Name, &Technologies)>,
-    civilians: Query<&Civilian>,
+    civilians: Query<(Entity, &Civilian)>,
+    selected: Res<crate::civilians::types::SelectedCivilian>,
     player: Option<Res<PlayerNation>>,
     mut display: Query<&mut Text, With<TileInfoDisplay>>,
 ) {
@@ -148,9 +149,13 @@ pub fn update_tile_info_display(
                     }
 
                     // If an engineer is selected, show buildability
-                    let selected_engineer = civilians
-                        .iter()
-                        .find(|c| c.selected && c.kind == CivilianKind::Engineer);
+                    let selected_civilian = selected
+                        .0
+                        .and_then(|e| civilians.iter().find(|(entity, _)| *entity == e))
+                        .map(|(_, c)| c);
+                    
+                    let selected_engineer = selected_civilian
+                        .filter(|c| c.kind == CivilianKind::Engineer);
 
                     if selected_engineer.is_some()
                         && let Some(player) = &player

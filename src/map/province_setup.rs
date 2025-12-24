@@ -257,7 +257,6 @@ pub fn assign_provinces_to_countries(
                 position: *pos,
                 owner: player_entity,
                 owner_id: player_id,
-                selected: false,
                 has_moved: false,
             });
             info!("Spawned {:?} for player at ({}, {})", kind, pos.x, pos.y);
@@ -289,7 +288,6 @@ pub fn assign_provinces_to_countries(
                     position: *pos,
                     owner: nation_entity,
                     owner_id,
-                    selected: false,
                     has_moved: false,
                 },
                 AiControlledCivilian,

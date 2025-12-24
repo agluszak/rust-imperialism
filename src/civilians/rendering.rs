@@ -24,13 +24,6 @@ pub fn render_civilian_visuals(
         // Load the appropriate sprite for this civilian type
         let texture: Handle<Image> = asset_server.load(civilian_asset_path(civilian.kind));
 
-        // Tint sprite based on selection (white = normal, yellow = selected)
-        let color = if civilian.selected {
-            ENGINEER_SELECTED_COLOR
-        } else {
-            Color::WHITE // No tint for unselected
-        };
-
         info!(
             "Creating visual for {:?} at tile ({}, {}) -> world pos ({}, {})",
             civilian.kind, civilian.position.x, civilian.position.y, pos.x, pos.y
@@ -41,7 +34,7 @@ pub fn render_civilian_visuals(
             .spawn((
                 Sprite {
                     image: texture,
-                    color,
+                    color: Color::WHITE, // Always start unselected
                     custom_size: Some(Vec2::new(ENGINEER_SIZE, ENGINEER_SIZE)),
                     ..default()
                 },
@@ -59,6 +52,7 @@ pub fn render_civilian_visuals(
 /// Uses relationship pattern for O(1) sprite lookups
 pub fn update_civilian_visual_colors(
     civilians: Query<(Entity, &Civilian, Option<&CivilianJob>, Option<&MapVisual>)>,
+    selected_marker: Query<(), With<crate::civilians::types::Selected>>,
     mut visuals: Query<(&mut Sprite, &mut Transform)>,
     time: Res<Time>,
 ) {
@@ -66,17 +60,20 @@ pub fn update_civilian_visual_colors(
     let blink_factor = (time.elapsed_secs() * 2.0).sin() * 0.25 + 0.75;
 
     // Update visuals based on civilian state - O(1) lookup via relationship
-    for (_civilian_entity, civilian, job, visual) in civilians.iter() {
+    for (civilian_entity, civilian, job, visual) in civilians.iter() {
         // If civilian has a visual, update it
         if let Some(visual) = visual
             && let Ok((mut sprite, mut transform)) = visuals.get_mut(visual.entity())
         {
+            // Check if this civilian has the Selected marker
+            let is_selected = selected_marker.get(civilian_entity).is_ok();
+
             // Determine color based on state priority:
             // 1. Selected (yellow)
             // 2. Working on job (green blink)
             // 3. Moved this turn (desaturated)
             // 4. Default (white)
-            let color = if civilian.selected {
+            let color = if is_selected {
                 ENGINEER_SELECTED_COLOR
             } else if job.is_some() {
                 // Working: blink green

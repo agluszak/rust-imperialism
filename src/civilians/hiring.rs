@@ -64,7 +64,6 @@ pub fn spawn_hired_civilian(
             position: spawn_pos,
             owner: nation_entity,
             owner_id: *nation_id,
-            selected: false,
             has_moved: false,
         });
 

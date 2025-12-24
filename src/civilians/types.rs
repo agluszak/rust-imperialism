@@ -345,7 +345,6 @@ pub struct Civilian {
     pub position: TilePos,
     pub owner: Entity, // Nation entity that owns this unit
     pub owner_id: NationId,
-    pub selected: bool,
     pub has_moved: bool, // True if unit has used its action this turn
 }
 
@@ -368,6 +367,15 @@ pub struct CivilianJob {
 /// Visual marker for civilian unit sprites
 #[derive(Component)]
 pub struct CivilianVisual(pub Entity); // Points to the Civilian entity
+
+/// Marker component indicating a civilian is currently selected by the player
+/// This is purely for UI/rendering purposes and should not affect business logic
+#[derive(Component, Debug, Clone, Copy)]
+pub struct Selected;
+
+/// Resource tracking which civilian (if any) is currently selected by the player
+#[derive(Resource, Default, Debug)]
+pub struct SelectedCivilian(pub Option<Entity>);
 
 /// Stores the previous position of a civilian before they moved/acted
 /// Used to allow "undo" of moves at any time before the job completes

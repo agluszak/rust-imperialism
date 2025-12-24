@@ -111,7 +111,6 @@ fn test_ai_move_command_executes() {
             position: start,
             owner: nation,
             owner_id: NationId(1),
-            selected: false,
             has_moved: false,
         })
         .id();
@@ -208,7 +207,6 @@ fn test_illegal_rail_command_rejected() {
             position: start,
             owner: player,
             owner_id: NationId(2),
-            selected: false,
             has_moved: false,
         })
         .id();
