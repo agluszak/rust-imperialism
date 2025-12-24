@@ -667,7 +667,7 @@ mod tests {
             let mut nation_query =
                 world.query::<(Entity, &NationId, &Name, &Treasury, &Stockpile)>();
             let (nation_entity, _, name, treasury, stockpile) = nation_query
-                .iter(&world)
+                .iter(world)
                 .find(|(_, id, _, _, _)| id.0 == 7)
                 .expect("nation restored");
 
@@ -678,13 +678,13 @@ mod tests {
 
             let mut tech_query = world.query::<&Technologies>();
             let techs = tech_query
-                .get(&world, nation_entity)
+                .get(world, nation_entity)
                 .expect("technologies restored");
             assert!(techs.has(Technology::MountainEngineering));
 
             let mut civilian_query = world.query::<&Civilian>();
             let civilian = civilian_query
-                .iter(&world)
+                .iter(world)
                 .find(|civilian| civilian.owner == nation_entity)
                 .expect("civilian restored");
             assert_eq!(civilian.kind, CivilianKind::Engineer);
