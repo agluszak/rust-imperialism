@@ -133,7 +133,7 @@ pub fn assign_provinces_to_countries(
         });
 
         if i > 0 {
-            commands.entity(country_entity).insert(AiNation(nation_id));
+            commands.entity(country_entity).insert(AiNation);
         }
 
         // Give every nation a basic industrial base so AI economies can function
@@ -231,12 +231,11 @@ pub fn assign_provinces_to_countries(
         }
     }
 
-    let nation_ids: HashMap<Entity, NationId> = country_entities.iter().copied().collect();
     let player_info = country_entities.first().copied();
     let player_entity_only = player_info.map(|(entity, _)| entity);
 
     // Spawn starter civilian roster for the player clustered around the capital
-    if let Some((player_entity, player_id)) = player_info
+    if let Some((player_entity, player_nation_id)) = player_info
         && let Some(player_capital) = capitals
             .iter()
             .find(|(entity, _)| *entity == player_entity)
@@ -258,14 +257,16 @@ pub fn assign_provinces_to_countries(
                 kind: *kind,
                 position: *pos,
                 owner: player_entity,
-                owner_id: player_id,
+                owner_id: player_nation_id,
                 civilian_id,
-                selected: false,
                 has_moved: false,
             });
             info!("Spawned {:?} for player at ({}, {})", kind, pos.x, pos.y);
         }
     }
+
+    // Build entity -> NationId lookup for AI nations
+    let nation_ids: HashMap<Entity, NationId> = country_entities.iter().copied().collect();
 
     let ai_starter_units = [
         CivilianKind::Engineer,
@@ -281,11 +282,11 @@ pub fn assign_provinces_to_countries(
         .filter(|(entity, _)| Some(*entity) != player_entity_only)
     {
         let spawn_positions = gather_spawn_positions(capital_pos, ai_starter_units.len());
+        let owner_id = nation_ids
+            .get(&nation_entity)
+            .copied()
+            .unwrap_or(NationId(0));
         for (kind, pos) in ai_starter_units.iter().zip(spawn_positions.iter()) {
-            let owner_id = nation_ids
-                .get(&nation_entity)
-                .copied()
-                .unwrap_or(NationId(0));
             let civilian_id = next_civilian_id.next();
             commands.spawn((
                 Civilian {
@@ -294,7 +295,6 @@ pub fn assign_provinces_to_countries(
                     owner: nation_entity,
                     owner_id,
                     civilian_id,
-                    selected: false,
                     has_moved: false,
                 },
                 AiControlledCivilian,

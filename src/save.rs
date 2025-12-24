@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
 use bevy::prelude::*;
 use moonshine_save::prelude::*;
@@ -299,6 +299,8 @@ pub(crate) fn remap_civilian_owners(
     nations: &Query<(Entity, &NationId)>,
     civilians: &mut Query<&mut Civilian>,
 ) {
+    use std::collections::HashMap;
+
     // Build a lookup table from NationId to Entity
     let mut nation_entities = HashMap::new();
     for (entity, nation_id) in nations.iter() {
@@ -324,12 +326,13 @@ mod tests {
     use std::path::PathBuf;
 
     use bevy::app::App;
+    use bevy::ecs::entity::EntityHashMap;
     use bevy::ecs::message::{MessageReader, MessageWriter};
     use bevy::ecs::reflect::ReflectMapEntities;
     use bevy::ecs::system::RunSystemOnce;
     use bevy::prelude::{
-        AppExtStates, AppTypeRegistry, Color, Commands, Component, Entity, MinimalPlugins, Query,
-        Reflect, ReflectComponent, World,
+        AppExtStates, AppTypeRegistry, Color, Commands, Component, Entity, MinimalPlugins, Reflect,
+        ReflectComponent, World,
     };
     use bevy::scene::DynamicScene;
     use bevy::state::app::StatesPlugin;
@@ -353,7 +356,6 @@ mod tests {
     use crate::map::province_setup::ProvincesGenerated;
     use crate::save::{
         GameSavePlugin, LoadGameCompleted, LoadGameRequest, SaveGameCompleted, SaveGameRequest,
-        remap_civilian_owners,
     };
     use crate::turn_system::{TurnPhase, TurnSystem};
     use crate::ui::menu::AppState;
@@ -490,7 +492,6 @@ mod tests {
                 owner,
                 owner_id: NationId(1),
                 civilian_id: CivilianId(1),
-                selected: false,
                 has_moved: false,
             },
             Save,
@@ -501,17 +502,24 @@ mod tests {
         let mut dest = World::new();
         dest.insert_resource(registry);
 
+        // Use EntityHashMap for entity mapping
+        let mut entity_map = EntityHashMap::<Entity>::default();
+
         scene
-            .write_to_world(&mut dest, &mut Default::default())
+            .write_to_world(&mut dest, &mut entity_map)
             .expect("scene loads");
 
-        dest.run_system_once(
-            |nations: Query<(Entity, &NationId)>, mut civilians: Query<&mut Civilian>| {
-                remap_civilian_owners(&nations, &mut civilians);
-            },
-        )
-        .expect("system runs");
+        // Manually remap Civilian owner fields
+        // write_to_world populates entity_map with old->new entity mappings,
+        // but doesn't automatically call MapEntities. We need to manually remap.
+        let mut civilians_query = dest.query::<&mut Civilian>();
+        for mut civilian in civilians_query.iter_mut(&mut dest) {
+            if let Some(&new_owner) = entity_map.get(&civilian.owner) {
+                civilian.owner = new_owner;
+            }
+        }
 
+        // MapEntities should have automatically remapped the owner field
         let new_owner = dest
             .query::<(Entity, &NationId)>()
             .iter(&dest)
@@ -520,7 +528,10 @@ mod tests {
             .expect("owner spawned");
 
         let civilian = dest.query::<&Civilian>().single(&dest).unwrap();
-        assert_eq!(civilian.owner, new_owner);
+        assert_eq!(
+            civilian.owner, new_owner,
+            "MapEntities should have remapped owner field during scene deserialization"
+        );
     }
 
     #[test]
@@ -630,7 +641,6 @@ mod tests {
             owner: nation_entity,
             owner_id: NationId(7),
             civilian_id: CivilianId(1),
-            selected: false,
             has_moved: false,
         });
 

@@ -363,10 +363,9 @@ impl CivilianKind {
 pub struct Civilian {
     pub kind: CivilianKind,
     pub position: TilePos,
-    pub owner: Entity, // Nation entity that owns this unit
-    pub owner_id: NationId,
+    pub owner: Entity,       // Nation entity that owns this unit
+    pub owner_id: NationId,  // Stable ID for save/load remapping
     pub civilian_id: CivilianId,
-    pub selected: bool,
     pub has_moved: bool, // True if unit has used its action this turn
 }
 

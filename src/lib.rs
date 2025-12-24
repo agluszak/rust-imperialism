@@ -8,7 +8,7 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::TilemapPlugin;
 
 use crate::ai::AiPlugin;
-use crate::civilians::CivilianPlugin;
+use crate::civilians::{CivilianPlugin, CivilianRenderingPlugin};
 use crate::diplomacy::DiplomacyPlugin;
 use crate::economy::EconomyPlugin;
 use crate::helpers::camera::CameraPlugin;
@@ -80,6 +80,7 @@ pub fn app() -> App {
             CityRenderingPlugin,
             ImprovementRenderingPlugin,
             ProspectingMarkersPlugin,
+            CivilianRenderingPlugin,
         ))
         .add_plugins(GameSavePlugin);
 
