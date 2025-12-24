@@ -279,7 +279,7 @@ fn test_ai_resource_discovery_and_collection() {
         rust_imperialism::civilians::CivilianPlugin,
     ));
 
-    // Manually create a small test map
+    // Manually create a small test map (5x5)
     let map_size = TilemapSize { x: 10, y: 10 };
     let mut tile_storage = TileStorage::empty(map_size);
 
@@ -448,7 +448,7 @@ fn test_ai_resource_discovery_and_collection() {
                         discovered = true;
                     }
                     if let Ok(resource) = resources.get(coal_tile) {
-                        if resource.discovered && resource.development as u8 > 0 {
+                        if resource.discovered && resource.development > 0 {
                             developed = true;
                         }
                     }

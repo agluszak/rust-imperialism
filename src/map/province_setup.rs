@@ -230,7 +230,6 @@ pub fn assign_provinces_to_countries(
         }
     }
 
-    let _nation_ids: HashMap<Entity, NationId> = country_entities.iter().copied().collect();
     let player_info = country_entities.first().copied();
     let player_entity_only = player_info.map(|(entity, _)| entity);
 
