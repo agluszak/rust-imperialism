@@ -340,9 +340,22 @@ fn plan_engineer_depot_task(
         }
     }
 
-    // Otherwise, move toward the target
-    if let Some(next_tile) = find_step_toward(engineer_pos, target, &nation.owned_tiles) {
-        return Some(CivilianTask::MoveTo { target: next_tile });
+    // If not on connected tiles, move to the closest connected tile first
+    // This ensures we build rails to the depot location (connected infrastructure)
+    if !nation.connected_tiles.contains(&engineer_pos) {
+        let closest_connected = nation
+            .connected_tiles
+            .iter()
+            .min_by_key(|t| engineer_pos.to_hex().distance_to(t.to_hex()));
+        if let Some(&connected_tile) = closest_connected {
+            return Some(CivilianTask::MoveTo { target: connected_tile });
+        }
+    }
+
+    // Fallback: if we're on connected tiles but can't build rail adjacent (e.g., blocked),
+    // move directly toward target
+    if nation.owned_tiles.contains(&target) {
+        return Some(CivilianTask::MoveTo { target });
     }
 
     None
@@ -365,23 +378,20 @@ fn plan_engineer_rail_task(
         }
     }
 
-    // If not on connected tiles, move toward the connected network first
+    // If not on connected tiles, move directly to the closest connected tile
     if !nation.connected_tiles.contains(&engineer_pos) {
         // Find the closest connected tile
         let closest_connected = nation
             .connected_tiles
             .iter()
             .min_by_key(|t| engineer_pos.to_hex().distance_to(t.to_hex()));
-        if let Some(&connected_tile) = closest_connected
-            && let Some(next_tile) =
-                find_step_toward(engineer_pos, connected_tile, &nation.owned_tiles)
-        {
-            return Some(CivilianTask::MoveTo { target: next_tile });
+        if let Some(&connected_tile) = closest_connected {
+            return Some(CivilianTask::MoveTo { target: connected_tile });
         }
     } else {
-        // We're on connected tiles - move toward the depot along owned tiles
-        if let Some(next_tile) = find_step_toward(engineer_pos, depot_pos, &nation.owned_tiles) {
-            return Some(CivilianTask::MoveTo { target: next_tile });
+        // We're on connected tiles - move directly toward the depot
+        if nation.owned_tiles.contains(&depot_pos) {
+            return Some(CivilianTask::MoveTo { target: depot_pos });
         }
     }
 
