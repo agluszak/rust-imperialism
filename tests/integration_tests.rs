@@ -236,6 +236,15 @@ fn test_illegal_rail_command_rejected() {
     );
 }
 
+/// Helper function to transition between turn phases in tests
+/// Encapsulates the double-update pattern needed for state transitions
+fn transition_to_phase(app: &mut bevy::app::App, phase: rust_imperialism::turn_system::TurnPhase) {
+    use bevy::prelude::NextState;
+    app.world_mut().resource_mut::<NextState<rust_imperialism::turn_system::TurnPhase>>().set(phase);
+    app.update(); // Apply state transition
+    app.update(); // Run systems in the new phase
+}
+
 /// Integration test: AI discovers resources, mines them, builds depot, and collects resources
 /// This test runs in headless mode with a manually created map
 #[test]
@@ -408,21 +417,15 @@ fn test_ai_resource_discovery_and_collection() {
         app.update();
         
         // Transition to Processing
-        app.world_mut().resource_mut::<NextState<TurnPhase>>().set(TurnPhase::Processing);
-        app.update(); // Apply transition
-        app.update(); // Run Processing systems
+        transition_to_phase(&mut app, TurnPhase::Processing);
         println!("Processing phase complete");
         
         // Transition to EnemyTurn  
-        app.world_mut().resource_mut::<NextState<TurnPhase>>().set(TurnPhase::EnemyTurn);
-        app.update(); // Apply transition
-        app.update(); // Run EnemyTurn systems (AI acts here)
+        transition_to_phase(&mut app, TurnPhase::EnemyTurn);
         println!("EnemyTurn phase complete");
         
         // Transition back to PlayerTurn
-        app.world_mut().resource_mut::<NextState<TurnPhase>>().set(TurnPhase::PlayerTurn);
-        app.update(); // Apply transition
-        app.update(); // Run PlayerTurn systems
+        transition_to_phase(&mut app, TurnPhase::PlayerTurn);
         println!("After manual transitions, phase: {:?}", app.world().resource::<State<TurnPhase>>().get());
         
         // Debug civilian positions periodically
@@ -448,7 +451,7 @@ fn test_ai_resource_discovery_and_collection() {
                         discovered = true;
                     }
                     if let Ok(resource) = resources.get(coal_tile) {
-                        if resource.discovered && resource.development > 0 {
+                        if resource.discovered && resource.development != rust_imperialism::resources::DevelopmentLevel::Lv0 {
                             developed = true;
                         }
                     }
