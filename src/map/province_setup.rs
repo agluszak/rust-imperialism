@@ -252,7 +252,7 @@ pub fn assign_provinces_to_countries(
         ];
 
         for (kind, pos) in starter_units.iter().zip(spawn_positions.iter()) {
-            let civilian_id = next_civilian_id.next();
+            let civilian_id = next_civilian_id.next_id();
             commands.spawn(Civilian {
                 kind: *kind,
                 position: *pos,
@@ -287,7 +287,7 @@ pub fn assign_provinces_to_countries(
             .copied()
             .unwrap_or(NationId(0));
         for (kind, pos) in ai_starter_units.iter().zip(spawn_positions.iter()) {
-            let civilian_id = next_civilian_id.next();
+            let civilian_id = next_civilian_id.next_id();
             commands.spawn((
                 Civilian {
                     kind: *kind,

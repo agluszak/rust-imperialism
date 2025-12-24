@@ -22,7 +22,7 @@ pub struct NextCivilianId(u32);
 
 impl NextCivilianId {
     /// Generate a new unique CivilianId
-    pub fn next(&mut self) -> CivilianId {
+    pub fn next_id(&mut self) -> CivilianId {
         let id = CivilianId(self.0);
         self.0 += 1;
         id
@@ -363,8 +363,8 @@ impl CivilianKind {
 pub struct Civilian {
     pub kind: CivilianKind,
     pub position: TilePos,
-    pub owner: Entity,       // Nation entity that owns this unit
-    pub owner_id: NationId,  // Stable ID for save/load remapping
+    pub owner: Entity,      // Nation entity that owns this unit
+    pub owner_id: NationId, // Stable ID for save/load remapping
     pub civilian_id: CivilianId,
     pub has_moved: bool, // True if unit has used its action this turn
 }

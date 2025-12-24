@@ -60,7 +60,7 @@ pub fn spawn_hired_civilian(
 
         treasury.subtract(cost);
 
-        let civilian_id = next_id.next();
+        let civilian_id = next_id.next_id();
 
         commands.spawn(Civilian {
             kind: event.kind,

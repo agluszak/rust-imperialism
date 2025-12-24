@@ -59,7 +59,7 @@ fn test_engineer_does_not_start_job_on_existing_rail() {
                 position: start_pos,
                 owner: nation,
                 owner_id: NationId(1),
-            civilian_id: CivilianId(0),
+                civilian_id: CivilianId(0),
                 has_moved: false,
             },
             CivilianOrder {
@@ -140,7 +140,7 @@ fn test_engineer_starts_job_on_new_rail() {
                 position: start_pos,
                 owner: nation,
                 owner_id: NationId(1),
-            civilian_id: CivilianId(0),
+                civilian_id: CivilianId(0),
                 has_moved: false,
             },
             CivilianOrder {
@@ -289,7 +289,7 @@ fn test_prospector_starts_prospecting_job() {
                 position: tile_pos,
                 owner: nation,
                 owner_id: NationId(1),
-            civilian_id: CivilianId(0),
+                civilian_id: CivilianId(0),
                 has_moved: false,
             },
             CivilianOrder {
@@ -416,7 +416,7 @@ fn miner_requires_discovery_before_mining() {
                 position: tile_pos,
                 owner: nation,
                 owner_id: NationId(1),
-            civilian_id: CivilianId(0),
+                civilian_id: CivilianId(0),
                 has_moved: false,
             },
             CivilianOrder {
@@ -859,7 +859,7 @@ fn test_skip_turn_removes_order_after_one_turn() {
                 position: tile_pos,
                 owner: Entity::PLACEHOLDER,
                 owner_id: NationId(1),
-            civilian_id: CivilianId(0),
+                civilian_id: CivilianId(0),
                 has_moved: false,
             },
             CivilianOrder {
@@ -899,7 +899,7 @@ fn test_sleep_order_persists_across_turns() {
                 position: tile_pos,
                 owner: Entity::PLACEHOLDER,
                 owner_id: NationId(1),
-            civilian_id: CivilianId(0),
+                civilian_id: CivilianId(0),
                 has_moved: false,
             },
             CivilianOrder {
@@ -946,7 +946,7 @@ fn test_rescind_wakes_sleeping_civilian() {
                 position: tile_pos,
                 owner: Entity::PLACEHOLDER,
                 owner_id: NationId(1),
-            civilian_id: CivilianId(0),
+                civilian_id: CivilianId(0),
                 has_moved: true, // Sleeping civilians are marked as moved
             },
             CivilianOrder {
