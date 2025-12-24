@@ -400,26 +400,51 @@ fn test_ai_resource_discovery_and_collection() {
     println!("Prospector at: {:?}", app.world().get::<Civilian>(prospector).unwrap().position);
     println!("Miner at: {:?}", app.world().get::<Civilian>(miner).unwrap().position);
     println!("Engineer at: {:?}", app.world().get::<Civilian>(engineer).unwrap().position);
+    
+    // Debug: Check AI nation and civilians are set up correctly
+    println!("AI Nation ID: {:?}", ai_nation);
+    let ai_marker = app.world().get::<AiNation>(ai_nation);
+    println!("AI Nation has AiNation marker: {}", ai_marker.is_some());
+    let prospector_ai = app.world().get::<AiControlledCivilian>(prospector);
+    println!("Prospector has AiControlledCivilian marker: {}", prospector_ai.is_some());
 
     // Run the game for multiple turns
-    let max_turns = 15;
+    let max_turns = 30; // Increased to give more time
     let mut resources_discovered = false;
     let mut mine_built = false;
     let mut depot_built = false;
     let mut resources_collected = false;
 
     for turn in 1..=max_turns {
-        println!("\n--- Turn {} ---", turn);
+        println!("\n--- Turn {} (Phase: {:?}) ---", turn, app.world().resource::<State<TurnPhase>>().get());
         
-        // Simulate player ending their turn
-        app.world_mut()
-            .resource_mut::<Messages<EndPlayerTurn>>()
-            .write(EndPlayerTurn);
+        // Manually transition through phases for better control
+        // PlayerTurn phase
+        app.update();
         
-        // Update to process turn transitions
-        // This will trigger: PlayerTurn -> Processing -> EnemyTurn -> PlayerTurn
-        for _ in 0..10 {
-            app.update();
+        // Transition to Processing
+        app.world_mut().resource_mut::<NextState<TurnPhase>>().set(TurnPhase::Processing);
+        app.update(); // Apply transition
+        app.update(); // Run Processing systems
+        println!("Processing phase complete");
+        
+        // Transition to EnemyTurn  
+        app.world_mut().resource_mut::<NextState<TurnPhase>>().set(TurnPhase::EnemyTurn);
+        app.update(); // Apply transition
+        app.update(); // Run EnemyTurn systems (AI acts here)
+        println!("EnemyTurn phase complete");
+        
+        // Transition back to PlayerTurn
+        app.world_mut().resource_mut::<NextState<TurnPhase>>().set(TurnPhase::PlayerTurn);
+        app.update(); // Apply transition
+        app.update(); // Run PlayerTurn systems
+        println!("After manual transitions, phase: {:?}", app.world().resource::<State<TurnPhase>>().get());
+        
+        // Debug civilian positions periodically
+        if turn % 5 == 0 {
+            if let Some(civ) = app.world().get::<Civilian>(prospector) {
+                println!("  Prospector now at: {:?}", civ.position);
+            }
         }
 
         // Check for discovered resources and mines
