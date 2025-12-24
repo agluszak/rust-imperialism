@@ -1,11 +1,18 @@
 # AGENTS.md
 
-This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. Last updated: **2025-12-23**.
+This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. Last updated: **2025-12-24**.
 
 **This is an economy-first, turn-based strategy game** inspired by Imperialism (1997). Built with Bevy 0.17 ECS, featuring hex-based maps, multi-nation economies, and a reservation-based resource allocation system.
 
 ## Recent Changes (Oct-Dec 2025)
 
+- **Unit selection refactor** (Dec 2025): Selection is now purely a UI concern
+  - Removed `selected: bool` field from `Civilian` component
+  - Added `SelectedCivilian` resource to track selected unit (stores Entity)
+  - Added `Selected` marker component for rendering purposes only
+  - Business logic (movement, orders) is completely transparent to selection state
+  - Selection uses Command-based marker insertion/removal pattern
+  - AI and tests work identically whether units are "selected" or not
 - **AI system refactor** (Dec 2025): Complete rewrite from behavior trees to goal-based planning
   - Removed `big-brain` dependency entirely
   - New architecture: snapshot → plan → execute (runs once per turn, not every frame)
@@ -234,6 +241,15 @@ app.add_systems(
 - Per-nation data → Components on nation entities
 - Global state → Resources
 - Player input → Messages/Events
+
+**Unit selection pattern:**
+- Selection is a purely UI concern, not business logic
+- `SelectedCivilian` resource tracks which unit (if any) player has selected
+- `Selected` marker component on entities for rendering/visual purposes only
+- Business logic (movement, orders) uses messages and is transparent to selection
+- Selection systems use Commands to add/remove `Selected` markers
+- Rendering systems query for `Selected` marker to apply visual feedback
+- AI and automation work identically whether units are "selected" or not
 
 **Creating new subsystems:**
 - Consider creating a new plugin in the module's `mod.rs`
