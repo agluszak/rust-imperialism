@@ -328,7 +328,7 @@ fn test_ai_resource_discovery_and_collection() {
     // Create tilemap entity
     let _tilemap_entity = app.world_mut().spawn((tile_storage, map_size)).id();
 
-    // Create AI nation with capital
+    // Create AI nation with capital FIRST (before province)
     let ai_nation = app
         .world_mut()
         .spawn((
@@ -339,7 +339,7 @@ fn test_ai_resource_discovery_and_collection() {
         ))
         .id();
 
-    // Create province
+    // Create province owned by the AI nation
     app.world_mut().spawn(Province {
         id: province_id,
         owner: Some(ai_nation),
