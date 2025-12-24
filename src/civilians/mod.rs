@@ -60,6 +60,7 @@ impl Plugin for CivilianPlugin {
         );
 
         app.init_resource::<crate::civilians::types::ProspectingKnowledge>()
+            .init_resource::<crate::civilians::types::NextCivilianId>()
             .init_resource::<SelectedCivilian>()
             .add_message::<SelectCivilian>()
             .add_message::<CivilianCommand>()

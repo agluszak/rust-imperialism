@@ -5,8 +5,8 @@ use moonshine_save::prelude::*;
 
 use crate::ai::markers::{AiControlledCivilian, AiNation};
 use crate::civilians::{
-    ActionTurn, Civilian, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind, JobType,
-    PreviousPosition, ProspectingKnowledge,
+    ActionTurn, Civilian, CivilianId, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind,
+    JobType, NextCivilianId, PreviousPosition, ProspectingKnowledge,
 };
 use crate::economy::allocation::Allocations;
 use crate::economy::goods::Good;
@@ -144,6 +144,8 @@ fn register_reflect_types(app: &mut App) {
         .register_type::<CivilianOrderKind>()
         .register_type::<JobType>()
         .register_type::<ProspectingKnowledge>()
+        .register_type::<CivilianId>()
+        .register_type::<NextCivilianId>()
         .register_type::<ProvinceId>()
         .register_type::<Province>()
         .register_type::<City>()
@@ -179,6 +181,7 @@ fn process_save_requests(
             .include_resource::<Roads>()
             .include_resource::<Rails>()
             .include_resource::<ProspectingKnowledge>()
+            .include_resource::<NextCivilianId>()
             .include_resource::<ProvincesGenerated>();
 
         commands.trigger_save(event);
@@ -296,25 +299,25 @@ pub(crate) fn remap_civilian_owners(
     nations: &Query<(Entity, &NationId)>,
     civilians: &mut Query<&mut Civilian>,
 ) {
-    // Since moonshine-save doesn't automatically remap entity references,
-    // the civilian's owner field points to an old entity ID that no longer exists.
-    // Without additional data, we can't know which nation this civilian belonged to.
+    use std::collections::HashMap;
 
-    // Workaround for tests: if there's exactly one nation and one civilian,
-    // assign the civilian to that nation.
-    let nation_count = nations.iter().count();
-    let civilian_count = civilians.iter().count();
+    // Build a lookup table from NationId to Entity
+    let mut nation_entities = HashMap::new();
+    for (entity, nation_id) in nations.iter() {
+        nation_entities.insert(*nation_id, entity);
+    }
 
-    if nation_count == 1 && civilian_count == 1 {
-        let (nation_entity, _) = nations.iter().next().unwrap();
-        for mut civilian in civilians.iter_mut() {
-            civilian.owner = nation_entity;
+    // Remap each civilian's owner using their owner_id
+    for mut civilian in civilians.iter_mut() {
+        if let Some(&entity) = nation_entities.get(&civilian.owner_id) {
+            civilian.owner = entity;
+        } else {
+            warn!(
+                "Could not remap civilian owner for CivilianId({}) with owner_id NationId({})",
+                civilian.civilian_id.0, civilian.owner_id.0
+            );
         }
     }
-    // For production use, we need persistent identifiers (e.g., CivilianId) to properly
-    // remap entity references across save/load. While NationId exists, we need similar
-    // IDs for all entity types that reference each other.
-    // See issue: https://github.com/agluszak/rust-imperialism/issues/XXX
 }
 
 #[cfg(test)]
@@ -337,7 +340,7 @@ mod tests {
 
     use moonshine_save::prelude::Save;
 
-    use crate::civilians::{Civilian, CivilianKind};
+    use crate::civilians::{Civilian, CivilianId, CivilianKind};
     use crate::economy::allocation::Allocations;
     use crate::economy::goods::Good;
     use crate::economy::nation::{
@@ -487,6 +490,8 @@ mod tests {
                 kind: CivilianKind::Engineer,
                 position: TilePos { x: 1, y: 1 },
                 owner,
+                owner_id: NationId(1),
+                civilian_id: CivilianId(1),
                 has_moved: false,
             },
             Save,
@@ -634,7 +639,8 @@ mod tests {
             kind: CivilianKind::Engineer,
             position: TilePos { x: 4, y: 9 },
             owner: nation_entity,
-
+            owner_id: NationId(7),
+            civilian_id: CivilianId(1),
             has_moved: false,
         });
 

@@ -110,7 +110,8 @@ fn test_ai_move_command_executes() {
             kind: CivilianKind::Engineer,
             position: start,
             owner: nation,
-
+            owner_id: NationId(1),
+            civilian_id: rust_imperialism::civilians::CivilianId(0),
             has_moved: false,
         })
         .id();
@@ -206,7 +207,8 @@ fn test_illegal_rail_command_rejected() {
             kind: CivilianKind::Engineer,
             position: start,
             owner: player,
-
+            owner_id: NationId(2),
+            civilian_id: rust_imperialism::civilians::CivilianId(0),
             has_moved: false,
         })
         .id();
@@ -370,7 +372,8 @@ fn test_ai_resource_discovery_and_collection() {
                 kind: CivilianKind::Prospector,
                 position: TilePos { x: 5, y: 6 }, // 1 tile from capital
                 owner: ai_nation,
-
+                owner_id: NationId(1),
+                civilian_id: rust_imperialism::civilians::CivilianId(0),
                 has_moved: false,
             },
             AiControlledCivilian,
@@ -384,7 +387,8 @@ fn test_ai_resource_discovery_and_collection() {
                 kind: CivilianKind::Miner,
                 position: TilePos { x: 6, y: 6 },
                 owner: ai_nation,
-
+                owner_id: NationId(1),
+                civilian_id: rust_imperialism::civilians::CivilianId(1),
                 has_moved: false,
             },
             AiControlledCivilian,
@@ -398,7 +402,8 @@ fn test_ai_resource_discovery_and_collection() {
                 kind: CivilianKind::Engineer,
                 position: TilePos { x: 4, y: 5 }, // Adjacent to capital
                 owner: ai_nation,
-
+                owner_id: NationId(1),
+                civilian_id: rust_imperialism::civilians::CivilianId(2),
                 has_moved: false,
             },
             AiControlledCivilian,

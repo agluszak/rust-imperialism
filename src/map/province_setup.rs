@@ -55,6 +55,7 @@ pub fn assign_provinces_to_countries(
     mut commands: Commands,
     mut provinces: Query<(Entity, &mut Province)>,
     provinces_generated: Option<Res<ProvincesGenerated>>,
+    mut next_civilian_id: ResMut<crate::civilians::types::NextCivilianId>,
 ) {
     // Skip if provinces not yet generated
     if provinces_generated.is_none() {
@@ -234,7 +235,7 @@ pub fn assign_provinces_to_countries(
     let player_entity_only = player_info.map(|(entity, _)| entity);
 
     // Spawn starter civilian roster for the player clustered around the capital
-    if let Some((player_entity, _player_id)) = player_info
+    if let Some((player_entity, player_nation_id)) = player_info
         && let Some(player_capital) = capitals
             .iter()
             .find(|(entity, _)| *entity == player_entity)
@@ -251,16 +252,21 @@ pub fn assign_provinces_to_countries(
         ];
 
         for (kind, pos) in starter_units.iter().zip(spawn_positions.iter()) {
+            let civilian_id = next_civilian_id.next();
             commands.spawn(Civilian {
                 kind: *kind,
                 position: *pos,
                 owner: player_entity,
-
+                owner_id: player_nation_id,
+                civilian_id,
                 has_moved: false,
             });
             info!("Spawned {:?} for player at ({}, {})", kind, pos.x, pos.y);
         }
     }
+
+    // Build entity -> NationId lookup for AI nations
+    let nation_ids: HashMap<Entity, NationId> = country_entities.iter().copied().collect();
 
     let ai_starter_units = [
         CivilianKind::Engineer,
@@ -276,13 +282,19 @@ pub fn assign_provinces_to_countries(
         .filter(|(entity, _)| Some(*entity) != player_entity_only)
     {
         let spawn_positions = gather_spawn_positions(capital_pos, ai_starter_units.len());
+        let owner_id = nation_ids
+            .get(&nation_entity)
+            .copied()
+            .unwrap_or(NationId(0));
         for (kind, pos) in ai_starter_units.iter().zip(spawn_positions.iter()) {
+            let civilian_id = next_civilian_id.next();
             commands.spawn((
                 Civilian {
                     kind: *kind,
                     position: *pos,
                     owner: nation_entity,
-
+                    owner_id,
+                    civilian_id,
                     has_moved: false,
                 },
                 AiControlledCivilian,
@@ -554,6 +566,7 @@ mod tests {
     fn ai_nations_receive_capitals_and_civilians() {
         let mut world = World::new();
         world.insert_resource(ProvincesGenerated);
+        world.insert_resource(crate::civilians::types::NextCivilianId::default());
 
         let province_positions = [
             TilePos { x: 0, y: 0 },

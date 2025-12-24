@@ -6,7 +6,28 @@ use moonshine_save::prelude::Save;
 use std::collections::{HashMap, HashSet};
 use std::mem;
 
+use crate::economy::nation::NationId;
 use crate::resources::TileResource;
+
+/// Unique identifier for a civilian (stable across saves)
+#[derive(Component, Clone, Copy, Debug, Eq, PartialEq, Hash, Reflect)]
+#[reflect(Component)]
+#[require(Save)]
+pub struct CivilianId(pub u32);
+
+/// Resource to generate unique CivilianIds
+#[derive(Resource, Default, Reflect)]
+#[reflect(Resource)]
+pub struct NextCivilianId(u32);
+
+impl NextCivilianId {
+    /// Generate a new unique CivilianId
+    pub fn next(&mut self) -> CivilianId {
+        let id = CivilianId(self.0);
+        self.0 += 1;
+        id
+    }
+}
 
 /// Tracks which nations have successfully prospected each mineral tile
 #[derive(Resource, Default, Debug, Reflect)]
@@ -342,7 +363,9 @@ impl CivilianKind {
 pub struct Civilian {
     pub kind: CivilianKind,
     pub position: TilePos,
-    pub owner: Entity,   // Nation entity that owns this unit
+    pub owner: Entity,       // Nation entity that owns this unit
+    pub owner_id: NationId,  // Stable ID for save/load remapping
+    pub civilian_id: CivilianId,
     pub has_moved: bool, // True if unit has used its action this turn
 }
 
