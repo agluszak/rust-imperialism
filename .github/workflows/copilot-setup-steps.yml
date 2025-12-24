@@ -40,8 +40,7 @@ jobs:
             libxkbcommon-x11-0 \
             libwayland-dev \
             libxkbcommon-dev \
-            vulkan-radeon \
-            vulkan-intel \
+            libvulkan1 \
             mesa-vulkan-drivers
       
       - name: Install Rust toolchain
