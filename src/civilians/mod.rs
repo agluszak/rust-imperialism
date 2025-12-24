@@ -6,7 +6,7 @@ use crate::turn_system::{PlayerTurnSet, TurnPhase};
 pub use crate::messages::civilians::{
     CivilianCommand, CivilianCommandError, CivilianCommandRejected, HireCivilian,
 };
-pub use commands::{SelectedCivilian, *};
+pub use commands::*;
 pub use jobs::{advance_civilian_jobs, complete_improvement_jobs, reset_civilian_actions};
 pub use types::*;
 
