@@ -479,7 +479,7 @@ mod tests {
                 kind: CivilianKind::Engineer,
                 position: TilePos { x: 1, y: 1 },
                 owner,
-                selected: false,
+                
                 has_moved: false,
             },
             Save,
@@ -617,7 +617,7 @@ mod tests {
             kind: CivilianKind::Engineer,
             position: TilePos { x: 4, y: 9 },
             owner: nation_entity,
-            selected: false,
+            
             has_moved: false,
         });
 

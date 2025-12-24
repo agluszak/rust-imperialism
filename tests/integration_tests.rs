@@ -110,7 +110,7 @@ fn test_ai_move_command_executes() {
             kind: CivilianKind::Engineer,
             position: start,
             owner: nation,
-            selected: false,
+            
             has_moved: false,
         })
         .id();
@@ -206,7 +206,7 @@ fn test_illegal_rail_command_rejected() {
             kind: CivilianKind::Engineer,
             position: start,
             owner: player,
-            selected: false,
+            
             has_moved: false,
         })
         .id();
@@ -343,7 +343,7 @@ fn test_ai_resource_discovery_and_collection() {
                 kind: CivilianKind::Prospector,
                 position: TilePos { x: 5, y: 6 }, // 1 tile from capital
                 owner: ai_nation,
-                selected: false,
+                
                 has_moved: false,
             },
             AiControlledCivilian,
@@ -357,7 +357,7 @@ fn test_ai_resource_discovery_and_collection() {
                 kind: CivilianKind::Miner,
                 position: TilePos { x: 6, y: 6 },
                 owner: ai_nation,
-                selected: false,
+                
                 has_moved: false,
             },
             AiControlledCivilian,
@@ -371,7 +371,7 @@ fn test_ai_resource_discovery_and_collection() {
                 kind: CivilianKind::Engineer,
                 position: TilePos { x: 4, y: 5 }, // Adjacent to capital
                 owner: ai_nation,
-                selected: false,
+                
                 has_moved: false,
             },
             AiControlledCivilian,

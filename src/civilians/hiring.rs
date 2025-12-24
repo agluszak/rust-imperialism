@@ -63,7 +63,7 @@ pub fn spawn_hired_civilian(
             kind: event.kind,
             position: spawn_pos,
             owner: nation_entity,
-            selected: false,
+            
             has_moved: false,
         });
 

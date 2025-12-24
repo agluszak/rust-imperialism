@@ -6,7 +6,7 @@ use crate::turn_system::{PlayerTurnSet, TurnPhase};
 pub use crate::messages::civilians::{
     CivilianCommand, CivilianCommandError, CivilianCommandRejected, HireCivilian,
 };
-pub use commands::*;
+pub use commands::{SelectedCivilian, *};
 pub use jobs::{advance_civilian_jobs, complete_improvement_jobs, reset_civilian_actions};
 pub use types::*;
 
@@ -58,11 +58,11 @@ impl Plugin for CivilianPlugin {
         );
 
         app.init_resource::<crate::civilians::types::ProspectingKnowledge>()
+            .init_resource::<SelectedCivilian>()
             .add_message::<SelectCivilian>()
             .add_message::<CivilianCommand>()
             .add_message::<CivilianCommandRejected>()
             .add_message::<DeselectCivilian>()
-            .add_message::<DeselectAllCivilians>()
             .add_message::<RescindOrders>()
             .add_message::<HireCivilian>()
             // Selection handler runs always to react to events immediately
@@ -72,7 +72,6 @@ impl Plugin for CivilianPlugin {
                     systems::handle_civilian_selection,
                     systems::handle_deselect_key,
                     systems::handle_deselection,
-                    systems::handle_deselect_all,
                 ),
             )
             .add_systems(

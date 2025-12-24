@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TileStorage;
 
+use crate::civilians::SelectedCivilian;
 use crate::civilians::{Civilian, CivilianKind};
 use crate::economy::{Calendar, Name, PlayerNation, Technologies, Technology, Treasury};
 use crate::map::province::{City, Province, TileProvince};
@@ -78,13 +79,14 @@ pub fn update_treasury_display(
 /// Update tile info display based on hovered tile
 pub fn update_tile_info_display(
     hovered_tile: Res<HoveredTile>,
+    selected_civilian: Res<SelectedCivilian>,
     tile_storage_query: Query<&TileStorage>,
     tile_types: Query<&TerrainType>,
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
     cities: Query<&City>,
     nations_query: Query<(Entity, &Name, &Technologies)>,
-    civilians: Query<&Civilian>,
+    civilians: Query<(Entity, &Civilian)>,
     player: Option<Res<PlayerNation>>,
     mut display: Query<&mut Text, With<TileInfoDisplay>>,
 ) {
@@ -148,9 +150,9 @@ pub fn update_tile_info_display(
                     }
 
                     // If an engineer is selected, show buildability
-                    let selected_engineer = civilians
-                        .iter()
-                        .find(|c| c.selected && c.kind == CivilianKind::Engineer);
+                    let selected_engineer = selected_civilian.0
+                        .and_then(|selected| civilians.iter().find(|(entity, _)| *entity == selected))
+                        .filter(|(_, c)| c.kind == CivilianKind::Engineer);
 
                     if selected_engineer.is_some()
                         && let Some(player) = &player

@@ -158,7 +158,7 @@ fn handle_build_rail_order(
         );
         civilian.position = to;
         civilian.has_moved = true;
-        deselect_writer.write(DeselectCivilian { entity });
+        deselect_writer.write(DeselectCivilian);
         commands.entity(entity).insert((
             PreviousPosition(previous_pos),
             ActionTurn(turn.current_turn),
@@ -176,7 +176,7 @@ fn handle_build_rail_order(
         // Move Engineer to the target tile after starting construction
         civilian.position = to;
         civilian.has_moved = true;
-        deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
+        deselect_writer.write(DeselectCivilian); // Auto-deselect after action
         // Add job to lock Engineer and previous position for rescinding
         let job_type = JobType::BuildingRail;
         commands.entity(entity).insert((
@@ -210,7 +210,7 @@ fn handle_build_depot_order(
         engineer: Some(entity),
     });
     civilian.has_moved = true;
-    deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
+    deselect_writer.write(DeselectCivilian); // Auto-deselect after action
     // Add job to lock Engineer and previous position for rescinding
     let job_type = JobType::BuildingDepot;
     commands.entity(entity).insert((
@@ -243,7 +243,7 @@ fn handle_build_port_order(
         engineer: Some(entity),
     });
     civilian.has_moved = true;
-    deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
+    deselect_writer.write(DeselectCivilian); // Auto-deselect after action
     // Add job to lock Engineer and previous position for rescinding
     let job_type = JobType::BuildingPort;
     commands.entity(entity).insert((
@@ -346,7 +346,7 @@ pub fn execute_prospector_orders(
                         to.x, to.y
                     );
                     civilian.has_moved = true;
-                    deselect_writer.write(DeselectCivilian { entity });
+                    deselect_writer.write(DeselectCivilian);
                 } else {
                     info!(
                         "Cannot prospect at ({}, {}): no mineral deposits possible here",
@@ -486,7 +486,7 @@ pub fn execute_civilian_improvement_orders(
                         job_type.duration()
                     );
                     civilian.has_moved = true;
-                    deselect_writer.write(DeselectCivilian { entity }); // Auto-deselect after action
+                    deselect_writer.write(DeselectCivilian); // Auto-deselect after action
                 } else if !can_improve {
                     info!(
                         "{:?} cannot improve {:?} at ({}, {})",

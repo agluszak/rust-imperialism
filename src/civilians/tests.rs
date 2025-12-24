@@ -58,7 +58,7 @@ fn test_engineer_does_not_start_job_on_existing_rail() {
                 kind: CivilianKind::Engineer,
                 position: start_pos,
                 owner: nation,
-                selected: false,
+                
                 has_moved: false,
             },
             CivilianOrder {
@@ -138,7 +138,7 @@ fn test_engineer_starts_job_on_new_rail() {
                 kind: CivilianKind::Engineer,
                 position: start_pos,
                 owner: nation,
-                selected: false,
+                
                 has_moved: false,
             },
             CivilianOrder {
@@ -286,7 +286,7 @@ fn test_prospector_starts_prospecting_job() {
                 kind: CivilianKind::Prospector,
                 position: tile_pos,
                 owner: nation,
-                selected: false,
+                
                 has_moved: false,
             },
             CivilianOrder {
@@ -339,7 +339,7 @@ fn test_prospecting_job_reveals_resource_on_completion() {
                 kind: CivilianKind::Prospector,
                 position: tile_pos,
                 owner,
-                selected: false,
+                
                 has_moved: true,
             },
             CivilianJob {
@@ -411,7 +411,7 @@ fn miner_requires_discovery_before_mining() {
                 kind: CivilianKind::Miner,
                 position: tile_pos,
                 owner: nation,
-                selected: false,
+                
                 has_moved: false,
             },
             CivilianOrder {
@@ -480,7 +480,7 @@ fn new_owner_must_reprospect_before_mining() {
                 kind: CivilianKind::Prospector,
                 position: tile_pos,
                 owner: nation_a,
-                selected: false,
+                
                 has_moved: false,
             },
             CivilianOrder {
@@ -532,7 +532,7 @@ fn new_owner_must_reprospect_before_mining() {
                 kind: CivilianKind::Miner,
                 position: tile_pos,
                 owner: nation_b,
-                selected: false,
+                
                 has_moved: false,
             },
             CivilianOrder {
@@ -574,7 +574,7 @@ fn test_cannot_assign_order_if_order_already_exists() {
         kind: CivilianKind::Farmer,
         position: tile_pos,
         owner: Entity::PLACEHOLDER,
-        selected: false,
+        
         has_moved: false,
     };
 
@@ -635,7 +635,7 @@ fn test_can_assign_order_when_no_existing_order() {
         kind: CivilianKind::Farmer,
         position: tile_pos,
         owner: Entity::PLACEHOLDER,
-        selected: false,
+        
         has_moved: false,
     };
 
@@ -698,7 +698,7 @@ fn test_rescind_orders_removes_civilian_order_component() {
                 kind: CivilianKind::Farmer,
                 position: tile_pos,
                 owner: nation,
-                selected: false,
+                
                 has_moved: false,
             },
             CivilianOrder {
@@ -780,7 +780,7 @@ fn test_rescind_orders_removes_civilian_job_and_order() {
                 kind: CivilianKind::Engineer,
                 position: tile_pos,
                 owner: nation,
-                selected: false,
+                
                 has_moved: true,
             },
             CivilianJob {
@@ -847,7 +847,7 @@ fn test_skip_turn_removes_order_after_one_turn() {
                 kind: CivilianKind::Farmer,
                 position: tile_pos,
                 owner: Entity::PLACEHOLDER,
-                selected: false,
+                
                 has_moved: false,
             },
             CivilianOrder {
@@ -886,7 +886,7 @@ fn test_sleep_order_persists_across_turns() {
                 kind: CivilianKind::Farmer,
                 position: tile_pos,
                 owner: Entity::PLACEHOLDER,
-                selected: false,
+                
                 has_moved: false,
             },
             CivilianOrder {
@@ -932,7 +932,7 @@ fn test_rescind_wakes_sleeping_civilian() {
                 kind: CivilianKind::Farmer,
                 position: tile_pos,
                 owner: Entity::PLACEHOLDER,
-                selected: false,
+                
                 has_moved: true, // Sleeping civilians are marked as moved
             },
             CivilianOrder {
@@ -1000,7 +1000,7 @@ fn miner_respects_max_development_level() {
                 kind: CivilianKind::Miner,
                 position: tile_pos,
                 owner: nation,
-                selected: false,
+                
                 has_moved: false,
             },
             CivilianOrder {
@@ -1059,7 +1059,7 @@ fn farmer_starts_improvement_job_on_visible_resource() {
                 kind: CivilianKind::Farmer,
                 position: tile_pos,
                 owner: nation,
-                selected: false,
+                
                 has_moved: false,
             },
             CivilianOrder {

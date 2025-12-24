@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 
+use crate::civilians::commands::SelectedCivilian;
 use crate::civilians::{Civilian, CivilianCommand, CivilianKind, CivilianOrderKind};
 use crate::map::tile_pos::TilePosExt;
 
@@ -15,6 +16,7 @@ impl Plugin for InputPlugin {
 /// Handle tile clicks when any civilian is selected
 pub fn handle_tile_click(
     trigger: On<Pointer<Click>>,
+    selected_civilian: Res<SelectedCivilian>,
     tile_positions: Query<&TilePos>,
     civilians: Query<(Entity, &Civilian)>,
     potential_minerals: Query<&crate::map::PotentialMineral>,
@@ -26,8 +28,11 @@ pub fn handle_tile_click(
         return;
     };
 
-    // Find any selected civilian
-    let Some((civilian_entity, civilian)) = civilians.iter().find(|(_, c)| c.selected) else {
+    // Get the selected civilian
+    let Some(selected) = selected_civilian.0 else {
+        return;
+    };
+    let Some((civilian_entity, civilian)) = civilians.iter().find(|(entity, _)| *entity == selected) else {
         return;
     };
 

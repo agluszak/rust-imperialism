@@ -3,6 +3,7 @@ use bevy_ecs_tilemap::prelude::TilePos;
 use std::collections::HashSet;
 
 use crate::assets;
+use crate::civilians::SelectedCivilian;
 use crate::civilians::{Civilian, CivilianKind};
 use crate::economy::{Depot, Port, Rails, Roads};
 use crate::map::rendering::{MapVisual, MapVisualFor};
@@ -323,16 +324,18 @@ fn update_port_visuals(
 /// Render shadow rail preview when hovering over adjacent tiles with Engineer selected
 fn render_shadow_rail(
     mut commands: Commands,
-    civilians: Query<&Civilian>,
+    selected_civilian: Res<SelectedCivilian>,
+    civilians: Query<(Entity, &Civilian)>,
     hovered_tile: Res<HoveredTile>,
     existing_shadow: Query<Entity, With<ShadowRailVisual>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     // Find selected Engineer
-    let selected_engineer = civilians
-        .iter()
-        .find(|c| c.selected && c.kind == CivilianKind::Engineer);
+    let selected_engineer = selected_civilian.0
+        .and_then(|selected| civilians.iter().find(|(entity, _)| *entity == selected))
+        .filter(|(_, c)| c.kind == CivilianKind::Engineer)
+        .map(|(_, c)| c);
 
     // Determine if we should show shadow rail
     let should_show =
