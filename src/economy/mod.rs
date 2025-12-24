@@ -70,7 +70,9 @@ impl Plugin for EconomyPlugin {
             .add_message::<AdjustRecruitment>()
             .add_message::<AdjustTraining>()
             .add_message::<AdjustProduction>()
-            .add_message::<AdjustMarketOrder>();
+            .add_message::<AdjustMarketOrder>()
+            .add_message::<RecruitWorkers>()
+            .add_message::<TrainWorker>();
 
         // Configure the economy system set to run only in-game
         app.configure_sets(Update, EconomySet.run_if(in_state(AppState::InGame)));

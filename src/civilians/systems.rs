@@ -37,11 +37,13 @@ pub fn handle_civilian_click(
 
 /// Handle Escape key to deselect all civilians
 pub fn handle_deselect_key(
-    keys: Res<ButtonInput<KeyCode>>,
+    keys: Option<Res<ButtonInput<KeyCode>>>,
     mut writer: MessageWriter<DeselectAllCivilians>,
 ) {
-    if keys.just_pressed(KeyCode::Escape) {
-        writer.write(DeselectAllCivilians);
+    if let Some(keys) = keys {
+        if keys.just_pressed(KeyCode::Escape) {
+            writer.write(DeselectAllCivilians);
+        }
     }
 }
 

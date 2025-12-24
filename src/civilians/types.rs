@@ -6,7 +6,6 @@ use moonshine_save::prelude::Save;
 use std::collections::{HashMap, HashSet};
 use std::mem;
 
-use crate::economy::nation::NationId;
 use crate::resources::TileResource;
 
 /// Tracks which nations have successfully prospected each mineral tile
@@ -344,7 +343,6 @@ pub struct Civilian {
     pub kind: CivilianKind,
     pub position: TilePos,
     pub owner: Entity, // Nation entity that owns this unit
-    pub owner_id: NationId,
     pub selected: bool,
     pub has_moved: bool, // True if unit has used its action this turn
 }

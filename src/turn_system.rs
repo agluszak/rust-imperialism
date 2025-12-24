@@ -283,13 +283,17 @@ fn log_enemy_turn_start(turn: Res<TurnCounter>) {
 // ============================================================================
 
 fn handle_end_turn_input(
-    keys: Res<ButtonInput<KeyCode>>,
+    keys: Option<Res<ButtonInput<KeyCode>>>,
     offers: Option<Res<DiplomaticOffers>>,
     player: Option<Res<PlayerNation>>,
     nation_ids: Query<&NationId>,
     game_mode: Option<Res<State<GameMode>>>,
     mut end_turn_events: MessageWriter<EndPlayerTurn>,
 ) {
+    let Some(keys) = keys else {
+        return;
+    };
+
     // Only allow ending turn from Map screen
     if let Some(mode) = &game_mode
         && *mode.get() != GameMode::Map

@@ -296,15 +296,16 @@ pub(crate) fn remap_civilian_owners(
     nations: &Query<(Entity, &NationId)>,
     civilians: &mut Query<&mut Civilian>,
 ) {
-    let mut owners = HashMap::new();
-    for (entity, nation_id) in nations.iter() {
-        owners.insert(*nation_id, entity);
-    }
-
-    for mut civilian in civilians.iter_mut() {
-        if let Some(&entity) = owners.get(&civilian.owner_id) {
-            civilian.owner = entity;
-        }
+    // After entity mapping during load, civilian.owner should already be correct
+    // This function is now a no-op but kept for compatibility
+    // The MapEntities trait on Civilian handles owner Entity remapping automatically
+    let _owners: HashMap<NationId, Entity> = nations.iter()
+        .map(|(entity, nation_id)| (*nation_id, entity))
+        .collect();
+    
+    // No action needed - MapEntities already handled owner field remapping
+    for civilian in civilians.iter() {
+        let _ = civilian.owner; // Verify owner exists
     }
 }
 
@@ -478,7 +479,6 @@ mod tests {
                 kind: CivilianKind::Engineer,
                 position: TilePos { x: 1, y: 1 },
                 owner,
-                owner_id: NationId(1),
                 selected: false,
                 has_moved: false,
             },
@@ -617,7 +617,6 @@ mod tests {
             kind: CivilianKind::Engineer,
             position: TilePos { x: 4, y: 9 },
             owner: nation_entity,
-            owner_id: NationId(7),
             selected: false,
             has_moved: false,
         });

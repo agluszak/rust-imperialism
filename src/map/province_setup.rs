@@ -132,7 +132,7 @@ pub fn assign_provinces_to_countries(
         });
 
         if i > 0 {
-            commands.entity(country_entity).insert(AiNation(nation_id));
+            commands.entity(country_entity).insert(AiNation);
         }
 
         // Give every nation a basic industrial base so AI economies can function
@@ -230,12 +230,12 @@ pub fn assign_provinces_to_countries(
         }
     }
 
-    let nation_ids: HashMap<Entity, NationId> = country_entities.iter().copied().collect();
+    let _nation_ids: HashMap<Entity, NationId> = country_entities.iter().copied().collect();
     let player_info = country_entities.first().copied();
     let player_entity_only = player_info.map(|(entity, _)| entity);
 
     // Spawn starter civilian roster for the player clustered around the capital
-    if let Some((player_entity, player_id)) = player_info
+    if let Some((player_entity, _player_id)) = player_info
         && let Some(player_capital) = capitals
             .iter()
             .find(|(entity, _)| *entity == player_entity)
@@ -256,7 +256,6 @@ pub fn assign_provinces_to_countries(
                 kind: *kind,
                 position: *pos,
                 owner: player_entity,
-                owner_id: player_id,
                 selected: false,
                 has_moved: false,
             });
@@ -279,16 +278,11 @@ pub fn assign_provinces_to_countries(
     {
         let spawn_positions = gather_spawn_positions(capital_pos, ai_starter_units.len());
         for (kind, pos) in ai_starter_units.iter().zip(spawn_positions.iter()) {
-            let owner_id = nation_ids
-                .get(&nation_entity)
-                .copied()
-                .unwrap_or(NationId(0));
             commands.spawn((
                 Civilian {
                     kind: *kind,
                     position: *pos,
                     owner: nation_entity,
-                    owner_id,
                     selected: false,
                     has_moved: false,
                 },

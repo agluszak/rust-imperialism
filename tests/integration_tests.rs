@@ -110,7 +110,6 @@ fn test_ai_move_command_executes() {
             kind: CivilianKind::Engineer,
             position: start,
             owner: nation,
-            owner_id: NationId(1),
             selected: false,
             has_moved: false,
         })
@@ -207,7 +206,6 @@ fn test_illegal_rail_command_rejected() {
             kind: CivilianKind::Engineer,
             position: start,
             owner: player,
-            owner_id: NationId(2),
             selected: false,
             has_moved: false,
         })
@@ -261,7 +259,7 @@ fn test_ai_resource_discovery_and_collection() {
     };
     use rust_imperialism::resources::{ResourceType, TileResource};
     use rust_imperialism::turn_system::{
-        EndPlayerTurn, TurnPhase, TurnSystemPlugin,
+        TurnPhase, TurnSystemPlugin,
     };
     use rust_imperialism::ui::menu::AppState;
 
@@ -273,10 +271,6 @@ fn test_ai_resource_discovery_and_collection() {
     app.init_state::<TurnPhase>();
     app.insert_state(AppState::InGame);
     
-    // Add input resources (needed by civilian systems)
-    app.init_resource::<ButtonInput<KeyCode>>();
-    app.init_resource::<ButtonInput<MouseButton>>();
-    
     // Add only the necessary game plugins (no rendering)
     app.add_plugins((
         TurnSystemPlugin,
@@ -284,10 +278,6 @@ fn test_ai_resource_discovery_and_collection() {
         rust_imperialism::ai::AiPlugin,
         rust_imperialism::civilians::CivilianPlugin,
     ));
-    
-    // Manually register workforce messages (normally done by UI plugin)
-    app.add_message::<rust_imperialism::messages::workforce::TrainWorker>();
-    app.add_message::<rust_imperialism::messages::workforce::RecruitWorkers>();
 
     // Manually create a small test map
     let map_size = TilemapSize { x: 10, y: 10 };
@@ -310,17 +300,15 @@ fn test_ai_resource_discovery_and_collection() {
             tile_storage.set(&pos, tile_entity);
             province_tiles.push(pos);
             
-            // Add hidden mineral resources
+            // Add hidden mineral resources (only PotentialMineral, TileResource added after prospecting)
             if pos == coal_pos {
-                app.world_mut().entity_mut(tile_entity).insert((
+                app.world_mut().entity_mut(tile_entity).insert(
                     PotentialMineral::new(Some(ResourceType::Coal)),
-                    TileResource::hidden_mineral(ResourceType::Coal),
-                ));
+                );
             } else if pos == iron_pos {
-                app.world_mut().entity_mut(tile_entity).insert((
+                app.world_mut().entity_mut(tile_entity).insert(
                     PotentialMineral::new(Some(ResourceType::Iron)),
-                    TileResource::hidden_mineral(ResourceType::Iron),
-                ));
+                );
             }
         }
     }
@@ -332,7 +320,7 @@ fn test_ai_resource_discovery_and_collection() {
     let ai_nation = app
         .world_mut()
         .spawn((
-            AiNation(NationId(1)),
+            AiNation,
             NationId(1),
             Capital(capital_pos),
             Stockpile::default(),
@@ -355,7 +343,6 @@ fn test_ai_resource_discovery_and_collection() {
                 kind: CivilianKind::Prospector,
                 position: TilePos { x: 5, y: 6 }, // 1 tile from capital
                 owner: ai_nation,
-                owner_id: NationId(1),
                 selected: false,
                 has_moved: false,
             },
@@ -370,7 +357,6 @@ fn test_ai_resource_discovery_and_collection() {
                 kind: CivilianKind::Miner,
                 position: TilePos { x: 6, y: 6 },
                 owner: ai_nation,
-                owner_id: NationId(1),
                 selected: false,
                 has_moved: false,
             },
@@ -385,7 +371,6 @@ fn test_ai_resource_discovery_and_collection() {
                 kind: CivilianKind::Engineer,
                 position: TilePos { x: 4, y: 5 }, // Adjacent to capital
                 owner: ai_nation,
-                owner_id: NationId(1),
                 selected: false,
                 has_moved: false,
             },
