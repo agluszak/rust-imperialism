@@ -20,6 +20,7 @@ pub fn spawn_hired_civilian(
     mut treasuries: Query<&mut Treasury>,
     tile_storage_query: Query<&TileStorage>,
     civilians: Query<&Civilian>,
+    mut next_id: ResMut<crate::civilians::types::NextCivilianId>,
 ) {
     for event in hire_events.read() {
         let nation_entity = event.nation.entity();
@@ -59,18 +60,21 @@ pub fn spawn_hired_civilian(
 
         treasury.subtract(cost);
 
+        let civilian_id = next_id.next();
+
         commands.spawn(Civilian {
             kind: event.kind,
             position: spawn_pos,
             owner: nation_entity,
             owner_id: *nation_id,
+            civilian_id,
             selected: false,
             has_moved: false,
         });
 
         info!(
-            "Hired {:?} for {:?} at ({}, {})",
-            event.kind, nation_entity, spawn_pos.x, spawn_pos.y
+            "Hired {:?} (CivilianId({})) for {:?} at ({}, {})",
+            event.kind, civilian_id.0, nation_entity, spawn_pos.x, spawn_pos.y
         );
     }
 }

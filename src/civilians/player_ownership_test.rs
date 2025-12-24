@@ -3,7 +3,7 @@ use bevy::prelude::*;
 
 use crate::civilians::commands::SelectCivilian;
 use crate::civilians::systems::handle_civilian_selection;
-use crate::civilians::types::{Civilian, CivilianKind};
+use crate::civilians::types::{Civilian, CivilianId, CivilianKind};
 use crate::economy::{NationId, PlayerNation};
 use bevy_ecs_tilemap::prelude::TilePos;
 
@@ -29,6 +29,7 @@ fn test_cannot_select_enemy_units() {
             position: TilePos { x: 0, y: 0 },
             owner: enemy_nation_entity,
             owner_id: NationId(2),
+            civilian_id: CivilianId(0),
             selected: false,
             has_moved: false,
         })
@@ -85,6 +86,7 @@ fn test_can_select_own_units() {
             position: TilePos { x: 0, y: 0 },
             owner: player_nation_entity,
             owner_id: NationId(1),
+            civilian_id: CivilianId(0),
             selected: false,
             has_moved: false,
         })
@@ -141,6 +143,7 @@ fn test_selecting_player_unit_deselects_others() {
             position: TilePos { x: 0, y: 0 },
             owner: player_nation_entity,
             owner_id: NationId(1),
+            civilian_id: CivilianId(0),
             selected: true, // Already selected
             has_moved: false,
         })
@@ -153,6 +156,7 @@ fn test_selecting_player_unit_deselects_others() {
             position: TilePos { x: 1, y: 1 },
             owner: player_nation_entity,
             owner_id: NationId(1),
+            civilian_id: CivilianId(0),
             selected: false,
             has_moved: false,
         })

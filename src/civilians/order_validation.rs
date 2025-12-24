@@ -223,6 +223,7 @@ mod tests {
             position: tile_pos,
             owner: Entity::PLACEHOLDER,
             owner_id: NationId(0),
+            civilian_id: CivilianId(0),
             selected: false,
             has_moved: false,
         };

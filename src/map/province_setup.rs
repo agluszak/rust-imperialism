@@ -55,6 +55,7 @@ pub fn assign_provinces_to_countries(
     mut commands: Commands,
     mut provinces: Query<(Entity, &mut Province)>,
     provinces_generated: Option<Res<ProvincesGenerated>>,
+    mut next_civilian_id: ResMut<crate::civilians::types::NextCivilianId>,
 ) {
     // Skip if provinces not yet generated
     if provinces_generated.is_none() {
@@ -252,11 +253,13 @@ pub fn assign_provinces_to_countries(
         ];
 
         for (kind, pos) in starter_units.iter().zip(spawn_positions.iter()) {
+            let civilian_id = next_civilian_id.next();
             commands.spawn(Civilian {
                 kind: *kind,
                 position: *pos,
                 owner: player_entity,
                 owner_id: player_id,
+                civilian_id,
                 selected: false,
                 has_moved: false,
             });
@@ -283,12 +286,14 @@ pub fn assign_provinces_to_countries(
                 .get(&nation_entity)
                 .copied()
                 .unwrap_or(NationId(0));
+            let civilian_id = next_civilian_id.next();
             commands.spawn((
                 Civilian {
                     kind: *kind,
                     position: *pos,
                     owner: nation_entity,
                     owner_id,
+                    civilian_id,
                     selected: false,
                     has_moved: false,
                 },
@@ -561,6 +566,7 @@ mod tests {
     fn ai_nations_receive_capitals_and_civilians() {
         let mut world = World::new();
         world.insert_resource(ProvincesGenerated);
+        world.insert_resource(crate::civilians::types::NextCivilianId::default());
 
         let province_positions = [
             TilePos { x: 0, y: 0 },

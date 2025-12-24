@@ -5,8 +5,8 @@ use moonshine_save::prelude::*;
 
 use crate::ai::markers::{AiControlledCivilian, AiNation};
 use crate::civilians::{
-    ActionTurn, Civilian, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind, JobType,
-    PreviousPosition, ProspectingKnowledge,
+    ActionTurn, Civilian, CivilianId, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind,
+    JobType, NextCivilianId, PreviousPosition, ProspectingKnowledge,
 };
 use crate::economy::allocation::Allocations;
 use crate::economy::goods::Good;
@@ -144,6 +144,8 @@ fn register_reflect_types(app: &mut App) {
         .register_type::<CivilianOrderKind>()
         .register_type::<JobType>()
         .register_type::<ProspectingKnowledge>()
+        .register_type::<CivilianId>()
+        .register_type::<NextCivilianId>()
         .register_type::<ProvinceId>()
         .register_type::<Province>()
         .register_type::<City>()
@@ -179,6 +181,7 @@ fn process_save_requests(
             .include_resource::<Roads>()
             .include_resource::<Rails>()
             .include_resource::<ProspectingKnowledge>()
+            .include_resource::<NextCivilianId>()
             .include_resource::<ProvincesGenerated>();
 
         commands.trigger_save(event);
@@ -296,14 +299,21 @@ pub(crate) fn remap_civilian_owners(
     nations: &Query<(Entity, &NationId)>,
     civilians: &mut Query<&mut Civilian>,
 ) {
-    let mut owners = HashMap::new();
+    // Build a lookup table from NationId to Entity
+    let mut nation_entities = HashMap::new();
     for (entity, nation_id) in nations.iter() {
-        owners.insert(*nation_id, entity);
+        nation_entities.insert(*nation_id, entity);
     }
 
+    // Remap each civilian's owner using their owner_id
     for mut civilian in civilians.iter_mut() {
-        if let Some(&entity) = owners.get(&civilian.owner_id) {
+        if let Some(&entity) = nation_entities.get(&civilian.owner_id) {
             civilian.owner = entity;
+        } else {
+            warn!(
+                "Could not remap civilian owner for CivilianId({}) with owner_id NationId({})",
+                civilian.civilian_id.0, civilian.owner_id.0
+            );
         }
     }
 }
@@ -327,7 +337,7 @@ mod tests {
 
     use moonshine_save::prelude::Save;
 
-    use crate::civilians::{Civilian, CivilianKind};
+    use crate::civilians::{Civilian, CivilianId, CivilianKind};
     use crate::economy::allocation::Allocations;
     use crate::economy::goods::Good;
     use crate::economy::nation::{
@@ -479,6 +489,7 @@ mod tests {
                 position: TilePos { x: 1, y: 1 },
                 owner,
                 owner_id: NationId(1),
+                civilian_id: CivilianId(1),
                 selected: false,
                 has_moved: false,
             },
@@ -618,6 +629,7 @@ mod tests {
             position: TilePos { x: 4, y: 9 },
             owner: nation_entity,
             owner_id: NationId(7),
+            civilian_id: CivilianId(1),
             selected: false,
             has_moved: false,
         });
