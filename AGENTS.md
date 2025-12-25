@@ -1,11 +1,18 @@
 # AGENTS.md
 
-This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. Last updated: **2025-11-27**.
+This document is the single source of truth for contributors (human or AI) to understand the current state of the project and how to work on it. Last updated: **2025-12-23**.
 
 **This is an economy-first, turn-based strategy game** inspired by Imperialism (1997). Built with Bevy 0.17 ECS, featuring hex-based maps, multi-nation economies, and a reservation-based resource allocation system.
 
-## Recent Changes (Oct-Nov 2025)
+## Recent Changes (Oct-Dec 2025)
 
+- **AI system refactor** (Dec 2025): Complete rewrite from behavior trees to goal-based planning
+  - Removed `big-brain` dependency entirely
+  - New architecture: snapshot → plan → execute (runs once per turn, not every frame)
+  - `AiSnapshot` captures game state once at turn start
+  - `NationGoal` system generates prioritized goals (buy/sell, connect depots, improve tiles, hire)
+  - `CivilianTask` assigns specific work to each civilian based on nation goals
+  - Reduced ~4000 lines to ~700 lines (net reduction of ~3300 lines)
 - **Turn system refactor**: Complete rewrite using Bevy States for phase management
   - `TurnPhase` is now a proper Bevy State with `OnEnter`/`OnExit` schedules
   - SystemSets guarantee execution order: `PlayerTurnSet`, `ProcessingSet`, `EnemyTurnSet`
@@ -13,7 +20,6 @@ This document is the single source of truth for contributors (human or AI) to un
   - No more `resource_changed::<TurnSystem>` pattern (fired multiple times)
   - Legacy `TurnSystem` resource kept for backward compatibility (synced from state)
 - **Transport to stockpile**: Connected resources now properly collected into nation stockpiles
-- **AI opponents**: Integrated big-brain behavior system with economy planning and civilian management
 - **Save/load system**: Full game persistence using moonshine-save with component serialization
 - **Port fish production**: Connected ports yield 2 fish (bonus from transport connectivity)
 - **Market improvements**: Refactored pricing model, order matching across turn phases
@@ -23,7 +29,7 @@ This document is the single source of truth for contributors (human or AI) to un
 - **Prospecting system**: Hidden mineral deposits with visual markers (red X or colored squares)
 - **Rescind orders**: Exclusive-world-access system for immediate component removal
 - **UI patterns**: Documented Bevy 0.17 button requirements (both Button + OldButton components)
-- **Plugin architecture**: `EconomyPlugin`, `MapSetupPlugin`, `CameraPlugin`, `AiBehaviorPlugin` encapsulate system registration
+- **Plugin architecture**: `EconomyPlugin`, `MapSetupPlugin`, `CameraPlugin`, `AiPlugin` encapsulate system registration
 - **Resources/messages**: Moved to respective plugins (Economy/Map/AI own their resources)
 - **Map visibility**: All map visuals use `MapTilemap` marker for automatic show/hide on mode switch
 - **Module structure**: `lib.rs` reduced to pure plugin orchestration, major modules use subdirectories
@@ -59,7 +65,7 @@ cargo clippy           # Lint checks
 
 **Tech stack:**
 - Engine: Bevy 0.17, `bevy_ecs_tilemap` 0.17, `hexx` 0.22
-- AI: `big-brain` (utility-based behavior trees)
+- AI: Goal-based planning (snapshot → plan → execute, no external dependencies)
 - Save: `moonshine-save` and `moonshine-kind` for serialization
 - States: `AppState` (MainMenu/InGame), `GameMode` (Map/Transport/City/Market/Diplomacy), `TurnPhase` (PlayerTurn/Processing/EnemyTurn)
 - Turn loop: PlayerTurn → Processing → EnemyTurn (auto-transitions)
@@ -120,10 +126,10 @@ src/
 │   └── market.rs, trade.rs
 ├── civilians/ (mod.rs: CivilianPlugin)
 ├── ai/
-│   ├── mod.rs (AiSupportPlugin, exports)
-│   ├── behavior.rs (AiBehaviorPlugin: big-brain integration)
-│   ├── trade.rs (AiEconomyPlugin: market decisions)
-│   ├── context.rs (turn context for AI decisions)
+│   ├── mod.rs (AiPlugin: unified AI orchestration)
+│   ├── snapshot.rs (AiSnapshot: game state capture once per turn)
+│   ├── planner.rs (NationGoal, NationPlan, CivilianTask: goal generation)
+│   ├── execute.rs (execute_ai_turn: converts plans to orders)
 │   └── markers.rs (AiNation, AiControlledCivilian)
 ├── diplomacy/ (mod.rs: DiplomacyPlugin)
 ├── orders/ (mod.rs: OrdersQueue for command queueing)
@@ -217,12 +223,10 @@ app.add_systems(
     my_system.in_set(ProcessingSet::Production),
 );
 
-// System runs continuously during EnemyTurn
+// AI systems run once when entering EnemyTurn (preferred for turn-based)
 app.add_systems(
-    PreUpdate,
-    my_ai_system
-        .run_if(in_state(AppState::InGame))
-        .run_if(in_state(TurnPhase::EnemyTurn)),
+    OnEnter(TurnPhase::EnemyTurn),
+    my_ai_system.in_set(EnemyTurnSet::Actions),
 );
 ```
 
@@ -247,7 +251,7 @@ app.add_systems(
 ✅ **Complete:**
 - Main menu, province generation, border rendering, city rendering
 - Civilian units (Engineer, Prospector, Farmer, Rancher, Forester, Miner, Driller)
-- AI opponents with big-brain behavior system (rail planning, civilian hiring, economy planning)
+- AI opponents with goal-based planning (market orders, civilian hiring, infrastructure, tile improvements)
 - Save/load system with full game state persistence
 - Prospecting system with hidden minerals and visual discovery markers
 - Rescind orders functionality with refunds for same-turn actions

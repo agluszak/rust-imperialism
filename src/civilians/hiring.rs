@@ -2,7 +2,6 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
 
 use crate::civilians::Civilian;
-use crate::economy::nation::NationId;
 use crate::economy::{Capital, Treasury};
 use crate::map::tile_pos::TilePosExt;
 use crate::messages::civilians::HireCivilian;
@@ -16,15 +15,16 @@ use crate::messages::civilians::HireCivilian;
 pub fn spawn_hired_civilian(
     mut commands: Commands,
     mut hire_events: MessageReader<HireCivilian>,
-    capitals: Query<(&Capital, &NationId)>,
+    capitals: Query<&Capital>,
     mut treasuries: Query<&mut Treasury>,
     tile_storage_query: Query<&TileStorage>,
     civilians: Query<&Civilian>,
+    mut next_id: ResMut<crate::civilians::types::NextCivilianId>,
 ) {
     for event in hire_events.read() {
         let nation_entity = event.nation.entity();
 
-        let Ok((capital, nation_id)) = capitals.get(nation_entity) else {
+        let Ok(capital) = capitals.get(nation_entity) else {
             info!(
                 "Cannot hire {:?} for {:?}: no capital found",
                 event.kind, nation_entity
@@ -59,18 +59,19 @@ pub fn spawn_hired_civilian(
 
         treasury.subtract(cost);
 
+        let civilian_id = next_id.next_id();
+
         commands.spawn(Civilian {
             kind: event.kind,
             position: spawn_pos,
             owner: nation_entity,
-            owner_id: *nation_id,
-            selected: false,
+            civilian_id,
             has_moved: false,
         });
 
         info!(
-            "Hired {:?} for {:?} at ({}, {})",
-            event.kind, nation_entity, spawn_pos.x, spawn_pos.y
+            "Hired {:?} (CivilianId({})) for {:?} at ({}, {})",
+            event.kind, civilian_id.0, nation_entity, spawn_pos.x, spawn_pos.y
         );
     }
 }

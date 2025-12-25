@@ -4,7 +4,7 @@ use bevy::{
     prelude::*,
 };
 
-use crate::economy::{Capital, NationId, PlayerNation};
+use crate::economy::{Capital, Nation, PlayerNation};
 use crate::map::TilePosExt;
 use crate::ui::mode::GameMode;
 
@@ -38,19 +38,20 @@ fn setup(mut commands: Commands) {
 fn center_on_player_capital(
     mut camera: Query<&mut Transform, With<Camera2d>>,
     player_nation: Option<Res<PlayerNation>>,
-    capitals: Query<(&Capital, &NationId)>,
+    capitals: Query<(Entity, &Capital), With<Nation>>,
 ) {
     // Only run once when player nation is available
-    let Some(_player) = player_nation else {
+    let Some(player) = player_nation else {
         return;
     };
 
     // Find player's capital
-    for (capital, _nation_id) in capitals.iter() {
-        // Check if this capital belongs to the player's nation by checking the entity
-        // Since we can't directly query the entity's nation, we'll use the first capital we find
-        // (which should be the player's based on setup order)
-        if let Ok(mut transform) = camera.single_mut() {
+    let player_entity = player.entity();
+    for (entity, capital) in capitals.iter() {
+        // Check if this capital belongs to the player's nation
+        if entity == player_entity
+            && let Ok(mut transform) = camera.single_mut()
+        {
             let capital_world_pos = capital.0.to_world_pos();
             transform.translation.x = capital_world_pos.x;
             transform.translation.y = capital_world_pos.y;

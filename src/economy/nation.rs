@@ -3,11 +3,12 @@ use bevy_ecs_tilemap::prelude::TilePos;
 use moonshine_kind::Instance;
 use moonshine_save::prelude::Save;
 
-/// Unique identifier for a nation (stable across saves)
-#[derive(Component, Clone, Copy, Debug, Eq, PartialEq, Hash, Reflect)]
+/// Marker component for nation entities.
+/// Used with moonshine_kind::Instance for type-safe nation references.
+#[derive(Component, Clone, Copy, Debug, Default, Reflect)]
 #[reflect(Component)]
 #[require(Save)]
-pub struct NationId(pub u16);
+pub struct Nation;
 
 /// Display name for a nation
 #[derive(Component, Clone, Debug, Reflect)]
@@ -15,21 +16,8 @@ pub struct NationId(pub u16);
 pub struct Name(pub String);
 
 /// Type-safe handle to a nation entity.
-pub type NationInstance = Instance<NationId>;
-
-/// Component providing fast access to a nation's [`NationInstance`].
-#[derive(Component, Clone, Copy, Debug)]
-pub struct NationHandle(pub NationInstance);
-
-impl NationHandle {
-    pub fn new(instance: NationInstance) -> Self {
-        Self(instance)
-    }
-
-    pub fn instance(&self) -> NationInstance {
-        self.0
-    }
-}
+/// Can be used directly in queries: `Query<(NationInstance, &Name)>`
+pub type NationInstance = Instance<Nation>;
 
 /// Capital tile position for a nation (used for rail network connectivity)
 #[derive(Component, Clone, Copy, Debug, Reflect)]
@@ -48,12 +36,12 @@ impl PlayerNation {
 
     /// Attempts to create a player nation reference from the given entity.
     ///
-    /// Returns [`None`] if the entity does not contain a [`NationId`] component.
+    /// Returns [`None`] if the entity does not contain a [`Nation`] component.
     pub fn from_entity(world: &World, entity: Entity) -> Option<Self> {
         world
             .get_entity(entity)
             .ok()
-            .and_then(Instance::<NationId>::from_entity)
+            .and_then(Instance::<Nation>::from_entity)
             .map(Self)
     }
 
@@ -78,39 +66,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn nation_id_equality() {
-        let id1 = NationId(1);
-        let id2 = NationId(1);
-        let id3 = NationId(2);
-
-        assert_eq!(id1, id2);
-        assert_ne!(id1, id3);
-    }
-
-    #[test]
-    fn nation_id_hash() {
-        use std::collections::HashMap;
-
-        let id1 = NationId(1);
-        let id2 = NationId(1);
-        let id3 = NationId(2);
-
-        let mut map = HashMap::new();
-        map.insert(id1, "Nation 1");
-        map.insert(id3, "Nation 2");
-
-        assert_eq!(map.get(&id2), Some(&"Nation 1"));
-        assert_eq!(map.len(), 2);
-    }
-
-    #[test]
     fn player_nation_from_entity_with_valid_nation() {
         let mut world = World::new();
 
-        // Create a nation entity with NationId
-        let nation_entity = world
-            .spawn((NationId(42), Name("Test Nation".to_string())))
-            .id();
+        // Create a nation entity with Nation marker
+        let nation_entity = world.spawn((Nation, Name("Test Nation".to_string()))).id();
 
         // PlayerNation::from_entity should succeed
         let player_nation = PlayerNation::from_entity(&world, nation_entity);
@@ -119,16 +79,16 @@ mod tests {
         let player_nation = player_nation.unwrap();
         assert_eq!(player_nation.entity(), nation_entity);
 
-        // Verify we can access the NationId through the instance
-        let nation_id = world.entity(player_nation.entity()).get::<NationId>();
-        assert_eq!(nation_id.unwrap().0, 42);
+        // Verify we can access the Nation marker through the instance
+        let nation = world.entity(player_nation.entity()).get::<Nation>();
+        assert!(nation.is_some());
     }
 
     #[test]
-    fn player_nation_from_entity_without_nation_id() {
+    fn player_nation_from_entity_without_nation_marker() {
         let mut world = World::new();
 
-        // Create an entity WITHOUT NationId
+        // Create an entity WITHOUT Nation marker
         let non_nation_entity = world.spawn(Name("Not a Nation".to_string())).id();
 
         // PlayerNation::from_entity should return None
@@ -151,8 +111,8 @@ mod tests {
     fn player_nation_new_and_accessors() {
         let mut world = World::new();
 
-        let nation_entity = world.spawn(NationId(7)).id();
-        let instance = Instance::<NationId>::from_entity(world.entity(nation_entity)).unwrap();
+        let nation_entity = world.spawn(Nation).id();
+        let instance = Instance::<Nation>::from_entity(world.entity(nation_entity)).unwrap();
 
         let player_nation = PlayerNation::new(instance);
 
@@ -167,7 +127,7 @@ mod tests {
 
         // Create a nation
         let nation_entity = world
-            .spawn((NationId(123), Name("Player Nation".to_string())))
+            .spawn((Nation, Name("Player Nation".to_string())))
             .id();
 
         // Create PlayerNation from entity
@@ -177,21 +137,18 @@ mod tests {
         // Extract entity and verify it matches
         assert_eq!(player_nation.entity(), nation_entity);
 
-        // Verify we can still access the NationId component
-        let stored_id = world
-            .entity(player_nation.entity())
-            .get::<NationId>()
-            .unwrap();
-        assert_eq!(stored_id.0, 123);
+        // Verify we can still access the Nation component
+        let nation = world.entity(player_nation.entity()).get::<Nation>();
+        assert!(nation.is_some());
     }
 
     #[test]
-    fn multiple_nations_with_different_ids() {
+    fn multiple_nations() {
         let mut world = World::new();
 
-        let nation1 = world.spawn(NationId(1)).id();
-        let nation2 = world.spawn(NationId(2)).id();
-        let nation3 = world.spawn(NationId(3)).id();
+        let nation1 = world.spawn(Nation).id();
+        let nation2 = world.spawn(Nation).id();
+        let nation3 = world.spawn(Nation).id();
 
         // Create PlayerNation references to each
         let player1 = PlayerNation::from_entity(&world, nation1).unwrap();
@@ -202,27 +159,13 @@ mod tests {
         assert_eq!(player1.entity(), nation1);
         assert_eq!(player2.entity(), nation2);
         assert_eq!(player3.entity(), nation3);
-
-        // Verify the IDs are correct
-        assert_eq!(
-            world.entity(player1.entity()).get::<NationId>().unwrap().0,
-            1
-        );
-        assert_eq!(
-            world.entity(player2.entity()).get::<NationId>().unwrap().0,
-            2
-        );
-        assert_eq!(
-            world.entity(player3.entity()).get::<NationId>().unwrap().0,
-            3
-        );
     }
 
     #[test]
     fn player_nation_survives_entity_despawn() {
         let mut world = World::new();
 
-        let nation_entity = world.spawn(NationId(50)).id();
+        let nation_entity = world.spawn(Nation).id();
         let player_nation = PlayerNation::from_entity(&world, nation_entity).unwrap();
 
         // Despawn the entity
@@ -259,5 +202,26 @@ mod tests {
         // Test that TilePos comparison works
         assert_eq!(capital1.0, capital2.0);
         assert_ne!(capital1.0, capital3.0);
+    }
+
+    #[test]
+    fn nation_instance_can_be_used_as_hashmap_key() {
+        use std::collections::HashMap;
+
+        let mut world = World::new();
+
+        let nation1 = world.spawn(Nation).id();
+        let nation2 = world.spawn(Nation).id();
+
+        let instance1 = Instance::<Nation>::from_entity(world.entity(nation1)).unwrap();
+        let instance2 = Instance::<Nation>::from_entity(world.entity(nation2)).unwrap();
+
+        let mut map: HashMap<NationInstance, &str> = HashMap::new();
+        map.insert(instance1, "Nation 1");
+        map.insert(instance2, "Nation 2");
+
+        assert_eq!(map.get(&instance1), Some(&"Nation 1"));
+        assert_eq!(map.get(&instance2), Some(&"Nation 2"));
+        assert_eq!(map.len(), 2);
     }
 }

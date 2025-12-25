@@ -1,12 +1,12 @@
 use bevy::prelude::*;
 
-use crate::economy::NationId;
+use crate::economy::NationInstance;
 
 /// Orders issued during the player turn or by future AI actors.
 #[derive(Message, Debug, Clone)]
 pub struct DiplomaticOrder {
-    pub actor: NationId,
-    pub target: NationId,
+    pub actor: NationInstance,
+    pub target: NationInstance,
     pub kind: DiplomaticOrderKind,
 }
 

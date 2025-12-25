@@ -41,6 +41,8 @@ pub enum CivilianJobSet {
     Reset,
 }
 
+/// Core civilian gameplay plugin (logic, no rendering).
+/// Use this in headless tests.
 pub struct CivilianPlugin;
 
 impl Plugin for CivilianPlugin {
@@ -58,11 +60,12 @@ impl Plugin for CivilianPlugin {
         );
 
         app.init_resource::<crate::civilians::types::ProspectingKnowledge>()
+            .init_resource::<crate::civilians::types::NextCivilianId>()
+            .init_resource::<SelectedCivilian>()
             .add_message::<SelectCivilian>()
             .add_message::<CivilianCommand>()
             .add_message::<CivilianCommandRejected>()
             .add_message::<DeselectCivilian>()
-            .add_message::<DeselectAllCivilians>()
             .add_message::<RescindOrders>()
             .add_message::<HireCivilian>()
             // Selection handler runs always to react to events immediately
@@ -72,7 +75,6 @@ impl Plugin for CivilianPlugin {
                     systems::handle_civilian_selection,
                     systems::handle_deselect_key,
                     systems::handle_deselection,
-                    systems::handle_deselect_all,
                 ),
             )
             .add_systems(
@@ -98,8 +100,6 @@ impl Plugin for CivilianPlugin {
                     engineering::execute_civilian_improvement_orders,
                     ui_components::update_civilian_orders_ui,
                     ui_components::update_rescind_orders_ui,
-                    rendering::render_civilian_visuals,
-                    rendering::update_civilian_visual_colors,
                 )
                     .chain()
                     .run_if(in_state(crate::ui::mode::GameMode::Map)),
@@ -125,6 +125,24 @@ impl Plugin for CivilianPlugin {
         app.add_systems(
             OnEnter(TurnPhase::PlayerTurn),
             jobs::reset_civilian_actions.in_set(CivilianJobSet::Reset),
+        );
+    }
+}
+
+/// Civilian rendering plugin (sprites and visual updates).
+/// Requires AssetServer and should not be added in headless tests.
+pub struct CivilianRenderingPlugin;
+
+impl Plugin for CivilianRenderingPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            Update,
+            (
+                rendering::render_civilian_visuals,
+                rendering::update_civilian_visual_colors,
+            )
+                .chain()
+                .run_if(in_state(crate::ui::mode::GameMode::Map)),
         );
     }
 }

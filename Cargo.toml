@@ -11,7 +11,7 @@ path = "src/bin/main.rs"
 
 [dependencies]
 bevy = { version = "0.17", features = ["bevy_dev_tools", "bevy_mesh_picking_backend", "bevy_sprite_picking_backend", "experimental_bevy_ui_widgets"] }
-hexx = { version = "0.22", features = ["algorithms", "serde", "bevy"] }
+hexx = { version = "0.23", features = ["algorithms", "serde", "bevy"] }
 bevy_ecs_tilemap = "0.17"
 rand = "0.9.0"
 noise = "0.9"
@@ -20,4 +20,3 @@ image = "0.25"
 thiserror = "2.0"
 moonshine-save = "0.6"
 moonshine-kind = "0.4"
-big-brain = { git = "https://github.com/zkat/big-brain", rev = "12ffd46498f4703dd80b0121c9b964b413f887ee", default-features = false }

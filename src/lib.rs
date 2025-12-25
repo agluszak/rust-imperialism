@@ -7,8 +7,8 @@ use bevy::image::ImagePlugin;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::TilemapPlugin;
 
-use crate::ai::{AiBehaviorPlugin, AiEconomyPlugin, AiSupportPlugin};
-use crate::civilians::CivilianPlugin;
+use crate::ai::AiPlugin;
+use crate::civilians::{CivilianPlugin, CivilianRenderingPlugin};
 use crate::diplomacy::DiplomacyPlugin;
 use crate::economy::EconomyPlugin;
 use crate::helpers::camera::CameraPlugin;
@@ -67,8 +67,7 @@ pub fn app() -> App {
             MapSetupPlugin,
             TurnSystemPlugin,
             EconomyPlugin,
-            AiSupportPlugin,
-            AiEconomyPlugin,
+            AiPlugin, // New unified AI plugin
             CivilianPlugin,
             DiplomacyPlugin,
         ))
@@ -81,9 +80,9 @@ pub fn app() -> App {
             CityRenderingPlugin,
             ImprovementRenderingPlugin,
             ProspectingMarkersPlugin,
+            CivilianRenderingPlugin,
         ))
-        .add_plugins(GameSavePlugin)
-        .add_plugins(AiBehaviorPlugin);
+        .add_plugins(GameSavePlugin);
 
     app
 }

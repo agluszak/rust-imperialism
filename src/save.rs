@@ -1,18 +1,16 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
 use bevy::prelude::*;
 use moonshine_save::prelude::*;
 
 use crate::ai::markers::{AiControlledCivilian, AiNation};
 use crate::civilians::{
-    ActionTurn, Civilian, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind, JobType,
-    PreviousPosition, ProspectingKnowledge,
+    ActionTurn, Civilian, CivilianId, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind,
+    JobType, NextCivilianId, PreviousPosition, ProspectingKnowledge,
 };
 use crate::economy::allocation::Allocations;
 use crate::economy::goods::Good;
-use crate::economy::nation::{
-    Capital, Name, NationColor, NationHandle, NationId, NationInstance, PlayerNation,
-};
+use crate::economy::nation::{Capital, Name, Nation, NationColor, PlayerNation};
 use crate::economy::production::{
     Building, BuildingKind, Buildings, ProductionChoice, ProductionSettings,
 };
@@ -100,7 +98,6 @@ impl Plugin for GameSavePlugin {
             .add_observer(emit_save_completion)
             .add_observer(emit_load_completion)
             .add_observer(rebuild_runtime_state_after_load)
-            .add_observer(restore_civilian_owners_after_load)
             .add_systems(
                 Update,
                 (process_save_requests, process_load_requests).run_if(in_state(AppState::InGame)),
@@ -109,7 +106,7 @@ impl Plugin for GameSavePlugin {
 }
 
 fn register_reflect_types(app: &mut App) {
-    app.register_type::<NationId>()
+    app.register_type::<Nation>()
         .register_type::<Name>()
         .register_type::<NationColor>()
         .register_type::<Capital>()
@@ -144,6 +141,8 @@ fn register_reflect_types(app: &mut App) {
         .register_type::<CivilianOrderKind>()
         .register_type::<JobType>()
         .register_type::<ProspectingKnowledge>()
+        .register_type::<CivilianId>()
+        .register_type::<NextCivilianId>()
         .register_type::<ProvinceId>()
         .register_type::<Province>()
         .register_type::<City>()
@@ -173,12 +172,12 @@ fn process_save_requests(
         let event = SaveWorld::default_into_file(path.clone())
             .exclude_component::<Allocations>()
             .exclude_component::<ReservationSystem>()
-            .exclude_component::<NationHandle>()
             .include_resource::<Calendar>()
             .include_resource::<TurnSystem>()
             .include_resource::<Roads>()
             .include_resource::<Rails>()
             .include_resource::<ProspectingKnowledge>()
+            .include_resource::<NextCivilianId>()
             .include_resource::<ProvincesGenerated>();
 
         commands.trigger_save(event);
@@ -226,19 +225,19 @@ fn emit_load_completion(
 fn rebuild_runtime_state_after_load(
     _: On<Loaded>,
     mut commands: Commands,
-    nations: Query<(
-        Entity,
-        &NationId,
-        Option<&Name>,
-        Option<&Allocations>,
-        Option<&ReservationSystem>,
-        Option<&NationHandle>,
-    )>,
+    nations: Query<
+        (
+            Entity,
+            Option<&Name>,
+            Option<&Allocations>,
+            Option<&ReservationSystem>,
+        ),
+        With<Nation>,
+    >,
 ) {
     let mut player_entity = None;
-    let mut missing_handles = Vec::new();
 
-    for (entity, nation_id, name, allocations, reservations, handle) in nations.iter() {
+    for (entity, name, allocations, reservations) in nations.iter() {
         if allocations.is_none() {
             commands.entity(entity).insert(Allocations::default());
         }
@@ -247,33 +246,18 @@ fn rebuild_runtime_state_after_load(
             commands.entity(entity).insert(ReservationSystem::default());
         }
 
-        if handle.is_none() {
-            missing_handles.push(entity);
-        }
-
-        if nation_id.0 == 1
-            || name
-                .map(|Name(label)| label.as_str() == "Player")
-                .unwrap_or(false)
+        // Identify player nation by name
+        if name
+            .map(|Name(label)| label.as_str() == "Player")
+            .unwrap_or(false)
         {
             player_entity = Some(entity);
         }
     }
 
-    if player_entity.is_some() || !missing_handles.is_empty() {
+    if let Some(entity) = player_entity {
         commands.queue(move |world: &mut World| {
-            for entity in missing_handles {
-                if let Ok(entity_ref) = world.get_entity(entity)
-                    && let Some(instance) = NationInstance::from_entity(entity_ref)
-                    && let Ok(mut entity_mut) = world.get_entity_mut(entity)
-                {
-                    entity_mut.insert(NationHandle::new(instance));
-                }
-            }
-
-            if let Some(entity) = player_entity
-                && let Some(nation) = PlayerNation::from_entity(world, entity)
-            {
+            if let Some(nation) = PlayerNation::from_entity(world, entity) {
                 if world.contains_resource::<PlayerNation>() {
                     *world.resource_mut::<PlayerNation>() = nation;
                 } else {
@@ -284,42 +268,19 @@ fn rebuild_runtime_state_after_load(
     }
 }
 
-fn restore_civilian_owners_after_load(
-    _: On<Loaded>,
-    nations: Query<(Entity, &NationId)>,
-    mut civilians: Query<&mut Civilian>,
-) {
-    remap_civilian_owners(&nations, &mut civilians);
-}
-
-pub(crate) fn remap_civilian_owners(
-    nations: &Query<(Entity, &NationId)>,
-    civilians: &mut Query<&mut Civilian>,
-) {
-    let mut owners = HashMap::new();
-    for (entity, nation_id) in nations.iter() {
-        owners.insert(*nation_id, entity);
-    }
-
-    for mut civilian in civilians.iter_mut() {
-        if let Some(&entity) = owners.get(&civilian.owner_id) {
-            civilian.owner = entity;
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::fs;
     use std::path::PathBuf;
 
     use bevy::app::App;
+    use bevy::ecs::entity::EntityHashMap;
     use bevy::ecs::message::{MessageReader, MessageWriter};
     use bevy::ecs::reflect::ReflectMapEntities;
     use bevy::ecs::system::RunSystemOnce;
     use bevy::prelude::{
-        AppExtStates, AppTypeRegistry, Color, Commands, Component, Entity, MinimalPlugins, Query,
-        Reflect, ReflectComponent, World,
+        AppExtStates, AppTypeRegistry, Color, Commands, Component, Entity, MinimalPlugins, Reflect,
+        ReflectComponent, World,
     };
     use bevy::scene::DynamicScene;
     use bevy::state::app::StatesPlugin;
@@ -327,12 +288,10 @@ mod tests {
 
     use moonshine_save::prelude::Save;
 
-    use crate::civilians::{Civilian, CivilianKind};
+    use crate::civilians::{Civilian, CivilianId, CivilianKind};
     use crate::economy::allocation::Allocations;
     use crate::economy::goods::Good;
-    use crate::economy::nation::{
-        Capital, Name, NationColor, NationHandle, NationId, PlayerNation,
-    };
+    use crate::economy::nation::{Capital, Name, Nation, NationColor, PlayerNation};
     use crate::economy::reservation::ReservationSystem;
     use crate::economy::stockpile::Stockpile;
     use crate::economy::technology::{Technologies, Technology};
@@ -343,7 +302,6 @@ mod tests {
     use crate::map::province_setup::ProvincesGenerated;
     use crate::save::{
         GameSavePlugin, LoadGameCompleted, LoadGameRequest, SaveGameCompleted, SaveGameRequest,
-        remap_civilian_owners,
     };
     use crate::turn_system::{TurnPhase, TurnSystem};
     use crate::ui::menu::AppState;
@@ -419,7 +377,7 @@ mod tests {
     #[test]
     fn nation_entities_are_marked_for_save() {
         let mut app = init_test_app();
-        let nation = app.world_mut().spawn(NationId(99)).id();
+        let nation = app.world_mut().spawn(Nation).id();
 
         app.update();
 
@@ -438,78 +396,25 @@ mod tests {
 
     #[test]
     fn civilian_owner_is_remapped_when_loading_scene() {
+        // This test verifies that Civilian's MapEntities derive is properly registered
+        // and that moonshine-save will use it during load.
+        // The actual remapping behavior is tested by saving_and_loading_persists_core_state.
         let registry = AppTypeRegistry::default();
         {
             let mut writer = registry.write();
             writer.register::<Civilian>();
-            writer.register::<NationId>();
-            writer.register::<Name>();
-            writer.register::<NationColor>();
-            writer.register::<Capital>();
-            writer.register::<Treasury>();
-            writer.register::<Stockpile>();
-            writer.register::<Technologies>();
-            writer.register::<RecruitmentQueue>();
-            writer.register::<TrainingQueue>();
-            writer.register::<Workforce>();
+            writer.register::<Nation>();
         }
 
-        let mut source = World::new();
-        source.insert_resource(registry.clone());
-
-        let owner = source
-            .spawn((
-                NationId(1),
-                Name("Owner".into()),
-                NationColor(Color::WHITE),
-                Capital(TilePos { x: 0, y: 0 }),
-                Treasury::new(0),
-                Stockpile::default(),
-                Technologies::default(),
-                Workforce::default(),
-                RecruitmentQueue::default(),
-                TrainingQueue::default(),
-                Save,
-            ))
-            .id();
-
-        source.spawn((
-            Civilian {
-                kind: CivilianKind::Engineer,
-                position: TilePos { x: 1, y: 1 },
-                owner,
-                owner_id: NationId(1),
-                selected: false,
-                has_moved: false,
-            },
-            Save,
-        ));
-
-        let scene = DynamicScene::from_world(&source);
-
-        let mut dest = World::new();
-        dest.insert_resource(registry);
-
-        scene
-            .write_to_world(&mut dest, &mut Default::default())
-            .expect("scene loads");
-
-        dest.run_system_once(
-            |nations: Query<(Entity, &NationId)>, mut civilians: Query<&mut Civilian>| {
-                remap_civilian_owners(&nations, &mut civilians);
-            },
-        )
-        .expect("system runs");
-
-        let new_owner = dest
-            .query::<(Entity, &NationId)>()
-            .iter(&dest)
-            .find(|(_, id)| id.0 == 1)
-            .map(|(entity, _)| entity)
-            .expect("owner spawned");
-
-        let civilian = dest.query::<&Civilian>().single(&dest).unwrap();
-        assert_eq!(civilian.owner, new_owner);
+        // Verify MapEntities is registered for Civilian
+        let reader = registry.read();
+        let registration = reader
+            .get(std::any::TypeId::of::<Civilian>())
+            .expect("Civilian type registered");
+        assert!(
+            registration.data::<ReflectMapEntities>().is_some(),
+            "Civilian should have MapEntities reflection data"
+        );
     }
 
     #[test]
@@ -522,7 +427,8 @@ mod tests {
             move |mut commands: Commands, mut writer: MessageWriter<SaveGameRequest>| {
                 commands.spawn((
                     Save,
-                    NationId(1),
+                    Nation,
+                    Name("Player".to_string()),
                     Allocations::default(),
                     ReservationSystem::default(),
                 ));
@@ -562,10 +468,9 @@ mod tests {
 
         let player_nation_entity = app.world().resource::<PlayerNation>().entity();
         let entity = app.world().entity(player_nation_entity);
-        assert_eq!(entity.get::<NationId>().unwrap().0, 1);
+        assert!(entity.contains::<Nation>());
         assert!(entity.contains::<Allocations>());
         assert!(entity.contains::<ReservationSystem>());
-        assert!(entity.contains::<NationHandle>());
 
         fs::remove_file(completions[0].path.clone()).unwrap();
     }
@@ -590,7 +495,7 @@ mod tests {
         let nation_entity = app
             .world_mut()
             .spawn((
-                NationId(7),
+                Nation,
                 Name("Rustonia".to_string()),
                 NationColor(Color::srgb(0.3, 0.4, 0.8)),
                 Capital(TilePos { x: 4, y: 9 }),
@@ -617,8 +522,7 @@ mod tests {
             kind: CivilianKind::Engineer,
             position: TilePos { x: 4, y: 9 },
             owner: nation_entity,
-            owner_id: NationId(7),
-            selected: false,
+            civilian_id: CivilianId(1),
             has_moved: false,
         });
 
@@ -664,11 +568,10 @@ mod tests {
 
         {
             let world = app.world_mut();
-            let mut nation_query =
-                world.query::<(Entity, &NationId, &Name, &Treasury, &Stockpile)>();
-            let (nation_entity, _, name, treasury, stockpile) = nation_query
-                .iter(&world)
-                .find(|(_, id, _, _, _)| id.0 == 7)
+            let mut nation_query = world.query::<(Entity, &Name, &Treasury, &Stockpile)>();
+            let (nation_entity, name, treasury, stockpile) = nation_query
+                .iter(world)
+                .find(|(_, name, _, _)| name.0 == "Rustonia")
                 .expect("nation restored");
 
             assert_eq!(name.0, "Rustonia");
@@ -678,13 +581,13 @@ mod tests {
 
             let mut tech_query = world.query::<&Technologies>();
             let techs = tech_query
-                .get(&world, nation_entity)
+                .get(world, nation_entity)
                 .expect("technologies restored");
             assert!(techs.has(Technology::MountainEngineering));
 
             let mut civilian_query = world.query::<&Civilian>();
             let civilian = civilian_query
-                .iter(&world)
+                .iter(world)
                 .find(|civilian| civilian.owner == nation_entity)
                 .expect("civilian restored");
             assert_eq!(civilian.kind, CivilianKind::Engineer);
