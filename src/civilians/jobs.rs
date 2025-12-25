@@ -124,8 +124,8 @@ pub fn complete_improvement_jobs(
                             commands
                                 .entity(tile_entity)
                                 .insert(TileResource::visible(resource_type))
-                                .insert(crate::map::ProspectedMineral { resource_type })
-                                .remove::<crate::map::PotentialMineral>();
+                                .insert(crate::map::ProspectedMineral { resource_type });
+                            // Keep PotentialMineral so other nations can also prospect
 
                             info!(
                                 "Prospector (owner: {:?}) discovered {:?} at ({}, {})!",
@@ -138,13 +138,16 @@ pub fn complete_improvement_jobs(
                             // Nothing found
                             commands
                                 .entity(tile_entity)
-                                .insert(crate::map::ProspectedEmpty)
-                                .remove::<crate::map::PotentialMineral>();
+                                .insert(crate::map::ProspectedEmpty);
+                            // Keep PotentialMineral so other nations can also prospect
 
                             info!(
                                 "Prospector (owner: {:?}) found no minerals at ({}, {})",
                                 civilian.owner, job.target.x, job.target.y
                             );
+
+                            // Mark as discovered for this nation (negative result)
+                            prospecting_knowledge.mark_discovered(tile_entity, civilian.owner);
                         }
                     }
                 }

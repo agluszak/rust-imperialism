@@ -364,12 +364,12 @@ fn test_prospecting_job_reveals_resource_on_completion() {
         .expect("Tile should have ProspectedMineral marker");
     assert_eq!(prospected.resource_type, ResourceType::Coal);
 
-    // PotentialMineral should be removed
+    // PotentialMineral should be kept so other nations can prospect
     assert!(
         world
             .get::<crate::map::PotentialMineral>(tile_entity)
-            .is_none(),
-        "PotentialMineral should be removed after prospecting"
+            .is_some(),
+        "PotentialMineral should be kept so other nations can also prospect"
     );
 
     assert!(
@@ -1078,4 +1078,339 @@ fn farmer_starts_improvement_job_on_visible_resource() {
         civilian.has_moved,
         "Farmer should consume its action when starting an improvement"
     );
+}
+
+#[test]
+fn prospecting_knowledge_is_nation_private() {
+    let mut world = World::new();
+    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<ProspectingKnowledge>();
+    world.init_resource::<Messages<DeselectCivilian>>();
+
+    let nation_a = world.spawn(Nation).id();
+    let nation_b = world.spawn(Nation).id();
+    let province_id = ProvinceId(42);
+    world.spawn(Province {
+        id: province_id,
+        owner: Some(nation_a),
+        tiles: vec![TilePos { x: 0, y: 0 }],
+        city_tile: TilePos { x: 0, y: 0 },
+    });
+
+    let map_size = TilemapSize { x: 3, y: 3 };
+    let mut tile_storage = TileStorage::empty(map_size);
+    let tile_pos = TilePos { x: 0, y: 0 };
+    let tile_entity = world
+        .spawn((
+            TileProvince { province_id },
+            crate::map::PotentialMineral::new(Some(ResourceType::Coal)),
+        ))
+        .id();
+    tile_storage.set(&tile_pos, tile_entity);
+    world.spawn((tile_storage, map_size));
+
+    let prospector_a = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Prospector,
+                position: tile_pos,
+                owner: nation_a,
+                civilian_id: CivilianId(0),
+                has_moved: false,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::Prospect { to: tile_pos },
+            },
+        ))
+        .id();
+
+    // Nation A prospects the tile
+    let _ = world.run_system_once(execute_prospector_orders);
+    world.flush();
+
+    {
+        let mut job = world
+            .get_mut::<CivilianJob>(prospector_a)
+            .expect("Prospector should have started a job");
+        job.turns_remaining = 0;
+    }
+
+    let _ = world.run_system_once(complete_improvement_jobs);
+
+    // Verify that only nation A has prospecting knowledge
+    {
+        let knowledge = world.resource::<ProspectingKnowledge>();
+        assert!(
+            knowledge.is_discovered_by(tile_entity, nation_a),
+            "Nation A should have prospecting knowledge"
+        );
+        assert!(
+            !knowledge.is_discovered_by(tile_entity, nation_b),
+            "Nation B should NOT have prospecting knowledge"
+        );
+    }
+
+    // Verify that ProspectedMineral component exists
+    assert!(
+        world.get::<crate::map::ProspectedMineral>(tile_entity).is_some(),
+        "Tile should have ProspectedMineral component"
+    );
+
+    // Verify that TileResource was created and marked as discovered
+    let resource = world
+        .get::<TileResource>(tile_entity)
+        .expect("Tile should have TileResource");
+    assert_eq!(resource.resource_type, ResourceType::Coal);
+    assert!(resource.discovered, "Resource should be marked as discovered");
+}
+
+#[test]
+fn prospecting_markers_filtered_by_player_nation() {
+    use crate::economy::nation::PlayerNation;
+    use crate::map::rendering::prospecting_markers::render_prospected_mineral_markers;
+
+    let mut world = World::new();
+    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<ProspectingKnowledge>();
+    world.init_resource::<Messages<DeselectCivilian>>();
+
+    let nation_a = world.spawn(Nation).id();
+    let nation_b = world.spawn(Nation).id();
+
+    // Set nation A as the player
+    world.insert_resource(PlayerNation::new(
+        moonshine_kind::Instance::<Nation>::from_entity(world.entity(nation_a)).unwrap(),
+    ));
+
+    let province_id = ProvinceId(42);
+    world.spawn(Province {
+        id: province_id,
+        owner: Some(nation_a),
+        tiles: vec![TilePos { x: 0, y: 0 }, TilePos { x: 1, y: 0 }],
+        city_tile: TilePos { x: 0, y: 0 },
+    });
+
+    let map_size = TilemapSize { x: 3, y: 3 };
+    let mut tile_storage = TileStorage::empty(map_size);
+
+    // Tile 1: Nation A will prospect and find coal
+    let tile_pos_1 = TilePos { x: 0, y: 0 };
+    let tile_entity_1 = world
+        .spawn((
+            TileProvince { province_id },
+            crate::map::PotentialMineral::new(Some(ResourceType::Coal)),
+            tile_pos_1,
+        ))
+        .id();
+    tile_storage.set(&tile_pos_1, tile_entity_1);
+
+    // Tile 2: Nation B will prospect and find iron (simulated by directly adding components)
+    let tile_pos_2 = TilePos { x: 1, y: 0 };
+    let tile_entity_2 = world
+        .spawn((
+            TileProvince { province_id },
+            tile_pos_2,
+            crate::map::ProspectedMineral {
+                resource_type: ResourceType::Iron,
+            },
+        ))
+        .id();
+    tile_storage.set(&tile_pos_2, tile_entity_2);
+
+    world.spawn((tile_storage, map_size));
+
+    // Mark tile 2 as discovered by nation B only
+    world
+        .resource_mut::<ProspectingKnowledge>()
+        .mark_discovered(tile_entity_2, nation_b);
+
+    // Nation A prospects tile 1
+    let prospector_a = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Prospector,
+                position: tile_pos_1,
+                owner: nation_a,
+                civilian_id: CivilianId(0),
+                has_moved: false,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::Prospect { to: tile_pos_1 },
+            },
+        ))
+        .id();
+
+    let _ = world.run_system_once(execute_prospector_orders);
+    world.flush();
+
+    {
+        let mut job = world
+            .get_mut::<CivilianJob>(prospector_a)
+            .expect("Prospector should have started a job");
+        job.turns_remaining = 0;
+    }
+
+    let _ = world.run_system_once(complete_improvement_jobs);
+
+    // Now run the rendering systems
+    let _ = world.run_system_once(render_prospected_mineral_markers);
+
+    // Count markers created - should only be 1 (for nation A's tile)
+    let marker_count = world
+        .query::<&crate::map::rendering::prospecting_markers::ProspectingMarkerFor>()
+        .iter(&world)
+        .count();
+
+    assert_eq!(
+        marker_count, 1,
+        "Should only create 1 marker for nation A's discovery, not for nation B's"
+    );
+
+    // Verify that nation A has knowledge of tile 1 but not tile 2
+    let knowledge = world.resource::<ProspectingKnowledge>();
+    assert!(
+        knowledge.is_discovered_by(tile_entity_1, nation_a),
+        "Nation A should know about tile 1"
+    );
+    assert!(
+        !knowledge.is_discovered_by(tile_entity_2, nation_a),
+        "Nation A should NOT know about tile 2"
+    );
+    assert!(
+        knowledge.is_discovered_by(tile_entity_2, nation_b),
+        "Nation B should know about tile 2"
+    );
+}
+
+#[test]
+fn multiple_nations_can_prospect_same_tile_independently() {
+    let mut world = World::new();
+    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<ProspectingKnowledge>();
+    world.init_resource::<Messages<DeselectCivilian>>();
+
+    let nation_a = world.spawn(Nation).id();
+    let nation_b = world.spawn(Nation).id();
+    let province_id = ProvinceId(42);
+
+    // Province owned by nation A initially
+    let province_entity = world
+        .spawn(Province {
+            id: province_id,
+            owner: Some(nation_a),
+            tiles: vec![TilePos { x: 0, y: 0 }],
+            city_tile: TilePos { x: 0, y: 0 },
+        })
+        .id();
+
+    let map_size = TilemapSize { x: 3, y: 3 };
+    let mut tile_storage = TileStorage::empty(map_size);
+    let tile_pos = TilePos { x: 0, y: 0 };
+    let tile_entity = world
+        .spawn((
+            TileProvince { province_id },
+            crate::map::PotentialMineral::new(Some(ResourceType::Coal)),
+        ))
+        .id();
+    tile_storage.set(&tile_pos, tile_entity);
+    world.spawn((tile_storage, map_size));
+
+    // Nation A prospects first
+    let prospector_a = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Prospector,
+                position: tile_pos,
+                owner: nation_a,
+                civilian_id: CivilianId(0),
+                has_moved: false,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::Prospect { to: tile_pos },
+            },
+        ))
+        .id();
+
+    let _ = world.run_system_once(execute_prospector_orders);
+    world.flush();
+
+    {
+        let mut job = world
+            .get_mut::<CivilianJob>(prospector_a)
+            .expect("Prospector A should have started a job");
+        job.turns_remaining = 0;
+    }
+
+    let _ = world.run_system_once(complete_improvement_jobs);
+
+    // Verify nation A discovered the coal
+    {
+        let knowledge = world.resource::<ProspectingKnowledge>();
+        assert!(
+            knowledge.is_discovered_by(tile_entity, nation_a),
+            "Nation A should have discovered the tile"
+        );
+    }
+
+    // Verify PotentialMineral still exists
+    assert!(
+        world
+            .get::<crate::map::PotentialMineral>(tile_entity)
+            .is_some(),
+        "PotentialMineral should still exist for other nations to prospect"
+    );
+
+    // Transfer province to nation B
+    world
+        .get_mut::<Province>(province_entity)
+        .unwrap()
+        .owner = Some(nation_b);
+
+    // Nation B prospects the same tile
+    let prospector_b = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Prospector,
+                position: tile_pos,
+                owner: nation_b,
+                civilian_id: CivilianId(1),
+                has_moved: false,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::Prospect { to: tile_pos },
+            },
+        ))
+        .id();
+
+    let _ = world.run_system_once(execute_prospector_orders);
+    world.flush();
+
+    // Verify prospector B was able to start a job
+    {
+        let job = world
+            .get::<CivilianJob>(prospector_b)
+            .expect("Prospector B should have started a job on already-prospected tile");
+        assert_eq!(job.job_type, JobType::Prospecting);
+    }
+
+    // Complete nation B's prospecting
+    {
+        let mut job = world.get_mut::<CivilianJob>(prospector_b).unwrap();
+        job.turns_remaining = 0;
+    }
+
+    let _ = world.run_system_once(complete_improvement_jobs);
+
+    // Verify both nations have independent knowledge
+    {
+        let knowledge = world.resource::<ProspectingKnowledge>();
+        assert!(
+            knowledge.is_discovered_by(tile_entity, nation_a),
+            "Nation A should still have knowledge"
+        );
+        assert!(
+            knowledge.is_discovered_by(tile_entity, nation_b),
+            "Nation B should now also have knowledge"
+        );
+    }
 }
