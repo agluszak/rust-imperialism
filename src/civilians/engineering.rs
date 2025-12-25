@@ -267,6 +267,10 @@ pub fn execute_prospector_orders(
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
     potential_minerals: Query<&crate::map::PotentialMineral>,
+    prospected_tiles: Query<(
+        Option<&crate::map::ProspectedEmpty>,
+        Option<&crate::map::ProspectedMineral>,
+    )>,
     prospecting_knowledge: Res<ProspectingKnowledge>,
 ) {
     for (entity, mut civilian, order) in prospectors.iter_mut() {
@@ -315,8 +319,15 @@ pub fn execute_prospector_orders(
                     continue;
                 }
 
-                // Check if tile has potential mineral deposits
-                if potential_minerals.get(tile_entity).is_ok() {
+                // Check if tile has potential mineral deposits or has been prospected
+                // A tile is prospectable if it has PotentialMineral OR has ProspectedEmpty/ProspectedMineral
+                // (allowing multiple nations to independently prospect the same tile)
+                let is_prospectable = potential_minerals.get(tile_entity).is_ok()
+                    || prospected_tiles
+                        .get(tile_entity)
+                        .is_ok_and(|(empty, mineral)| empty.is_some() || mineral.is_some());
+
+                if is_prospectable {
                     // Store previous position for potential undo
                     let previous_pos = civilian.position;
 
