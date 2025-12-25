@@ -274,15 +274,15 @@ mod tests {
     use std::path::PathBuf;
 
     use bevy::app::App;
-    use bevy::ecs::entity::EntityHashMap;
+
     use bevy::ecs::message::{MessageReader, MessageWriter};
     use bevy::ecs::reflect::ReflectMapEntities;
     use bevy::ecs::system::RunSystemOnce;
     use bevy::prelude::{
         AppExtStates, AppTypeRegistry, Color, Commands, Component, Entity, MinimalPlugins, Reflect,
-        ReflectComponent, World,
+        ReflectComponent,
     };
-    use bevy::scene::DynamicScene;
+
     use bevy::state::app::StatesPlugin;
     use bevy_ecs_tilemap::prelude::TilePos;
 
