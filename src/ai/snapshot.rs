@@ -234,6 +234,7 @@ pub fn build_ai_snapshot(
         (With<AiNation>, With<Nation>),
     >,
     civilians: Query<(Entity, &Civilian)>,
+    civilian_jobs: Query<&crate::civilians::types::CivilianJob>,
     depots: Query<&Depot>,
     provinces: Query<&Province>,
     tile_storage: Query<&TileStorage>,
@@ -386,15 +387,28 @@ pub fn build_ai_snapshot(
             &tile_terrain_map,
         );
 
-        // Collect civilians for this nation
+        // Collect civilians for this nation (exclude those with active jobs)
         let nation_civilians: Vec<CivilianSnapshot> = civilians
             .iter()
             .filter(|(_, c)| c.owner == entity)
-            .map(|(e, c)| CivilianSnapshot {
-                entity: e,
-                kind: c.kind,
-                position: c.position,
-                has_moved: c.has_moved,
+            .filter_map(|(e, c)| {
+                // Exclude civilians that have active jobs (turns_remaining > 0)
+                // Jobs that just completed (turns_remaining == 0) are OK to include
+                let has_active_job = civilian_jobs
+                    .get(e)
+                    .map(|job| job.turns_remaining > 0)
+                    .unwrap_or(false);
+
+                if has_active_job {
+                    None
+                } else {
+                    Some(CivilianSnapshot {
+                        entity: e,
+                        kind: c.kind,
+                        position: c.position,
+                        has_moved: c.has_moved,
+                    })
+                }
             })
             .collect();
 
@@ -760,5 +774,58 @@ mod tests {
             suggestions[0].position, resource_grass,
             "suggested depot should be on grass terrain"
         );
+    }
+
+    #[test]
+    fn civilians_with_active_jobs_excluded_from_available() {
+        use std::collections::HashMap;
+
+        // Create placeholder entities for testing
+        let entity1 = Entity::PLACEHOLDER;
+        let entity2 = Entity::PLACEHOLDER;
+        let entity3 = Entity::PLACEHOLDER;
+
+        let snapshot = NationSnapshot {
+            entity: Entity::PLACEHOLDER,
+            capital_pos: TilePos::new(0, 0),
+            treasury: 1000,
+            stockpile: HashMap::new(),
+            civilians: vec![
+                CivilianSnapshot {
+                    entity: entity1,
+                    kind: CivilianKind::Engineer,
+                    position: TilePos::new(5, 5),
+                    has_moved: false,
+                },
+                CivilianSnapshot {
+                    entity: entity2,
+                    kind: CivilianKind::Engineer,
+                    position: TilePos::new(6, 6),
+                    has_moved: true, // Moved this turn
+                },
+                CivilianSnapshot {
+                    entity: entity3,
+                    kind: CivilianKind::Prospector,
+                    position: TilePos::new(7, 7),
+                    has_moved: false,
+                },
+            ],
+            connected_tiles: HashSet::new(),
+            unconnected_depots: vec![],
+            suggested_depots: vec![],
+            improvable_tiles: vec![],
+            owned_tiles: HashSet::new(),
+            depot_positions: HashSet::new(),
+            prospectable_tiles: vec![],
+            tile_terrain: HashMap::new(),
+            technologies: crate::economy::technology::Technologies::new(),
+        };
+
+        // Only civilians with has_moved = false should be available
+        // Civilian 1: has_moved = false (available)
+        // Civilian 2: has_moved = true (not available)
+        // Civilian 3: has_moved = false (available)
+        let available: Vec<_> = snapshot.available_civilians().collect();
+        assert_eq!(available.len(), 2, "only 2 civilians should be available");
     }
 }
