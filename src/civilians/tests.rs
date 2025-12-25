@@ -1163,3 +1163,121 @@ fn prospecting_knowledge_is_nation_private() {
     assert_eq!(resource.resource_type, ResourceType::Coal);
     assert!(resource.discovered, "Resource should be marked as discovered");
 }
+
+#[test]
+fn prospecting_markers_filtered_by_player_nation() {
+    use crate::economy::nation::PlayerNation;
+    use crate::map::rendering::prospecting_markers::render_prospected_mineral_markers;
+
+    let mut world = World::new();
+    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<ProspectingKnowledge>();
+    world.init_resource::<Messages<DeselectCivilian>>();
+
+    let nation_a = world.spawn(Nation).id();
+    let nation_b = world.spawn(Nation).id();
+
+    // Set nation A as the player
+    world.insert_resource(PlayerNation::new(
+        moonshine_kind::Instance::<Nation>::from_entity(world.entity(nation_a)).unwrap(),
+    ));
+
+    let province_id = ProvinceId(42);
+    world.spawn(Province {
+        id: province_id,
+        owner: Some(nation_a),
+        tiles: vec![TilePos { x: 0, y: 0 }, TilePos { x: 1, y: 0 }],
+        city_tile: TilePos { x: 0, y: 0 },
+    });
+
+    let map_size = TilemapSize { x: 3, y: 3 };
+    let mut tile_storage = TileStorage::empty(map_size);
+
+    // Tile 1: Nation A will prospect and find coal
+    let tile_pos_1 = TilePos { x: 0, y: 0 };
+    let tile_entity_1 = world
+        .spawn((
+            TileProvince { province_id },
+            crate::map::PotentialMineral::new(Some(ResourceType::Coal)),
+            tile_pos_1,
+        ))
+        .id();
+    tile_storage.set(&tile_pos_1, tile_entity_1);
+
+    // Tile 2: Nation B will prospect and find iron (simulated by directly adding components)
+    let tile_pos_2 = TilePos { x: 1, y: 0 };
+    let tile_entity_2 = world
+        .spawn((
+            TileProvince { province_id },
+            tile_pos_2,
+            crate::map::ProspectedMineral {
+                resource_type: ResourceType::Iron,
+            },
+        ))
+        .id();
+    tile_storage.set(&tile_pos_2, tile_entity_2);
+
+    world.spawn((tile_storage, map_size));
+
+    // Mark tile 2 as discovered by nation B only
+    world
+        .resource_mut::<ProspectingKnowledge>()
+        .mark_discovered(tile_entity_2, nation_b);
+
+    // Nation A prospects tile 1
+    let prospector_a = world
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Prospector,
+                position: tile_pos_1,
+                owner: nation_a,
+                civilian_id: CivilianId(0),
+                has_moved: false,
+            },
+            CivilianOrder {
+                target: CivilianOrderKind::Prospect { to: tile_pos_1 },
+            },
+        ))
+        .id();
+
+    let _ = world.run_system_once(execute_prospector_orders);
+    world.flush();
+
+    {
+        let mut job = world
+            .get_mut::<CivilianJob>(prospector_a)
+            .expect("Prospector should have started a job");
+        job.turns_remaining = 0;
+    }
+
+    let _ = world.run_system_once(complete_improvement_jobs);
+
+    // Now run the rendering systems
+    let _ = world.run_system_once(render_prospected_mineral_markers);
+
+    // Count markers created - should only be 1 (for nation A's tile)
+    let marker_count = world
+        .query::<&crate::map::rendering::prospecting_markers::ProspectingMarkerFor>()
+        .iter(&world)
+        .count();
+
+    assert_eq!(
+        marker_count, 1,
+        "Should only create 1 marker for nation A's discovery, not for nation B's"
+    );
+
+    // Verify that nation A has knowledge of tile 1 but not tile 2
+    let knowledge = world.resource::<ProspectingKnowledge>();
+    assert!(
+        knowledge.is_discovered_by(tile_entity_1, nation_a),
+        "Nation A should know about tile 1"
+    );
+    assert!(
+        !knowledge.is_discovered_by(tile_entity_2, nation_a),
+        "Nation A should NOT know about tile 2"
+    );
+    assert!(
+        knowledge.is_discovered_by(tile_entity_2, nation_b),
+        "Nation B should know about tile 2"
+    );
+}

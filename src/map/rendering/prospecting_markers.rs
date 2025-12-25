@@ -28,12 +28,11 @@ const MARKER_OFFSET_Y: f32 = 15.0; // Offset from tile center
 
 /// Component linking marker to its tile
 #[derive(Component)]
-#[allow(dead_code)]
-struct ProspectingMarkerFor(Entity);
+pub struct ProspectingMarkerFor(pub Entity);
 
 /// Render red cross markers for tiles prospected with no result
 /// Only renders markers for tiles prospected by the player's nation
-fn render_prospected_empty_markers(
+pub fn render_prospected_empty_markers(
     mut commands: Commands,
     new_empty: Query<(Entity, &TilePos), Added<ProspectedEmpty>>,
     player_nation: Option<Res<PlayerNation>>,
@@ -54,7 +53,7 @@ fn render_prospected_empty_markers(
         pos.y += MARKER_OFFSET_Y;
 
         info!(
-            "Creating 'empty' marker at ({}, {}) for player nation",
+            "Creating 'empty' marker at ({}, {}) for player's nation",
             tile_pos.x, tile_pos.y
         );
 
@@ -95,7 +94,7 @@ fn render_prospected_empty_markers(
 
 /// Render colored square markers for discovered minerals
 /// Only renders markers for tiles prospected by the player's nation
-fn render_prospected_mineral_markers(
+pub fn render_prospected_mineral_markers(
     mut commands: Commands,
     new_minerals: Query<(Entity, &TilePos, &ProspectedMineral), Added<ProspectedMineral>>,
     player_nation: Option<Res<PlayerNation>>,
@@ -126,7 +125,7 @@ fn render_prospected_mineral_markers(
         };
 
         info!(
-            "Creating {:?} marker at ({}, {}) for player nation",
+            "Creating {:?} marker at ({}, {}) for player's nation",
             mineral.resource_type, tile_pos.x, tile_pos.y
         );
 
