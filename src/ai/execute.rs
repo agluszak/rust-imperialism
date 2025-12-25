@@ -10,7 +10,6 @@ use crate::ai::planner::{CivilianTask, NationPlan, plan_nation};
 use crate::ai::snapshot::AiSnapshot;
 use crate::civilians::types::CivilianOrderKind;
 use crate::economy::NationInstance;
-use crate::economy::production::BuildingKind;
 use crate::messages::civilians::CivilianCommand;
 use crate::messages::{AdjustMarketOrder, AdjustProduction, HireCivilian, MarketInterest};
 
@@ -98,11 +97,13 @@ fn execute_plan(
     }
 
     // Adjust production choices before issuing production orders
+    // Note: ProductionSettings is a single component per nation with one `choice` field,
+    // so if multiple buildings have different choices, the last one processed wins.
+    // This is an architectural limitation - each building type that needs a configurable
+    // production choice uses the same ProductionChoice enum.
     if let Ok(mut settings) = production_settings.get_mut(nation.entity()) {
-        for (building, choice) in &plan.production_choices {
-            if let BuildingKind::MetalWorks = building {
-                settings.choice = *choice;
-            }
+        for choice in plan.production_choices.values() {
+            settings.choice = *choice;
         }
     }
 

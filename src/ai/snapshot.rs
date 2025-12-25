@@ -858,6 +858,8 @@ mod tests {
             tile_terrain: HashMap::new(),
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
+            buildings: None,
+            production_settings: None,
         };
 
         // Only civilians with has_moved = false should be available
