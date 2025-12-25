@@ -3,7 +3,7 @@ use bevy_ecs_tilemap::prelude::TileStorage;
 
 use crate::civilians::SelectedCivilian;
 use crate::civilians::{Civilian, CivilianKind};
-use crate::economy::{Calendar, Name, PlayerNation, Technologies, Technology, Treasury};
+use crate::economy::{Calendar, PlayerNation, Technologies, Technology, Treasury};
 use crate::map::province::{City, Province, TileProvince};
 use crate::map::rendering::transport_rendering::HoveredTile;
 use crate::map::tiles::TerrainType;
@@ -127,7 +127,8 @@ pub fn update_tile_info_display(
                                     // Find the owner name
                                     for (nation_entity, name, _) in nations_query.iter() {
                                         if nation_entity == owner_entity {
-                                            tile_info.push_str(&format!("\nOwner: {}", name.0));
+                                            tile_info
+                                                .push_str(&format!("\nOwner: {}", name.as_str()));
                                             break;
                                         }
                                     }

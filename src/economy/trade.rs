@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::economy::market::{MARKET_RESOURCES, MarketPriceModel, MarketVolume};
-use crate::economy::nation::{Name, Nation};
+use crate::economy::nation::Nation;
 use crate::economy::trade_capacity::TradeCapacity;
 use crate::economy::{
     Allocations, Good, ReservationId, ReservationSystem, Stockpile, Treasury, Workforce,
@@ -64,7 +64,7 @@ pub fn resolve_market_orders(
 
             snapshots.push(NationMarketSnapshot {
                 entity,
-                name: name.map(|n| n.0.clone()),
+                name: name.map(|n| n.to_string()),
                 available_cash: treasury.available(),
                 buy_interest,
                 sell_orders,
@@ -382,14 +382,10 @@ mod tests {
         snapshot.used = 0;
     }
     use crate::economy::{
-        Good,
-        allocation::Allocations,
-        nation::{Name, Nation},
-        reservation::ReservationSystem,
-        stockpile::Stockpile,
-        treasury::Treasury,
-        workforce::Workforce,
+        Good, allocation::Allocations, nation::Nation, reservation::ReservationSystem,
+        stockpile::Stockpile, treasury::Treasury, workforce::Workforce,
     };
+    use bevy::prelude::Name;
 
     #[test]
     fn sells_goods_and_transfers_cash() {
@@ -401,7 +397,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Nation,
-                Name("Seller".into()),
+                Name::new("Seller"),
                 Allocations::default(),
                 ReservationSystem::default(),
                 Stockpile::default(),
@@ -414,7 +410,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Nation,
-                Name("Buyer".into()),
+                Name::new("Buyer"),
                 Allocations::default(),
                 ReservationSystem::default(),
                 Stockpile::default(),
@@ -523,7 +519,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Nation,
-                Name("Seller".into()),
+                Name::new("Seller"),
                 Allocations::default(),
                 ReservationSystem::default(),
                 Stockpile::default(),
@@ -536,7 +532,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Nation,
-                Name("Buyer".into()),
+                Name::new("Buyer"),
                 Allocations::default(),
                 ReservationSystem::default(),
                 Stockpile::default(),
@@ -646,7 +642,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Nation,
-                Name("Seller".into()),
+                Name::new("Seller"),
                 Allocations::default(),
                 ReservationSystem::default(),
                 Stockpile::default(),
@@ -659,7 +655,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Nation,
-                Name("Buyer".into()),
+                Name::new("Buyer"),
                 Allocations::default(),
                 ReservationSystem::default(),
                 Stockpile::default(),
@@ -769,7 +765,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Nation,
-                Name("Seller Nation".into()),
+                Name::new("Seller Nation"),
                 Allocations::default(),
                 ReservationSystem::default(),
                 Stockpile::default(),
@@ -782,7 +778,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Nation,
-                Name("Buyer Nation".into()),
+                Name::new("Buyer Nation"),
                 Allocations::default(),
                 ReservationSystem::default(),
                 Stockpile::default(),
@@ -909,7 +905,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Nation,
-                Name("Seller".into()),
+                Name::new("Seller"),
                 Allocations::default(),
                 ReservationSystem::default(),
                 Stockpile::default(),
@@ -922,7 +918,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Nation,
-                Name("Buyer".into()),
+                Name::new("Buyer"),
                 Allocations::default(),
                 ReservationSystem::default(),
                 Stockpile::default(),
@@ -1028,7 +1024,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Nation,
-                Name("Seller".into()),
+                Name::new("Seller"),
                 Allocations::default(),
                 ReservationSystem::default(),
                 Stockpile::default(),
@@ -1041,7 +1037,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Nation,
-                Name("Buyer A".into()),
+                Name::new("Buyer A"),
                 Allocations::default(),
                 ReservationSystem::default(),
                 Stockpile::default(),
@@ -1054,7 +1050,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Nation,
-                Name("Buyer B".into()),
+                Name::new("Buyer B"),
                 Allocations::default(),
                 ReservationSystem::default(),
                 Stockpile::default(),
@@ -1161,7 +1157,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Nation,
-                Name("Seller".into()),
+                Name::new("Seller"),
                 Allocations::default(),
                 ReservationSystem::default(),
                 Stockpile::default(),
@@ -1174,7 +1170,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Nation,
-                Name("Buyer A".into()),
+                Name::new("Buyer A"),
                 Allocations::default(),
                 ReservationSystem::default(),
                 Stockpile::default(),
@@ -1187,7 +1183,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Nation,
-                Name("Buyer B".into()),
+                Name::new("Buyer B"),
                 Allocations::default(),
                 ReservationSystem::default(),
                 Stockpile::default(),
@@ -1302,7 +1298,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Nation,
-                Name("Seller".into()),
+                Name::new("Seller"),
                 Allocations::default(),
                 ReservationSystem::default(),
                 Stockpile::default(),
@@ -1316,7 +1312,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Nation,
-                Name("Buyer".into()),
+                Name::new("Buyer"),
                 Allocations::default(),
                 ReservationSystem::default(),
                 Stockpile::default(),

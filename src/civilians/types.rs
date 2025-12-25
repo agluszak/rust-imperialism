@@ -358,7 +358,7 @@ impl CivilianKind {
 /// Civilian unit component
 #[derive(Component, Debug, Reflect, MapEntities)]
 #[reflect(Component, MapEntities)]
-#[require(Save)]
+#[require(Save, Name)]
 pub struct Civilian {
     pub kind: CivilianKind,
     pub position: TilePos,

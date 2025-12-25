@@ -2,11 +2,6 @@
 //!
 //! This library exposes the core game components for testing and potential reuse.
 
-use bevy::dev_tools::states::log_transitions;
-use bevy::image::ImagePlugin;
-use bevy::prelude::*;
-use bevy_ecs_tilemap::TilemapPlugin;
-
 use crate::ai::AiPlugin;
 use crate::civilians::{CivilianPlugin, CivilianRenderingPlugin};
 use crate::diplomacy::DiplomacyPlugin;
@@ -25,6 +20,15 @@ use crate::turn_system::TurnSystemPlugin;
 use crate::ui::GameUIPlugin;
 use crate::ui::menu::AppState;
 use crate::ui::mode::GameMode;
+use bevy::dev_tools::states::log_transitions;
+use bevy::image::ImagePlugin;
+use bevy::prelude::*;
+use bevy_ecs_tilemap::TilemapPlugin;
+
+#[cfg(feature = "debug")]
+use bevy_inspector_egui::bevy_egui::EguiPlugin;
+#[cfg(feature = "debug")]
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 pub mod ai;
 pub mod assets;
@@ -83,6 +87,9 @@ pub fn app() -> App {
             CivilianRenderingPlugin,
         ))
         .add_plugins(GameSavePlugin);
+
+    #[cfg(feature = "debug")]
+    app.add_plugins((EguiPlugin::default(), WorldInspectorPlugin::new()));
 
     app
 }

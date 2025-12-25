@@ -6,7 +6,7 @@ use crate::ai::{AiControlledCivilian, AiNation};
 use crate::civilians::{Civilian, CivilianKind};
 use crate::constants::MAP_SIZE;
 use crate::economy::{
-    Allocations, Capital, Good, Name, Nation, NationColor, PlayerNation, RecruitmentCapacity,
+    Allocations, Capital, Good, Nation, NationColor, PlayerNation, RecruitmentCapacity,
     RecruitmentQueue, ReservationSystem, Stockpile, Technologies, TrainingQueue, Treasury,
     Workforce,
     production::{Buildings, ProductionSettings},
@@ -98,18 +98,27 @@ pub fn assign_provinces_to_countries(
     let mut capitals = Vec::new();
 
     for i in 0..num_countries {
+        let color = nation_colors[i % nation_colors.len()];
+        let color_name = match i % nation_colors.len() {
+            0 => "Blue",
+            1 => "Red",
+            2 => "Green",
+            3 => "Yellow",
+            4 => "Purple",
+            _ => "Unknown",
+        };
+
         let name = if i == 0 {
-            "Player".to_string()
+            format!("Player ({})", color_name)
         } else {
-            format!("Nation {}", i + 1)
+            format!("Nation {}", color_name)
         };
 
         let stockpile = baseline_stockpile();
-        let color = nation_colors[i % nation_colors.len()];
 
         let country_builder = commands.spawn((
             Nation,
-            Name(name),
+            Name::new(name),
             NationColor(color),
             Treasury::new(10_000),
             stockpile,
@@ -240,14 +249,18 @@ pub fn assign_provinces_to_countries(
 
         for (kind, pos) in starter_units.iter().zip(spawn_positions.iter()) {
             let civilian_id = next_civilian_id.next_id();
-            commands.spawn(Civilian {
-                kind: *kind,
-                position: *pos,
-                owner: player_entity,
-                civilian_id,
-                has_moved: false,
-            });
-            info!("Spawned {:?} for player at ({}, {})", kind, pos.x, pos.y);
+            let name = format!("{:?} {}", kind, civilian_id.0);
+            commands.spawn((
+                Civilian {
+                    kind: *kind,
+                    position: *pos,
+                    owner: player_entity,
+                    civilian_id,
+                    has_moved: false,
+                },
+                Name::new(name.clone()),
+            ));
+            info!("Spawned {} for player at ({}, {})", name, pos.x, pos.y);
         }
     }
 
@@ -267,6 +280,7 @@ pub fn assign_provinces_to_countries(
         let spawn_positions = gather_spawn_positions(capital_pos, ai_starter_units.len());
         for (kind, pos) in ai_starter_units.iter().zip(spawn_positions.iter()) {
             let civilian_id = next_civilian_id.next_id();
+            let name = format!("{:?} {}", kind, civilian_id.0);
             commands.spawn((
                 Civilian {
                     kind: *kind,
@@ -276,10 +290,11 @@ pub fn assign_provinces_to_countries(
                     has_moved: false,
                 },
                 AiControlledCivilian,
+                Name::new(name.clone()),
             ));
             info!(
-                "Spawned {:?} for AI nation {:?} at ({}, {})",
-                kind, nation_entity, pos.x, pos.y
+                "Spawned {} for AI nation {:?} at ({}, {})",
+                name, nation_entity, pos.x, pos.y
             );
         }
     }

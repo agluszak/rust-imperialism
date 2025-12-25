@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-use crate::economy::{Name, NationInstance, Treasury};
+use crate::economy::{NationInstance, Treasury};
 pub use crate::messages::diplomacy::{DiplomaticOrder, DiplomaticOrderKind};
 use crate::turn_system::{PlayerTurnSet, ProcessingSet, TurnPhase};
 use crate::ui::menu::AppState;
@@ -1034,7 +1034,7 @@ fn collect_nation_lookup(
     let mut instance_to_name: HashMap<NationInstance, String> = HashMap::new();
     let mut instances: Vec<NationInstance> = Vec::new();
     for (instance, name) in nations.iter() {
-        instance_to_name.insert(instance, name.0.clone());
+        instance_to_name.insert(instance, name.to_string());
         instances.push(instance);
     }
     (instance_to_name, instances)

@@ -1416,3 +1416,23 @@ fn multiple_nations_can_prospect_same_tile_independently() {
         );
     }
 }
+
+#[test]
+fn test_civilian_requires_name() {
+    let mut world = World::new();
+    let entity = world
+        .spawn(Civilian {
+            kind: CivilianKind::Engineer,
+            position: TilePos::new(0, 0),
+            owner: Entity::PLACEHOLDER,
+            civilian_id: CivilianId(0),
+            has_moved: false,
+        })
+        .id();
+
+    // Name should be automatically added by Bevy's require feature
+    let name = world
+        .get::<Name>(entity)
+        .expect("Name component should be required by Civilian");
+    assert_eq!(name.as_str(), "");
+}
