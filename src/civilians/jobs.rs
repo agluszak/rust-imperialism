@@ -145,6 +145,9 @@ pub fn complete_improvement_jobs(
                                 "Prospector (owner: {:?}) found no minerals at ({}, {})",
                                 civilian.owner, job.target.x, job.target.y
                             );
+
+                            // Mark as discovered for this nation (negative result)
+                            prospecting_knowledge.mark_discovered(tile_entity, civilian.owner);
                         }
                     }
                 }

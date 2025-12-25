@@ -267,10 +267,7 @@ pub fn execute_prospector_orders(
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
     potential_minerals: Query<&crate::map::PotentialMineral>,
-    prospected_tiles: Query<(
-        Option<&crate::map::ProspectedEmpty>,
-        Option<&crate::map::ProspectedMineral>,
-    )>,
+    prospecting_knowledge: Res<ProspectingKnowledge>,
 ) {
     for (entity, mut civilian, order) in prospectors.iter_mut() {
         // Only process Prospector units
@@ -308,11 +305,12 @@ pub fn execute_prospector_orders(
             if let Some((tile_storage, _)) = tile_storage_query.iter().next()
                 && let Some(tile_entity) = tile_storage.get(&to)
             {
-                // Check if tile has already been prospected
-                if let Ok((empty, mineral)) = prospected_tiles.get(tile_entity)
-                    && (empty.is_some() || mineral.is_some())
-                {
-                    info!("Tile at ({}, {}) has already been prospected", to.x, to.y);
+                // Check if this nation has already prospected this tile
+                if prospecting_knowledge.is_discovered_by(tile_entity, civilian.owner) {
+                    info!(
+                        "Tile at ({}, {}) has already been prospected by your nation",
+                        to.x, to.y
+                    );
                     commands.entity(entity).remove::<CivilianOrder>();
                     continue;
                 }

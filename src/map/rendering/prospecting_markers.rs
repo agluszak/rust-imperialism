@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::TilePos;
 
+use crate::civilians::types::ProspectingKnowledge;
+use crate::economy::nation::PlayerNation;
 use crate::map::prospecting::{ProspectedEmpty, ProspectedMineral};
 use crate::map::tile_pos::TilePosExt;
 use crate::resources::ResourceType;
@@ -30,16 +32,29 @@ const MARKER_OFFSET_Y: f32 = 15.0; // Offset from tile center
 struct ProspectingMarkerFor(Entity);
 
 /// Render red cross markers for tiles prospected with no result
+/// Only renders markers for tiles prospected by the player's nation
 fn render_prospected_empty_markers(
     mut commands: Commands,
     new_empty: Query<(Entity, &TilePos), Added<ProspectedEmpty>>,
+    player_nation: Option<Res<PlayerNation>>,
+    prospecting_knowledge: Res<ProspectingKnowledge>,
 ) {
+    let Some(player_nation) = player_nation else {
+        return;
+    };
+    let player_entity = player_nation.entity();
+
     for (tile_entity, tile_pos) in new_empty.iter() {
+        // Only render markers for tiles prospected by the player
+        if !prospecting_knowledge.is_discovered_by(tile_entity, player_entity) {
+            continue;
+        }
+
         let mut pos = tile_pos.to_world_pos();
         pos.y += MARKER_OFFSET_Y;
 
         info!(
-            "Creating 'empty' marker at ({}, {})",
+            "Creating 'empty' marker at ({}, {}) for player nation",
             tile_pos.x, tile_pos.y
         );
 
@@ -79,11 +94,24 @@ fn render_prospected_empty_markers(
 }
 
 /// Render colored square markers for discovered minerals
+/// Only renders markers for tiles prospected by the player's nation
 fn render_prospected_mineral_markers(
     mut commands: Commands,
     new_minerals: Query<(Entity, &TilePos, &ProspectedMineral), Added<ProspectedMineral>>,
+    player_nation: Option<Res<PlayerNation>>,
+    prospecting_knowledge: Res<ProspectingKnowledge>,
 ) {
+    let Some(player_nation) = player_nation else {
+        return;
+    };
+    let player_entity = player_nation.entity();
+
     for (tile_entity, tile_pos, mineral) in new_minerals.iter() {
+        // Only render markers for tiles prospected by the player
+        if !prospecting_knowledge.is_discovered_by(tile_entity, player_entity) {
+            continue;
+        }
+
         let mut pos = tile_pos.to_world_pos();
         pos.y += MARKER_OFFSET_Y;
 
@@ -98,7 +126,7 @@ fn render_prospected_mineral_markers(
         };
 
         info!(
-            "Creating {:?} marker at ({}, {})",
+            "Creating {:?} marker at ({}, {}) for player nation",
             mineral.resource_type, tile_pos.x, tile_pos.y
         );
 
