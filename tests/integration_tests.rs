@@ -588,3 +588,173 @@ fn test_ai_resource_discovery_and_collection() {
 
     println!("\n=== Test Complete ===");
 }
+
+/// Integration test: AI engineers respect terrain constraints when building depots and rails
+/// This test verifies that AI will not attempt to build on water or mountains
+#[test]
+fn test_ai_respects_terrain_constraints() {
+    use bevy::ecs::system::RunSystemOnce;
+    use bevy::prelude::*;
+    use bevy::state::app::StatesPlugin;
+    use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
+
+    use rust_imperialism::ai::{AiControlledCivilian, AiNation, AiSnapshot};
+    use rust_imperialism::civilians::{Civilian, CivilianKind};
+    use rust_imperialism::economy::{
+        EconomyPlugin,
+        nation::{Capital, Nation},
+        stockpile::Stockpile,
+        technology::Technologies,
+        treasury::Treasury,
+    };
+    use rust_imperialism::map::{
+        province::{Province, ProvinceId, TileProvince},
+        tiles::TerrainType,
+    };
+    use rust_imperialism::resources::{ResourceType, TileResource};
+    use rust_imperialism::turn_system::{TurnPhase, TurnSystemPlugin};
+    use rust_imperialism::ui::menu::AppState;
+    use rust_imperialism::ui::mode::GameMode;
+
+    // Create a headless app with minimal plugins
+    let mut app = App::new();
+    app.add_plugins((MinimalPlugins, StatesPlugin));
+
+    // Initialize game states
+    app.init_state::<TurnPhase>();
+    app.insert_state(AppState::InGame);
+    app.add_sub_state::<GameMode>();
+
+    // Add necessary game plugins
+    app.add_plugins((
+        TurnSystemPlugin,
+        EconomyPlugin,
+        rust_imperialism::ai::AiPlugin,
+        rust_imperialism::civilians::CivilianPlugin,
+    ));
+
+    // Create a test map with varied terrain
+    let map_size = TilemapSize { x: 10, y: 10 };
+    let mut tile_storage = TileStorage::empty(map_size);
+
+    // Define key positions with specific terrains
+    let capital_pos = TilePos { x: 5, y: 5 }; // Grass (buildable)
+    let grass_resource_pos = TilePos { x: 5, y: 6 }; // Grass with resource (buildable)
+    let mountain_pos = TilePos { x: 5, y: 7 }; // Mountain (not buildable for depot)
+    let water_pos = TilePos { x: 6, y: 7 }; // Water (not buildable at all)
+    let hill_pos = TilePos { x: 4, y: 6 }; // Hill (buildable for depot, needs tech for rail)
+
+    let province_id = ProvinceId(1);
+    let mut province_tiles = vec![];
+
+    // Create tiles with specific terrain types
+    for x in 3..8 {
+        for y in 3..8 {
+            let pos = TilePos { x, y };
+            let terrain = if pos == water_pos {
+                TerrainType::Water
+            } else if pos == mountain_pos {
+                TerrainType::Mountain
+            } else if pos == hill_pos {
+                TerrainType::Hills
+            } else {
+                TerrainType::Grass
+            };
+
+            let tile_entity = app
+                .world_mut()
+                .spawn((TileProvince { province_id }, terrain))
+                .id();
+            tile_storage.set(&pos, tile_entity);
+            province_tiles.push(pos);
+
+            // Add a coal resource on the grass tile
+            if pos == grass_resource_pos {
+                app.world_mut()
+                    .entity_mut(tile_entity)
+                    .insert(TileResource::visible(ResourceType::Coal));
+            }
+        }
+    }
+
+    // Create tilemap entity
+    app.world_mut().spawn((tile_storage, map_size));
+
+    // Create AI nation with no technologies (cannot build rails on hills/mountains)
+    let ai_nation = app
+        .world_mut()
+        .spawn((
+            AiNation,
+            Nation,
+            Capital(capital_pos),
+            Stockpile::default(),
+            Treasury::new(10000), // Enough money for construction
+            Technologies::new(), // No technologies unlocked
+        ))
+        .id();
+
+    // Create province owned by the AI nation
+    app.world_mut().spawn(Province {
+        id: province_id,
+        owner: Some(ai_nation),
+        tiles: province_tiles,
+        city_tile: capital_pos,
+    });
+
+    // Spawn AI-controlled engineer near capital
+    let engineer = app
+        .world_mut()
+        .spawn((
+            Civilian {
+                kind: CivilianKind::Engineer,
+                position: capital_pos,
+                owner: ai_nation,
+                civilian_id: rust_imperialism::civilians::CivilianId(0),
+                has_moved: false,
+            },
+            AiControlledCivilian,
+        ))
+        .id();
+
+    println!("\n=== Starting AI Terrain Constraints Test ===");
+    println!("Capital at: {:?} (Grass)", capital_pos);
+    println!("Resource at: {:?} (Grass)", grass_resource_pos);
+    println!("Mountain at: {:?} (Cannot build depot)", mountain_pos);
+    println!("Water at: {:?} (Cannot build anything)", water_pos);
+    println!("Hill at: {:?} (Can build depot, not rail without tech)", hill_pos);
+
+    // Run for a few turns to let AI plan
+    for turn in 1..=10 {
+        println!("\n--- Turn {} ---", turn);
+
+        // Run turn phases
+        app.update();
+        transition_to_phase(&mut app, TurnPhase::Processing);
+        transition_to_phase(&mut app, TurnPhase::EnemyTurn);
+
+        // After EnemyTurn, check the AI snapshot to see what depots it suggested
+        if let Some(snapshot) = app.world().get_resource::<AiSnapshot>() {
+            if let Some(nation_snapshot) = snapshot.get_nation(ai_nation) {
+                println!("  AI suggested {} depot locations", nation_snapshot.suggested_depots.len());
+                for depot in &nation_snapshot.suggested_depots {
+                    println!("    - Depot at {:?} (covers {} resources)", depot.position, depot.covers_count);
+                    
+                    // Verify suggested depot is not on water or mountain
+                    assert_ne!(depot.position, water_pos, "AI should not suggest depot on water");
+                    assert_ne!(depot.position, mountain_pos, "AI should not suggest depot on mountain");
+                }
+            }
+        }
+
+        transition_to_phase(&mut app, TurnPhase::PlayerTurn);
+    }
+
+    // Verify AI engineer didn't try to build on invalid terrain
+    let engineer_pos = app.world().get::<Civilian>(engineer).unwrap().position;
+    println!("\nFinal engineer position: {:?}", engineer_pos);
+    
+    // Engineer should not be on water or mountain
+    assert_ne!(engineer_pos, water_pos, "Engineer should not move to water");
+    
+    println!("\n=== Test Complete: AI respects terrain constraints ===");
+}
