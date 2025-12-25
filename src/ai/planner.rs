@@ -374,16 +374,23 @@ fn plan_engineer_depot_task(
     engineer_pos: TilePos,
     target: TilePos,
 ) -> Option<CivilianTask> {
-    // If we're at the target, build the depot
+    // If we're at the target, check if we can build depot here
     if engineer_pos == target {
-        return Some(CivilianTask::BuildDepot);
+        if can_build_depot_here(target, nation) {
+            return Some(CivilianTask::BuildDepot);
+        } else {
+            // Cannot build depot at target due to terrain
+            return None;
+        }
     }
 
     // If we're on a connected tile, try to build rail toward target
     if nation.connected_tiles.contains(&engineer_pos) {
-        // Find adjacent tile that gets us closer to target
+        // Find adjacent tile that gets us closer to target AND can have rails
         if let Some(next_tile) = find_step_toward(engineer_pos, target, &nation.owned_tiles)
             && is_adjacent(engineer_pos, next_tile)
+            && can_build_rail_here(next_tile, nation)
+            && can_build_rail_here(engineer_pos, nation)
         {
             return Some(CivilianTask::BuildRailTo { target: next_tile });
         }
@@ -421,10 +428,12 @@ fn plan_engineer_rail_task(
 ) -> Option<CivilianTask> {
     // If we're on a connected tile, try to build rail toward the depot
     if nation.connected_tiles.contains(&engineer_pos) {
-        // Find adjacent tile that gets us closer to depot
+        // Find adjacent tile that gets us closer to depot AND can have rails
         if let Some(next_tile) = find_step_toward(engineer_pos, depot_pos, &nation.owned_tiles)
             && is_adjacent(engineer_pos, next_tile)
             && !nation.connected_tiles.contains(&next_tile)
+            && can_build_rail_here(next_tile, nation)
+            && can_build_rail_here(engineer_pos, nation)
         {
             return Some(CivilianTask::BuildRailTo { target: next_tile });
         }
@@ -478,6 +487,32 @@ fn is_adjacent(a: TilePos, b: TilePos) -> bool {
     a.to_hex().distance_to(b.to_hex()) == 1
 }
 
+/// Check if a rail can be built on a tile given the nation's technologies.
+fn can_build_rail_here(
+    tile_pos: TilePos,
+    nation: &NationSnapshot,
+) -> bool {
+    nation
+        .tile_terrain
+        .get(&tile_pos)
+        .map(|terrain| {
+            crate::economy::transport::can_build_rail_on_terrain(terrain, &nation.technologies).0
+        })
+        .unwrap_or(false)
+}
+
+/// Check if a depot can be built on a tile.
+fn can_build_depot_here(
+    tile_pos: TilePos,
+    nation: &NationSnapshot,
+) -> bool {
+    nation
+        .tile_terrain
+        .get(&tile_pos)
+        .map(crate::economy::transport::can_build_depot_on_terrain)
+        .unwrap_or(false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -528,6 +563,12 @@ mod tests {
         owned_tiles.insert(connected_tile);
         owned_tiles.insert(target);
 
+        // Create terrain map with buildable terrain (Grass)
+        let mut tile_terrain = HashMap::new();
+        for &pos in &owned_tiles {
+            tile_terrain.insert(pos, crate::map::tiles::TerrainType::Grass);
+        }
+
         let snapshot = NationSnapshot {
             entity: Entity::PLACEHOLDER,
             capital_pos: TilePos::new(0, 0),
@@ -541,6 +582,8 @@ mod tests {
             owned_tiles,
             depot_positions: HashSet::new(),
             prospectable_tiles: vec![],
+            tile_terrain,
+            technologies: crate::economy::technology::Technologies::new(),
         };
 
         let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);
@@ -566,6 +609,12 @@ mod tests {
         owned_tiles.insert(next_step);
         owned_tiles.insert(target);
 
+        // Create terrain map with buildable terrain (Grass)
+        let mut tile_terrain = HashMap::new();
+        for &pos in &owned_tiles {
+            tile_terrain.insert(pos, crate::map::tiles::TerrainType::Grass);
+        }
+
         let snapshot = NationSnapshot {
             entity: Entity::PLACEHOLDER,
             capital_pos: TilePos::new(0, 0),
@@ -579,6 +628,8 @@ mod tests {
             owned_tiles,
             depot_positions: HashSet::new(),
             prospectable_tiles: vec![],
+            tile_terrain,
+            technologies: crate::economy::technology::Technologies::new(),
         };
 
         let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);
