@@ -392,8 +392,10 @@ pub fn build_ai_snapshot(
             .iter()
             .filter(|(_, c)| c.owner == entity)
             .filter_map(|(e, c)| {
-                // Exclude civilians that have active jobs (turns_remaining > 0)
-                // Jobs that just completed (turns_remaining == 0) are OK to include
+                // Exclude civilians that have active jobs (turns_remaining > 0).
+                // Jobs that just completed (turns_remaining == 0) are OK to include because
+                // job progress has already been applied for this turn, so these civilians are
+                // now idle and available for new AI decisions.
                 let has_active_job = civilian_jobs
                     .get(e)
                     .map(|job| job.turns_remaining > 0)

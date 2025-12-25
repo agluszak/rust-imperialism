@@ -389,8 +389,7 @@ fn plan_engineer_depot_task(
         // Find adjacent tile that gets us closer to target AND can have rails
         if let Some(next_tile) = find_step_toward(engineer_pos, target, &nation.owned_tiles)
             && is_adjacent(engineer_pos, next_tile)
-            && can_build_rail_here(next_tile, nation)
-            && can_build_rail_here(engineer_pos, nation)
+            && can_build_rail_between(engineer_pos, next_tile, nation)
         {
             return Some(CivilianTask::BuildRailTo { target: next_tile });
         }
@@ -432,8 +431,7 @@ fn plan_engineer_rail_task(
         if let Some(next_tile) = find_step_toward(engineer_pos, depot_pos, &nation.owned_tiles)
             && is_adjacent(engineer_pos, next_tile)
             && !nation.connected_tiles.contains(&next_tile)
-            && can_build_rail_here(next_tile, nation)
-            && can_build_rail_here(engineer_pos, nation)
+            && can_build_rail_between(engineer_pos, next_tile, nation)
         {
             return Some(CivilianTask::BuildRailTo { target: next_tile });
         }
@@ -499,6 +497,16 @@ fn can_build_rail_here(
             crate::economy::transport::can_build_rail_on_terrain(terrain, &nation.technologies).0
         })
         .unwrap_or(false)
+}
+
+/// Check if a rail can be built between two adjacent tiles.
+/// Both tiles must support rail construction given the nation's technologies.
+fn can_build_rail_between(
+    from: TilePos,
+    to: TilePos,
+    nation: &NationSnapshot,
+) -> bool {
+    can_build_rail_here(from, nation) && can_build_rail_here(to, nation)
 }
 
 /// Check if a depot can be built on a tile.

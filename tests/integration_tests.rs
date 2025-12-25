@@ -752,8 +752,14 @@ fn test_ai_respects_terrain_constraints() {
     let engineer_pos = app.world().get::<Civilian>(engineer).unwrap().position;
     println!("\nFinal engineer position: {:?}", engineer_pos);
     
-    // Engineer should not be on water or mountain
+    // Engineer should not be on water, mountain, or hills (without technology)
     assert_ne!(engineer_pos, water_pos, "Engineer should not move to water");
+    assert_ne!(engineer_pos, mountain_pos, "Engineer should not move to mountain");
+    // Hills are buildable for depots but not for rails without technology
+    // If engineer is on hills, they should not have attempted rail construction
+    if engineer_pos == hill_pos {
+        println!("Note: Engineer is on hill tile, but should not have built rails without HillGrading technology");
+    }
     
     println!("\n=== Test Complete: AI respects terrain constraints ===");
 }
