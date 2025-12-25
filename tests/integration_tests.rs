@@ -593,7 +593,6 @@ fn test_ai_resource_discovery_and_collection() {
 /// This test verifies that AI will not attempt to build on water or mountains
 #[test]
 fn test_ai_respects_terrain_constraints() {
-    use bevy::ecs::system::RunSystemOnce;
     use bevy::prelude::*;
     use bevy::state::app::StatesPlugin;
     use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
@@ -733,16 +732,16 @@ fn test_ai_respects_terrain_constraints() {
         transition_to_phase(&mut app, TurnPhase::EnemyTurn);
 
         // After EnemyTurn, check the AI snapshot to see what depots it suggested
-        if let Some(snapshot) = app.world().get_resource::<AiSnapshot>() {
-            if let Some(nation_snapshot) = snapshot.get_nation(ai_nation) {
-                println!("  AI suggested {} depot locations", nation_snapshot.suggested_depots.len());
-                for depot in &nation_snapshot.suggested_depots {
-                    println!("    - Depot at {:?} (covers {} resources)", depot.position, depot.covers_count);
-                    
-                    // Verify suggested depot is not on water or mountain
-                    assert_ne!(depot.position, water_pos, "AI should not suggest depot on water");
-                    assert_ne!(depot.position, mountain_pos, "AI should not suggest depot on mountain");
-                }
+        if let Some(snapshot) = app.world().get_resource::<AiSnapshot>()
+            && let Some(nation_snapshot) = snapshot.get_nation(ai_nation)
+        {
+            println!("  AI suggested {} depot locations", nation_snapshot.suggested_depots.len());
+            for depot in &nation_snapshot.suggested_depots {
+                println!("    - Depot at {:?} (covers {} resources)", depot.position, depot.covers_count);
+                
+                // Verify suggested depot is not on water or mountain
+                assert_ne!(depot.position, water_pos, "AI should not suggest depot on water");
+                assert_ne!(depot.position, mountain_pos, "AI should not suggest depot on mountain");
             }
         }
 
