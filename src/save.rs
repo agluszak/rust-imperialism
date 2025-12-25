@@ -274,6 +274,7 @@ mod tests {
     use std::path::PathBuf;
 
     use bevy::app::App;
+
     use bevy::ecs::message::{MessageReader, MessageWriter};
     use bevy::ecs::reflect::ReflectMapEntities;
     use bevy::ecs::system::RunSystemOnce;
@@ -281,6 +282,7 @@ mod tests {
         AppExtStates, AppTypeRegistry, Color, Commands, Component, Entity, MinimalPlugins, Reflect,
         ReflectComponent,
     };
+
     use bevy::state::app::StatesPlugin;
     use bevy_ecs_tilemap::prelude::TilePos;
 
