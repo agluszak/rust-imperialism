@@ -35,8 +35,6 @@ jobs:
       
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
       
       - name: Cache cargo dependencies
         uses: Swatinem/rust-cache@v2
@@ -71,7 +69,6 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly
           components: clippy
       
       - name: Cache cargo dependencies
@@ -92,7 +89,6 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly
           components: rustfmt
       
       - name: Check formatting
