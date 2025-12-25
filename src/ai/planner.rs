@@ -13,6 +13,7 @@ use crate::ai::snapshot::{AiSnapshot, NationSnapshot, resource_target_days};
 use crate::civilians::types::CivilianKind;
 use crate::economy::goods::Good;
 use crate::economy::market::MARKET_RESOURCES;
+use crate::economy::production::{BuildingKind, ProductionChoice};
 
 /// A goal that a nation wants to accomplish.
 #[derive(Debug, Clone)]
@@ -58,7 +59,16 @@ pub struct NationPlan {
     pub civilian_tasks: HashMap<Entity, CivilianTask>,
     pub market_buys: Vec<(Good, u32)>,
     pub market_sells: Vec<(Good, u32)>,
+    pub production_orders: Vec<ProductionOrder>,
+    pub production_choices: HashMap<BuildingKind, ProductionChoice>,
     pub civilians_to_hire: Vec<CivilianKind>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ProductionOrder {
+    pub building: Entity,
+    pub output: Good,
+    pub qty: u32,
 }
 
 /// A task assigned to a specific civilian.
@@ -99,6 +109,7 @@ pub fn plan_nation(nation: &NationSnapshot, snapshot: &AiSnapshot) -> NationPlan
 
     // 1. Generate all goals
     generate_market_goals(nation, snapshot, &mut plan.goals);
+    generate_value_added_trade(nation, snapshot, &mut plan);
     generate_infrastructure_goals(nation, &mut plan.goals);
     generate_improvement_goals(nation, &mut plan.goals);
     generate_prospecting_goals(nation, &mut plan.goals);
@@ -178,6 +189,90 @@ fn generate_market_goals(
             });
         }
     }
+}
+
+fn generate_value_added_trade(
+    nation: &NationSnapshot,
+    snapshot: &AiSnapshot,
+    plan: &mut NationPlan,
+) {
+    let Some(buildings) = nation.buildings.as_ref() else {
+        return;
+    };
+
+    let Some(steel_mill) = buildings.get(crate::economy::production::BuildingKind::SteelMill)
+    else {
+        return;
+    };
+
+    let Some(metal_works) = buildings.get(crate::economy::production::BuildingKind::MetalWorks)
+    else {
+        return;
+    };
+
+    // Basic price heuristics: only pursue hardware production if the spread is profitable
+    let iron_price = snapshot.market.price_for(Good::Iron);
+    let coal_price = snapshot.market.price_for(Good::Coal);
+    let steel_price = snapshot.market.price_for(Good::Steel);
+    let hardware_price = snapshot.market.price_for(Good::Hardware);
+
+    let steel_input_cost = iron_price.saturating_add(coal_price);
+    let hardware_input_cost = steel_price.saturating_mul(2);
+
+    if hardware_price <= hardware_input_cost {
+        return; // Not profitable to craft hardware right now
+    }
+
+    // Target a small batch to ensure AI can progress
+    let desired_hardware = metal_works.capacity.min(2);
+    if desired_hardware == 0 {
+        return;
+    }
+
+    // Ensure we have enough steel lined up to feed hardware production
+    let steel_needed = desired_hardware.saturating_mul(2);
+    let available_steel = nation.available_amount(Good::Steel);
+    let steel_shortfall = steel_needed.saturating_sub(available_steel);
+
+    if steel_shortfall > 0 && steel_price > steel_input_cost {
+        // Steel is profitable to craft; queue production and buy inputs
+        let steel_batches = steel_shortfall.min(steel_mill.capacity);
+        plan.production_orders.push(ProductionOrder {
+            building: nation.entity,
+            output: Good::Steel,
+            qty: steel_batches,
+        });
+
+        // Buy the raw inputs required to cover the steel shortfall
+        let required_iron = steel_batches;
+        let required_coal = steel_batches;
+
+        let iron_have = nation.available_amount(Good::Iron);
+        let coal_have = nation.available_amount(Good::Coal);
+
+        let iron_buy = required_iron.saturating_sub(iron_have);
+        let coal_buy = required_coal.saturating_sub(coal_have);
+
+        if iron_buy > 0 {
+            plan.market_buys.push((Good::Iron, iron_buy));
+        }
+
+        if coal_buy > 0 {
+            plan.market_buys.push((Good::Coal, coal_buy));
+        }
+    }
+
+    // Queue hardware production using available + incoming steel
+    plan.production_choices
+        .insert(BuildingKind::MetalWorks, ProductionChoice::MakeHardware);
+    plan.production_orders.push(ProductionOrder {
+        building: nation.entity,
+        output: Good::Hardware,
+        qty: desired_hardware,
+    });
+
+    // Plan to sell the finished goods once produced
+    plan.market_sells.push((Good::Hardware, desired_hardware));
 }
 
 fn generate_infrastructure_goals(nation: &NationSnapshot, goals: &mut Vec<NationGoal>) {
