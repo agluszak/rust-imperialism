@@ -97,13 +97,13 @@ impl JobType {
     /// Get the number of turns required for this job type
     pub fn duration(&self) -> u32 {
         match self {
-            JobType::BuildingRail => 3,
-            JobType::BuildingDepot => 2,
-            JobType::BuildingPort => 3,
-            JobType::Mining => 3,
-            JobType::Drilling => 4,
-            JobType::Prospecting => 2,
-            JobType::ImprovingTile => 2, // Was 1, now takes 2 turns
+            JobType::BuildingRail => 2,
+            JobType::BuildingDepot => 1,
+            JobType::BuildingPort => 2,
+            JobType::Mining => 2,
+            JobType::Drilling => 2,
+            JobType::Prospecting => 1,
+            JobType::ImprovingTile => 1, // Was 1, then 2, now 1 turn again
         }
     }
 }

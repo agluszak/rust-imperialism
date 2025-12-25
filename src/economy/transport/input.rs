@@ -201,24 +201,23 @@ fn handle_rail_construction(
         }
     }
 
-    // Start rail construction (takes 3 turns)
+    // Start rail construction (takes 2 turns)
     let cost: i64 = 50;
     if let Some(nation_entity) = builder_nation
         && let Ok(mut treasury) = treasuries.get_mut(nation_entity)
     {
         if treasury.total() >= cost {
             treasury.subtract(cost);
-
             commands.spawn(RailConstruction {
                 from: edge.0,
                 to: edge.1,
-                turns_remaining: 3,
+                turns_remaining: 2,
                 owner: nation_entity,
                 engineer: e.engineer.unwrap_or(nation_entity),
             });
 
             info!(
-                "Started rail construction from ({}, {}) to ({}, {}) for ${} (3 turns)",
+                "Started rail construction from ({}, {}) to ({}, {}) for ${} (2 turns)",
                 edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost
             );
         } else {

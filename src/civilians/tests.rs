@@ -175,8 +175,8 @@ fn test_engineer_starts_job_on_new_rail() {
         "Job type should be BuildingRail"
     );
     assert_eq!(
-        job.turns_remaining, 3,
-        "Rail construction should take 3 turns"
+        job.turns_remaining, 2,
+        "Rail construction should take 2 turns"
     );
     assert_eq!(
         job.target, target_pos,

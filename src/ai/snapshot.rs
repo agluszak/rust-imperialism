@@ -56,6 +56,15 @@ pub struct NationSnapshot {
     pub tile_terrain: HashMap<TilePos, crate::map::tiles::TerrainType>,
     /// Technologies owned by this nation.
     pub technologies: crate::economy::technology::Technologies,
+    /// Rails currently under construction by this nation.
+    pub rail_constructions: Vec<RailConstructionSnapshot>,
+}
+
+/// Snapshot of rail construction.
+#[derive(Debug, Clone)]
+pub struct RailConstructionSnapshot {
+    pub from: TilePos,
+    pub to: TilePos,
 }
 
 impl NationSnapshot {
@@ -241,6 +250,7 @@ pub fn build_ai_snapshot(
     >,
     civilians: Query<(Entity, &Civilian)>,
     civilian_jobs: Query<&crate::civilians::types::CivilianJob>,
+    rail_constructions: Query<&crate::economy::transport::RailConstruction>,
     depots: Query<&Depot>,
     provinces: Query<&Province>,
     tile_storage: Query<&TileStorage>,
@@ -393,6 +403,16 @@ pub fn build_ai_snapshot(
             &tile_terrain_map,
         );
 
+        // Collect rail constructions for this nation
+        let nation_rail_constructions: Vec<RailConstructionSnapshot> = rail_constructions
+            .iter()
+            .filter(|rc| rc.owner == entity)
+            .map(|rc| RailConstructionSnapshot {
+                from: rc.from,
+                to: rc.to,
+            })
+            .collect();
+
         // Collect civilians for this nation (exclude those with active jobs)
         let nation_civilians: Vec<CivilianSnapshot> = civilians
             .iter()
@@ -437,6 +457,7 @@ pub fn build_ai_snapshot(
                 prospectable_tiles,
                 tile_terrain: tile_terrain_map,
                 technologies: technologies.clone(),
+                rail_constructions: nation_rail_constructions,
             },
         );
     }
@@ -827,6 +848,7 @@ mod tests {
             prospectable_tiles: vec![],
             tile_terrain: HashMap::new(),
             technologies: crate::economy::technology::Technologies::new(),
+            rail_constructions: vec![],
         };
 
         // Only civilians with has_moved = false should be available

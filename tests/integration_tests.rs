@@ -785,3 +785,150 @@ fn test_ai_respects_terrain_constraints() {
 
     println!("\n=== Test Complete: AI respects terrain constraints ===");
 }
+
+/// Integration test: Two engineers building rails to two separate resource hubs
+/// that for some distance share rails but then the rails have to split.
+#[test]
+fn test_two_engineers_splitting_paths() {
+    use bevy::prelude::*;
+    use bevy::state::app::StatesPlugin;
+    use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
+    use rust_imperialism::ai::{AiControlledCivilian, AiNation};
+    use rust_imperialism::civilians::{Civilian, CivilianKind};
+    use rust_imperialism::economy::{
+        EconomyPlugin,
+        nation::{Capital, Nation},
+        stockpile::Stockpile,
+        technology::Technologies,
+        transport::{Depot, Rails},
+        treasury::Treasury,
+    };
+    use rust_imperialism::map::province::{Province, ProvinceId, TileProvince};
+    use rust_imperialism::map::tiles::TerrainType;
+    use rust_imperialism::turn_system::{TurnCounter, TurnPhase, TurnSystemPlugin};
+    use rust_imperialism::ui::menu::AppState;
+    use rust_imperialism::ui::mode::GameMode;
+
+    // Create a headless app with minimal plugins
+    let mut app = App::new();
+    app.add_plugins((MinimalPlugins, StatesPlugin));
+
+    // Initialize game states
+    app.init_state::<TurnPhase>();
+    app.insert_state(AppState::InGame);
+    app.add_sub_state::<GameMode>();
+
+    // Add game plugins
+    app.add_plugins((
+        TurnSystemPlugin,
+        EconomyPlugin,
+        rust_imperialism::ai::AiPlugin,
+        rust_imperialism::civilians::CivilianPlugin,
+    ));
+
+    let map_size = TilemapSize { x: 30, y: 30 };
+    let mut tile_storage = TileStorage::empty(map_size);
+
+    // Hubs share East-ward path from center for a while
+    let capital_pos = TilePos { x: 10, y: 15 };
+    let hub_a_pos = TilePos { x: 25, y: 10 };
+    let hub_b_pos = TilePos { x: 25, y: 20 };
+
+    let province_id = ProvinceId(1);
+    let mut province_tiles = vec![];
+
+    for x in 0..30 {
+        for y in 0..30 {
+            let pos = TilePos { x, y };
+            let tile_entity = app
+                .world_mut()
+                .spawn((TileProvince { province_id }, TerrainType::Grass))
+                .id();
+            tile_storage.set(&pos, tile_entity);
+            province_tiles.push(pos);
+        }
+    }
+
+    app.world_mut().spawn((tile_storage, map_size));
+
+    let ai_nation = app
+        .world_mut()
+        .spawn((
+            AiNation,
+            Nation,
+            Capital(capital_pos),
+            Stockpile::default(),
+            Treasury::new(10000),
+            Technologies::default(),
+        ))
+        .id();
+
+    app.world_mut().spawn(Province {
+        id: province_id,
+        owner: Some(ai_nation),
+        tiles: province_tiles,
+        city_tile: capital_pos,
+    });
+
+    // Spawn 2 unconnected depots at Hub A and Hub B
+    app.world_mut().spawn(Depot {
+        position: hub_a_pos,
+        owner: ai_nation,
+        connected: false,
+    });
+    app.world_mut().spawn(Depot {
+        position: hub_b_pos,
+        owner: ai_nation,
+        connected: false,
+    });
+
+    // Spawn 2 engineers at capital
+    for i in 0..2 {
+        app.world_mut().spawn((
+            Civilian {
+                kind: CivilianKind::Engineer,
+                position: capital_pos,
+                owner: ai_nation,
+                civilian_id: rust_imperialism::civilians::CivilianId(i),
+                has_moved: false,
+            },
+            AiControlledCivilian,
+        ));
+    }
+
+    println!("\n=== Starting Two Engineers Splitting Path Test ===");
+
+    for turn in 1..=60 {
+        let current_turn = app.world().resource::<TurnCounter>().current;
+        println!("\n--- Turn {} ---", current_turn);
+
+        // Turn loop
+        transition_to_phase(&mut app, TurnPhase::Processing);
+        transition_to_phase(&mut app, TurnPhase::EnemyTurn);
+        transition_to_phase(&mut app, TurnPhase::PlayerTurn);
+
+        // Check progress
+        let mut connected_depots = 0;
+        {
+            let mut query = app.world_mut().query::<&Depot>();
+            for depot in query.iter(app.world()) {
+                if depot.connected {
+                    connected_depots += 1;
+                }
+            }
+        }
+
+        let rail_count = app.world().resource::<Rails>().0.len();
+        println!(
+            "  Rails: {}, Connected Depots: {}",
+            rail_count, connected_depots
+        );
+
+        if connected_depots == 2 {
+            println!("SUCCESS: Both hubs connected in {} turns!", turn);
+            return;
+        }
+    }
+
+    panic!("FAIL: Did not connect both hubs within 60 turns");
+}
