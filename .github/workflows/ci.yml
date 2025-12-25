@@ -34,9 +34,7 @@ jobs:
             mesa-vulkan-drivers
       
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
+        run: rustup toolchain install
       
       - name: Cache cargo dependencies
         uses: Swatinem/rust-cache@v2
@@ -69,10 +67,7 @@ jobs:
             mesa-vulkan-drivers
       
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
-          components: clippy
+        run: rustup toolchain install
       
       - name: Cache cargo dependencies
         uses: Swatinem/rust-cache@v2
@@ -90,10 +85,7 @@ jobs:
         uses: actions/checkout@v5
       
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
-          components: rustfmt
+        run: rustup toolchain install
       
       - name: Check formatting
         run: cargo fmt --all -- --check
