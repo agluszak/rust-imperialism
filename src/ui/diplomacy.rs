@@ -9,7 +9,7 @@ use crate::diplomacy::{
     DiplomaticOrder, DiplomaticOrderKind, DiplomaticRelation, ForeignAidLedger, RelationshipBand,
     resolve_offer_response,
 };
-use crate::economy::{Name, NationId, PlayerNation, Treasury};
+use crate::economy::{Name, NationInstance, PlayerNation, Treasury};
 use crate::ui::button_style::{
     AccentButton, DangerButton, NORMAL_ACCENT, NORMAL_BUTTON, NORMAL_DANGER,
 };
@@ -25,7 +25,7 @@ pub struct DiplomacyScreen;
 
 #[derive(Component)]
 struct DiplomacyNationButton {
-    nation: NationId,
+    nation: NationInstance,
 }
 
 #[derive(Component)]
@@ -46,7 +46,7 @@ struct SelectedRelationSummaryText;
 #[derive(Component)]
 struct DiplomacyActionButton {
     action: DiplomaticAction,
-    target: NationId,
+    target: Option<NationInstance>,
 }
 
 #[derive(Component)]
@@ -69,56 +69,55 @@ enum DiplomaticAction {
 }
 
 /// Creates an observer that executes a diplomatic action when the button is activated
-/// Reads current selection from DiplomacySelection resource and player ID from PlayerNation
+/// Reads current selection from DiplomacySelection resource and player NationInstance from PlayerNation
 fn execute_diplomatic_action(action: DiplomaticAction) -> impl Bundle {
     observe(
         move |_activate: On<Activate>,
               selection: Res<DiplomacySelection>,
               player: Option<Res<PlayerNation>>,
-              nation_ids: Query<&NationId>,
               mut orders: MessageWriter<DiplomaticOrder>| {
             let Some(selected) = selection.selected else {
                 return;
             };
 
-            let player_id = match player.and_then(|p| nation_ids.get(*p.0).ok()).copied() {
-                Some(id) => id,
+            let player_instance = match player {
+                Some(p) => p.instance(),
                 None => return,
             };
 
             let order = match action {
                 DiplomaticAction::DeclareWar => DiplomaticOrder {
-                    actor: player_id,
+                    actor: player_instance,
                     target: selected,
                     kind: DiplomaticOrderKind::DeclareWar,
                 },
                 DiplomaticAction::OfferPeace => DiplomaticOrder {
-                    actor: player_id,
+                    actor: player_instance,
                     target: selected,
                     kind: DiplomaticOrderKind::OfferPeace,
                 },
                 DiplomaticAction::Consulate => DiplomaticOrder {
-                    actor: player_id,
+                    actor: player_instance,
                     target: selected,
                     kind: DiplomaticOrderKind::EstablishConsulate,
                 },
                 DiplomaticAction::Embassy => DiplomaticOrder {
-                    actor: player_id,
+                    actor: player_instance,
                     target: selected,
                     kind: DiplomaticOrderKind::OpenEmbassy,
                 },
                 DiplomaticAction::Pact => DiplomaticOrder {
-                    actor: player_id,
+                    actor: player_instance,
                     target: selected,
                     kind: DiplomaticOrderKind::SignNonAggressionPact,
                 },
                 DiplomaticAction::Alliance => DiplomaticOrder {
-                    actor: player_id,
+                    actor: player_instance,
                     target: selected,
                     kind: DiplomaticOrderKind::FormAlliance,
                 },
                 DiplomaticAction::AidOnce(amount) => DiplomaticOrder {
-                    actor: player_id,
+                    actor: player_instance,
                     target: selected,
                     kind: DiplomaticOrderKind::SendAid {
                         amount,
@@ -126,7 +125,7 @@ fn execute_diplomatic_action(action: DiplomaticAction) -> impl Bundle {
                     },
                 },
                 DiplomaticAction::AidLocked(amount) => DiplomaticOrder {
-                    actor: player_id,
+                    actor: player_instance,
                     target: selected,
                     kind: DiplomaticOrderKind::SendAid {
                         amount,
@@ -134,7 +133,7 @@ fn execute_diplomatic_action(action: DiplomaticAction) -> impl Bundle {
                     },
                 },
                 DiplomaticAction::CancelAid => DiplomaticOrder {
-                    actor: player_id,
+                    actor: player_instance,
                     target: selected,
                     kind: DiplomaticOrderKind::CancelAid,
                 },
@@ -174,7 +173,7 @@ impl Plugin for DiplomacyUIPlugin {
 fn setup_diplomacy_screen(
     mut commands: Commands,
     mut screen_visibility: Query<&mut Visibility, With<DiplomacyScreen>>,
-    nations: Query<(Entity, &NationId, &Name)>,
+    nations: Query<(NationInstance, &Name)>,
     player: Option<Res<PlayerNation>>,
     mut selection: ResMut<DiplomacySelection>,
 ) {
@@ -183,15 +182,15 @@ fn setup_diplomacy_screen(
         return;
     }
 
-    let player_entity = player.as_ref().map(|p| *p.0);
+    let player_instance = player.as_ref().map(|p| p.instance());
 
-    let mut foreign_nations: Vec<(NationId, String)> = nations
+    let mut foreign_nations: Vec<(NationInstance, String)> = nations
         .iter()
-        .filter_map(|(entity, id, name)| {
-            if Some(entity) == player_entity {
+        .filter_map(|(instance, name)| {
+            if Some(instance) == player_instance {
                 None
             } else {
-                Some((*id, name.0.clone()))
+                Some((instance, name.0.clone()))
             }
         })
         .collect();
@@ -199,12 +198,12 @@ fn setup_diplomacy_screen(
 
     if selection
         .selected
-        .map(|sel| foreign_nations.iter().any(|(id, _)| *id == sel))
+        .map(|sel| foreign_nations.iter().any(|(inst, _)| *inst == sel))
         .unwrap_or(false)
     {
         // Keep existing selection
     } else {
-        selection.selected = foreign_nations.first().map(|(id, _)| *id);
+        selection.selected = foreign_nations.first().map(|(inst, _)| *inst);
     }
 
     commands
@@ -270,8 +269,8 @@ fn setup_diplomacy_screen(
                             TextColor(Color::srgb(0.9, 0.92, 0.98)),
                         ));
 
-                        for (nation, name) in &foreign_nations {
-                            let nation_copy = *nation;
+                        for (nation_instance, name) in &foreign_nations {
+                            let nation_copy = *nation_instance;
                             list.spawn((
                                 Button,
                                 OldButton,
@@ -392,7 +391,7 @@ fn setup_diplomacy_screen(
                                     BackgroundColor(NORMAL_DANGER),
                                     DiplomacyActionButton {
                                         action: DiplomaticAction::DeclareWar,
-                                        target: NationId(0),
+                                        target: None,
                                     },
                                     DangerButton,
                                     execute_diplomatic_action(DiplomaticAction::DeclareWar),
@@ -418,7 +417,7 @@ fn setup_diplomacy_screen(
                                     BackgroundColor(NORMAL_BUTTON),
                                     DiplomacyActionButton {
                                         action: DiplomaticAction::OfferPeace,
-                                        target: NationId(0),
+                                        target: None,
                                     },
                                     execute_diplomatic_action(DiplomaticAction::OfferPeace),
                                 ))
@@ -452,7 +451,7 @@ fn setup_diplomacy_screen(
                                     BackgroundColor(NORMAL_ACCENT),
                                     DiplomacyActionButton {
                                         action: DiplomaticAction::Consulate,
-                                        target: NationId(0),
+                                        target: None,
                                     },
                                     AccentButton,
                                     execute_diplomatic_action(DiplomaticAction::Consulate),
@@ -478,7 +477,7 @@ fn setup_diplomacy_screen(
                                     BackgroundColor(NORMAL_ACCENT),
                                     DiplomacyActionButton {
                                         action: DiplomaticAction::Embassy,
-                                        target: NationId(0),
+                                        target: None,
                                     },
                                     AccentButton,
                                     execute_diplomatic_action(DiplomaticAction::Embassy),
@@ -504,7 +503,7 @@ fn setup_diplomacy_screen(
                                     BackgroundColor(NORMAL_BUTTON),
                                     DiplomacyActionButton {
                                         action: DiplomaticAction::Pact,
-                                        target: NationId(0),
+                                        target: None,
                                     },
                                     execute_diplomatic_action(DiplomaticAction::Pact),
                                 ))
@@ -529,7 +528,7 @@ fn setup_diplomacy_screen(
                                     BackgroundColor(NORMAL_ACCENT),
                                     DiplomacyActionButton {
                                         action: DiplomaticAction::Alliance,
-                                        target: NationId(0),
+                                        target: None,
                                     },
                                     AccentButton,
                                     execute_diplomatic_action(DiplomaticAction::Alliance),
@@ -564,7 +563,7 @@ fn setup_diplomacy_screen(
                                     BackgroundColor(NORMAL_ACCENT),
                                     DiplomacyActionButton {
                                         action: DiplomaticAction::AidOnce(500),
-                                        target: NationId(0),
+                                        target: None,
                                     },
                                     AccentButton,
                                     execute_diplomatic_action(DiplomaticAction::AidOnce(500)),
@@ -590,7 +589,7 @@ fn setup_diplomacy_screen(
                                     BackgroundColor(NORMAL_ACCENT),
                                     DiplomacyActionButton {
                                         action: DiplomaticAction::AidLocked(500),
-                                        target: NationId(0),
+                                        target: None,
                                     },
                                     AccentButton,
                                     execute_diplomatic_action(DiplomaticAction::AidLocked(500)),
@@ -616,7 +615,7 @@ fn setup_diplomacy_screen(
                                     BackgroundColor(NORMAL_BUTTON),
                                     DiplomacyActionButton {
                                         action: DiplomaticAction::CancelAid,
-                                        target: NationId(0),
+                                        target: None,
                                     },
                                     execute_diplomatic_action(DiplomaticAction::CancelAid),
                                 ))
@@ -714,16 +713,13 @@ fn setup_diplomacy_screen(
 fn ensure_selection_valid(
     mut selection: ResMut<DiplomacySelection>,
     player: Option<Res<PlayerNation>>,
-    nation_ids: Query<(Entity, &NationId)>,
+    nations: Query<NationInstance>,
 ) {
-    let player_entity = player.map(|p| *p.0);
-    let mut available: Vec<NationId> = Vec::new();
-    for (entity, nation) in nation_ids.iter() {
-        if Some(entity) == player_entity {
-            continue;
-        }
-        available.push(*nation);
-    }
+    let player_instance = player.as_ref().map(|p| p.instance());
+    let available: Vec<NationInstance> = nations
+        .iter()
+        .filter(|inst| Some(*inst) != player_instance)
+        .collect();
 
     if let Some(sel) = selection.selected
         && !available.contains(&sel)
@@ -740,8 +736,7 @@ fn update_nation_buttons(
     selection: Res<DiplomacySelection>,
     state: Res<DiplomacyState>,
     player: Option<Res<PlayerNation>>,
-    nation_ids: Query<&NationId>,
-    names: Query<(&NationId, &Name)>,
+    names: Query<(NationInstance, &Name)>,
     mut buttons: Query<
         (&DiplomacyNationButton, &mut Text, &mut BackgroundColor),
         (
@@ -753,18 +748,23 @@ fn update_nation_buttons(
         ),
     >,
 ) {
-    let player_id = player.and_then(|p| nation_ids.get(*p.0).ok()).copied();
+    let player_instance = player.as_ref().map(|p| p.instance());
+
+    // Build name lookup by entity
+    let name_map: HashMap<Entity, String> = names
+        .iter()
+        .map(|(inst, n)| (inst.entity(), n.0.clone()))
+        .collect();
 
     for (button, mut text, mut color) in buttons.iter_mut() {
-        let label = names
-            .iter()
-            .find(|(id, _)| **id == button.nation)
-            .map(|(_, name)| name.0.clone())
-            .unwrap_or_else(|| format!("Nation {}", button.nation.0));
+        let label = name_map
+            .get(&button.nation.entity())
+            .cloned()
+            .unwrap_or_else(|| format!("Nation {:?}", button.nation.entity()));
 
         let mut relation_line = label.clone();
-        if let Some(player_id) = player_id
-            && let Some(relation) = state.relation(player_id, button.nation)
+        if let Some(player_inst) = player_instance
+            && let Some(relation) = state.relation(player_inst, button.nation)
         {
             relation_line = format!(
                 "{} — {} ({})",
@@ -791,8 +791,7 @@ fn update_detail_panel(
     state: Res<DiplomacyState>,
     ledger: Res<ForeignAidLedger>,
     player: Option<Res<PlayerNation>>,
-    nation_ids: Query<&NationId>,
-    names: Query<(&NationId, &Name)>,
+    names: Query<(NationInstance, &Name)>,
     mut text_queries: ParamSet<(
         Query<&mut Text, (With<SelectedNationNameText>, Without<DiplomacyNationButton>)>,
         Query<&mut Text, (With<SelectedRelationText>, Without<DiplomacyNationButton>)>,
@@ -833,19 +832,19 @@ fn update_detail_panel(
         return;
     };
 
-    let player_id = player.and_then(|p| nation_ids.get(*p.0).ok()).copied();
+    let player_instance = player.as_ref().map(|p| p.instance());
 
     let selected_name = names
         .iter()
-        .find(|(id, _)| **id == selected)
+        .find(|(e, _)| *e == selected.entity())
         .map(|(_, name)| name.0.clone())
-        .unwrap_or_else(|| format!("Nation {}", selected.0));
+        .unwrap_or_else(|| format!("Nation {:?}", selected.entity()));
 
     if let Ok(mut text) = text_queries.p0().single_mut() {
         text.0 = selected_name.clone();
     }
 
-    let relation = player_id.and_then(|pid| state.relation(pid, selected));
+    let relation = player_instance.and_then(|pid| state.relation(pid, selected));
     if let Ok(mut text) = text_queries.p1().single_mut() {
         if let Some(relation) = relation {
             text.0 = format!(
@@ -893,11 +892,11 @@ fn update_detail_panel(
     }
 
     if let Ok(mut text) = text_queries.p4().single_mut() {
-        if let Some(player_id) = player_id {
+        if let Some(player_inst) = player_instance {
             if let Some(grant) = ledger
                 .all()
                 .iter()
-                .find(|g| g.from == player_id && g.to == selected)
+                .find(|g| g.from == player_inst && g.to == selected)
             {
                 text.0 = format!("Locked aid: ${} per turn", grant.amount);
             } else {
@@ -925,7 +924,6 @@ fn update_action_buttons(
     state: Res<DiplomacyState>,
     ledger: Res<ForeignAidLedger>,
     player: Option<Res<PlayerNation>>,
-    nation_ids: Query<&NationId>,
     mut buttons: Query<(&mut DiplomacyActionButton, &mut Visibility)>,
 ) {
     let Some(selected) = selection.selected else {
@@ -935,19 +933,15 @@ fn update_action_buttons(
         return;
     };
 
-    let player_id = if let Some(player) = player {
-        nation_ids.get(*player.0).ok().copied()
-    } else {
-        None
-    };
+    let player_instance = player.as_ref().map(|p| p.instance());
 
     for (mut button, mut visibility) in buttons.iter_mut() {
-        button.target = selected;
-        let Some(player_id) = player_id else {
+        button.target = Some(selected);
+        let Some(player_inst) = player_instance else {
             *visibility = Visibility::Hidden;
             continue;
         };
-        let Some(relation) = state.relation(player_id, selected) else {
+        let Some(relation) = state.relation(player_inst, selected) else {
             *visibility = Visibility::Hidden;
             continue;
         };
@@ -963,7 +957,7 @@ fn update_action_buttons(
             DiplomaticAction::Alliance => relation.treaty.embassy && !relation.treaty.at_war,
             DiplomaticAction::AidOnce(_) => !relation.treaty.at_war,
             DiplomaticAction::AidLocked(_) => !relation.treaty.at_war,
-            DiplomaticAction::CancelAid => ledger.has_recurring(player_id, selected),
+            DiplomaticAction::CancelAid => ledger.has_recurring(player_inst, selected),
         };
 
         *visibility = if show {
@@ -977,8 +971,7 @@ fn update_action_buttons(
 fn update_pending_offers(
     offers: Res<DiplomaticOffers>,
     player: Option<Res<PlayerNation>>,
-    nation_ids: Query<&NationId>,
-    nations: Query<(Entity, &NationId, &Name)>,
+    nations: Query<(NationInstance, &Name)>,
     children: Query<&Children>,
     list_query: Query<Entity, With<PendingOfferList>>,
     mut commands: Commands,
@@ -987,24 +980,22 @@ fn update_pending_offers(
         return;
     };
 
-    let Some(player) = player else {
+    let Some(player) = player.as_ref() else {
         return;
     };
 
-    let Ok(player_id) = nation_ids.get(*player.0) else {
-        return;
-    };
+    let player_instance = player.instance();
 
     if !offers.is_changed() && !player.is_changed() {
         return;
     }
 
-    let mut names: HashMap<NationId, String> = HashMap::new();
-    for (_, id, name) in nations.iter() {
-        names.insert(*id, name.0.clone());
+    let mut names: HashMap<NationInstance, String> = HashMap::new();
+    for (instance, name) in nations.iter() {
+        names.insert(instance, name.0.clone());
     }
 
-    let relevant: Vec<DiplomaticOffer> = offers.iter_for(*player_id).cloned().collect();
+    let relevant: Vec<DiplomaticOffer> = offers.iter_for(player_instance).cloned().collect();
 
     clear_children_recursive(list_entity, &mut commands, &children);
 
@@ -1061,7 +1052,7 @@ fn update_pending_offers(
                                     mut offers: ResMut<DiplomaticOffers>,
                                     mut state: ResMut<DiplomacyState>,
                                     mut ledger: ResMut<ForeignAidLedger>,
-                                    nations: Query<(Entity, &NationId, &Name)>,
+                                    nations: Query<(NationInstance, &Name)>,
                                     mut treasuries: Query<&mut Treasury>| {
                                     if let Some(offer) = offers.take(offer_id) {
                                         resolve_offer_response(
@@ -1099,7 +1090,7 @@ fn update_pending_offers(
                                     mut offers: ResMut<DiplomaticOffers>,
                                     mut state: ResMut<DiplomacyState>,
                                     mut ledger: ResMut<ForeignAidLedger>,
-                                    nations: Query<(Entity, &NationId, &Name)>,
+                                    nations: Query<(NationInstance, &Name)>,
                                     mut treasuries: Query<&mut Treasury>| {
                                     if let Some(offer) = offers.take(offer_id) {
                                         resolve_offer_response(
@@ -1139,7 +1130,7 @@ fn clear_children_recursive(entity: Entity, commands: &mut Commands, children: &
     }
 }
 
-fn describe_offer(offer: &DiplomaticOffer, names: &HashMap<NationId, String>) -> String {
+fn describe_offer(offer: &DiplomaticOffer, names: &HashMap<NationInstance, String>) -> String {
     match &offer.kind {
         DiplomaticOfferKind::OfferPeace => {
             format!("{} requests peace.", format_name(names, offer.from))
@@ -1189,11 +1180,11 @@ fn describe_offer(offer: &DiplomaticOffer, names: &HashMap<NationId, String>) ->
     }
 }
 
-fn format_name(names: &HashMap<NationId, String>, nation: NationId) -> String {
+fn format_name(names: &HashMap<NationInstance, String>, nation: NationInstance) -> String {
     names
         .get(&nation)
         .cloned()
-        .unwrap_or_else(|| format!("Nation {}", nation.0))
+        .unwrap_or_else(|| format!("Nation {:?}", nation.entity()))
 }
 
 // Note: hide_diplomacy_screen replaced with generic hide_screen::<DiplomacyScreen>

@@ -11,7 +11,7 @@ use crate::ai::markers::AiNation;
 use crate::civilians::types::{Civilian, CivilianKind, ProspectingKnowledge};
 use crate::economy::goods::Good;
 use crate::economy::market::{MARKET_RESOURCES, MarketPriceModel, MarketVolume};
-use crate::economy::nation::{Capital, NationId};
+use crate::economy::nation::{Capital, Nation};
 use crate::economy::stockpile::{Stockpile, StockpileEntry};
 use crate::economy::transport::{Depot, Rails};
 use crate::economy::treasury::Treasury;
@@ -39,7 +39,6 @@ impl AiSnapshot {
 #[derive(Debug, Clone)]
 pub struct NationSnapshot {
     pub entity: Entity,
-    pub id: NationId,
     pub capital_pos: TilePos,
     pub treasury: i64,
     pub stockpile: HashMap<Good, StockpileEntry>,
@@ -218,7 +217,7 @@ pub fn build_ai_snapshot(
     turn: Res<TurnCounter>,
     pricing: Res<MarketPriceModel>,
     rails: Res<Rails>,
-    ai_nations: Query<(Entity, &NationId, &Capital, &Stockpile, &Treasury), With<AiNation>>,
+    ai_nations: Query<(Entity, &Capital, &Stockpile, &Treasury), (With<AiNation>, With<Nation>)>,
     civilians: Query<(Entity, &Civilian)>,
     depots: Query<&Depot>,
     provinces: Query<&Province>,
@@ -242,7 +241,7 @@ pub fn build_ai_snapshot(
     };
 
     // Build per-nation snapshots
-    for (entity, nation_id, capital, stockpile, treasury) in ai_nations.iter() {
+    for (entity, capital, stockpile, treasury) in ai_nations.iter() {
         let capital_pos = capital.0;
         let capital_hex = capital_pos.to_hex();
 
@@ -376,7 +375,6 @@ pub fn build_ai_snapshot(
             entity,
             NationSnapshot {
                 entity,
-                id: *nation_id,
                 capital_pos,
                 treasury: treasury.available(),
                 stockpile: stockpile_map,

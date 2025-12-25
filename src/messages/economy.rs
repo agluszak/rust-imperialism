@@ -44,15 +44,15 @@ mod tests {
     use bevy::prelude::World;
     use moonshine_kind::Instance;
 
-    use crate::economy::NationId;
+    use crate::economy::Nation;
     use crate::economy::goods::Good;
     use crate::economy::workforce::WorkerSkill;
 
     #[test]
     fn adjusts_hold_data() {
         let mut world = World::new();
-        let nation_entity = world.spawn(NationId(1)).id();
-        let nation = Instance::<NationId>::from_entity(world.entity(nation_entity))
+        let nation_entity = world.spawn(Nation).id();
+        let nation = Instance::<Nation>::from_entity(world.entity(nation_entity))
             .expect("failed to build nation instance for test");
         let building = world.spawn_empty().id();
         let recruit = AdjustRecruitment {

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::diplomacy::DiplomaticOffers;
-use crate::economy::{Calendar, NationId, PlayerNation, Season};
+use crate::economy::{Calendar, PlayerNation, Season};
 use crate::ui::menu::AppState;
 use crate::ui::mode::GameMode;
 
@@ -286,7 +286,6 @@ fn handle_end_turn_input(
     keys: Option<Res<ButtonInput<KeyCode>>>,
     offers: Option<Res<DiplomaticOffers>>,
     player: Option<Res<PlayerNation>>,
-    nation_ids: Query<&NationId>,
     game_mode: Option<Res<State<GameMode>>>,
     mut end_turn_events: MessageWriter<EndPlayerTurn>,
 ) {
@@ -304,8 +303,7 @@ fn handle_end_turn_input(
     if keys.just_pressed(KeyCode::Space) {
         // Check for pending diplomatic offers
         if let (Some(offers), Some(player)) = (offers, player)
-            && let Ok(player_id) = nation_ids.get(*player.0)
-            && offers.has_pending_for(*player_id)
+            && offers.has_pending_for(player.instance())
         {
             info!("Resolve pending diplomatic offers before ending the turn.");
             return;

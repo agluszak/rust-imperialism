@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::collections::HashMap;
 
-use crate::economy::{Good, nation::NationId, stockpile::Stockpile};
+use crate::economy::{Good, nation::Nation, stockpile::Stockpile};
 use crate::turn_system::{TurnPhase, TurnSystem};
 
 /// Base amount of cargo holds every nation starts with.
@@ -67,7 +67,7 @@ impl TradeCapacity {
 /// Ensure newly created nations start with baseline trade capacity.
 pub fn initialize_trade_capacity(
     mut capacity: ResMut<TradeCapacity>,
-    nations: Query<Entity, Added<NationId>>,
+    nations: Query<Entity, Added<Nation>>,
 ) {
     for nation in nations.iter() {
         capacity.snapshot_mut(nation);

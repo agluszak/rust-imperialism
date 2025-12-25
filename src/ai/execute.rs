@@ -9,7 +9,7 @@ use crate::ai::markers::AiNation;
 use crate::ai::planner::{CivilianTask, NationPlan, plan_nation};
 use crate::ai::snapshot::AiSnapshot;
 use crate::civilians::types::CivilianOrderKind;
-use crate::economy::NationHandle;
+use crate::economy::NationInstance;
 use crate::messages::civilians::CivilianCommand;
 use crate::messages::{AdjustMarketOrder, HireCivilian, MarketInterest};
 
@@ -21,13 +21,13 @@ use crate::messages::{AdjustMarketOrder, HireCivilian, MarketInterest};
 /// 3. Sends orders to execute the plan
 pub fn execute_ai_turn(
     snapshot: Res<AiSnapshot>,
-    ai_nations: Query<(Entity, &NationHandle), With<AiNation>>,
+    ai_nations: Query<NationInstance, With<AiNation>>,
     mut civilian_commands: MessageWriter<CivilianCommand>,
     mut market_orders: MessageWriter<AdjustMarketOrder>,
     mut hire_messages: MessageWriter<HireCivilian>,
 ) {
-    for (nation_entity, handle) in ai_nations.iter() {
-        let Some(nation_snapshot) = snapshot.get_nation(nation_entity) else {
+    for nation in ai_nations.iter() {
+        let Some(nation_snapshot) = snapshot.get_nation(nation.entity()) else {
             continue;
         };
 
@@ -37,7 +37,7 @@ pub fn execute_ai_turn(
         // Execute the plan
         execute_plan(
             &plan,
-            handle,
+            nation,
             &mut civilian_commands,
             &mut market_orders,
             &mut hire_messages,
@@ -47,13 +47,11 @@ pub fn execute_ai_turn(
 
 fn execute_plan(
     plan: &NationPlan,
-    handle: &NationHandle,
+    nation: NationInstance,
     civilian_commands: &mut MessageWriter<CivilianCommand>,
     market_orders: &mut MessageWriter<AdjustMarketOrder>,
     hire_messages: &mut MessageWriter<HireCivilian>,
 ) {
-    let nation = handle.instance();
-
     // Send civilian orders
     for (&civilian_entity, task) in &plan.civilian_tasks {
         if let Some(order) = task_to_order(task) {

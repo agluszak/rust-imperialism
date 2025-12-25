@@ -2,28 +2,29 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-use crate::economy::{Name, NationId, Treasury};
+use crate::economy::{Name, NationInstance, Treasury};
 pub use crate::messages::diplomacy::{DiplomaticOrder, DiplomaticOrderKind};
 use crate::turn_system::{PlayerTurnSet, ProcessingSet, TurnPhase};
 use crate::ui::menu::AppState;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-struct DiplomacyPair(NationId, NationId);
+struct DiplomacyPair(NationInstance, NationInstance);
 
 impl DiplomacyPair {
-    fn new(a: NationId, b: NationId) -> Self {
-        if a.0 <= b.0 {
+    fn new(a: NationInstance, b: NationInstance) -> Self {
+        // Use entity bits for consistent ordering
+        if a.entity().to_bits() <= b.entity().to_bits() {
             DiplomacyPair(a, b)
         } else {
             DiplomacyPair(b, a)
         }
     }
 
-    fn contains(&self, nation: NationId) -> bool {
+    fn contains(&self, nation: NationInstance) -> bool {
         self.0 == nation || self.1 == nation
     }
 
-    fn other(&self, nation: NationId) -> Option<NationId> {
+    fn other(&self, nation: NationInstance) -> Option<NationInstance> {
         if self.0 == nation {
             Some(self.1)
         } else if self.1 == nation {
@@ -116,16 +117,20 @@ pub struct DiplomacyState {
 }
 
 impl DiplomacyState {
-    pub fn relation(&self, a: NationId, b: NationId) -> Option<&DiplomaticRelation> {
+    pub fn relation(&self, a: NationInstance, b: NationInstance) -> Option<&DiplomaticRelation> {
         self.relations.get(&DiplomacyPair::new(a, b))
     }
 
-    pub fn relation_mut(&mut self, a: NationId, b: NationId) -> &mut DiplomaticRelation {
+    pub fn relation_mut(
+        &mut self,
+        a: NationInstance,
+        b: NationInstance,
+    ) -> &mut DiplomaticRelation {
         let pair = DiplomacyPair::new(a, b);
         self.relations.entry(pair).or_default()
     }
 
-    pub fn ensure_pairs(&mut self, nations: &[NationId]) {
+    pub fn ensure_pairs(&mut self, nations: &[NationInstance]) {
         for (index, &a) in nations.iter().enumerate() {
             for &b in &nations[index + 1..] {
                 let pair = DiplomacyPair::new(a, b);
@@ -134,13 +139,13 @@ impl DiplomacyState {
         }
     }
 
-    pub fn adjust_score(&mut self, a: NationId, b: NationId, delta: i32) -> i32 {
+    pub fn adjust_score(&mut self, a: NationInstance, b: NationInstance, delta: i32) -> i32 {
         let relation = self.relation_mut(a, b);
         relation.score = (relation.score + delta).clamp(-100, 100);
         relation.score
     }
 
-    pub fn set_treaty<F>(&mut self, a: NationId, b: NationId, update: F)
+    pub fn set_treaty<F>(&mut self, a: NationInstance, b: NationInstance, update: F)
     where
         F: FnOnce(&mut TreatyState),
     {
@@ -148,7 +153,10 @@ impl DiplomacyState {
         update(&mut relation.treaty);
     }
 
-    pub fn relations_for(&self, nation: NationId) -> Vec<(NationId, &DiplomaticRelation)> {
+    pub fn relations_for(
+        &self,
+        nation: NationInstance,
+    ) -> Vec<(NationInstance, &DiplomaticRelation)> {
         self.relations
             .iter()
             .filter_map(|(pair, relation)| {
@@ -159,7 +167,7 @@ impl DiplomacyState {
             .collect()
     }
 
-    pub fn adjust_all_relations(&mut self, nation: NationId, delta: i32) {
+    pub fn adjust_all_relations(&mut self, nation: NationInstance, delta: i32) {
         for (pair, relation) in self.relations.iter_mut() {
             if pair.contains(nation) {
                 relation.score = (relation.score + delta).clamp(-100, 100);
@@ -171,8 +179,8 @@ impl DiplomacyState {
 /// Representation of a recurring aid payment.
 #[derive(Clone, Debug)]
 pub struct RecurringGrant {
-    pub from: NationId,
-    pub to: NationId,
+    pub from: NationInstance,
+    pub to: NationInstance,
     pub amount: i32,
 }
 
@@ -188,13 +196,13 @@ impl ForeignAidLedger {
         self.recurring.push(grant);
     }
 
-    pub fn cancel(&mut self, from: NationId, to: NationId) -> bool {
+    pub fn cancel(&mut self, from: NationInstance, to: NationInstance) -> bool {
         let len_before = self.recurring.len();
         self.recurring.retain(|g| !(g.from == from && g.to == to));
         len_before != self.recurring.len()
     }
 
-    pub fn has_recurring(&self, from: NationId, to: NationId) -> bool {
+    pub fn has_recurring(&self, from: NationInstance, to: NationInstance) -> bool {
         self.recurring.iter().any(|g| g.from == from && g.to == to)
     }
 
@@ -215,13 +223,13 @@ impl OfferId {
 #[derive(Clone, Debug)]
 pub struct DiplomaticOffer {
     pub id: OfferId,
-    pub from: NationId,
-    pub to: NationId,
+    pub from: NationInstance,
+    pub to: NationInstance,
     pub kind: DiplomaticOfferKind,
 }
 
 impl DiplomaticOffer {
-    pub fn new(from: NationId, to: NationId, kind: DiplomaticOfferKind) -> Self {
+    pub fn new(from: NationInstance, to: NationInstance, kind: DiplomaticOfferKind) -> Self {
         Self {
             id: OfferId(0),
             from,
@@ -236,8 +244,14 @@ pub enum DiplomaticOfferKind {
     OfferPeace,
     Alliance,
     NonAggressionPact,
-    ForeignAid { amount: i32, locked: bool },
-    JoinWar { enemy: NationId, defensive: bool },
+    ForeignAid {
+        amount: i32,
+        locked: bool,
+    },
+    JoinWar {
+        enemy: NationInstance,
+        defensive: bool,
+    },
 }
 
 #[derive(Resource, Default)]
@@ -254,11 +268,11 @@ impl DiplomaticOffers {
         self.pending.push(offer);
     }
 
-    pub fn iter_for(&self, nation: NationId) -> impl Iterator<Item = &DiplomaticOffer> {
+    pub fn iter_for(&self, nation: NationInstance) -> impl Iterator<Item = &DiplomaticOffer> {
         self.pending.iter().filter(move |offer| offer.to == nation)
     }
 
-    pub fn has_pending_for(&self, nation: NationId) -> bool {
+    pub fn has_pending_for(&self, nation: NationInstance) -> bool {
         self.iter_for(nation).next().is_some()
     }
 
@@ -282,7 +296,7 @@ impl DiplomaticOffers {
 /// Tracks UI selection state for diplomacy mode.
 #[derive(Resource, Default, Debug, Clone, Copy)]
 pub struct DiplomacySelection {
-    pub selected: Option<NationId>,
+    pub selected: Option<NationInstance>,
 }
 
 pub struct DiplomacyPlugin;
@@ -312,9 +326,9 @@ impl Plugin for DiplomacyPlugin {
     }
 }
 
-fn sync_diplomatic_pairs(mut state: ResMut<DiplomacyState>, nations: Query<&NationId>) {
-    let ids: Vec<NationId> = nations.iter().copied().collect();
-    state.ensure_pairs(&ids);
+fn sync_diplomatic_pairs(mut state: ResMut<DiplomacyState>, nations: Query<NationInstance>) {
+    let instances: Vec<NationInstance> = nations.iter().collect();
+    state.ensure_pairs(&instances);
 }
 
 fn process_diplomatic_orders(
@@ -322,22 +336,18 @@ fn process_diplomatic_orders(
     mut state: ResMut<DiplomacyState>,
     mut ledger: ResMut<ForeignAidLedger>,
     mut offers: ResMut<DiplomaticOffers>,
-    nations: Query<(Entity, &NationId, &Name)>,
+    nations: Query<(NationInstance, &Name)>,
     mut treasuries: Query<&mut Treasury>,
 ) {
-    let (id_to_entity, id_to_name, nation_ids) = collect_nation_lookup(&nations);
+    let (instance_to_name, nation_instances) = collect_nation_lookup(&nations);
 
     for order in orders.read() {
         if order.actor == order.target {
             continue;
         }
 
-        let Some(&actor_entity) = id_to_entity.get(&order.actor) else {
-            continue;
-        };
-        let Some(&target_entity) = id_to_entity.get(&order.target) else {
-            continue;
-        };
+        let actor_entity = order.actor.entity();
+        let target_entity = order.target.entity();
 
         match &order.kind {
             DiplomaticOrderKind::DeclareWar => {
@@ -348,8 +358,8 @@ fn process_diplomatic_orders(
                 if already_at_war {
                     info!(
                         "{} is already at war with {}.",
-                        display_name(&id_to_name, order.actor),
-                        display_name(&id_to_name, order.target)
+                        display_name(&instance_to_name, order.actor),
+                        display_name(&instance_to_name, order.target)
                     );
                     continue;
                 }
@@ -364,14 +374,14 @@ fn process_diplomatic_orders(
                 ledger.cancel(order.target, order.actor);
                 info!(
                     "{} has declared war on {}!",
-                    display_name(&id_to_name, order.actor),
-                    display_name(&id_to_name, order.target)
+                    display_name(&instance_to_name, order.actor),
+                    display_name(&instance_to_name, order.target)
                 );
 
                 // Other nations react based on their opinion of the target
                 let mut approvals: Vec<String> = Vec::new();
                 let mut condemnations: Vec<String> = Vec::new();
-                for other in nation_ids.iter().copied() {
+                for other in nation_instances.iter().copied() {
                     if other == order.actor || other == order.target {
                         continue;
                     }
@@ -385,7 +395,7 @@ fn process_diplomatic_orders(
                     }
 
                     state.adjust_score(order.actor, other, delta);
-                    let name = display_name(&id_to_name, other);
+                    let name = display_name(&instance_to_name, other);
                     if delta > 0 {
                         approvals.push(format!("{} (+{})", name, delta));
                     } else {
@@ -396,14 +406,14 @@ fn process_diplomatic_orders(
                 if !approvals.is_empty() {
                     info!(
                         "Nations pleased by the war on {}: {}.",
-                        display_name(&id_to_name, order.target),
+                        display_name(&instance_to_name, order.target),
                         approvals.join(", ")
                     );
                 }
                 if !condemnations.is_empty() {
                     info!(
                         "Nations angered by the war on {}: {}.",
-                        display_name(&id_to_name, order.target),
+                        display_name(&instance_to_name, order.target),
                         condemnations.join(", ")
                     );
                 }
@@ -411,7 +421,7 @@ fn process_diplomatic_orders(
                 queue_alliance_calls(
                     &mut state,
                     &mut offers,
-                    &id_to_name,
+                    &instance_to_name,
                     order.target,
                     order.actor,
                     true,
@@ -419,7 +429,7 @@ fn process_diplomatic_orders(
                 queue_alliance_calls(
                     &mut state,
                     &mut offers,
-                    &id_to_name,
+                    &instance_to_name,
                     order.actor,
                     order.target,
                     false,
@@ -433,8 +443,8 @@ fn process_diplomatic_orders(
                 if !at_war {
                     info!(
                         "{} and {} are not currently at war.",
-                        display_name(&id_to_name, order.actor),
-                        display_name(&id_to_name, order.target)
+                        display_name(&instance_to_name, order.actor),
+                        display_name(&instance_to_name, order.target)
                     );
                     continue;
                 }
@@ -446,8 +456,8 @@ fn process_diplomatic_orders(
                 ));
                 info!(
                     "{} offered peace to {}.",
-                    display_name(&id_to_name, order.actor),
-                    display_name(&id_to_name, order.target)
+                    display_name(&instance_to_name, order.actor),
+                    display_name(&instance_to_name, order.target)
                 );
             }
             DiplomaticOrderKind::EstablishConsulate => {
@@ -458,8 +468,8 @@ fn process_diplomatic_orders(
                 {
                     info!(
                         "{} already maintains a consulate in {}.",
-                        display_name(&id_to_name, order.actor),
-                        display_name(&id_to_name, order.target)
+                        display_name(&instance_to_name, order.actor),
+                        display_name(&instance_to_name, order.target)
                     );
                     continue;
                 }
@@ -471,7 +481,7 @@ fn process_diplomatic_orders(
                 if relation_score < 0 {
                     info!(
                         "Relations with {} are too poor to open a consulate.",
-                        display_name(&id_to_name, order.target)
+                        display_name(&instance_to_name, order.target)
                     );
                     continue;
                 }
@@ -484,8 +494,8 @@ fn process_diplomatic_orders(
                     if treasury.available() < 500 {
                         info!(
                             "{} lacks the $500 needed for a consulate in {}.",
-                            display_name(&id_to_name, order.actor),
-                            display_name(&id_to_name, order.target)
+                            display_name(&instance_to_name, order.actor),
+                            display_name(&instance_to_name, order.target)
                         );
                         false
                     } else {
@@ -503,8 +513,8 @@ fn process_diplomatic_orders(
                 state.adjust_score(order.actor, order.target, 5);
                 info!(
                     "{} established a consulate in {}.",
-                    display_name(&id_to_name, order.actor),
-                    display_name(&id_to_name, order.target)
+                    display_name(&instance_to_name, order.actor),
+                    display_name(&instance_to_name, order.target)
                 );
             }
             DiplomaticOrderKind::OpenEmbassy => {
@@ -515,22 +525,22 @@ fn process_diplomatic_orders(
                 if !relation.treaty.consulate {
                     info!(
                         "A consulate is required before opening an embassy in {}.",
-                        display_name(&id_to_name, order.target)
+                        display_name(&instance_to_name, order.target)
                     );
                     continue;
                 }
                 if relation.treaty.embassy {
                     info!(
                         "{} already has an embassy in {}.",
-                        display_name(&id_to_name, order.actor),
-                        display_name(&id_to_name, order.target)
+                        display_name(&instance_to_name, order.actor),
+                        display_name(&instance_to_name, order.target)
                     );
                     continue;
                 }
                 if relation.score < 30 {
                     info!(
                         "Relations with {} must be Cordial (30) to open an embassy.",
-                        display_name(&id_to_name, order.target)
+                        display_name(&instance_to_name, order.target)
                     );
                     continue;
                 }
@@ -543,8 +553,8 @@ fn process_diplomatic_orders(
                     if treasury.available() < 5_000 {
                         info!(
                             "{} lacks the $5,000 needed for an embassy in {}.",
-                            display_name(&id_to_name, order.actor),
-                            display_name(&id_to_name, order.target)
+                            display_name(&instance_to_name, order.actor),
+                            display_name(&instance_to_name, order.target)
                         );
                         false
                     } else {
@@ -562,8 +572,8 @@ fn process_diplomatic_orders(
                 state.adjust_score(order.actor, order.target, 10);
                 info!(
                     "{} opened an embassy in {}.",
-                    display_name(&id_to_name, order.actor),
-                    display_name(&id_to_name, order.target)
+                    display_name(&instance_to_name, order.actor),
+                    display_name(&instance_to_name, order.target)
                 );
             }
             DiplomaticOrderKind::SignNonAggressionPact => {
@@ -572,22 +582,22 @@ fn process_diplomatic_orders(
                 if relation.treaty.at_war {
                     info!(
                         "Cannot sign a pact while at war with {}.",
-                        display_name(&id_to_name, order.target)
+                        display_name(&instance_to_name, order.target)
                     );
                     continue;
                 }
                 if !relation.treaty.embassy {
                     info!(
                         "An embassy in {} is required before a pact can be signed.",
-                        display_name(&id_to_name, order.target)
+                        display_name(&instance_to_name, order.target)
                     );
                     continue;
                 }
                 if relation.treaty.non_aggression_pact {
                     info!(
                         "{} already has a pact with {}.",
-                        display_name(&id_to_name, order.actor),
-                        display_name(&id_to_name, order.target)
+                        display_name(&instance_to_name, order.actor),
+                        display_name(&instance_to_name, order.target)
                     );
                     continue;
                 }
@@ -599,8 +609,8 @@ fn process_diplomatic_orders(
                 ));
                 info!(
                     "{} proposed a non-aggression pact to {}.",
-                    display_name(&id_to_name, order.actor),
-                    display_name(&id_to_name, order.target)
+                    display_name(&instance_to_name, order.actor),
+                    display_name(&instance_to_name, order.target)
                 );
             }
             DiplomaticOrderKind::FormAlliance => {
@@ -609,29 +619,29 @@ fn process_diplomatic_orders(
                 if relation.treaty.at_war {
                     info!(
                         "Cannot ally while at war with {}.",
-                        display_name(&id_to_name, order.target)
+                        display_name(&instance_to_name, order.target)
                     );
                     continue;
                 }
                 if !relation.treaty.embassy {
                     info!(
                         "An embassy in {} is required before an alliance.",
-                        display_name(&id_to_name, order.target)
+                        display_name(&instance_to_name, order.target)
                     );
                     continue;
                 }
                 if relation.score < 40 {
                     info!(
                         "Relations with {} must be Warm (40) for an alliance.",
-                        display_name(&id_to_name, order.target)
+                        display_name(&instance_to_name, order.target)
                     );
                     continue;
                 }
                 if relation.treaty.alliance {
                     info!(
                         "{} already has an alliance with {}.",
-                        display_name(&id_to_name, order.actor),
-                        display_name(&id_to_name, order.target)
+                        display_name(&instance_to_name, order.actor),
+                        display_name(&instance_to_name, order.target)
                     );
                     continue;
                 }
@@ -643,8 +653,8 @@ fn process_diplomatic_orders(
                 ));
                 info!(
                     "{} proposed an alliance to {}.",
-                    display_name(&id_to_name, order.actor),
-                    display_name(&id_to_name, order.target)
+                    display_name(&instance_to_name, order.actor),
+                    display_name(&instance_to_name, order.target)
                 );
             }
             DiplomaticOrderKind::SendAid { amount, locked } => {
@@ -656,7 +666,7 @@ fn process_diplomatic_orders(
                 if relation.treaty.at_war {
                     info!(
                         "Cannot send aid while at war with {}.",
-                        display_name(&id_to_name, order.target)
+                        display_name(&instance_to_name, order.target)
                     );
                     continue;
                 }
@@ -670,9 +680,9 @@ fn process_diplomatic_orders(
                     if donor_treasury.available() < amount {
                         info!(
                             "{} lacks ${} to fund aid for {}.",
-                            display_name(&id_to_name, order.actor),
+                            display_name(&instance_to_name, order.actor),
                             amount,
-                            display_name(&id_to_name, order.target)
+                            display_name(&instance_to_name, order.target)
                         );
                         false
                     } else {
@@ -701,9 +711,9 @@ fn process_diplomatic_orders(
 
                 info!(
                     "{} sent ${} in aid to {}{}.",
-                    display_name(&id_to_name, order.actor),
+                    display_name(&instance_to_name, order.actor),
                     amount,
-                    display_name(&id_to_name, order.target),
+                    display_name(&instance_to_name, order.target),
                     if *locked { " (locked grant)" } else { "" }
                 );
             }
@@ -712,8 +722,8 @@ fn process_diplomatic_orders(
                     state.adjust_score(order.actor, order.target, -5);
                     info!(
                         "{} cancelled aid to {}.",
-                        display_name(&id_to_name, order.actor),
-                        display_name(&id_to_name, order.target)
+                        display_name(&instance_to_name, order.actor),
+                        display_name(&instance_to_name, order.target)
                     );
                 }
             }
@@ -726,10 +736,13 @@ pub fn resolve_offer_response(
     accept: bool,
     state: &mut DiplomacyState,
     ledger: &mut ForeignAidLedger,
-    nations: &Query<(Entity, &NationId, &Name)>,
+    nations: &Query<(NationInstance, &Name)>,
     treasuries: &mut Query<&mut Treasury>,
 ) {
-    let (id_to_entity, id_to_name, _) = collect_nation_lookup(nations);
+    let (instance_to_name, _) = collect_nation_lookup(nations);
+
+    let from_entity = offer.from.entity();
+    let to_entity = offer.to.entity();
 
     if accept {
         match offer.kind {
@@ -741,8 +754,8 @@ pub fn resolve_offer_response(
                 state.adjust_score(offer.from, offer.to, 15);
                 info!(
                     "{} accepted peace with {}.",
-                    display_name(&id_to_name, offer.to),
-                    display_name(&id_to_name, offer.from)
+                    display_name(&instance_to_name, offer.to),
+                    display_name(&instance_to_name, offer.from)
                 );
             }
             DiplomaticOfferKind::Alliance => {
@@ -753,8 +766,8 @@ pub fn resolve_offer_response(
                 state.adjust_score(offer.from, offer.to, 12);
                 info!(
                     "{} entered an alliance with {}.",
-                    display_name(&id_to_name, offer.to),
-                    display_name(&id_to_name, offer.from)
+                    display_name(&instance_to_name, offer.to),
+                    display_name(&instance_to_name, offer.from)
                 );
             }
             DiplomaticOfferKind::NonAggressionPact => {
@@ -764,29 +777,25 @@ pub fn resolve_offer_response(
                 state.adjust_score(offer.from, offer.to, 8);
                 info!(
                     "{} accepted a non-aggression pact with {}.",
-                    display_name(&id_to_name, offer.to),
-                    display_name(&id_to_name, offer.from)
+                    display_name(&instance_to_name, offer.to),
+                    display_name(&instance_to_name, offer.from)
                 );
             }
             DiplomaticOfferKind::ForeignAid { amount, locked } => {
-                if let Some(&from_entity) = id_to_entity.get(&offer.from)
-                    && let Ok(mut donor_treasury) = treasuries.get_mut(from_entity)
-                {
+                if let Ok(mut donor_treasury) = treasuries.get_mut(from_entity) {
                     if donor_treasury.available() < amount as i64 {
                         info!(
                             "{} could not afford the ${} aid promised to {}.",
-                            display_name(&id_to_name, offer.from),
+                            display_name(&instance_to_name, offer.from),
                             amount,
-                            display_name(&id_to_name, offer.to)
+                            display_name(&instance_to_name, offer.to)
                         );
                         return;
                     }
                     donor_treasury.subtract(amount as i64);
                 }
 
-                if let Some(&to_entity) = id_to_entity.get(&offer.to)
-                    && let Ok(mut receiver) = treasuries.get_mut(to_entity)
-                {
+                if let Ok(mut receiver) = treasuries.get_mut(to_entity) {
                     receiver.add(amount as i64);
                 }
 
@@ -802,9 +811,9 @@ pub fn resolve_offer_response(
 
                 info!(
                     "{} received ${} in aid from {}{}.",
-                    display_name(&id_to_name, offer.to),
+                    display_name(&instance_to_name, offer.to),
                     amount,
-                    display_name(&id_to_name, offer.from),
+                    display_name(&instance_to_name, offer.from),
                     if locked { " (locked grant)" } else { "" }
                 );
             }
@@ -820,9 +829,9 @@ pub fn resolve_offer_response(
                 state.adjust_score(offer.to, offer.from, 6);
                 info!(
                     "{} joined {} in war against {}{}.",
-                    display_name(&id_to_name, offer.to),
-                    display_name(&id_to_name, offer.from),
-                    display_name(&id_to_name, enemy),
+                    display_name(&instance_to_name, offer.to),
+                    display_name(&instance_to_name, offer.from),
+                    display_name(&instance_to_name, enemy),
                     if defensive {
                         " (honouring alliance)"
                     } else {
@@ -837,32 +846,32 @@ pub fn resolve_offer_response(
                 state.adjust_score(offer.from, offer.to, -10);
                 info!(
                     "{} refused peace with {}.",
-                    display_name(&id_to_name, offer.to),
-                    display_name(&id_to_name, offer.from)
+                    display_name(&instance_to_name, offer.to),
+                    display_name(&instance_to_name, offer.from)
                 );
             }
             DiplomaticOfferKind::Alliance => {
                 state.adjust_score(offer.from, offer.to, -12);
                 info!(
                     "{} declined an alliance proposed by {}.",
-                    display_name(&id_to_name, offer.to),
-                    display_name(&id_to_name, offer.from)
+                    display_name(&instance_to_name, offer.to),
+                    display_name(&instance_to_name, offer.from)
                 );
             }
             DiplomaticOfferKind::NonAggressionPact => {
                 state.adjust_score(offer.from, offer.to, -6);
                 info!(
                     "{} rejected a non-aggression pact with {}.",
-                    display_name(&id_to_name, offer.to),
-                    display_name(&id_to_name, offer.from)
+                    display_name(&instance_to_name, offer.to),
+                    display_name(&instance_to_name, offer.from)
                 );
             }
             DiplomaticOfferKind::ForeignAid { .. } => {
                 state.adjust_score(offer.from, offer.to, -3);
                 info!(
                     "{} declined aid from {}.",
-                    display_name(&id_to_name, offer.to),
-                    display_name(&id_to_name, offer.from)
+                    display_name(&instance_to_name, offer.to),
+                    display_name(&instance_to_name, offer.from)
                 );
             }
             DiplomaticOfferKind::JoinWar { enemy, defensive } => {
@@ -875,16 +884,16 @@ pub fn resolve_offer_response(
                     state.adjust_score(offer.from, offer.to, -10);
                     info!(
                         "{} refused to defend {} against {}. Alliance dissolved and reputation suffered.",
-                        display_name(&id_to_name, offer.to),
-                        display_name(&id_to_name, offer.from),
-                        display_name(&id_to_name, enemy)
+                        display_name(&instance_to_name, offer.to),
+                        display_name(&instance_to_name, offer.from),
+                        display_name(&instance_to_name, enemy)
                     );
                 } else {
                     info!(
                         "{} declined to join {}'s war against {}.",
-                        display_name(&id_to_name, offer.to),
-                        display_name(&id_to_name, offer.from),
-                        display_name(&id_to_name, enemy)
+                        display_name(&instance_to_name, offer.to),
+                        display_name(&instance_to_name, offer.from),
+                        display_name(&instance_to_name, enemy)
                     );
                 }
             }
@@ -895,12 +904,12 @@ pub fn resolve_offer_response(
 fn queue_alliance_calls(
     state: &mut DiplomacyState,
     offers: &mut ResMut<DiplomaticOffers>,
-    names: &HashMap<NationId, String>,
-    belligerent: NationId,
-    enemy: NationId,
+    names: &HashMap<NationInstance, String>,
+    belligerent: NationInstance,
+    enemy: NationInstance,
     defensive: bool,
 ) {
-    let allies: Vec<NationId> = state
+    let allies: Vec<NationInstance> = state
         .relations_for(belligerent)
         .into_iter()
         .filter_map(|(ally, relation)| {
@@ -941,19 +950,15 @@ fn queue_alliance_calls(
 fn apply_recurring_aid(
     ledger: Res<ForeignAidLedger>,
     mut state: ResMut<DiplomacyState>,
-    nations: Query<(Entity, &NationId, &Name)>,
+    nations: Query<(NationInstance, &Name)>,
     mut treasuries: Query<&mut Treasury>,
 ) {
-    let (id_to_entity, id_to_name, _) = collect_nation_lookup(&nations);
+    let (instance_to_name, _) = collect_nation_lookup(&nations);
 
     let grants = ledger.all().to_vec();
     for grant in grants {
-        let Some(&from_entity) = id_to_entity.get(&grant.from) else {
-            continue;
-        };
-        let Some(&to_entity) = id_to_entity.get(&grant.to) else {
-            continue;
-        };
+        let from_entity = grant.from.entity();
+        let to_entity = grant.to.entity();
 
         let amount = grant.amount as i64;
         let afforded = {
@@ -964,8 +969,8 @@ fn apply_recurring_aid(
             if donor_treasury.available() < amount {
                 info!(
                     "{} could not afford the locked aid payment to {} (missing ${}).",
-                    display_name(&id_to_name, grant.from),
-                    display_name(&id_to_name, grant.to),
+                    display_name(&instance_to_name, grant.from),
+                    display_name(&instance_to_name, grant.to),
                     amount
                 );
                 false
@@ -986,9 +991,9 @@ fn apply_recurring_aid(
 
         info!(
             "{} delivered ${} in locked aid to {}.",
-            display_name(&id_to_name, grant.from),
+            display_name(&instance_to_name, grant.from),
             amount,
-            display_name(&id_to_name, grant.to)
+            display_name(&instance_to_name, grant.to)
         );
     }
 }
@@ -1016,29 +1021,23 @@ fn war_reaction_delta(opinion_of_target: i32) -> i32 {
     }
 }
 
-fn display_name(names: &HashMap<NationId, String>, nation: NationId) -> String {
+fn display_name(names: &HashMap<NationInstance, String>, nation: NationInstance) -> String {
     names
         .get(&nation)
         .cloned()
-        .unwrap_or_else(|| format!("Nation {}", nation.0))
+        .unwrap_or_else(|| format!("Nation {:?}", nation.entity()))
 }
 
 fn collect_nation_lookup(
-    nations: &Query<(Entity, &NationId, &Name)>,
-) -> (
-    HashMap<NationId, Entity>,
-    HashMap<NationId, String>,
-    Vec<NationId>,
-) {
-    let mut id_to_entity: HashMap<NationId, Entity> = HashMap::new();
-    let mut id_to_name: HashMap<NationId, String> = HashMap::new();
-    let mut ids: Vec<NationId> = Vec::new();
-    for (entity, nation_id, name) in nations.iter() {
-        id_to_entity.insert(*nation_id, entity);
-        id_to_name.insert(*nation_id, name.0.clone());
-        ids.push(*nation_id);
+    nations: &Query<(NationInstance, &Name)>,
+) -> (HashMap<NationInstance, String>, Vec<NationInstance>) {
+    let mut instance_to_name: HashMap<NationInstance, String> = HashMap::new();
+    let mut instances: Vec<NationInstance> = Vec::new();
+    for (instance, name) in nations.iter() {
+        instance_to_name.insert(instance, name.0.clone());
+        instances.push(instance);
     }
-    (id_to_entity, id_to_name, ids)
+    (instance_to_name, instances)
 }
 
 #[cfg(test)]

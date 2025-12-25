@@ -530,7 +530,6 @@ mod tests {
 
         let snapshot = NationSnapshot {
             entity: Entity::PLACEHOLDER,
-            id: crate::economy::nation::NationId(1),
             capital_pos: TilePos::new(0, 0),
             treasury: 1000,
             stockpile: HashMap::new(),
@@ -569,7 +568,6 @@ mod tests {
 
         let snapshot = NationSnapshot {
             entity: Entity::PLACEHOLDER,
-            id: crate::economy::nation::NationId(1),
             capital_pos: TilePos::new(0, 0),
             treasury: 1000,
             stockpile: HashMap::new(),

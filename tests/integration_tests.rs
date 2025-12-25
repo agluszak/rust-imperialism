@@ -2,7 +2,7 @@
 //!
 //! These tests demonstrate ECS testing patterns and verify core game mechanics
 
-use rust_imperialism::economy::nation::NationId;
+use rust_imperialism::economy::nation::Nation;
 
 /// Test turn system functionality
 #[test]
@@ -74,7 +74,7 @@ fn test_ai_move_command_executes() {
     use rust_imperialism::civilians::{
         Civilian, CivilianCommand, CivilianKind, CivilianOrder, CivilianOrderKind, DeselectCivilian,
     };
-    use rust_imperialism::economy::nation::NationId;
+    use rust_imperialism::economy::nation::Nation;
     use rust_imperialism::map::province::{Province, ProvinceId, TileProvince};
     use rust_imperialism::messages::civilians::CivilianCommandRejected;
     use rust_imperialism::turn_system::TurnSystem;
@@ -86,7 +86,7 @@ fn test_ai_move_command_executes() {
     world.init_resource::<Messages<DeselectCivilian>>();
 
     // Owned province and tiles
-    let nation = world.spawn(NationId(1)).id();
+    let nation = world.spawn(Nation).id();
     let province_id = ProvinceId(1);
     world.spawn(Province {
         id: province_id,
@@ -165,7 +165,7 @@ fn test_illegal_rail_command_rejected() {
     world.init_resource::<Messages<CivilianCommandRejected>>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
-    let player = world.spawn(NationId(2)).id();
+    let player = world.spawn(Nation).id();
     let other = world.spawn_empty().id();
 
     let player_province = ProvinceId(1);
@@ -255,13 +255,12 @@ fn test_ai_resource_discovery_and_collection() {
     use bevy::prelude::*;
     use bevy::state::app::StatesPlugin;
     use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
-    use moonshine_kind::Instance;
 
     use rust_imperialism::ai::{AiControlledCivilian, AiNation};
     use rust_imperialism::civilians::{Civilian, CivilianKind};
     use rust_imperialism::economy::{
         EconomyPlugin,
-        nation::{Capital, NationHandle, NationId},
+        nation::{Capital, Nation},
         stockpile::Stockpile,
         transport::Depot,
         treasury::Treasury,
@@ -334,25 +333,12 @@ fn test_ai_resource_discovery_and_collection() {
         .world_mut()
         .spawn((
             AiNation,
-            NationId(1),
+            Nation,
             Capital(capital_pos),
             Stockpile::default(),
             Treasury::default(), // Required for build_ai_snapshot query
         ))
         .id();
-
-    // Add NationHandle component (requires moonshine_kind Instance)
-    // This is needed for AI to query nations properly
-    {
-        let world = app.world_mut();
-        if let Some(instance) = Instance::<NationId>::from_entity(world.entity(ai_nation)) {
-            world
-                .entity_mut(ai_nation)
-                .insert(NationHandle::new(instance));
-        } else {
-            panic!("Failed to create NationInstance for AI nation");
-        }
-    }
 
     // Create province owned by the AI nation
     app.world_mut().spawn(Province {
@@ -426,8 +412,8 @@ fn test_ai_resource_discovery_and_collection() {
     println!("AI Nation ID: {:?}", ai_nation);
     let ai_marker = app.world().get::<AiNation>(ai_nation);
     println!("AI Nation has AiNation marker: {}", ai_marker.is_some());
-    let nation_handle = app.world().get::<NationHandle>(ai_nation);
-    println!("AI Nation has NationHandle: {}", nation_handle.is_some());
+    let nation_marker = app.world().get::<Nation>(ai_nation);
+    println!("AI Nation has Nation marker: {}", nation_marker.is_some());
     let prospector_ai = app.world().get::<AiControlledCivilian>(prospector);
     println!(
         "Prospector has AiControlledCivilian marker: {}",

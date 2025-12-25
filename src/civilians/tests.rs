@@ -7,7 +7,7 @@ use crate::civilians::types::{
     Civilian, CivilianId, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind, JobType,
     PreviousPosition, ProspectingKnowledge,
 };
-use crate::economy::nation::NationId;
+use crate::economy::nation::Nation;
 use crate::economy::transport::{PlaceImprovement, Rails, ordered_edge};
 use crate::map::province::{Province, ProvinceId, TileProvince};
 use crate::resources::{DevelopmentLevel, ResourceType, TileResource};
@@ -28,7 +28,7 @@ fn test_engineer_does_not_start_job_on_existing_rail() {
     world.init_resource::<Messages<DeselectCivilian>>();
 
     // Create a nation entity
-    let nation = world.spawn(NationId(1)).id();
+    let nation = world.spawn(Nation).id();
 
     // Create a province owned by the nation
     let province_id = ProvinceId(1);
@@ -108,7 +108,7 @@ fn test_engineer_starts_job_on_new_rail() {
     world.init_resource::<Messages<DeselectCivilian>>();
 
     // Create a nation entity
-    let nation = world.spawn(NationId(2)).id();
+    let nation = world.spawn(Nation).id();
 
     // Create a province owned by the nation
     let province_id = ProvinceId(1);
@@ -259,7 +259,7 @@ fn test_prospector_starts_prospecting_job() {
 
     world.init_resource::<Messages<DeselectCivilian>>();
 
-    let nation = world.spawn(NationId(3)).id();
+    let nation = world.spawn(Nation).id();
     let province_id = ProvinceId(1);
     world.spawn(Province {
         id: province_id,
@@ -331,7 +331,7 @@ fn test_prospecting_job_reveals_resource_on_completion() {
     tile_storage.set(&tile_pos, tile_entity);
     world.spawn(tile_storage);
 
-    let owner = world.spawn(NationId(4)).id();
+    let owner = world.spawn(Nation).id();
 
     let prospector = world
         .spawn((
@@ -385,7 +385,7 @@ fn miner_requires_discovery_before_mining() {
     world.init_resource::<ProspectingKnowledge>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
-    let nation = world.spawn(NationId(5)).id();
+    let nation = world.spawn(Nation).id();
     let province_id = ProvinceId(5);
     world.spawn(Province {
         id: province_id,
@@ -450,8 +450,8 @@ fn new_owner_must_reprospect_before_mining() {
     world.init_resource::<ProspectingKnowledge>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
-    let nation_a = world.spawn(NationId(6)).id();
-    let nation_b = world.spawn(NationId(7)).id();
+    let nation_a = world.spawn(Nation).id();
+    let nation_b = world.spawn(Nation).id();
     let province_id = ProvinceId(42);
     let province_entity = world
         .spawn(Province {
@@ -686,8 +686,7 @@ fn test_rescind_orders_removes_civilian_order_component() {
     world.init_resource::<Messages<RescindOrders>>();
 
     // Create a nation with treasury
-    let nation_id = NationId(8);
-    let nation = world.spawn((nation_id, Treasury::new(1000))).id();
+    let nation = world.spawn((Nation, Treasury::new(1000))).id();
 
     // Create a civilian with an order and previous position
     let tile_pos = TilePos { x: 5, y: 5 };
@@ -768,8 +767,7 @@ fn test_rescind_orders_removes_civilian_job_and_order() {
     world.init_resource::<Messages<RescindOrders>>();
 
     // Create a nation with treasury
-    let nation_id = NationId(9);
-    let nation = world.spawn((nation_id, Treasury::new(1000))).id();
+    let nation = world.spawn((Nation, Treasury::new(1000))).id();
 
     // Create a civilian with both a job and an order
     let tile_pos = TilePos { x: 5, y: 5 };
@@ -975,8 +973,7 @@ fn miner_respects_max_development_level() {
     world.init_resource::<ProspectingKnowledge>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
-    let nation_id = NationId(10);
-    let nation = world.spawn(nation_id).id();
+    let nation = world.spawn(Nation).id();
     let province_id = ProvinceId(6);
     world.spawn(Province {
         id: province_id,
@@ -1031,8 +1028,7 @@ fn farmer_starts_improvement_job_on_visible_resource() {
     world.init_resource::<ProspectingKnowledge>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
-    let nation_id = NationId(11);
-    let nation = world.spawn(nation_id).id();
+    let nation = world.spawn(Nation).id();
     let province_id = ProvinceId(7);
     world.spawn(Province {
         id: province_id,

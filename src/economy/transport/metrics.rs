@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::economy::{
     allocation::Allocations,
     goods::Good,
-    nation::NationId,
+    nation::Nation,
     production::{BuildingKind, Buildings, ProductionChoice},
     transport::{
         AllocationSlot, BASE_TRANSPORT_CAPACITY, CapacitySnapshot, DemandEntry,
@@ -15,7 +15,7 @@ use crate::economy::{
 /// Initialize transport capacity for new nations with a starting amount.
 pub fn initialize_transport_capacity(
     mut capacity: ResMut<TransportCapacity>,
-    nations: Query<Entity, Added<NationId>>,
+    nations: Query<Entity, Added<Nation>>,
 ) {
     for nation in nations.iter() {
         let snapshot = capacity.snapshot_mut(nation);

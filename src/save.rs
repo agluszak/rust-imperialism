@@ -10,9 +10,7 @@ use crate::civilians::{
 };
 use crate::economy::allocation::Allocations;
 use crate::economy::goods::Good;
-use crate::economy::nation::{
-    Capital, Name, NationColor, NationHandle, NationId, NationInstance, PlayerNation,
-};
+use crate::economy::nation::{Capital, Name, Nation, NationColor, PlayerNation};
 use crate::economy::production::{
     Building, BuildingKind, Buildings, ProductionChoice, ProductionSettings,
 };
@@ -108,7 +106,7 @@ impl Plugin for GameSavePlugin {
 }
 
 fn register_reflect_types(app: &mut App) {
-    app.register_type::<NationId>()
+    app.register_type::<Nation>()
         .register_type::<Name>()
         .register_type::<NationColor>()
         .register_type::<Capital>()
@@ -174,7 +172,6 @@ fn process_save_requests(
         let event = SaveWorld::default_into_file(path.clone())
             .exclude_component::<Allocations>()
             .exclude_component::<ReservationSystem>()
-            .exclude_component::<NationHandle>()
             .include_resource::<Calendar>()
             .include_resource::<TurnSystem>()
             .include_resource::<Roads>()
@@ -228,19 +225,19 @@ fn emit_load_completion(
 fn rebuild_runtime_state_after_load(
     _: On<Loaded>,
     mut commands: Commands,
-    nations: Query<(
-        Entity,
-        &NationId,
-        Option<&Name>,
-        Option<&Allocations>,
-        Option<&ReservationSystem>,
-        Option<&NationHandle>,
-    )>,
+    nations: Query<
+        (
+            Entity,
+            Option<&Name>,
+            Option<&Allocations>,
+            Option<&ReservationSystem>,
+        ),
+        With<Nation>,
+    >,
 ) {
     let mut player_entity = None;
-    let mut missing_handles = Vec::new();
 
-    for (entity, nation_id, name, allocations, reservations, handle) in nations.iter() {
+    for (entity, name, allocations, reservations) in nations.iter() {
         if allocations.is_none() {
             commands.entity(entity).insert(Allocations::default());
         }
@@ -249,33 +246,18 @@ fn rebuild_runtime_state_after_load(
             commands.entity(entity).insert(ReservationSystem::default());
         }
 
-        if handle.is_none() {
-            missing_handles.push(entity);
-        }
-
-        if nation_id.0 == 1
-            || name
-                .map(|Name(label)| label.as_str() == "Player")
-                .unwrap_or(false)
+        // Identify player nation by name
+        if name
+            .map(|Name(label)| label.as_str() == "Player")
+            .unwrap_or(false)
         {
             player_entity = Some(entity);
         }
     }
 
-    if player_entity.is_some() || !missing_handles.is_empty() {
+    if let Some(entity) = player_entity {
         commands.queue(move |world: &mut World| {
-            for entity in missing_handles {
-                if let Ok(entity_ref) = world.get_entity(entity)
-                    && let Some(instance) = NationInstance::from_entity(entity_ref)
-                    && let Ok(mut entity_mut) = world.get_entity_mut(entity)
-                {
-                    entity_mut.insert(NationHandle::new(instance));
-                }
-            }
-
-            if let Some(entity) = player_entity
-                && let Some(nation) = PlayerNation::from_entity(world, entity)
-            {
+            if let Some(nation) = PlayerNation::from_entity(world, entity) {
                 if world.contains_resource::<PlayerNation>() {
                     *world.resource_mut::<PlayerNation>() = nation;
                 } else {
@@ -309,9 +291,7 @@ mod tests {
     use crate::civilians::{Civilian, CivilianId, CivilianKind};
     use crate::economy::allocation::Allocations;
     use crate::economy::goods::Good;
-    use crate::economy::nation::{
-        Capital, Name, NationColor, NationHandle, NationId, PlayerNation,
-    };
+    use crate::economy::nation::{Capital, Name, Nation, NationColor, PlayerNation};
     use crate::economy::reservation::ReservationSystem;
     use crate::economy::stockpile::Stockpile;
     use crate::economy::technology::{Technologies, Technology};
@@ -397,7 +377,7 @@ mod tests {
     #[test]
     fn nation_entities_are_marked_for_save() {
         let mut app = init_test_app();
-        let nation = app.world_mut().spawn(NationId(99)).id();
+        let nation = app.world_mut().spawn(Nation).id();
 
         app.update();
 
@@ -423,7 +403,7 @@ mod tests {
         {
             let mut writer = registry.write();
             writer.register::<Civilian>();
-            writer.register::<NationId>();
+            writer.register::<Nation>();
         }
 
         // Verify MapEntities is registered for Civilian
@@ -447,7 +427,8 @@ mod tests {
             move |mut commands: Commands, mut writer: MessageWriter<SaveGameRequest>| {
                 commands.spawn((
                     Save,
-                    NationId(1),
+                    Nation,
+                    Name("Player".to_string()),
                     Allocations::default(),
                     ReservationSystem::default(),
                 ));
@@ -487,10 +468,9 @@ mod tests {
 
         let player_nation_entity = app.world().resource::<PlayerNation>().entity();
         let entity = app.world().entity(player_nation_entity);
-        assert_eq!(entity.get::<NationId>().unwrap().0, 1);
+        assert!(entity.contains::<Nation>());
         assert!(entity.contains::<Allocations>());
         assert!(entity.contains::<ReservationSystem>());
-        assert!(entity.contains::<NationHandle>());
 
         fs::remove_file(completions[0].path.clone()).unwrap();
     }
@@ -515,7 +495,7 @@ mod tests {
         let nation_entity = app
             .world_mut()
             .spawn((
-                NationId(7),
+                Nation,
                 Name("Rustonia".to_string()),
                 NationColor(Color::srgb(0.3, 0.4, 0.8)),
                 Capital(TilePos { x: 4, y: 9 }),
@@ -588,11 +568,10 @@ mod tests {
 
         {
             let world = app.world_mut();
-            let mut nation_query =
-                world.query::<(Entity, &NationId, &Name, &Treasury, &Stockpile)>();
-            let (nation_entity, _, name, treasury, stockpile) = nation_query
+            let mut nation_query = world.query::<(Entity, &Name, &Treasury, &Stockpile)>();
+            let (nation_entity, name, treasury, stockpile) = nation_query
                 .iter(world)
-                .find(|(_, id, _, _, _)| id.0 == 7)
+                .find(|(_, name, _, _)| name.0 == "Rustonia")
                 .expect("nation restored");
 
             assert_eq!(name.0, "Rustonia");

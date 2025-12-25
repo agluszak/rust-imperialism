@@ -6,9 +6,9 @@ use crate::ai::{AiControlledCivilian, AiNation};
 use crate::civilians::{Civilian, CivilianKind};
 use crate::constants::MAP_SIZE;
 use crate::economy::{
-    Allocations, Capital, Good, Name, NationColor, NationHandle, NationId, NationInstance,
-    PlayerNation, RecruitmentCapacity, RecruitmentQueue, ReservationSystem, Stockpile,
-    Technologies, TrainingQueue, Treasury, Workforce,
+    Allocations, Capital, Good, Name, Nation, NationColor, PlayerNation, RecruitmentCapacity,
+    RecruitmentQueue, ReservationSystem, Stockpile, Technologies, TrainingQueue, Treasury,
+    Workforce,
     production::{Buildings, ProductionSettings},
 };
 use crate::map::province::{City, Province, ProvinceId};
@@ -94,7 +94,7 @@ pub fn assign_provinces_to_countries(
     ];
 
     // Create countries
-    let mut country_entities: Vec<(Entity, NationId)> = Vec::new();
+    let mut country_entities: Vec<Entity> = Vec::new();
     let mut capitals = Vec::new();
 
     for i in 0..num_countries {
@@ -105,12 +105,10 @@ pub fn assign_provinces_to_countries(
         };
 
         let stockpile = baseline_stockpile();
-        let nation_id = NationId(i as u16 + 1);
-
         let color = nation_colors[i % nation_colors.len()];
 
         let country_builder = commands.spawn((
-            nation_id,
+            Nation,
             Name(name),
             NationColor(color),
             Treasury::new(10_000),
@@ -121,16 +119,6 @@ pub fn assign_provinces_to_countries(
         ));
 
         let country_entity = country_builder.id();
-
-        commands.queue(move |world: &mut World| {
-            if let Some(instance) = NationInstance::from_entity(world.entity(country_entity)) {
-                world
-                    .entity_mut(country_entity)
-                    .insert(NationHandle::new(instance));
-            } else {
-                warn!("Failed to create NationInstance for {:?}", country_entity);
-            }
-        });
 
         if i > 0 {
             commands.entity(country_entity).insert(AiNation);
@@ -153,12 +141,12 @@ pub fn assign_provinces_to_countries(
 
         // Note: Capitol and TradeSchool don't need separate Building entities
         // They're always available and use the nation's Stockpile/Workforce directly
-        country_entities.push((country_entity, nation_id));
+        country_entities.push(country_entity);
         info!("Created Nation {} with color", i + 1);
     }
 
     // Set player nation reference
-    if let Some(&(player_entity, _)) = country_entities.first() {
+    if let Some(&player_entity) = country_entities.first() {
         commands.queue(move |world: &mut World| {
             if let Some(player_nation) = PlayerNation::from_entity(world, player_entity) {
                 world.insert_resource(player_nation);
@@ -188,7 +176,7 @@ pub fn assign_provinces_to_countries(
             province_list.len() / num_countries,
         );
 
-        let (country_entity, _) = country_entities[country_idx % num_countries];
+        let country_entity = country_entities[country_idx % num_countries];
 
         // Assign all provinces in the connected group to this country
         for &prov_id in &connected_group {
@@ -216,7 +204,7 @@ pub fn assign_provinces_to_countries(
     // Handle any remaining unassigned provinces
     for (province_entity, province_id, city_tile) in province_list.iter() {
         if !assigned.contains(province_id) {
-            let (country_entity, _) = country_entities[country_idx % num_countries];
+            let country_entity = country_entities[country_idx % num_countries];
             assign_province_to_country(
                 &mut commands,
                 &mut provinces,
@@ -231,11 +219,10 @@ pub fn assign_provinces_to_countries(
         }
     }
 
-    let player_info = country_entities.first().copied();
-    let player_entity_only = player_info.map(|(entity, _)| entity);
+    let player_entity = country_entities.first().copied();
 
     // Spawn starter civilian roster for the player clustered around the capital
-    if let Some((player_entity, _)) = player_info
+    if let Some(player_entity) = player_entity
         && let Some(player_capital) = capitals
             .iter()
             .find(|(entity, _)| *entity == player_entity)
@@ -275,7 +262,7 @@ pub fn assign_provinces_to_countries(
     for (nation_entity, capital_pos) in capitals
         .iter()
         .copied()
-        .filter(|(entity, _)| Some(*entity) != player_entity_only)
+        .filter(|(entity, _)| Some(*entity) != player_entity)
     {
         let spawn_positions = gather_spawn_positions(capital_pos, ai_starter_units.len());
         for (kind, pos) in ai_starter_units.iter().zip(spawn_positions.iter()) {

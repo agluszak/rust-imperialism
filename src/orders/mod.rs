@@ -143,13 +143,13 @@ mod tests {
 
     use crate::economy::transport::{ImprovementKind, PlaceImprovement};
     use crate::economy::workforce::WorkerSkill;
-    use crate::economy::{NationId, goods::Good};
+    use crate::economy::{Nation, goods::Good};
 
     #[test]
     fn queue_and_take_orders() {
         let mut world = World::new();
-        let nation_entity = world.spawn(NationId(7)).id();
-        let nation = Instance::<NationId>::from_entity(world.entity(nation_entity))
+        let nation_entity = world.spawn(Nation).id();
+        let nation = Instance::<Nation>::from_entity(world.entity(nation_entity))
             .expect("failed to build nation instance for test");
         let building = world.spawn_empty().id();
 
@@ -199,8 +199,8 @@ mod tests {
     fn clear_discards_orders() {
         let mut queue = OrdersQueue::default();
         let mut world = World::new();
-        let nation_entity = world.spawn(NationId(1)).id();
-        let nation = Instance::<NationId>::from_entity(world.entity(nation_entity))
+        let nation_entity = world.spawn(Nation).id();
+        let nation = Instance::<Nation>::from_entity(world.entity(nation_entity))
             .expect("failed to build nation instance for test");
 
         queue.queue_recruitment(AdjustRecruitment {
@@ -225,8 +225,8 @@ mod tests {
         world.insert_resource(OrdersQueue::default());
         world.insert_resource(OrdersOut::default());
 
-        let nation_entity = world.spawn(NationId(9)).id();
-        let nation = Instance::<NationId>::from_entity(world.entity(nation_entity)).unwrap();
+        let nation_entity = world.spawn(Nation).id();
+        let nation = Instance::<Nation>::from_entity(world.entity(nation_entity)).unwrap();
         {
             let mut world_queue = world.resource_mut::<OrdersOut>();
             world_queue.queue_market(AdjustMarketOrder {

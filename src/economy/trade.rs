@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::economy::market::{MARKET_RESOURCES, MarketPriceModel, MarketVolume};
-use crate::economy::nation::{Name, NationId};
+use crate::economy::nation::{Name, Nation};
 use crate::economy::trade_capacity::TradeCapacity;
 use crate::economy::{
     Allocations, Good, ReservationId, ReservationSystem, Stockpile, Treasury, Workforce,
@@ -41,9 +41,9 @@ pub fn resolve_market_orders(
             &mut Treasury,
             Option<&Name>,
         ),
-        With<NationId>,
+        With<Nation>,
     >,
-    nation_entities: Query<Entity, With<NationId>>,
+    nation_entities: Query<Entity, With<Nation>>,
     mut pricing: ResMut<MarketPriceModel>,
     mut trade_capacity: ResMut<TradeCapacity>,
 ) {
@@ -384,7 +384,7 @@ mod tests {
     use crate::economy::{
         Good,
         allocation::Allocations,
-        nation::{Name, NationId},
+        nation::{Name, Nation},
         reservation::ReservationSystem,
         stockpile::Stockpile,
         treasury::Treasury,
@@ -400,7 +400,7 @@ mod tests {
         let seller = app
             .world_mut()
             .spawn((
-                NationId(1),
+                Nation,
                 Name("Seller".into()),
                 Allocations::default(),
                 ReservationSystem::default(),
@@ -413,7 +413,7 @@ mod tests {
         let buyer = app
             .world_mut()
             .spawn((
-                NationId(2),
+                Nation,
                 Name("Buyer".into()),
                 Allocations::default(),
                 ReservationSystem::default(),
@@ -481,9 +481,9 @@ mod tests {
                     &mut Treasury,
                     Option<&Name>,
                 ),
-                With<NationId>,
+                With<Nation>,
             >,
-            Query<Entity, With<NationId>>,
+            Query<Entity, With<Nation>>,
             ResMut<MarketPriceModel>,
             ResMut<TradeCapacity>,
         )> = SystemState::new(app.world_mut());
@@ -522,7 +522,7 @@ mod tests {
         let seller = app
             .world_mut()
             .spawn((
-                NationId(1),
+                Nation,
                 Name("Seller".into()),
                 Allocations::default(),
                 ReservationSystem::default(),
@@ -535,7 +535,7 @@ mod tests {
         let buyer = app
             .world_mut()
             .spawn((
-                NationId(2),
+                Nation,
                 Name("Buyer".into()),
                 Allocations::default(),
                 ReservationSystem::default(),
@@ -604,9 +604,9 @@ mod tests {
                     &mut Treasury,
                     Option<&Name>,
                 ),
-                With<NationId>,
+                With<Nation>,
             >,
-            Query<Entity, With<NationId>>,
+            Query<Entity, With<Nation>>,
             ResMut<MarketPriceModel>,
             ResMut<TradeCapacity>,
         )> = SystemState::new(app.world_mut());
@@ -645,7 +645,7 @@ mod tests {
         let seller = app
             .world_mut()
             .spawn((
-                NationId(1),
+                Nation,
                 Name("Seller".into()),
                 Allocations::default(),
                 ReservationSystem::default(),
@@ -658,7 +658,7 @@ mod tests {
         let buyer = app
             .world_mut()
             .spawn((
-                NationId(2),
+                Nation,
                 Name("Buyer".into()),
                 Allocations::default(),
                 ReservationSystem::default(),
@@ -722,9 +722,9 @@ mod tests {
                     &mut Treasury,
                     Option<&Name>,
                 ),
-                With<NationId>,
+                With<Nation>,
             >,
-            Query<Entity, With<NationId>>,
+            Query<Entity, With<Nation>>,
             ResMut<MarketPriceModel>,
             ResMut<TradeCapacity>,
         )> = SystemState::new(app.world_mut());
@@ -768,7 +768,7 @@ mod tests {
         let seller = app
             .world_mut()
             .spawn((
-                NationId(1),
+                Nation,
                 Name("Seller Nation".into()),
                 Allocations::default(),
                 ReservationSystem::default(),
@@ -781,7 +781,7 @@ mod tests {
         let buyer = app
             .world_mut()
             .spawn((
-                NationId(2),
+                Nation,
                 Name("Buyer Nation".into()),
                 Allocations::default(),
                 ReservationSystem::default(),
@@ -853,9 +853,9 @@ mod tests {
                     &mut Treasury,
                     Option<&Name>,
                 ),
-                With<NationId>,
+                With<Nation>,
             >,
-            Query<Entity, With<NationId>>,
+            Query<Entity, With<Nation>>,
             ResMut<MarketPriceModel>,
             ResMut<TradeCapacity>,
         )> = SystemState::new(app.world_mut());
@@ -908,7 +908,7 @@ mod tests {
         let seller = app
             .world_mut()
             .spawn((
-                NationId(1),
+                Nation,
                 Name("Seller".into()),
                 Allocations::default(),
                 ReservationSystem::default(),
@@ -921,7 +921,7 @@ mod tests {
         let buyer = app
             .world_mut()
             .spawn((
-                NationId(2),
+                Nation,
                 Name("Buyer".into()),
                 Allocations::default(),
                 ReservationSystem::default(),
@@ -995,9 +995,9 @@ mod tests {
                     &mut Treasury,
                     Option<&Name>,
                 ),
-                With<NationId>,
+                With<Nation>,
             >,
-            Query<Entity, With<NationId>>,
+            Query<Entity, With<Nation>>,
             ResMut<MarketPriceModel>,
             ResMut<TradeCapacity>,
         )> = SystemState::new(app.world_mut());
@@ -1027,7 +1027,7 @@ mod tests {
         let seller = app
             .world_mut()
             .spawn((
-                NationId(1),
+                Nation,
                 Name("Seller".into()),
                 Allocations::default(),
                 ReservationSystem::default(),
@@ -1040,7 +1040,7 @@ mod tests {
         let buyer_a = app
             .world_mut()
             .spawn((
-                NationId(2),
+                Nation,
                 Name("Buyer A".into()),
                 Allocations::default(),
                 ReservationSystem::default(),
@@ -1053,7 +1053,7 @@ mod tests {
         let buyer_b = app
             .world_mut()
             .spawn((
-                NationId(3),
+                Nation,
                 Name("Buyer B".into()),
                 Allocations::default(),
                 ReservationSystem::default(),
@@ -1124,9 +1124,9 @@ mod tests {
                     &mut Treasury,
                     Option<&Name>,
                 ),
-                With<NationId>,
+                With<Nation>,
             >,
-            Query<Entity, With<NationId>>,
+            Query<Entity, With<Nation>>,
             ResMut<MarketPriceModel>,
             ResMut<TradeCapacity>,
         )> = SystemState::new(app.world_mut());
@@ -1160,7 +1160,7 @@ mod tests {
         let seller = app
             .world_mut()
             .spawn((
-                NationId(1),
+                Nation,
                 Name("Seller".into()),
                 Allocations::default(),
                 ReservationSystem::default(),
@@ -1173,7 +1173,7 @@ mod tests {
         let buyer_a = app
             .world_mut()
             .spawn((
-                NationId(2),
+                Nation,
                 Name("Buyer A".into()),
                 Allocations::default(),
                 ReservationSystem::default(),
@@ -1186,7 +1186,7 @@ mod tests {
         let buyer_b = app
             .world_mut()
             .spawn((
-                NationId(3),
+                Nation,
                 Name("Buyer B".into()),
                 Allocations::default(),
                 ReservationSystem::default(),
@@ -1265,9 +1265,9 @@ mod tests {
                     &mut Treasury,
                     Option<&Name>,
                 ),
-                With<NationId>,
+                With<Nation>,
             >,
-            Query<Entity, With<NationId>>,
+            Query<Entity, With<Nation>>,
             ResMut<MarketPriceModel>,
             ResMut<TradeCapacity>,
         )> = SystemState::new(app.world_mut());
@@ -1301,7 +1301,7 @@ mod tests {
         let seller = app
             .world_mut()
             .spawn((
-                NationId(1),
+                Nation,
                 Name("Seller".into()),
                 Allocations::default(),
                 ReservationSystem::default(),
@@ -1315,7 +1315,7 @@ mod tests {
         let buyer = app
             .world_mut()
             .spawn((
-                NationId(2),
+                Nation,
                 Name("Buyer".into()),
                 Allocations::default(),
                 ReservationSystem::default(),
@@ -1391,9 +1391,9 @@ mod tests {
                     &mut Treasury,
                     Option<&Name>,
                 ),
-                With<NationId>,
+                With<Nation>,
             >,
-            Query<Entity, With<NationId>>,
+            Query<Entity, With<Nation>>,
             ResMut<MarketPriceModel>,
             ResMut<TradeCapacity>,
         )> = SystemState::new(app.world_mut());

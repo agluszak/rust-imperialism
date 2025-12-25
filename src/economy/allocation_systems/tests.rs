@@ -5,7 +5,7 @@ use crate::economy::{
     allocation::Allocations,
     allocation_systems::{calculate_inputs_for_one_unit, execute_queued_production_orders},
     goods::Good,
-    nation::{NationId, NationInstance},
+    nation::{Nation, NationInstance},
     production::{Building, BuildingKind, Buildings},
     reservation::ReservationSystem,
     stockpile::Stockpile,
@@ -583,7 +583,7 @@ fn execute_queued_production_orders_apply_and_clear() {
 
     let nation_entity = world
         .spawn((
-            NationId(1),
+            Nation,
             Allocations::default(),
             ReservationSystem::default(),
             Stockpile::default(),
@@ -654,7 +654,7 @@ fn execute_queued_production_orders_respect_building_kind_capacity() {
 
     let nation_entity = world
         .spawn((
-            NationId(9),
+            Nation,
             Allocations::default(),
             ReservationSystem::default(),
             Stockpile::default(),

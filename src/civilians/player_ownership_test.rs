@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use crate::civilians::commands::{SelectCivilian, SelectedCivilian};
 use crate::civilians::systems::handle_civilian_selection;
 use crate::civilians::types::{Civilian, CivilianId, CivilianKind};
-use crate::economy::{NationId, PlayerNation};
+use crate::economy::{Nation, PlayerNation};
 use bevy_ecs_tilemap::prelude::TilePos;
 
 #[test]
@@ -14,14 +14,14 @@ fn test_cannot_select_enemy_units() {
     world.init_resource::<SelectedCivilian>();
 
     // Create player nation
-    let player_nation_entity = world.spawn(NationId(1)).id();
+    let player_nation_entity = world.spawn(Nation).id();
     let player_instance =
-        moonshine_kind::Instance::<NationId>::from_entity(world.entity(player_nation_entity))
+        moonshine_kind::Instance::<Nation>::from_entity(world.entity(player_nation_entity))
             .unwrap();
     world.insert_resource(PlayerNation::new(player_instance));
 
     // Create enemy nation
-    let enemy_nation_entity = world.spawn(NationId(2)).id();
+    let enemy_nation_entity = world.spawn(Nation).id();
 
     // Create an enemy civilian
     let enemy_civilian_entity = world
@@ -74,9 +74,9 @@ fn test_can_select_own_units() {
     world.init_resource::<SelectedCivilian>();
 
     // Create player nation
-    let player_nation_entity = world.spawn(NationId(1)).id();
+    let player_nation_entity = world.spawn(Nation).id();
     let player_instance =
-        moonshine_kind::Instance::<NationId>::from_entity(world.entity(player_nation_entity))
+        moonshine_kind::Instance::<Nation>::from_entity(world.entity(player_nation_entity))
             .unwrap();
     world.insert_resource(PlayerNation::new(player_instance));
 
@@ -131,9 +131,9 @@ fn test_selecting_player_unit_deselects_others() {
     world.init_resource::<SelectedCivilian>();
 
     // Create player nation
-    let player_nation_entity = world.spawn(NationId(1)).id();
+    let player_nation_entity = world.spawn(Nation).id();
     let player_instance =
-        moonshine_kind::Instance::<NationId>::from_entity(world.entity(player_nation_entity))
+        moonshine_kind::Instance::<Nation>::from_entity(world.entity(player_nation_entity))
             .unwrap();
     world.insert_resource(PlayerNation::new(player_instance));
 
