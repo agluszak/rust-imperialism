@@ -4,7 +4,7 @@ use bevy_ecs_tilemap::prelude::TilePos;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::economy::nation::{Capital, PlayerNation};
-use crate::economy::transport::{Depot, Port, Rails};
+use crate::economy::transport::{Depot, Port, Rails, build_rail_graph};
 use crate::map::tile_pos::TilePosExt;
 use crate::ui::components::MapTilemap;
 use crate::ui::menu::AppState;
@@ -163,16 +163,6 @@ fn render_transport_debug(
 
     // Render connected resource summary
     render_resource_summary(&mut commands, &depots, &ports, &player_nation.0, &font);
-}
-
-/// Build adjacency list for BFS
-fn build_rail_graph(rails: &Rails) -> HashMap<TilePos, Vec<TilePos>> {
-    let mut graph: HashMap<TilePos, Vec<TilePos>> = HashMap::new();
-    for &(a, b) in rails.0.iter() {
-        graph.entry(a).or_default().push(b);
-        graph.entry(b).or_default().push(a);
-    }
-    graph
 }
 
 /// Compute all tiles connected to the capital via BFS

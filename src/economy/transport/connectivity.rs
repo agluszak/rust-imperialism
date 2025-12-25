@@ -18,6 +18,7 @@ pub fn build_rail_graph(rails: &Rails) -> HashMap<TilePos, Vec<TilePos>> {
 /// Compute rail network connectivity for all nations (Logic Layer)
 /// Uses BFS from each nation's capital to mark depots/ports as connected
 /// Only runs when RecomputeConnectivity messages are present (topology changes)
+/// Optimized to avoid O(n*m) nested iteration over nations and depots/ports
 pub fn compute_rail_connectivity(
     mut events: MessageReader<RecomputeConnectivity>,
     rails: Res<Rails>,
@@ -30,8 +31,12 @@ pub fn compute_rail_connectivity(
         return;
     }
     events.clear();
+    
     // Build the rail graph once
     let graph = build_rail_graph(&rails);
+
+    // Build a HashMap of nation reachability sets to avoid nested iteration
+    let mut nation_reachable: HashMap<Entity, HashSet<TilePos>> = HashMap::new();
 
     // For each nation, run BFS from their capital
     for (nation_entity, capital) in nations.iter() {
@@ -55,19 +60,22 @@ pub fn compute_rail_connectivity(
             }
         }
 
-        // Update depots owned by this nation
-        for mut depot in depots.iter_mut() {
-            if depot.owner == nation_entity {
-                depot.connected = reachable.contains(&depot.position);
-            }
-        }
+        nation_reachable.insert(nation_entity, reachable);
+    }
 
-        // Update ports owned by this nation
-        for mut port in ports.iter_mut() {
-            if port.owner == nation_entity {
-                port.connected = reachable.contains(&port.position);
-            }
-        }
+    // Update all depots in a single pass using cached reachability sets
+    // This eliminates O(n*m) nested iteration
+    for mut depot in depots.iter_mut() {
+        depot.connected = nation_reachable
+            .get(&depot.owner)
+            .map_or(false, |reachable: &HashSet<TilePos>| reachable.contains(&depot.position));
+    }
+
+    // Update all ports in a single pass using cached reachability sets
+    for mut port in ports.iter_mut() {
+        port.connected = nation_reachable
+            .get(&port.owner)
+            .map_or(false, |reachable: &HashSet<TilePos>| reachable.contains(&port.position));
     }
 }
 
