@@ -486,10 +486,7 @@ fn is_adjacent(a: TilePos, b: TilePos) -> bool {
 }
 
 /// Check if a rail can be built on a tile given the nation's technologies.
-fn can_build_rail_here(
-    tile_pos: TilePos,
-    nation: &NationSnapshot,
-) -> bool {
+fn can_build_rail_here(tile_pos: TilePos, nation: &NationSnapshot) -> bool {
     nation
         .tile_terrain
         .get(&tile_pos)
@@ -501,19 +498,12 @@ fn can_build_rail_here(
 
 /// Check if a rail can be built between two adjacent tiles.
 /// Both tiles must support rail construction given the nation's technologies.
-fn can_build_rail_between(
-    from: TilePos,
-    to: TilePos,
-    nation: &NationSnapshot,
-) -> bool {
+fn can_build_rail_between(from: TilePos, to: TilePos, nation: &NationSnapshot) -> bool {
     can_build_rail_here(from, nation) && can_build_rail_here(to, nation)
 }
 
 /// Check if a depot can be built on a tile.
-fn can_build_depot_here(
-    tile_pos: TilePos,
-    nation: &NationSnapshot,
-) -> bool {
+fn can_build_depot_here(tile_pos: TilePos, nation: &NationSnapshot) -> bool {
     nation
         .tile_terrain
         .get(&tile_pos)

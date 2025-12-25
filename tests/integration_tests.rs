@@ -262,6 +262,7 @@ fn test_ai_resource_discovery_and_collection() {
         EconomyPlugin,
         nation::{Capital, Nation},
         stockpile::Stockpile,
+        technology::Technologies,
         transport::Depot,
         treasury::Treasury,
     };
@@ -336,7 +337,8 @@ fn test_ai_resource_discovery_and_collection() {
             Nation,
             Capital(capital_pos),
             Stockpile::default(),
-            Treasury::default(), // Required for build_ai_snapshot query
+            Treasury::default(),
+            Technologies::default(),
         ))
         .id();
 
@@ -688,7 +690,7 @@ fn test_ai_respects_terrain_constraints() {
             Capital(capital_pos),
             Stockpile::default(),
             Treasury::new(10000), // Enough money for construction
-            Technologies::new(), // No technologies unlocked
+            Technologies::new(),  // No technologies unlocked
         ))
         .id();
 
@@ -720,7 +722,10 @@ fn test_ai_respects_terrain_constraints() {
     println!("Resource at: {:?} (Grass)", grass_resource_pos);
     println!("Mountain at: {:?} (Cannot build depot)", mountain_pos);
     println!("Water at: {:?} (Cannot build anything)", water_pos);
-    println!("Hill at: {:?} (Can build depot, not rail without tech)", hill_pos);
+    println!(
+        "Hill at: {:?} (Can build depot, not rail without tech)",
+        hill_pos
+    );
 
     // Run for a few turns to let AI plan
     for turn in 1..=10 {
@@ -735,13 +740,25 @@ fn test_ai_respects_terrain_constraints() {
         if let Some(snapshot) = app.world().get_resource::<AiSnapshot>()
             && let Some(nation_snapshot) = snapshot.get_nation(ai_nation)
         {
-            println!("  AI suggested {} depot locations", nation_snapshot.suggested_depots.len());
+            println!(
+                "  AI suggested {} depot locations",
+                nation_snapshot.suggested_depots.len()
+            );
             for depot in &nation_snapshot.suggested_depots {
-                println!("    - Depot at {:?} (covers {} resources)", depot.position, depot.covers_count);
-                
+                println!(
+                    "    - Depot at {:?} (covers {} resources)",
+                    depot.position, depot.covers_count
+                );
+
                 // Verify suggested depot is not on water or mountain
-                assert_ne!(depot.position, water_pos, "AI should not suggest depot on water");
-                assert_ne!(depot.position, mountain_pos, "AI should not suggest depot on mountain");
+                assert_ne!(
+                    depot.position, water_pos,
+                    "AI should not suggest depot on water"
+                );
+                assert_ne!(
+                    depot.position, mountain_pos,
+                    "AI should not suggest depot on mountain"
+                );
             }
         }
 
@@ -751,15 +768,20 @@ fn test_ai_respects_terrain_constraints() {
     // Verify AI engineer didn't try to build on invalid terrain
     let engineer_pos = app.world().get::<Civilian>(engineer).unwrap().position;
     println!("\nFinal engineer position: {:?}", engineer_pos);
-    
+
     // Engineer should not be on water, mountain, or hills (without technology)
     assert_ne!(engineer_pos, water_pos, "Engineer should not move to water");
-    assert_ne!(engineer_pos, mountain_pos, "Engineer should not move to mountain");
+    assert_ne!(
+        engineer_pos, mountain_pos,
+        "Engineer should not move to mountain"
+    );
     // Hills are buildable for depots but not for rails without technology
     // If engineer is on hills, they should not have attempted rail construction
     if engineer_pos == hill_pos {
-        println!("Note: Engineer is on hill tile, but should not have built rails without HillGrading technology");
+        println!(
+            "Note: Engineer is on hill tile, but should not have built rails without HillGrading technology"
+        );
     }
-    
+
     println!("\n=== Test Complete: AI respects terrain constraints ===");
 }

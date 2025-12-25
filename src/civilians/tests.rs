@@ -1152,7 +1152,9 @@ fn prospecting_knowledge_is_nation_private() {
 
     // Verify that ProspectedMineral component exists
     assert!(
-        world.get::<crate::map::ProspectedMineral>(tile_entity).is_some(),
+        world
+            .get::<crate::map::ProspectedMineral>(tile_entity)
+            .is_some(),
         "Tile should have ProspectedMineral component"
     );
 
@@ -1161,7 +1163,10 @@ fn prospecting_knowledge_is_nation_private() {
         .get::<TileResource>(tile_entity)
         .expect("Tile should have TileResource");
     assert_eq!(resource.resource_type, ResourceType::Coal);
-    assert!(resource.discovered, "Resource should be marked as discovered");
+    assert!(
+        resource.discovered,
+        "Resource should be marked as discovered"
+    );
 }
 
 #[test]
@@ -1361,10 +1366,7 @@ fn multiple_nations_can_prospect_same_tile_independently() {
     );
 
     // Transfer province to nation B
-    world
-        .get_mut::<Province>(province_entity)
-        .unwrap()
-        .owner = Some(nation_b);
+    world.get_mut::<Province>(province_entity).unwrap().owner = Some(nation_b);
 
     // Nation B prospects the same tile
     let prospector_b = world

@@ -230,7 +230,13 @@ pub fn build_ai_snapshot(
     pricing: Res<MarketPriceModel>,
     rails: Res<Rails>,
     ai_nations: Query<
-        (Entity, &Capital, &Stockpile, &Treasury, &crate::economy::technology::Technologies),
+        (
+            Entity,
+            &Capital,
+            &Stockpile,
+            &Treasury,
+            &crate::economy::technology::Technologies,
+        ),
         (With<AiNation>, With<Nation>),
     >,
     civilians: Query<(Entity, &Civilian)>,

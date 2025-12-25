@@ -18,7 +18,7 @@ This document is the single source of truth for contributors (human or AI) to un
   - SystemSets guarantee execution order: `PlayerTurnSet`, `ProcessingSet`, `EnemyTurnSet`
   - Auto-transitions: Processing→EnemyTurn→PlayerTurn happen automatically
   - No more `resource_changed::<TurnSystem>` pattern (fired multiple times)
-  - Legacy `TurnSystem` resource kept for backward compatibility (synced from state)
+  - Legacy `TurnSystem` resource synced from state for convenience
 - **Transport to stockpile**: Connected resources now properly collected into nation stockpiles
 - **Save/load system**: Full game persistence using moonshine-save with component serialization
 - **Port fish production**: Connected ports yield 2 fish (bonus from transport connectivity)
@@ -107,7 +107,7 @@ PlayerTurn (next turn)
 ```
 - Use `OnEnter(TurnPhase::*)` for systems that run once per phase entry
 - Use `in_state(TurnPhase::*)` for continuous systems during a phase
-- Legacy `TurnSystem` resource is synced for backward compatibility
+- Legacy `TurnSystem` resource is synced from state for convenience
 
 ## Project Structure
 
@@ -203,6 +203,7 @@ parent
 ## Development Guidelines
 
 **Core principles:**
+- **No backwards compatibility**: We do not maintain backwards compatibility for saves, APIs, or component requirements. When adding new required components, update all spawn sites and tests accordingly rather than making components optional.
 - **Write testable code**: Structure code to be easily tested, use dependency injection, keep functions pure when possible
 - **Rely on the manual**: Reference `manual.pdf` for game mechanics, rules, and original Imperialism (1997) behavior
 - **When in doubt, ask**: Use the AskUserQuestion tool to clarify requirements rather than making assumptions
