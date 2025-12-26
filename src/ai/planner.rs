@@ -67,7 +67,8 @@ pub struct NationPlan {
     pub market_buys: Vec<(Good, u32)>,
     pub market_sells: Vec<(Good, u32)>,
     pub civilians_to_hire: Vec<CivilianKind>,
-    pub production_orders: Vec<(Entity, Good, u32)>,
+    pub transport_allocations: Vec<(crate::economy::transport::TransportCommodity, u32)>,
+    pub production_orders: Vec<(Entity, Good, u32)>, // (building_entity, output_good, target)
 }
 
 /// A task assigned to a specific civilian.
@@ -124,7 +125,7 @@ pub fn plan_nation(nation: &NationSnapshot, snapshot: &AiSnapshot) -> NationPlan
     // 3. Assign civilians to goals
     assign_civilians_to_goals(nation, &plan.goals, &mut plan.civilian_tasks);
 
-    // 4. Generate concrete market orders from goals
+    // 4. Generate concrete orders from goals
     for goal in &plan.goals {
         match goal {
             NationGoal::BuyResource { good, qty, .. } => {
@@ -150,6 +151,10 @@ pub fn plan_nation(nation: &NationSnapshot, snapshot: &AiSnapshot) -> NationPlan
             _ => {}
         }
     }
+
+    // 5. Generate transport allocations and production orders
+    generate_transport_allocations(nation, &mut plan);
+    generate_production_orders(nation, &mut plan);
 
     plan
 }
@@ -564,6 +569,61 @@ fn can_build_depot_here(tile_pos: TilePos, nation: &NationSnapshot) -> bool {
         .get(&tile_pos)
         .map(crate::economy::transport::can_build_depot_on_terrain)
         .unwrap_or(false)
+}
+
+/// Generate transport allocations based on available resources and capacity.
+/// Since we don't have snapshot data for transport capacity yet, we use a simple heuristic:
+/// allocate generously to all resource types that might be available.
+fn generate_transport_allocations(_nation: &NationSnapshot, plan: &mut NationPlan) {
+    use crate::economy::transport::TransportCommodity;
+
+    // Allocate high capacity to essential resources
+    // These values are generous to ensure AI doesn't starve from lack of transport
+    let allocations = [
+        (TransportCommodity::Grain, 10),
+        (TransportCommodity::Fruit, 8),
+        (TransportCommodity::Fiber, 8),
+        (TransportCommodity::Meat, 8),
+        (TransportCommodity::Timber, 10),
+        (TransportCommodity::Coal, 10),
+        (TransportCommodity::Iron, 10),
+        (TransportCommodity::Precious, 5),
+        (TransportCommodity::Oil, 8),
+        (TransportCommodity::Fabric, 5),
+        (TransportCommodity::Lumber, 5),
+        (TransportCommodity::Paper, 5),
+        (TransportCommodity::Steel, 5),
+        (TransportCommodity::Fuel, 5),
+        (TransportCommodity::Clothing, 3),
+        (TransportCommodity::Furniture, 3),
+        (TransportCommodity::Hardware, 3),
+        (TransportCommodity::Armaments, 3),
+        (TransportCommodity::CannedFood, 3),
+        (TransportCommodity::Horses, 2),
+    ];
+
+    for (commodity, amount) in allocations {
+        plan.transport_allocations.push((commodity, amount));
+    }
+}
+
+/// Generate production orders to build transport capacity.
+/// AI should produce Transport goods when it has the resources.
+fn generate_production_orders(nation: &NationSnapshot, _plan: &mut NationPlan) {
+    // Check if we have steel and lumber for Transport production
+    let steel_available = nation.available_amount(Good::Steel);
+    let lumber_available = nation.available_amount(Good::Lumber);
+
+    // If we have materials, produce some transport capacity
+    if steel_available >= 2 && lumber_available >= 2 {
+        // Find the railyard building entity (we don't have it in snapshot, so skip for now)
+        // TODO: Add building entities to NationSnapshot so AI can issue production orders
+        // For now, the allocation alone should help since players can manually produce
+        info!(
+            "AI Nation {:?} has materials for Transport production (Steel: {}, Lumber: {})",
+            nation.entity, steel_available, lumber_available
+        );
+    }
 }
 
 #[cfg(test)]

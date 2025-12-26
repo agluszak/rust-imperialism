@@ -27,6 +27,7 @@ pub fn execute_ai_turn(
     mut market_orders: MessageWriter<AdjustMarketOrder>,
     mut hire_messages: MessageWriter<HireCivilian>,
     mut production_orders: MessageWriter<AdjustProduction>,
+    mut transport_orders: MessageWriter<crate::economy::transport::TransportAdjustAllocation>,
 ) {
     for (nation, buildings) in ai_nations.iter() {
         let Some(nation_snapshot) = snapshot.get_nation(nation.entity()) else {
@@ -45,6 +46,7 @@ pub fn execute_ai_turn(
             &mut market_orders,
             &mut hire_messages,
             &mut production_orders,
+            &mut transport_orders,
         );
     }
 }
@@ -57,6 +59,7 @@ fn execute_plan(
     market_orders: &mut MessageWriter<AdjustMarketOrder>,
     hire_messages: &mut MessageWriter<HireCivilian>,
     production_orders: &mut MessageWriter<AdjustProduction>,
+    transport_orders: &mut MessageWriter<crate::economy::transport::TransportAdjustAllocation>,
 ) {
     // Send civilian orders
     for (&civilian_entity, task) in &plan.civilian_tasks {
@@ -103,6 +106,15 @@ fn execute_plan(
             building: *building_entity,
             output_good: *good,
             target_output: *qty,
+        });
+    }
+
+    // Send transport allocation orders
+    for (commodity, requested) in &plan.transport_allocations {
+        transport_orders.write(crate::economy::transport::TransportAdjustAllocation {
+            nation: nation.entity(),
+            commodity: *commodity,
+            requested: *requested,
         });
     }
 }
