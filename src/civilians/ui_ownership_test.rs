@@ -3,14 +3,13 @@ use bevy::prelude::*;
 
 use crate::civilians::commands::{DeselectCivilian, SelectCivilian};
 use crate::civilians::types::{Civilian, CivilianId, CivilianKind};
-use crate::civilians::ui_components::{update_civilian_orders_ui, CivilianOrdersPanel};
+use crate::civilians::ui_components::{CivilianOrdersPanel, update_civilian_orders_ui};
 use crate::economy::{Nation, PlayerNation};
 use bevy_ecs_tilemap::prelude::TilePos;
 
 /// Helper function to send a SelectCivilian event
 fn send_select_event(world: &mut World, entity: Entity) {
-    let mut system_state: SystemState<MessageWriter<SelectCivilian>> =
-        SystemState::new(world);
+    let mut system_state: SystemState<MessageWriter<SelectCivilian>> = SystemState::new(world);
     let mut writer = system_state.get_mut(world);
     writer.write(SelectCivilian { entity });
     system_state.apply(world);
