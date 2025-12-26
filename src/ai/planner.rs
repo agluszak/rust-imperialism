@@ -593,7 +593,12 @@ fn can_build_depot_here(tile_pos: TilePos, nation: &NationSnapshot) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use bevy::prelude::*;
+    use bevy_ecs_tilemap::prelude::TilePos;
+    use std::collections::{HashMap, HashSet};
+
     use super::*;
+    use crate::ai::snapshot::NationSnapshot;
 
     #[test]
     fn test_goal_priority_ordering() {
@@ -787,5 +792,113 @@ mod tests {
                 "Loop detected: (0,1) -> (0,0) -> (0,1)"
             );
         }
+    }
+
+    #[test]
+    fn test_ship_production_goal_when_trade_capacity_high() {
+        use crate::economy::production::{Building, BuildingKind};
+        use crate::economy::stockpile::StockpileEntry;
+        
+        let mut stockpile = HashMap::new();
+        stockpile.insert(
+            Good::Steel,
+            StockpileEntry {
+                good: Good::Steel,
+                total: 10,
+                available: 10,
+                reserved: 0,
+            },
+        );
+        stockpile.insert(
+            Good::Lumber,
+            StockpileEntry {
+                good: Good::Lumber,
+                total: 10,
+                available: 10,
+                reserved: 0,
+            },
+        );
+        stockpile.insert(
+            Good::Fuel,
+            StockpileEntry {
+                good: Good::Fuel,
+                total: 10,
+                available: 10,
+                reserved: 0,
+            },
+        );
+
+        let mut buildings = HashMap::new();
+        buildings.insert(BuildingKind::Shipyard, Building::shipyard());
+
+        let snapshot = NationSnapshot {
+            entity: Entity::PLACEHOLDER,
+            capital_pos: TilePos::new(0, 0),
+            treasury: 1000,
+            stockpile,
+            civilians: vec![],
+            connected_tiles: HashSet::new(),
+            unconnected_depots: vec![],
+            suggested_depots: vec![],
+            improvable_tiles: vec![],
+            owned_tiles: HashSet::new(),
+            depot_positions: HashSet::new(),
+            prospectable_tiles: vec![],
+            tile_terrain: HashMap::new(),
+            technologies: crate::economy::technology::Technologies::new(),
+            rail_constructions: vec![],
+            trade_capacity_total: 10,
+            trade_capacity_used: 8, // 80% utilization
+            buildings,
+        };
+
+        let mut goals = Vec::new();
+        generate_production_goals(&snapshot, &mut goals);
+
+        // Should generate a ship production goal
+        assert_eq!(goals.len(), 1);
+        match &goals[0] {
+            NationGoal::ProduceGoods { good, qty, priority, .. } => {
+                assert_eq!(*good, Good::Ship);
+                assert!(qty > &0 && qty <= &5);
+                assert!(priority >= &0.7 && priority <= &1.0);
+            }
+            _ => panic!("Expected ProduceGoods goal"),
+        }
+    }
+
+    #[test]
+    fn test_no_ship_production_goal_when_trade_capacity_low() {
+        use crate::economy::production::{Building, BuildingKind};
+
+        let mut buildings = HashMap::new();
+        buildings.insert(BuildingKind::Shipyard, Building::shipyard());
+
+        let snapshot = NationSnapshot {
+            entity: Entity::PLACEHOLDER,
+            capital_pos: TilePos::new(0, 0),
+            treasury: 1000,
+            stockpile: HashMap::new(),
+            civilians: vec![],
+            connected_tiles: HashSet::new(),
+            unconnected_depots: vec![],
+            suggested_depots: vec![],
+            improvable_tiles: vec![],
+            owned_tiles: HashSet::new(),
+            depot_positions: HashSet::new(),
+            prospectable_tiles: vec![],
+            tile_terrain: HashMap::new(),
+            technologies: crate::economy::technology::Technologies::new(),
+            rail_constructions: vec![],
+            trade_capacity_total: 10,
+            trade_capacity_used: 5, // 50% utilization
+            buildings,
+        };
+
+        let mut goals = Vec::new();
+        generate_production_goals(&snapshot, &mut goals);
+
+        // Should not generate ship production goal when utilization is below 70%
+        assert_eq!(goals.len(), 0);
     }
 }
