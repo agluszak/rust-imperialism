@@ -1,5 +1,5 @@
 //! Integration test for AI value-added trading.
-//! Verifies that AI can identify profitable opportunities to transform raw materials 
+//! Verifies that AI can identify profitable opportunities to transform raw materials
 //! into finished goods and execute the necessary market and production operations.
 
 mod common;
@@ -128,10 +128,7 @@ fn test_ai_climbs_value_chain_when_hardware_is_profitable() {
 
     println!("\nMarket orders issued by AI:");
     for order in &market_orders {
-        println!(
-            "  {:?} {} of {:?}",
-            order.kind, order.requested, order.good
-        );
+        println!("  {:?} {} of {:?}", order.kind, order.requested, order.good);
     }
 
     // Should buy iron and coal
@@ -203,12 +200,12 @@ fn test_ai_climbs_value_chain_when_hardware_is_profitable() {
     // based on stockpile availability at production time
 
     // Check AI snapshot to verify planning worked
-    if let Some(snapshot) = app.world().get_resource::<AiSnapshot>() {
-        if let Some(nation_snapshot) = snapshot.get_nation(ai_nation) {
-            println!("\nAI Nation State:");
-            println!("  Treasury: {}", nation_snapshot.treasury);
-            println!("  Stockpile: {:?}", nation_snapshot.stockpile);
-        }
+    if let Some(snapshot) = app.world().get_resource::<AiSnapshot>()
+        && let Some(nation_snapshot) = snapshot.get_nation(ai_nation)
+    {
+        println!("\nAI Nation State:");
+        println!("  Treasury: {}", nation_snapshot.treasury);
+        println!("  Stockpile: {:?}", nation_snapshot.stockpile);
     }
 
     println!("\n=== Test Complete: AI successfully planned value-added trading ===");
