@@ -12,7 +12,7 @@ use crate::economy::allocation::Allocations;
 use crate::economy::goods::Good;
 use crate::economy::nation::{Capital, Nation, NationColor, PlayerNation};
 use crate::economy::production::{
-    Building, BuildingKind, Buildings, ProductionChoice, ProductionSettings,
+    Building, BuildingKind, Buildings, ProductionSettings,
 };
 use crate::economy::reservation::{ReservationSystem, ResourcePool};
 use crate::economy::stockpile::Stockpile;
@@ -116,7 +116,6 @@ fn register_reflect_types(app: &mut App) {
         .register_type::<ResourcePool>()
         .register_type::<Stockpile>()
         .register_type::<Treasury>()
-        .register_type::<ProductionChoice>()
         .register_type::<ProductionSettings>()
         .register_type::<Building>()
         .register_type::<Buildings>()

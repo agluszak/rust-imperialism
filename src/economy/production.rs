@@ -396,44 +396,15 @@ pub enum BuildingKind {
     PowerPlant,  // Convert fuel to labor
 }
 
-/// What input material a building should use for production
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
-pub enum ProductionChoice {
-    // For TextileMill: choose between Cotton or Wool
-    UseCotton,
-    UseWool,
-
-    // For LumberMill: choose between Lumber or Paper
-    MakeLumber,
-    MakePaper,
-
-    // For FoodProcessingCenter: choose between Livestock or Fish
-    UseLivestock,
-    UseFish,
-
-    // For MetalWorks: choose between Hardware or Armaments
-    MakeHardware,
-    MakeArmaments,
-}
-
 /// Production settings for a building (persists turn-to-turn)
 #[derive(Component, Debug, Clone, Reflect)]
 #[reflect(Component)]
+#[derive(Default)]
 pub struct ProductionSettings {
-    /// What input material to use (e.g., Cotton vs Wool for textile mill)
-    pub choice: ProductionChoice,
     /// How many units to produce this turn (capped by capacity and inputs)
     pub target_output: u32,
 }
 
-impl Default for ProductionSettings {
-    fn default() -> Self {
-        Self {
-            choice: ProductionChoice::UseCotton,
-            target_output: 0,
-        }
-    }
-}
 
 #[derive(Component, Debug, Clone, Copy, Reflect)]
 #[reflect(Component)]
@@ -579,7 +550,6 @@ impl RecipeVariant {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RecipeVariantInfo {
-    pub choice: Option<ProductionChoice>,
     pub variant: RecipeVariant,
 }
 
@@ -589,16 +559,33 @@ pub struct ProductionRecipe {
 }
 
 impl ProductionRecipe {
-    pub fn variant_for_choice(&self, choice: ProductionChoice) -> Option<RecipeVariant> {
-        self.variants
-            .iter()
-            .find(|definition| definition.choice == Some(choice))
-            .or_else(|| {
-                self.variants
-                    .iter()
-                    .find(|definition| definition.choice.is_none())
-            })
-            .map(|definition| definition.variant)
+    /// Select the best variant based on stockpile availability.
+    /// For buildings with multiple input options (e.g., Cotton vs Wool),
+    /// this chooses the variant with the most available inputs.
+    /// Falls back to the first variant if none have clear preference.
+    pub fn best_variant_for_stockpile(&self, stockpile: &Stockpile) -> Option<RecipeVariant> {
+        if self.variants.is_empty() {
+            return None;
+        }
+
+        // If there's only one variant, use it
+        if self.variants.len() == 1 {
+            return Some(self.variants[0].variant);
+        }
+
+        // Score each variant by available inputs
+        let mut best_variant = self.variants[0].variant;
+        let mut best_score = score_variant_availability(&self.variants[0].variant, stockpile);
+
+        for definition in &self.variants[1..] {
+            let score = score_variant_availability(&definition.variant, stockpile);
+            if score > best_score {
+                best_score = score;
+                best_variant = definition.variant;
+            }
+        }
+
+        Some(best_variant)
     }
 
     pub fn variants_for_output(&self, output_good: Good) -> Vec<RecipeVariantInfo> {
@@ -629,15 +616,37 @@ impl ProductionRecipe {
                     .is_some_and(|good| good == output_good)
             })
             .map(|definition| RecipeVariantInfo {
-                choice: definition.choice,
                 variant: definition.variant,
             })
     }
 }
 
+/// Score a variant based on how many batches could be produced with available inputs.
+/// Higher score means more production is possible with this variant.
+fn score_variant_availability(variant: &RecipeVariant, stockpile: &Stockpile) -> u32 {
+    if variant.inputs.is_empty() {
+        return u32::MAX; // No inputs needed, unlimited production possible
+    }
+
+    // For each input, calculate how many batches we could make with available stock
+    // The minimum across all inputs is our score
+    variant
+        .inputs
+        .iter()
+        .map(|ingredient| {
+            let available = stockpile.get_available(ingredient.good);
+            if ingredient.amount == 0 {
+                u32::MAX
+            } else {
+                available / ingredient.amount
+            }
+        })
+        .min()
+        .unwrap_or(0)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct RecipeVariantDefinition {
-    choice: Option<ProductionChoice>,
     variant: RecipeVariant,
 }
 
@@ -655,14 +664,12 @@ const TEXTILE_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
 }];
 const TEXTILE_VARIANTS: [RecipeVariantDefinition; 2] = [
     RecipeVariantDefinition {
-        choice: Some(ProductionChoice::UseCotton),
         variant: RecipeVariant {
             inputs: &TEXTILE_COTTON_INPUTS,
             outputs: &TEXTILE_OUTPUTS,
         },
     },
     RecipeVariantDefinition {
-        choice: Some(ProductionChoice::UseWool),
         variant: RecipeVariant {
             inputs: &TEXTILE_WOOL_INPUTS,
             outputs: &TEXTILE_OUTPUTS,
@@ -687,14 +694,12 @@ const PAPER_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
 }];
 const LUMBER_VARIANTS: [RecipeVariantDefinition; 2] = [
     RecipeVariantDefinition {
-        choice: Some(ProductionChoice::MakeLumber),
         variant: RecipeVariant {
             inputs: &LUMBER_INPUTS,
             outputs: &LUMBER_OUTPUTS,
         },
     },
     RecipeVariantDefinition {
-        choice: Some(ProductionChoice::MakePaper),
         variant: RecipeVariant {
             inputs: &LUMBER_INPUTS,
             outputs: &PAPER_OUTPUTS,
@@ -720,7 +725,6 @@ const STEEL_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
     amount: 1,
 }];
 const STEEL_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
-    choice: None,
     variant: RecipeVariant {
         inputs: &STEEL_INPUTS,
         outputs: &STEEL_OUTPUTS,
@@ -764,14 +768,12 @@ const FOOD_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
 }];
 const FOOD_VARIANTS: [RecipeVariantDefinition; 2] = [
     RecipeVariantDefinition {
-        choice: Some(ProductionChoice::UseLivestock),
         variant: RecipeVariant {
             inputs: &FOOD_LIVESTOCK_INPUTS,
             outputs: &FOOD_OUTPUTS,
         },
     },
     RecipeVariantDefinition {
-        choice: Some(ProductionChoice::UseFish),
         variant: RecipeVariant {
             inputs: &FOOD_FISH_INPUTS,
             outputs: &FOOD_OUTPUTS,
@@ -791,7 +793,6 @@ const CLOTHING_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
     amount: 1,
 }];
 const CLOTHING_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
-    choice: None,
     variant: RecipeVariant {
         inputs: &CLOTHING_INPUTS,
         outputs: &CLOTHING_OUTPUTS,
@@ -810,7 +811,6 @@ const FURNITURE_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
     amount: 1,
 }];
 const FURNITURE_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
-    choice: None,
     variant: RecipeVariant {
         inputs: &FURNITURE_INPUTS,
         outputs: &FURNITURE_OUTPUTS,
@@ -834,14 +834,12 @@ const ARMAMENT_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
 }];
 const METAL_VARIANTS: [RecipeVariantDefinition; 2] = [
     RecipeVariantDefinition {
-        choice: Some(ProductionChoice::MakeHardware),
         variant: RecipeVariant {
             inputs: &METAL_INPUTS,
             outputs: &HARDWARE_OUTPUTS,
         },
     },
     RecipeVariantDefinition {
-        choice: Some(ProductionChoice::MakeArmaments),
         variant: RecipeVariant {
             inputs: &METAL_INPUTS,
             outputs: &ARMAMENT_OUTPUTS,
@@ -861,7 +859,6 @@ const REFINERY_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
     amount: 1,
 }];
 const REFINERY_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
-    choice: None,
     variant: RecipeVariant {
         inputs: &REFINERY_INPUTS,
         outputs: &REFINERY_OUTPUTS,
@@ -886,7 +883,6 @@ const RAILYARD_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
     amount: 1,
 }];
 const RAILYARD_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
-    choice: None,
     variant: RecipeVariant {
         inputs: &RAILYARD_INPUTS,
         outputs: &RAILYARD_OUTPUTS,
@@ -915,7 +911,6 @@ const SHIPYARD_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
     amount: 1,
 }];
 const SHIPYARD_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
-    choice: None,
     variant: RecipeVariant {
         inputs: &SHIPYARD_INPUTS,
         outputs: &SHIPYARD_OUTPUTS,
@@ -1035,11 +1030,12 @@ pub fn run_production(
             continue;
         }
 
-        let Some(variant) = recipe.variant_for_choice(settings.choice) else {
+        // Select variant based on stockpile availability instead of stored choice
+        let Some(variant) = recipe.best_variant_for_stockpile(&stock) else {
             settings.target_output = 0;
             debug!(
-                "Skipping production for {:?}: no variant for choice {:?}",
-                building.kind, settings.choice
+                "Skipping production for {:?}: no suitable variant found",
+                building.kind
             );
             continue;
         };

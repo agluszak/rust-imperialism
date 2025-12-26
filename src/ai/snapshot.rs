@@ -12,7 +12,7 @@ use crate::civilians::types::{Civilian, CivilianKind, ProspectingKnowledge};
 use crate::economy::goods::Good;
 use crate::economy::market::{MARKET_RESOURCES, MarketPriceModel, MarketVolume};
 use crate::economy::nation::{Capital, Nation};
-use crate::economy::production::{Buildings, ProductionSettings};
+use crate::economy::production::{Buildings};
 use crate::economy::stockpile::{Stockpile, StockpileEntry};
 use crate::economy::transport::{Depot, Rails};
 use crate::economy::treasury::Treasury;
@@ -46,7 +46,6 @@ pub struct NationSnapshot {
     pub civilians: Vec<CivilianSnapshot>,
     pub connected_tiles: HashSet<TilePos>,
     pub buildings: Option<Buildings>,
-    pub production_settings: Option<ProductionSettings>,
     pub unconnected_depots: Vec<DepotInfo>,
     /// Optimal depot locations calculated via greedy set-cover algorithm.
     pub suggested_depots: Vec<SuggestedDepot>,
@@ -249,7 +248,6 @@ pub fn build_ai_snapshot(
             &Treasury,
             &crate::economy::technology::Technologies,
             Option<&Buildings>,
-            Option<&ProductionSettings>,
         ),
         (With<AiNation>, With<Nation>),
     >,
@@ -279,7 +277,7 @@ pub fn build_ai_snapshot(
     };
 
     // Build per-nation snapshots
-    for (entity, capital, stockpile, treasury, technologies, buildings, settings) in
+    for (entity, capital, stockpile, treasury, technologies, buildings) in
         ai_nations.iter()
     {
         let capital_pos = capital.0;
@@ -466,7 +464,6 @@ pub fn build_ai_snapshot(
                 technologies: technologies.clone(),
                 rail_constructions: nation_rail_constructions,
                 buildings: buildings.cloned(),
-                production_settings: settings.cloned(),
             },
         );
     }
@@ -859,7 +856,6 @@ mod tests {
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
             buildings: None,
-            production_settings: None,
         };
 
         // Only civilians with has_moved = false should be available

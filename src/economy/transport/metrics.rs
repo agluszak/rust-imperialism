@@ -4,7 +4,7 @@ use crate::economy::{
     allocation::Allocations,
     goods::Good,
     nation::Nation,
-    production::{BuildingKind, Buildings, ProductionChoice},
+    production::{BuildingKind, Buildings, production_recipe},
     transport::{
         AllocationSlot, BASE_TRANSPORT_CAPACITY, CapacitySnapshot, DemandEntry,
         TransportAllocations, TransportCapacity, TransportCommodity, TransportDemandSnapshot,
@@ -100,35 +100,28 @@ pub fn apply_transport_allocations(
     }
 }
 
-/// Helper describing input requirements for one unit of production.
-fn inputs_for_output(
-    kind: BuildingKind,
-    choice: ProductionChoice,
-    _output: Good,
-) -> Vec<(Good, u32)> {
-    match kind {
-        BuildingKind::TextileMill => match choice {
-            ProductionChoice::UseCotton => vec![(Good::Cotton, 2)],
-            ProductionChoice::UseWool => vec![(Good::Wool, 2)],
-            _ => vec![(Good::Cotton, 2)],
-        },
-        BuildingKind::LumberMill => vec![(Good::Timber, 2)],
-        BuildingKind::SteelMill => vec![(Good::Iron, 1), (Good::Coal, 1)],
-        BuildingKind::FoodProcessingCenter => {
-            let meat = match choice {
-                ProductionChoice::UseFish => Good::Fish,
-                _ => Good::Livestock,
-            };
-            // Output is in canned food units (2 per batch)
-            vec![(Good::Grain, 2), (Good::Fruit, 1), (meat, 1)]
-        }
-        BuildingKind::ClothingFactory => vec![(Good::Fabric, 2)],
-        BuildingKind::FurnitureFactory => vec![(Good::Lumber, 2)],
-        BuildingKind::MetalWorks => vec![(Good::Steel, 2)],
-        BuildingKind::Refinery => vec![(Good::Oil, 2)],
-        BuildingKind::Railyard => vec![(Good::Steel, 1), (Good::Lumber, 1)],
-        BuildingKind::Shipyard => vec![(Good::Steel, 1), (Good::Lumber, 1), (Good::Fuel, 1)],
-        BuildingKind::Capitol | BuildingKind::TradeSchool | BuildingKind::PowerPlant => vec![],
+/// Helper to estimate input requirements for production demand calculation.
+/// Returns the inputs for the first variant of the given building type.
+/// This is used for transport demand estimation in the UI.
+fn inputs_for_output(kind: BuildingKind, output: Good) -> Vec<(Good, u32)> {
+    let Some(recipe) = production_recipe(kind) else {
+        return vec![];
+    };
+    
+    // Get all variants that produce this output
+    let variants = recipe.variants_for_output(output);
+    
+    // Use the first variant as a representative estimate
+    // (In reality, the choice is made dynamically based on stockpile)
+    if let Some(variant_info) = variants.first() {
+        variant_info
+            .variant
+            .inputs()
+            .iter()
+            .map(|ing| (ing.good, ing.amount))
+            .collect()
+    } else {
+        vec![]
     }
 }
 
@@ -208,13 +201,7 @@ pub fn update_transport_demand_snapshot(
                 continue;
             }
 
-            let choice = match building_kind {
-                BuildingKind::TextileMill => ProductionChoice::UseCotton,
-                BuildingKind::FoodProcessingCenter => ProductionChoice::UseLivestock,
-                _ => ProductionChoice::UseCotton,
-            };
-
-            let inputs = inputs_for_output(building_kind, choice, *output_good);
+            let inputs = inputs_for_output(building_kind, *output_good);
             let units = reservations.len() as u32;
 
             for (good, amount_per_unit) in inputs {
