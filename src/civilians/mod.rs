@@ -30,6 +30,9 @@ mod player_ownership_test;
 #[cfg(test)]
 mod ui_ownership_test;
 
+#[cfg(test)]
+mod stacking_test;
+
 // No private imports needed - using fully qualified paths in plugin registration
 
 /// System set for civilian job processing during turn start.

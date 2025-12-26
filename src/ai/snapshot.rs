@@ -27,6 +27,9 @@ pub struct AiSnapshot {
     pub turn: u32,
     pub nations: HashMap<Entity, NationSnapshot>,
     pub market: MarketSnapshot,
+    /// All tiles currently occupied by any civilian (friendly or enemy)
+    pub occupied_tiles: std::collections::HashSet<TilePos>,
+    pub rails: std::collections::HashSet<(TilePos, TilePos)>,
 }
 
 impl AiSnapshot {
@@ -283,8 +286,17 @@ pub fn build_ai_snapshot(
     prospecting: Option<Res<ProspectingKnowledge>>,
 ) {
     snapshot.turn = turn.current;
-    snapshot.nations.clear();
 
+    // Collect all occupied tiles
+    snapshot.occupied_tiles.clear();
+    for (_, civilian) in civilians.iter() {
+        snapshot.occupied_tiles.insert(civilian.position);
+    }
+
+    // Capture rail network
+    snapshot.rails = rails.0.clone();
+
+    snapshot.nations.clear();
     // Build market snapshot
     snapshot.market.prices.clear();
     for &good in MARKET_RESOURCES {

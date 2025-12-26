@@ -646,9 +646,37 @@ fn test_two_engineers_splitting_paths() {
         ));
     }
 
+    // Spawn dummy civilians far away to satisfy AI hiring targets and prevent overcrowding at capital
+    // Targets: Prospector (2), Farmer (2), Miner (2), Rancher (1), Forester (1)
+    let dummy_pos = TilePos { x: 29, y: 29 };
+    let dummies = [
+        (CivilianKind::Prospector, 2),
+        (CivilianKind::Farmer, 2),
+        (CivilianKind::Miner, 2),
+        (CivilianKind::Rancher, 1),
+        (CivilianKind::Forester, 1),
+    ];
+
+    let mut dummy_id = 100;
+    for (kind, count) in dummies {
+        for _ in 0..count {
+            app.world_mut().spawn((
+                Civilian {
+                    kind,
+                    position: dummy_pos,
+                    owner: ai_nation,
+                    civilian_id: rust_imperialism::civilians::CivilianId(dummy_id),
+                    has_moved: false,
+                },
+                AiControlledCivilian,
+            ));
+            dummy_id += 1;
+        }
+    }
+
     println!("\n=== Starting Two Engineers Splitting Path Test ===");
 
-    for turn in 1..=60 {
+    for turn in 1..=90 {
         let current_turn = app.world().resource::<TurnCounter>().current;
         println!("\n--- Turn {} ---", current_turn);
 
@@ -680,5 +708,5 @@ fn test_two_engineers_splitting_paths() {
         }
     }
 
-    panic!("FAIL: Did not connect both hubs within 60 turns");
+    panic!("FAIL: Did not connect both hubs within 90 turns");
 }

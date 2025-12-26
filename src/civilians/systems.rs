@@ -108,6 +108,7 @@ pub fn handle_civilian_commands(
     mut commands: Commands,
     mut events: MessageReader<CivilianCommand>,
     civilians: Query<(&Civilian, Option<&CivilianJob>, Option<&CivilianOrder>)>,
+    all_civilians: Query<&Civilian>,
     tile_storage_query: Query<(&TileStorage, &TilemapSize)>,
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
@@ -148,6 +149,7 @@ pub fn handle_civilian_commands(
             map_size,
             &tile_provinces,
             &provinces,
+            &all_civilians,
         ) {
             Ok(()) => {
                 commands.entity(command.civilian).insert(CivilianOrder {

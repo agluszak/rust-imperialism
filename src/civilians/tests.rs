@@ -586,9 +586,13 @@ fn test_cannot_assign_order_if_order_already_exists() {
     let tile_pos = TilePos { x: 1, y: 1 };
     let order = CivilianOrderKind::ImproveTile { to: tile_pos };
 
-    let mut state: SystemState<(Query<&TileStorage>, Query<&TileProvince>, Query<&Province>)> =
-        SystemState::new(&mut world);
-    let (storage_query, tile_provinces, provinces) = state.get(&world);
+    let mut state: SystemState<(
+        Query<&TileStorage>,
+        Query<&TileProvince>,
+        Query<&Province>,
+        Query<&Civilian>,
+    )> = SystemState::new(&mut world);
+    let (storage_query, tile_provinces, provinces, civilians) = state.get(&world);
     let storage = storage_query
         .get(storage_entity)
         .expect("missing tile storage");
@@ -603,6 +607,7 @@ fn test_cannot_assign_order_if_order_already_exists() {
         map_size,
         &tile_provinces,
         &provinces,
+        &civilians,
     );
 
     assert_eq!(
@@ -642,9 +647,13 @@ fn test_can_assign_order_when_no_existing_order() {
     let tile_pos = TilePos { x: 1, y: 1 };
     let order = CivilianOrderKind::ImproveTile { to: tile_pos };
 
-    let mut state: SystemState<(Query<&TileStorage>, Query<&TileProvince>, Query<&Province>)> =
-        SystemState::new(&mut world);
-    let (storage_query, tile_provinces, provinces) = state.get(&world);
+    let mut state: SystemState<(
+        Query<&TileStorage>,
+        Query<&TileProvince>,
+        Query<&Province>,
+        Query<&Civilian>,
+    )> = SystemState::new(&mut world);
+    let (storage_query, tile_provinces, provinces, civilians) = state.get(&world);
     let storage = storage_query
         .get(storage_entity)
         .expect("missing tile storage");
@@ -659,6 +668,7 @@ fn test_can_assign_order_when_no_existing_order() {
         map_size,
         &tile_provinces,
         &provinces,
+        &civilians,
     );
 
     assert!(

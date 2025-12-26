@@ -131,7 +131,8 @@ pub fn plan_nation(nation: &NationSnapshot, snapshot: &AiSnapshot) -> NationPlan
     });
 
     // 3. Assign civilians to goals
-    assign_civilians_to_goals(nation, &plan.goals, &mut plan.civilian_tasks);
+    // 3. Assign civilians to goals
+    assign_civilians_to_goals(nation, snapshot, &plan.goals, &mut plan.civilian_tasks);
 
     // 4. Generate concrete orders from goals
     for goal in &plan.goals {
@@ -385,116 +386,185 @@ fn generate_production_goals(nation: &NationSnapshot, goals: &mut Vec<NationGoal
 
 fn assign_civilians_to_goals(
     nation: &NationSnapshot,
+    snapshot: &AiSnapshot, // Added snapshot for global occupied_tiles
     goals: &[NationGoal],
     tasks: &mut HashMap<Entity, CivilianTask>,
 ) {
-    let mut assigned_goals: std::collections::HashSet<usize> = std::collections::HashSet::new();
+    // Track positions of friendly units that haven't been assigned a task yet
+    let mut unplanned_positions: HashMap<Entity, TilePos> = nation
+        .available_civilians()
+        .map(|c| (c.entity, c.position))
+        .collect();
 
-    // First pass: Engineers for infrastructure
-    for civilian in nation.available_civilians() {
-        if civilian.kind != CivilianKind::Engineer {
-            continue;
-        }
+    // Track reserved tiles (where units WILL be next turn)
+    // Initialize with Enemy positions (static obstacles)
+    let friendly_entities: std::collections::HashSet<Entity> =
+        unplanned_positions.keys().copied().collect();
+    let mut reserved_positions: std::collections::HashSet<TilePos> = snapshot
+        .occupied_tiles
+        .iter()
+        .filter(|pos| {
+            // Keep only positions NOT belonging to friendly units (i.e., Enemies)
+            // (We assume friendly units might move, so we don't reserve their starting pos yet)
+            !unplanned_positions.values().any(|p| p == *pos)
+        })
+        .copied()
+        .collect();
 
-        for (i, goal) in goals.iter().enumerate() {
-            if assigned_goals.contains(&i) {
-                continue;
-            }
-
-            match goal {
-                NationGoal::BuildDepotAt { tile, .. } => {
-                    // Engineer needs to go to the tile and build a depot
-                    if let Some(task) = plan_engineer_depot_task(nation, civilian.position, *tile) {
-                        tasks.insert(civilian.entity, task);
-                        assigned_goals.insert(i);
-                        break;
-                    }
-                }
-                NationGoal::ConnectDepot { tile, .. } => {
-                    // Engineer needs to build rail toward an existing depot
-                    if let Some(task) = plan_engineer_rail_task(nation, civilian.position, *tile) {
-                        tasks.insert(civilian.entity, task);
-                        assigned_goals.insert(i);
-                        break;
-                    }
-                }
-                _ => {}
-            }
+    // Also add friendly units that are NOT available (already busy/working)
+    // They are effectively static obstacles for this turn's planning
+    for civilian in &nation.civilians {
+        if !friendly_entities.contains(&civilian.entity) {
+            reserved_positions.insert(civilian.position);
         }
     }
 
-    // Second pass: Prospectors for resource discovery
-    for civilian in nation.available_civilians() {
-        if tasks.contains_key(&civilian.entity) {
-            continue;
-        }
+    // Iterate goals by priority (already sorted)
+    for goal in goals {
+        // Find best candidate for this goal
+        let mut best_candidate: Option<(Entity, CivilianTask)> = None;
+        let mut min_distance = u32::MAX; // Score: lower is better (distance to action)
 
-        if civilian.kind != CivilianKind::Prospector {
-            continue;
-        }
-
-        for (i, goal) in goals.iter().enumerate() {
-            if assigned_goals.contains(&i) {
+        for civilian in nation.available_civilians() {
+            if !unplanned_positions.contains_key(&civilian.entity) {
                 continue;
             }
 
-            if let NationGoal::ProspectTile { tile, .. } = goal {
-                if civilian.position == *tile || is_adjacent(civilian.position, *tile) {
-                    tasks.insert(
-                        civilian.entity,
-                        CivilianTask::ProspectTile { target: *tile },
-                    );
-                } else {
-                    tasks.insert(civilian.entity, CivilianTask::MoveTo { target: *tile });
+            // Calculate blockers for this specific candidate:
+            // Reserved tiles (Friends who moved/stayed + Enemies)
+            // + Unplanned Friends (who are currently sitting at their spot)
+            // - EXCLUDING this candidate (since they are moving)
+            let mut avoid_tiles = reserved_positions.clone();
+            for (&entity, &pos) in &unplanned_positions {
+                if entity != civilian.entity {
+                    avoid_tiles.insert(pos);
                 }
-                assigned_goals.insert(i);
-                break;
-            }
-        }
-    }
-
-    // Third pass: Improvement specialists
-    for civilian in nation.available_civilians() {
-        if tasks.contains_key(&civilian.entity) {
-            continue;
-        }
-
-        if !civilian.kind.supports_improvements() {
-            continue;
-        }
-
-        for (i, goal) in goals.iter().enumerate() {
-            if assigned_goals.contains(&i) {
-                continue;
             }
 
-            if let NationGoal::ImproveTile {
-                tile,
-                civilian_kind,
-                ..
-            } = goal
-                && *civilian_kind == civilian.kind
-            {
-                if civilian.position == *tile || is_adjacent(civilian.position, *tile) {
-                    tasks.insert(civilian.entity, CivilianTask::ImproveTile { target: *tile });
-                } else {
-                    tasks.insert(civilian.entity, CivilianTask::MoveTo { target: *tile });
+            let task_opt = match goal {
+                NationGoal::BuildDepotAt { tile, .. }
+                    if civilian.kind == CivilianKind::Engineer =>
+                {
+                    plan_engineer_depot_task(nation, &avoid_tiles, civilian.position, *tile)
                 }
-                assigned_goals.insert(i);
-                break;
+                NationGoal::ConnectDepot { tile, .. }
+                    if civilian.kind == CivilianKind::Engineer =>
+                {
+                    plan_engineer_rail_task(
+                        nation,
+                        snapshot,
+                        &avoid_tiles,
+                        civilian.position,
+                        *tile,
+                    )
+                }
+                NationGoal::ProspectTile { tile, .. }
+                    if civilian.kind == CivilianKind::Prospector =>
+                {
+                    if civilian.position == *tile || is_adjacent(civilian.position, *tile) {
+                        Some(CivilianTask::ProspectTile { target: *tile })
+                    } else if !avoid_tiles.contains(tile) {
+                        // Only move if target valid (and path exists - checked by find_step implicitly via simple move?)
+                        // Wait, move logic here is simple MoveTo. We should checking pathfinding.
+                        // But for now, just checking target validity is a start.
+                        // Ideally we'd use pathfinding here too.
+                        Some(CivilianTask::MoveTo { target: *tile })
+                    } else {
+                        None
+                    }
+                }
+                NationGoal::ImproveTile {
+                    tile,
+                    civilian_kind,
+                    ..
+                } if civilian.kind == *civilian_kind => {
+                    if civilian.position == *tile || is_adjacent(civilian.position, *tile) {
+                        Some(CivilianTask::ImproveTile { target: *tile })
+                    } else if !avoid_tiles.contains(tile) {
+                        Some(CivilianTask::MoveTo { target: *tile })
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            };
+
+            if let Some(task) = task_opt {
+                // Calculate score (approx distance)
+                let distance = match task {
+                    CivilianTask::MoveTo { target } => {
+                        civilian.position.to_hex().distance_to(target.to_hex()) as u32
+                    }
+                    CivilianTask::BuildRailTo { target } => {
+                        civilian.position.to_hex().distance_to(target.to_hex()) as u32
+                    }
+                    _ => 0, // 0 distance means immediate action possible
+                };
+
+                // Check strict path validity?
+                // The helper functions `plan_engineer...` use `find_step_toward` which checks `avoid_tiles`.
+                // But `MoveTo` above is raw.
+                // We should ensure `MoveTo` doesn't jump into an obstacle.
+                // Simple hack: if distance > 1, assume pathfinding will handle it next turn?
+                // NO. If we assign `MoveTo(target)`, we MUST ensure target is not blocked.
+                // The checks `!avoid_tiles.contains(tile)` above handle the goal target.
+                // But what if we are far away?
+                // We generate `MoveTo` directly to Goal. The Execution system validates step-by-step?
+                // No, execution system blindly takes `MoveTo`.
+                // Actually `MoveTo` in `CivilianTask` usually means "Move one step towards"?
+                // Let's check `CivilianTask` definition.
+                // If `MoveTo` target is far away, does it work?
+                // `execute.rs` -> `task_to_order` -> `CivilianOrderKind::Move { to }`.
+                // `CivilianOrderKind::Move` usually implies distinct movement.
+                // But `planner.rs` usually generates `find_step_toward` for Engineers?
+                // For Prospectors/Farmers above, `Some(CivilianTask::MoveTo { target: *tile })`.
+                // This implies "Teleport/Long Move"?
+                // Let's trust that for now, but focus on RESERVATION.
+
+                if distance < min_distance {
+                    min_distance = distance;
+                    best_candidate = Some((civilian.entity, task));
+
+                    // Optimization: if we found an immediate match, take it (can't beat 0)
+                    if distance == 0 {
+                        break;
+                    }
+                }
             }
+        }
+
+        // Assign best candidate
+        if let Some((entity, task)) = best_candidate {
+            tasks.insert(entity, task.clone());
+
+            // Update reservation state
+            // Remove from unplanned
+            let current_pos = unplanned_positions.remove(&entity).unwrap();
+
+            // Add new position to reserved
+            let target_pos = match task {
+                CivilianTask::MoveTo { target } => target,
+                CivilianTask::BuildRailTo { target } => target, // Moves to target
+                CivilianTask::BuildDepot => current_pos,        // Stays put
+                CivilianTask::ImproveTile { .. } => current_pos, // Stays put (job)
+                CivilianTask::ProspectTile { .. } => current_pos, // Stays put (job)
+                CivilianTask::Idle => current_pos,
+            };
+            reserved_positions.insert(target_pos);
         }
     }
 
     // Default: unassigned civilians are idle
-    for civilian in nation.available_civilians() {
-        tasks.entry(civilian.entity).or_insert(CivilianTask::Idle);
+    for (entity, _pos) in unplanned_positions {
+        tasks.entry(entity).or_insert(CivilianTask::Idle);
+        // Implicitly reserved their current spot
     }
 }
 
 /// Plan an engineer task to build a depot at a target tile.
 fn plan_engineer_depot_task(
     nation: &NationSnapshot,
+    occupied_tiles: &std::collections::HashSet<TilePos>,
     engineer_pos: TilePos,
     target: TilePos,
 ) -> Option<CivilianTask> {
@@ -526,7 +596,9 @@ fn plan_engineer_depot_task(
     }
 
     // 4. We are at the bridgehead but not at the target. Build rail towards target.
-    if let Some(next_tile) = find_step_toward(bridgehead, target, &nation.owned_tiles) {
+    if let Some(next_tile) =
+        find_step_toward(bridgehead, target, &nation.owned_tiles, occupied_tiles)
+    {
         // next_tile MUST be unconnected if bridgehead was the closest connected tile.
         if !nation.connected_tiles.contains(&next_tile) {
             // Check if this rail segment is already being built
@@ -549,6 +621,8 @@ fn plan_engineer_depot_task(
 /// Plan an engineer task to build rail connecting to an existing depot.
 fn plan_engineer_rail_task(
     nation: &NationSnapshot,
+    snapshot: &AiSnapshot,
+    avoid_tiles: &std::collections::HashSet<TilePos>,
     engineer_pos: TilePos,
     depot_pos: TilePos,
 ) -> Option<CivilianTask> {
@@ -566,30 +640,45 @@ fn plan_engineer_rail_task(
         })
         .copied()?;
 
-    // 2. If we are not at the bridgehead, teleport there
-    if engineer_pos != bridgehead {
-        return Some(CivilianTask::MoveTo { target: bridgehead });
-    }
+    // 2. Identify the "Frontier" of the Depot's rail line.
+    // The depot might have some rails attached to it locally (e.g. built by previous turns).
+    // We want the engineer to go to the END of this local network (closest to bridgehead)
+    // and extend it.
 
-    // 3. We are at the bridgehead. If it's the depot_pos, we are done (connected).
-    if bridgehead == depot_pos {
+    let depot_frontier = find_rail_frontier(depot_pos, bridgehead, &snapshot.rails);
+
+    // 3. Logic: Coordinate Movement to Frontier
+    // If we are NOT at the frontier, go there.
+    if engineer_pos != depot_frontier {
+        // Just move to the frontier.
+        // Note: The path might be along the rails we just traced, or cross-country if we are disconnected.
+        if let Some(step) = find_step_toward(
+            engineer_pos,
+            depot_frontier,
+            &nation.owned_tiles,
+            avoid_tiles,
+        ) {
+            return Some(CivilianTask::MoveTo { target: step });
+        }
         return None;
     }
 
-    // 4. We are at the bridgehead but not at the depot. Build rail towards depot.
-    if let Some(next_tile) = find_step_toward(bridgehead, depot_pos, &nation.owned_tiles) {
-        // next_tile MUST be unconnected if bridgehead was the closest connected tile.
-        if !nation.connected_tiles.contains(&next_tile) {
+    // 4. We are at the frontier. Build towards Bridgehead.
+    if let Some(next_tile) =
+        find_step_toward(depot_frontier, bridgehead, &nation.owned_tiles, avoid_tiles)
+    {
+        // If next_tile does not have rail, build it
+        if !can_move_on_rail(depot_frontier, next_tile, snapshot) {
             // Check if this rail segment is already being built
-            if is_rail_being_built(bridgehead, next_tile, nation) {
+            if is_rail_being_built(depot_frontier, next_tile, nation) {
                 return None;
             }
 
-            if can_build_rail_between(bridgehead, next_tile, nation) {
+            if can_build_rail_between(depot_frontier, next_tile, nation) {
                 return Some(CivilianTask::BuildRailTo { target: next_tile });
             }
         } else {
-            // Should not happen if bridgehead logic is correct, but for safety:
+            // Rail exists, just move (shouldn't happen if frontier logic is correct)
             return Some(CivilianTask::MoveTo { target: next_tile });
         }
     }
@@ -597,11 +686,65 @@ fn plan_engineer_rail_task(
     None
 }
 
-/// Find the next step from `from` toward `to`, constrained to `allowed_tiles`.
+/// Find the tile connected to `start` via rails that minimizes distance to `target`.
+fn find_rail_frontier(
+    start: TilePos,
+    target: TilePos,
+    rails: &std::collections::HashSet<(TilePos, TilePos)>,
+) -> TilePos {
+    use crate::map::tile_pos::HexExt;
+    use std::collections::{HashSet, VecDeque};
+
+    let mut visited = HashSet::new();
+    let mut queue = VecDeque::new();
+
+    visited.insert(start);
+    queue.push_back(start);
+
+    let mut best_tile = start;
+    let mut min_dist = start.to_hex().distance_to(target.to_hex());
+
+    while let Some(current) = queue.pop_front() {
+        // Update best if this tile is closer to target
+        let dist = current.to_hex().distance_to(target.to_hex());
+        if dist < min_dist {
+            min_dist = dist;
+            best_tile = current;
+        }
+
+        // Explore neighbors connected by rail
+        for neighbor_hex in current.to_hex().all_neighbors() {
+            let Some(neighbor) = neighbor_hex.to_tile_pos() else {
+                continue;
+            };
+
+            if visited.contains(&neighbor) {
+                continue;
+            }
+
+            let edge = crate::economy::transport::ordered_edge(current, neighbor);
+            if rails.contains(&edge) {
+                visited.insert(neighbor);
+                queue.push_back(neighbor);
+            }
+        }
+    }
+
+    best_tile
+}
+
+/// Check if movement between two adjacent tiles can be done via rail
+fn can_move_on_rail(a: TilePos, b: TilePos, snapshot: &AiSnapshot) -> bool {
+    let edge = crate::economy::transport::ordered_edge(a, b);
+    snapshot.rails.contains(&edge)
+}
+
+/// Find the next step from `from` toward `to`, constrained to `allowed_tiles` and avoiding `avoid_tiles` (enemies).
 fn find_step_toward(
     from: TilePos,
     to: TilePos,
     allowed_tiles: &std::collections::HashSet<TilePos>,
+    avoid_tiles: &std::collections::HashSet<TilePos>,
 ) -> Option<TilePos> {
     use crate::map::tile_pos::HexExt;
 
@@ -614,6 +757,7 @@ fn find_step_toward(
         .into_iter()
         .filter_map(|hex| hex.to_tile_pos())
         .filter(|pos| allowed_tiles.contains(pos))
+        .filter(|pos| !avoid_tiles.contains(pos)) // Avoid enemy tiles only
         .min_by_key(|pos| {
             (
                 pos.to_hex().distance_to(to_hex),
@@ -800,7 +944,8 @@ mod tests {
             buildings: HashMap::new(),
         };
 
-        let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);
+        let occupied_tiles = HashSet::new();
+        let task = plan_engineer_depot_task(&snapshot, &occupied_tiles, engineer_pos, target);
 
         // Should move directly to connected tile, not incremental step
         assert!(matches!(task, Some(CivilianTask::MoveTo { target: t }) if t == connected_tile));
@@ -850,7 +995,8 @@ mod tests {
             buildings: HashMap::new(),
         };
 
-        let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);
+        let occupied_tiles = HashSet::new();
+        let task = plan_engineer_depot_task(&snapshot, &occupied_tiles, engineer_pos, target);
 
         // Should build rail to adjacent tile toward target
         assert!(matches!(task, Some(CivilianTask::BuildRailTo { target: t }) if t == next_step));
@@ -902,9 +1048,17 @@ mod tests {
             buildings: HashMap::new(),
         };
 
+        let occupied_tiles = HashSet::new();
+        let ai_snapshot = AiSnapshot {
+            occupied_tiles: occupied_tiles.clone(),
+            rails: HashSet::new(),
+            ..Default::default()
+        };
+
         // If bridgehead logic picks (0,0) as better than (0,1) due to tie-breaking,
         // and engineer is at (0,1), it will MoveTo (0,0).
-        let task = plan_engineer_rail_task(&snapshot, pos_0_1, target);
+        let task =
+            plan_engineer_rail_task(&snapshot, &ai_snapshot, &occupied_tiles, pos_0_1, target);
 
         // This is fine if it leads to progress.
         // But if then it tries to move from (0,0) to (0,1), it's a loop.
@@ -912,7 +1066,13 @@ mod tests {
             && t == capital_pos
         {
             // Now check what happens at (0,0)
-            let task2 = plan_engineer_rail_task(&snapshot, capital_pos, target);
+            let task2 = plan_engineer_rail_task(
+                &snapshot,
+                &ai_snapshot,
+                &occupied_tiles,
+                capital_pos,
+                target,
+            );
             // If task2 is MoveTo(0,1), we have a loop!
             assert!(
                 !matches!(task2, Some(CivilianTask::MoveTo { target: next }) if next == pos_0_1),

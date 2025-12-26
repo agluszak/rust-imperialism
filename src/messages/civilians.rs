@@ -29,6 +29,7 @@ pub enum CivilianCommandError {
     RequiresImprover,
     MissingTileStorage,
     MissingTargetTile(TilePos),
+    TargetTileOccupied,
 }
 
 impl CivilianCommandError {
@@ -46,6 +47,7 @@ impl CivilianCommandError {
             CivilianCommandError::RequiresImprover => "order requires a resource improver",
             CivilianCommandError::MissingTileStorage => "no tile storage available",
             CivilianCommandError::MissingTargetTile(_) => "target tile does not exist",
+            CivilianCommandError::TargetTileOccupied => "target tile is already occupied",
         }
     }
 }

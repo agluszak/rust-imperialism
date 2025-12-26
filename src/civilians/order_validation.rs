@@ -43,6 +43,7 @@ pub fn validate_command(
     map_size: TilemapSize,
     tile_provinces: &Query<&TileProvince>,
     provinces: &Query<&Province>,
+    civilians: &Query<&Civilian>,
 ) -> Result<(), CivilianCommandError> {
     if job.is_some() {
         return Err(CivilianCommandError::AlreadyHasJob);
@@ -68,6 +69,9 @@ pub fn validate_command(
                 provinces,
             ) {
                 return Err(CivilianCommandError::TargetTileUnowned);
+            }
+            if civilians.iter().any(|c| c.position == *to) {
+                return Err(CivilianCommandError::TargetTileOccupied);
             }
             Ok(())
         }
@@ -227,9 +231,13 @@ mod tests {
 
         let order = CivilianOrderKind::BuildDepot;
 
-        let mut state: SystemState<(Query<&TileStorage>, Query<&TileProvince>, Query<&Province>)> =
-            SystemState::new(&mut world);
-        let (storage_query, tile_provinces, provinces) = state.get(&world);
+        let mut state: SystemState<(
+            Query<&TileStorage>,
+            Query<&TileProvince>,
+            Query<&Province>,
+            Query<&Civilian>,
+        )> = SystemState::new(&mut world);
+        let (storage_query, tile_provinces, provinces, civilians) = state.get(&world);
         let storage = storage_query
             .get(storage_entity)
             .expect("missing tile storage");
@@ -243,6 +251,7 @@ mod tests {
             map_size,
             &tile_provinces,
             &provinces,
+            &civilians,
         );
 
         assert_eq!(result, Err(CivilianCommandError::RequiresEngineer));

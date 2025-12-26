@@ -39,6 +39,7 @@ pub fn execute_ai_turn(
 
         // Execute the plan
         execute_plan(
+            &snapshot,
             &plan,
             nation,
             buildings,
@@ -52,6 +53,7 @@ pub fn execute_ai_turn(
 }
 
 fn execute_plan(
+    snapshot: &AiSnapshot,
     plan: &NationPlan,
     nation: NationInstance,
     _buildings: &Buildings,
@@ -61,9 +63,22 @@ fn execute_plan(
     production_orders: &mut MessageWriter<AdjustProduction>,
     transport_orders: &mut MessageWriter<crate::economy::transport::TransportAdjustAllocation>,
 ) {
-    // Send civilian orders
-    for (&civilian_entity, task) in &plan.civilian_tasks {
-        if let Some(order) = task_to_order(task) {
+    // Build map of current positions for this nation's civilians
+    // This allows us to know "who is at tile X" to establish dependencies
+    let mut current_positions = std::collections::HashMap::new();
+    if let Some(nation_snapshot) = snapshot.nations.get(&nation.entity()) {
+        for civilian in &nation_snapshot.civilians {
+            current_positions.insert(civilian.position, civilian.entity);
+        }
+    }
+
+    // Sort civilian tasks topologically
+    let execution_order =
+        sort_civilian_tasks_topologically(&plan.civilian_tasks, &current_positions);
+
+    // Send civilian orders in sorted order
+    for (civilian_entity, task) in execution_order {
+        if let Some(order) = task_to_order(&task) {
             civilian_commands.write(CivilianCommand {
                 civilian: civilian_entity,
                 order,
@@ -133,6 +148,86 @@ fn task_to_order(task: &CivilianTask) -> Option<CivilianOrderKind> {
     }
 }
 
+/// Sort tasks to resolve dependencies (A wants to move to B's tile -> B must move first).
+fn sort_civilian_tasks_topologically(
+    tasks: &std::collections::HashMap<Entity, CivilianTask>,
+    current_positions: &std::collections::HashMap<bevy_ecs_tilemap::tiles::TilePos, Entity>,
+) -> Vec<(Entity, CivilianTask)> {
+    use std::collections::{HashMap, HashSet};
+
+    let mut graph: HashMap<Entity, HashSet<Entity>> = HashMap::new();
+    let mut in_degree: HashMap<Entity, usize> = HashMap::new();
+
+    // Initialize graph nodes
+    for &entity in tasks.keys() {
+        graph.entry(entity).or_default();
+        in_degree.entry(entity).or_insert(0);
+    }
+
+    // Build dependencies
+    for (&actor, task) in tasks {
+        if let CivilianTask::MoveTo { target } | CivilianTask::BuildRailTo { target } = task {
+            // If target is occupied by another friendly unit
+            if let Some(&occupier) = current_positions.get(target)
+                && occupier != actor
+                && tasks.contains_key(&occupier)
+            {
+                // actor depends on occupier moving
+                // Edge: occupier -> actor (occupier must execute before actor)
+                graph.entry(occupier).or_default().insert(actor);
+                *in_degree.entry(actor).or_default() += 1;
+            }
+        }
+    }
+
+    // Kahn's Algorithm
+    let mut queue: Vec<Entity> = in_degree
+        .iter()
+        .filter(|&(_, &deg)| deg == 0)
+        .map(|(&e, _)| e)
+        .collect();
+
+    // Sort queue to make behavior deterministic (e.g. by Entity ID)
+    queue.sort();
+
+    let mut sorted = Vec::new();
+
+    while let Some(node) = queue.pop() {
+        sorted.push(node);
+
+        if let Some(neighbors) = graph.get(&node) {
+            let mut neighbors_sorted: Vec<_> = neighbors.iter().copied().collect();
+            neighbors_sorted.sort(); // Deterministic
+
+            for neighbor in neighbors_sorted {
+                let deg = in_degree.get_mut(&neighbor).unwrap();
+                *deg -= 1;
+                if *deg == 0 {
+                    queue.push(neighbor);
+                }
+            }
+        }
+    }
+
+    // Check for cycles (remaining nodes with in_degree > 0)
+    let processed_count = sorted.len();
+    if processed_count < tasks.len() {
+        warn!("Cycle detected in AI movement commands! Breaking cycles arbitrarily.");
+        // Add remaining nodes
+        for &entity in tasks.keys() {
+            if !sorted.contains(&entity) {
+                sorted.push(entity);
+            }
+        }
+    }
+
+    // Map back to tasks
+    sorted
+        .into_iter()
+        .filter_map(|e| tasks.get(&e).map(|t| (e, t.clone())))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -159,5 +254,41 @@ mod tests {
         ));
 
         assert!(task_to_order(&CivilianTask::Idle).is_none());
+    }
+
+    #[test]
+    fn test_sort_civilian_tasks_topologically() {
+        use std::collections::HashMap;
+
+        let e1 = Entity::from_bits(1);
+        let e2 = Entity::from_bits(2);
+        let e3 = Entity::from_bits(3);
+
+        let p1 = TilePos::new(0, 0);
+        let p2 = TilePos::new(0, 1);
+        let p3 = TilePos::new(0, 2);
+        let p4 = TilePos::new(0, 3);
+
+        // Chain: e1(at p1) -> p2, e2(at p2) -> p3, e3(at p3) -> p4
+        let mut tasks = HashMap::new();
+        tasks.insert(e1, CivilianTask::MoveTo { target: p2 });
+        tasks.insert(e2, CivilianTask::MoveTo { target: p3 });
+        tasks.insert(e3, CivilianTask::MoveTo { target: p4 });
+
+        let mut positions = HashMap::new();
+        positions.insert(p1, e1);
+        positions.insert(p2, e2);
+        positions.insert(p3, e3);
+
+        let sorted = sort_civilian_tasks_topologically(&tasks, &positions);
+
+        // Expected execution order: e3 (frees p3), then e2 (frees p2), then e1
+        // Indices in result vector
+        let idx1 = sorted.iter().position(|(e, _)| *e == e1).unwrap();
+        let idx2 = sorted.iter().position(|(e, _)| *e == e2).unwrap();
+        let idx3 = sorted.iter().position(|(e, _)| *e == e3).unwrap();
+
+        assert!(idx3 < idx2, "e3 should execute before e2");
+        assert!(idx2 < idx1, "e2 should execute before e1");
     }
 }
