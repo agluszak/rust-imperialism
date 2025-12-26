@@ -26,7 +26,6 @@ pub fn execute_ai_turn(
     mut market_orders: MessageWriter<AdjustMarketOrder>,
     mut hire_messages: MessageWriter<HireCivilian>,
     mut production_orders: MessageWriter<AdjustProduction>,
-    mut production_settings: Query<&mut crate::economy::production::ProductionSettings>,
 ) {
     for nation in ai_nations.iter() {
         let Some(nation_snapshot) = snapshot.get_nation(nation.entity()) else {
@@ -44,7 +43,6 @@ pub fn execute_ai_turn(
             &mut market_orders,
             &mut hire_messages,
             &mut production_orders,
-            &mut production_settings,
         );
     }
 }
@@ -56,7 +54,6 @@ fn execute_plan(
     market_orders: &mut MessageWriter<AdjustMarketOrder>,
     hire_messages: &mut MessageWriter<HireCivilian>,
     production_orders: &mut MessageWriter<AdjustProduction>,
-    production_settings: &mut Query<&mut crate::economy::production::ProductionSettings>,
 ) {
     // Send civilian orders
     for (&civilian_entity, task) in &plan.civilian_tasks {
@@ -94,17 +91,6 @@ fn execute_plan(
             nation,
             kind: *kind,
         });
-    }
-
-    // Adjust production choices before issuing production orders
-    // Note: ProductionSettings is a single component per nation with one `choice` field,
-    // so if multiple buildings have different choices, the last one processed wins.
-    // This is an architectural limitation - each building type that needs a configurable
-    // production choice uses the same ProductionChoice enum.
-    if let Ok(mut settings) = production_settings.get_mut(nation.entity()) {
-        for choice in plan.production_choices.values() {
-            settings.choice = *choice;
-        }
     }
 
     for order in &plan.production_orders {

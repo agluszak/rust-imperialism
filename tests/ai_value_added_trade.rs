@@ -19,7 +19,7 @@ fn test_ai_climbs_value_chain_when_hardware_is_profitable() {
         EconomyPlugin,
         goods::Good,
         nation::{Capital, Nation},
-        production::{Buildings, ProductionChoice, ProductionSettings},
+        production::{Buildings, ProductionSettings},
         stockpile::Stockpile,
         technology::Technologies,
         treasury::Treasury,
@@ -199,13 +199,8 @@ fn test_ai_climbs_value_chain_when_hardware_is_profitable() {
         "AI should plan hardware production from steel"
     );
 
-    // Check that production choice was set correctly
-    let settings = app.world().get::<ProductionSettings>(ai_nation).unwrap();
-    assert!(
-        matches!(settings.choice, ProductionChoice::MakeHardware),
-        "MetalWorks should be configured to make hardware, got {:?}",
-        settings.choice
-    );
+    // No longer checking production choice since it's now determined dynamically
+    // based on stockpile availability at production time
 
     // Check AI snapshot to verify planning worked
     if let Some(snapshot) = app.world().get_resource::<AiSnapshot>() {

@@ -13,7 +13,6 @@ use crate::ai::snapshot::{AiSnapshot, NationSnapshot, resource_target_days};
 use crate::civilians::types::CivilianKind;
 use crate::economy::goods::Good;
 use crate::economy::market::MARKET_RESOURCES;
-use crate::economy::production::{BuildingKind, ProductionChoice};
 
 /// A goal that a nation wants to accomplish.
 #[derive(Debug, Clone)]
@@ -60,7 +59,6 @@ pub struct NationPlan {
     pub market_buys: Vec<(Good, u32)>,
     pub market_sells: Vec<(Good, u32)>,
     pub production_orders: Vec<ProductionOrder>,
-    pub production_choices: HashMap<BuildingKind, ProductionChoice>,
     pub civilians_to_hire: Vec<CivilianKind>,
 }
 
@@ -263,8 +261,6 @@ fn generate_value_added_trade(
     }
 
     // Queue hardware production using available + incoming steel
-    plan.production_choices
-        .insert(BuildingKind::MetalWorks, ProductionChoice::MakeHardware);
     plan.production_orders.push(ProductionOrder {
         building: nation.entity,
         output: Good::Hardware,
@@ -707,7 +703,6 @@ mod tests {
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
             buildings: None,
-            production_settings: None,
         };
 
         let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);
@@ -756,7 +751,6 @@ mod tests {
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
             buildings: None,
-            production_settings: None,
         };
 
         let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);
@@ -807,7 +801,6 @@ mod tests {
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
             buildings: None,
-            production_settings: None,
         };
 
         // If bridgehead logic picks (0,0) as better than (0,1) due to tie-breaking,
