@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::{TileStorage, TilemapSize};
+use std::collections::HashMap;
 
 use crate::economy::NationColor;
-use crate::map::province::{Province, TileProvince};
+use crate::map::province::{Province, ProvinceId, TileProvince};
 use crate::map::tile_pos::{HexExt, TilePosExt};
 use crate::ui::menu::AppState;
 use crate::ui::mode::GameMode;
@@ -26,16 +27,23 @@ impl Plugin for BorderRenderingPlugin {
 pub struct BorderLine;
 
 /// Render borders between provinces and nations
+/// Optimized with change detection and province ownership caching
 pub fn render_borders(
     mut commands: Commands,
     tile_storage_query: Query<(&TileStorage, &TilemapSize)>,
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
+    provinces_changed: Query<Entity, Changed<Province>>,
     nations: Query<&NationColor>,
     existing_borders: Query<Entity, With<BorderLine>>,
     mut gizmos: Gizmos,
 ) {
-    // Clear old borders (we'll redraw every frame for now - could optimize later)
+    // Only redraw if provinces have changed (ownership changes, etc.)
+    if provinces_changed.is_empty() && !existing_borders.is_empty() {
+        return;
+    }
+
+    // Clear old borders when we need to redraw
     for entity in existing_borders.iter() {
         commands.entity(entity).despawn();
     }
@@ -43,6 +51,12 @@ pub fn render_borders(
     let Some((tile_storage, map_size)) = tile_storage_query.iter().next() else {
         return;
     };
+
+    // Build province ownership lookup map once to avoid O(n²) lookups
+    let province_owners: HashMap<ProvinceId, Option<Entity>> = provinces
+        .iter()
+        .map(|p| (p.id, p.owner))
+        .collect();
 
     // Check each tile and its neighbors to find borders
     for province in provinces.iter() {
@@ -64,15 +78,9 @@ pub fn render_borders(
                         {
                             // Found a border between tiles
                             if tile_prov.province_id != neighbor_prov.province_id {
-                                // Check if it's an international border
-                                let tile_owner = provinces
-                                    .iter()
-                                    .find(|p| p.id == tile_prov.province_id)
-                                    .and_then(|p| p.owner);
-                                let neighbor_owner = provinces
-                                    .iter()
-                                    .find(|p| p.id == neighbor_prov.province_id)
-                                    .and_then(|p| p.owner);
+                                // Use cached province ownership lookup - O(1) instead of O(n)
+                                let tile_owner = province_owners.get(&tile_prov.province_id).copied().flatten();
+                                let neighbor_owner = province_owners.get(&neighbor_prov.province_id).copied().flatten();
 
                                 // Check if it's an international border
                                 let is_international = tile_owner != neighbor_owner;
