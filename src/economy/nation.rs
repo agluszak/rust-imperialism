@@ -7,13 +7,8 @@ use moonshine_save::prelude::Save;
 /// Used with moonshine_kind::Instance for type-safe nation references.
 #[derive(Component, Clone, Copy, Debug, Default, Reflect)]
 #[reflect(Component)]
-#[require(Save)]
+#[require(Save, Name)]
 pub struct Nation;
-
-/// Display name for a nation
-#[derive(Component, Clone, Debug, Reflect)]
-#[reflect(Component)]
-pub struct Name(pub String);
 
 /// Type-safe handle to a nation entity.
 /// Can be used directly in queries: `Query<(NationInstance, &Name)>`
@@ -70,7 +65,7 @@ mod tests {
         let mut world = World::new();
 
         // Create a nation entity with Nation marker
-        let nation_entity = world.spawn((Nation, Name("Test Nation".to_string()))).id();
+        let nation_entity = world.spawn((Nation, Name::new("Test Nation"))).id();
 
         // PlayerNation::from_entity should succeed
         let player_nation = PlayerNation::from_entity(&world, nation_entity);
@@ -89,7 +84,7 @@ mod tests {
         let mut world = World::new();
 
         // Create an entity WITHOUT Nation marker
-        let non_nation_entity = world.spawn(Name("Not a Nation".to_string())).id();
+        let non_nation_entity = world.spawn(Name::new("Not a Nation")).id();
 
         // PlayerNation::from_entity should return None
         let player_nation = PlayerNation::from_entity(&world, non_nation_entity);
@@ -126,9 +121,7 @@ mod tests {
         let mut world = World::new();
 
         // Create a nation
-        let nation_entity = world
-            .spawn((Nation, Name("Player Nation".to_string())))
-            .id();
+        let nation_entity = world.spawn((Nation, Name::new("Player Nation"))).id();
 
         // Create PlayerNation from entity
         let player_nation = PlayerNation::from_entity(&world, nation_entity)
@@ -181,11 +174,11 @@ mod tests {
 
     #[test]
     fn name_component() {
-        let name1 = Name("Test".to_string());
-        let name2 = Name("Test".to_string());
+        let name1 = Name::new("Test");
+        let name2 = Name::new("Test");
 
-        // Name uses String, which implements PartialEq
-        assert_eq!(name1.0, name2.0);
+        // Name implements PartialEq
+        assert_eq!(name1, name2);
     }
 
     #[test]
@@ -223,5 +216,17 @@ mod tests {
         assert_eq!(map.get(&instance1), Some(&"Nation 1"));
         assert_eq!(map.get(&instance2), Some(&"Nation 2"));
         assert_eq!(map.len(), 2);
+    }
+
+    #[test]
+    fn test_nation_requires_name() {
+        let mut world = World::new();
+        let entity = world.spawn(Nation).id();
+
+        // Name should be automatically added by Bevy's require feature
+        let name = world
+            .get::<Name>(entity)
+            .expect("Name component should be required by Nation");
+        assert_eq!(name.as_str(), "");
     }
 }

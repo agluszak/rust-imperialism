@@ -60,18 +60,22 @@ pub fn spawn_hired_civilian(
         treasury.subtract(cost);
 
         let civilian_id = next_id.next_id();
+        let name = format!("{:?} {}", event.kind, civilian_id.0);
 
-        commands.spawn(Civilian {
-            kind: event.kind,
-            position: spawn_pos,
-            owner: nation_entity,
-            civilian_id,
-            has_moved: false,
-        });
+        commands.spawn((
+            Civilian {
+                kind: event.kind,
+                position: spawn_pos,
+                owner: nation_entity,
+                civilian_id,
+                has_moved: false,
+            },
+            Name::new(name.clone()),
+        ));
 
         info!(
-            "Hired {:?} (CivilianId({})) for {:?} at ({}, {})",
-            event.kind, civilian_id.0, nation_entity, spawn_pos.x, spawn_pos.y
+            "Hired {} (CivilianId({})) for {:?} at ({}, {})",
+            name, civilian_id.0, nation_entity, spawn_pos.x, spawn_pos.y
         );
     }
 }

@@ -47,3 +47,10 @@ pub fn can_build_rail_on_terrain(
         _ => (true, None), // All other terrains are buildable by default
     }
 }
+
+/// Check if a depot can be built on the given terrain.
+/// Depots cannot be built on water or mountains.
+/// Returns true if the terrain is suitable for a depot.
+pub fn can_build_depot_on_terrain(terrain: &TerrainType) -> bool {
+    !matches!(terrain, TerrainType::Water | TerrainType::Mountain)
+}

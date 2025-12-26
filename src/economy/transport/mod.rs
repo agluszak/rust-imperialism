@@ -23,7 +23,7 @@ pub use messages::{PlaceImprovement, RecomputeConnectivity};
 
 // Validation logic
 pub mod validation;
-pub use validation::{are_adjacent, can_build_rail_on_terrain};
+pub use validation::{are_adjacent, can_build_depot_on_terrain, can_build_rail_on_terrain};
 
 // Construction systems (Logic Layer)
 pub mod construction;

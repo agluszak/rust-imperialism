@@ -5,7 +5,7 @@
 /// the turbofish syntax when registering the system.
 ///
 /// Example from Bevy documentation:
-/// ```ignore
+/// ```text
 /// .add_systems(OnExit(GameMode::Market), hide_screen::<MarketScreen>)
 /// .add_systems(OnExit(GameMode::City), hide_screen::<CityScreen>)
 /// ```
@@ -17,7 +17,7 @@ use bevy::prelude::*;
 /// Usage: Register with turbofish syntax like `hide_screen::<MarketScreen>`
 ///
 /// **Before (duplicated):**
-/// ```ignore
+/// ```text
 /// pub fn hide_market_screen(mut roots: Query<&mut Visibility, With<MarketScreen>>) {
 ///     for mut vis in roots.iter_mut() {
 ///         *vis = Visibility::Hidden;
@@ -32,7 +32,7 @@ use bevy::prelude::*;
 /// ```
 ///
 /// **After (generic):**
-/// ```ignore
+/// ```text
 /// pub fn hide_screen<T: Component>(mut roots: Query<&mut Visibility, With<T>>) {
 ///     for mut vis in roots.iter_mut() {
 ///         *vis = Visibility::Hidden;
@@ -51,7 +51,7 @@ pub fn hide_screen<T: Component>(mut roots: Query<&mut Visibility, With<T>>) {
 /// Usage: Register with turbofish syntax like `despawn_screen::<TransportScreen>`
 ///
 /// **Before (duplicated):**
-/// ```ignore
+/// ```text
 /// fn despawn_transport_screen(mut commands: Commands, query: Query<Entity, With<TransportScreen>>) {
 ///     for entity in query.iter() {
 ///         commands.entity(entity).despawn();
@@ -60,7 +60,7 @@ pub fn hide_screen<T: Component>(mut roots: Query<&mut Visibility, With<T>>) {
 /// ```
 ///
 /// **After (generic):**
-/// ```ignore
+/// ```text
 /// pub fn despawn_screen<T: Component>(mut commands: Commands, query: Query<Entity, With<T>>) {
 ///     for entity in query.iter() {
 ///         commands.entity(entity).despawn();

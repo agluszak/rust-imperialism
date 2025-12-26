@@ -32,16 +32,12 @@ pub enum Good {
     Clothing,   // from 2×Fabric
     Furniture,  // from 2×Lumber
     Hardware,   // from 2×Steel
-    Armaments,  // from 2×Steel
+    Arms,       // from 2×Steel
     CannedFood, // from 2×Grain + 1×Fruit + 1×(Livestock|Fish)
 
     // Special
     Horses,
     Transport, // Freight cars for moving goods
-    Ship,      // Merchant ships for trade capacity
-
-    // Legacy (keeping for compatibility)
-    Cloth, // Same as Fabric
 }
 
 impl Good {
@@ -84,7 +80,7 @@ impl Good {
     pub fn is_finished_good(self) -> bool {
         matches!(
             self,
-            Good::Clothing | Good::Furniture | Good::Hardware | Good::Armaments | Good::CannedFood
+            Good::Clothing | Good::Furniture | Good::Hardware | Good::Arms | Good::CannedFood
         )
     }
 }
@@ -112,12 +108,10 @@ impl fmt::Display for Good {
             Good::Clothing => write!(f, "Clothing"),
             Good::Furniture => write!(f, "Furniture"),
             Good::Hardware => write!(f, "Hardware"),
-            Good::Armaments => write!(f, "Armaments"),
+            Good::Arms => write!(f, "Arms"),
             Good::CannedFood => write!(f, "Canned Food"),
             Good::Horses => write!(f, "Horses"),
             Good::Transport => write!(f, "Transport"),
-            Good::Ship => write!(f, "Ship"),
-            Good::Cloth => write!(f, "Cloth"),
         }
     }
 }
@@ -130,7 +124,6 @@ mod tests {
     fn display_formats() {
         assert_eq!(Good::Wool.to_string(), "Wool");
         assert_eq!(Good::Cotton.to_string(), "Cotton");
-        assert_eq!(Good::Cloth.to_string(), "Cloth");
         assert_eq!(Good::Grain.to_string(), "Grain");
         assert_eq!(Good::CannedFood.to_string(), "Canned Food");
         assert_eq!(Good::Furniture.to_string(), "Furniture");

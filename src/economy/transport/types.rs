@@ -45,7 +45,7 @@ pub struct Roads(pub HashSet<(TilePos, TilePos)>);
 #[reflect(Resource)]
 pub struct Rails(pub HashSet<(TilePos, TilePos)>);
 
-/// Component tracking rail construction in progress (takes 3 turns to complete)
+/// Component tracking rail construction in progress (takes 2 turns to complete)
 #[derive(Component, Debug, Reflect)]
 #[reflect(Component, MapEntities)]
 #[require(Save)]

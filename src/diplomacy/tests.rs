@@ -7,7 +7,7 @@ use crate::diplomacy::{
     DiplomaticOrderKind, ForeignAidLedger, apply_recurring_aid, decay_relationships,
     process_diplomatic_orders, resolve_offer_response, sync_diplomatic_pairs,
 };
-use crate::economy::{Name, Nation, NationInstance, Treasury};
+use crate::economy::{Nation, NationInstance, Treasury};
 use crate::turn_system::{TurnPhase, TurnSystem};
 
 fn setup_world() -> World {
@@ -31,10 +31,10 @@ fn consulate_requires_funds_and_relations() {
     let mut world = setup_world();
 
     let player = world
-        .spawn((Nation, Name("Player".into()), Treasury::new(400)))
+        .spawn((Nation, Name::new("Player"), Treasury::new(400)))
         .id();
     let minor = world
-        .spawn((Nation, Name("Minor".into()), Treasury::new(0)))
+        .spawn((Nation, Name::new("Minor"), Treasury::new(0)))
         .id();
 
     let player_inst = nation_instance(&world, player);
@@ -102,10 +102,10 @@ fn recurring_aid_transfers_each_turn() {
     let mut world = setup_world();
 
     let donor = world
-        .spawn((Nation, Name("Donor".into()), Treasury::new(5_000)))
+        .spawn((Nation, Name::new("Donor"), Treasury::new(5_000)))
         .id();
     let recipient = world
-        .spawn((Nation, Name("Recipient".into()), Treasury::new(0)))
+        .spawn((Nation, Name::new("Recipient"), Treasury::new(0)))
         .id();
 
     let donor_inst = nation_instance(&world, donor);
@@ -169,10 +169,10 @@ fn embassy_requires_consulate_and_relations() {
     let mut world = setup_world();
 
     let empire = world
-        .spawn((Nation, Name("Empire".into()), Treasury::new(10_000)))
+        .spawn((Nation, Name::new("Empire"), Treasury::new(10_000)))
         .id();
     let neighbor = world
-        .spawn((Nation, Name("Neighbor".into()), Treasury::new(0)))
+        .spawn((Nation, Name::new("Neighbor"), Treasury::new(0)))
         .id();
 
     let empire_inst = nation_instance(&world, empire);
@@ -235,16 +235,16 @@ fn declare_war_shifts_world_opinion() {
     let mut world = setup_world();
 
     let empire = world
-        .spawn((Nation, Name("Empire".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Empire"), Treasury::new(1_000)))
         .id();
     let rival = world
-        .spawn((Nation, Name("Rival".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Rival"), Treasury::new(1_000)))
         .id();
     let friend = world
-        .spawn((Nation, Name("Friend".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Friend"), Treasury::new(1_000)))
         .id();
     let foe = world
-        .spawn((Nation, Name("Foe".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Foe"), Treasury::new(1_000)))
         .id();
 
     let empire_inst = nation_instance(&world, empire);
@@ -303,10 +303,10 @@ fn offer_peace_creates_pending_offer() {
     let mut world = setup_world();
 
     let player = world
-        .spawn((Nation, Name("Player".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Player"), Treasury::new(1_000)))
         .id();
     let foe = world
-        .spawn((Nation, Name("Foe".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Foe"), Treasury::new(1_000)))
         .id();
 
     let player_inst = nation_instance(&world, player);
@@ -345,10 +345,10 @@ fn proposing_non_aggression_creates_offer() {
     let mut world = setup_world();
 
     let player = world
-        .spawn((Nation, Name("Player".into()), Treasury::new(2_000)))
+        .spawn((Nation, Name::new("Player"), Treasury::new(2_000)))
         .id();
     let neighbor = world
-        .spawn((Nation, Name("Neighbor".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Neighbor"), Treasury::new(1_000)))
         .id();
 
     let player_inst = nation_instance(&world, player);
@@ -383,10 +383,10 @@ fn accepting_peace_offer_sets_peace() {
     let mut world = setup_world();
 
     let player = world
-        .spawn((Nation, Name("Player".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Player"), Treasury::new(1_000)))
         .id();
     let foe = world
-        .spawn((Nation, Name("Foe".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Foe"), Treasury::new(1_000)))
         .id();
 
     let player_inst = nation_instance(&world, player);
@@ -429,16 +429,16 @@ fn declare_war_triggers_alliance_calls() {
     let mut world = setup_world();
 
     let attacker = world
-        .spawn((Nation, Name("Attacker".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Attacker"), Treasury::new(1_000)))
         .id();
     let victim = world
-        .spawn((Nation, Name("Victim".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Victim"), Treasury::new(1_000)))
         .id();
     let defender_ally = world
-        .spawn((Nation, Name("Defender Ally".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Defender Ally"), Treasury::new(1_000)))
         .id();
     let aggressor_ally = world
-        .spawn((Nation, Name("Aggressor Ally".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Aggressor Ally"), Treasury::new(1_000)))
         .id();
 
     let attacker_inst = nation_instance(&world, attacker);
@@ -501,10 +501,10 @@ fn accepting_locked_aid_creates_grant() {
     let mut world = setup_world();
 
     let donor = world
-        .spawn((Nation, Name("Donor".into()), Treasury::new(5_000)))
+        .spawn((Nation, Name::new("Donor"), Treasury::new(5_000)))
         .id();
     let recipient = world
-        .spawn((Nation, Name("Recipient".into()), Treasury::new(500)))
+        .spawn((Nation, Name::new("Recipient"), Treasury::new(500)))
         .id();
 
     let donor_inst = nation_instance(&world, donor);
@@ -557,13 +557,13 @@ fn accepting_defensive_join_war_sets_war() {
     let mut world = setup_world();
 
     let aggressor = world
-        .spawn((Nation, Name("Aggressor".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Aggressor"), Treasury::new(1_000)))
         .id();
     let ally = world
-        .spawn((Nation, Name("Ally".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Ally"), Treasury::new(1_000)))
         .id();
     let responder = world
-        .spawn((Nation, Name("Responder".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Responder"), Treasury::new(1_000)))
         .id();
 
     let aggressor_inst = nation_instance(&world, aggressor);
@@ -616,16 +616,16 @@ fn declining_defensive_join_war_penalizes() {
     let mut world = setup_world();
 
     let aggressor = world
-        .spawn((Nation, Name("Aggressor".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Aggressor"), Treasury::new(1_000)))
         .id();
     let attacked_ally = world
-        .spawn((Nation, Name("Attacked Ally".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Attacked Ally"), Treasury::new(1_000)))
         .id();
     let refuser = world
-        .spawn((Nation, Name("Refuser".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Refuser"), Treasury::new(1_000)))
         .id();
     let observer = world
-        .spawn((Nation, Name("Observer".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Observer"), Treasury::new(1_000)))
         .id();
 
     let aggressor_inst = nation_instance(&world, aggressor);
@@ -686,13 +686,13 @@ fn declining_offensive_join_war_preserves_alliance() {
     let mut world = setup_world();
 
     let aggressor = world
-        .spawn((Nation, Name("Aggressor".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Aggressor"), Treasury::new(1_000)))
         .id();
     let target = world
-        .spawn((Nation, Name("Target".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Target"), Treasury::new(1_000)))
         .id();
     let ally = world
-        .spawn((Nation, Name("Ally".into()), Treasury::new(1_000)))
+        .spawn((Nation, Name::new("Ally"), Treasury::new(1_000)))
         .id();
 
     let aggressor_inst = nation_instance(&world, aggressor);

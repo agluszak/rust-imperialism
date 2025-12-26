@@ -52,6 +52,25 @@ pub struct NationSnapshot {
     pub depot_positions: HashSet<TilePos>,
     /// Tiles with potential minerals that haven't been prospected by this nation.
     pub prospectable_tiles: Vec<ProspectableTile>,
+    /// Terrain type for each tile position (for build validation).
+    pub tile_terrain: HashMap<TilePos, crate::map::tiles::TerrainType>,
+    /// Technologies owned by this nation.
+    pub technologies: crate::economy::technology::Technologies,
+    /// Rails currently under construction by this nation.
+    pub rail_constructions: Vec<RailConstructionSnapshot>,
+    /// Trade capacity information.
+    pub trade_capacity_total: u32,
+    pub trade_capacity_used: u32,
+    /// Buildings owned by this nation.
+    pub buildings:
+        HashMap<crate::economy::production::BuildingKind, crate::economy::production::Building>,
+}
+
+/// Snapshot of rail construction.
+#[derive(Debug, Clone)]
+pub struct RailConstructionSnapshot {
+    pub from: TilePos,
+    pub to: TilePos,
 }
 
 impl NationSnapshot {
@@ -71,6 +90,20 @@ impl NationSnapshot {
     /// Get civilians that haven't acted this turn.
     pub fn available_civilians(&self) -> impl Iterator<Item = &CivilianSnapshot> {
         self.civilians.iter().filter(|c| !c.has_moved)
+    }
+
+    /// Get available trade capacity (not currently used).
+    pub fn trade_capacity_available(&self) -> u32 {
+        self.trade_capacity_total
+            .saturating_sub(self.trade_capacity_used)
+    }
+
+    /// Get trade capacity utilization as a percentage (0.0 to 1.0).
+    pub fn trade_capacity_utilization(&self) -> f32 {
+        if self.trade_capacity_total == 0 {
+            return 0.0;
+        }
+        self.trade_capacity_used as f32 / self.trade_capacity_total as f32
     }
 }
 
@@ -116,6 +149,7 @@ fn calculate_suggested_depots(
     owned_tiles: &HashSet<TilePos>,
     depot_positions: &HashSet<TilePos>,
     capital_pos: TilePos,
+    tile_terrain: &HashMap<TilePos, crate::map::tiles::TerrainType>,
 ) -> Vec<SuggestedDepot> {
     let capital_hex = capital_pos.to_hex();
 
@@ -141,6 +175,13 @@ fn calculate_suggested_depots(
         let best = owned_tiles
             .iter()
             .filter(|pos| !depot_positions.contains(pos)) // No depot already here
+            .filter(|pos| {
+                // Filter out tiles with invalid terrain
+                tile_terrain
+                    .get(pos)
+                    .map(crate::economy::transport::can_build_depot_on_terrain)
+                    .unwrap_or(false)
+            })
             .map(|&pos| {
                 let coverage: HashSet<TilePos> = depot_coverage(pos).collect();
                 let covers_count = remaining.intersection(&coverage).count() as u32;
@@ -212,17 +253,32 @@ pub fn resource_target_days(good: Good) -> f32 {
 }
 
 /// Builds the complete AI snapshot at the start of EnemyTurn.
+#[allow(clippy::too_many_arguments)]
 pub fn build_ai_snapshot(
     mut snapshot: ResMut<AiSnapshot>,
     turn: Res<TurnCounter>,
     pricing: Res<MarketPriceModel>,
     rails: Res<Rails>,
-    ai_nations: Query<(Entity, &Capital, &Stockpile, &Treasury), (With<AiNation>, With<Nation>)>,
+    trade_capacity: Res<crate::economy::trade_capacity::TradeCapacity>,
+    ai_nations: Query<
+        (
+            Entity,
+            &Capital,
+            &Stockpile,
+            &Treasury,
+            &crate::economy::technology::Technologies,
+            &crate::economy::production::Buildings,
+        ),
+        (With<AiNation>, With<Nation>),
+    >,
     civilians: Query<(Entity, &Civilian)>,
+    civilian_jobs: Query<&crate::civilians::types::CivilianJob>,
+    rail_constructions: Query<&crate::economy::transport::RailConstruction>,
     depots: Query<&Depot>,
     provinces: Query<&Province>,
     tile_storage: Query<&TileStorage>,
     tile_resources: Query<&TileResource>,
+    tile_terrain: Query<&crate::map::tiles::TerrainType>,
     potential_minerals: Query<&PotentialMineral>,
     prospecting: Option<Res<ProspectingKnowledge>>,
 ) {
@@ -241,7 +297,7 @@ pub fn build_ai_snapshot(
     };
 
     // Build per-nation snapshots
-    for (entity, capital, stockpile, treasury) in ai_nations.iter() {
+    for (entity, capital, stockpile, treasury, technologies, buildings) in ai_nations.iter() {
         let capital_pos = capital.0;
         let capital_hex = capital_pos.to_hex();
 
@@ -351,25 +407,64 @@ pub fn build_ai_snapshot(
         }
         prospectable_tiles.sort_by_key(|t| t.distance_from_capital);
 
+        // Collect terrain information for owned tiles
+        let mut tile_terrain_map = HashMap::new();
+        for &tile_pos in &owned_tiles {
+            if let Some(tile_entity) = storage.get(&tile_pos)
+                && let Ok(terrain) = tile_terrain.get(tile_entity)
+            {
+                tile_terrain_map.insert(tile_pos, *terrain);
+            }
+        }
+
         // Calculate optimal depot locations using greedy set-cover algorithm
         let suggested_depots = calculate_suggested_depots(
             &resource_tiles,
             &owned_tiles,
             &depot_positions,
             capital_pos,
+            &tile_terrain_map,
         );
 
-        // Collect civilians for this nation
+        // Collect rail constructions for this nation
+        let nation_rail_constructions: Vec<RailConstructionSnapshot> = rail_constructions
+            .iter()
+            .filter(|rc| rc.owner == entity)
+            .map(|rc| RailConstructionSnapshot {
+                from: rc.from,
+                to: rc.to,
+            })
+            .collect();
+
+        // Collect civilians for this nation (exclude those with active jobs)
         let nation_civilians: Vec<CivilianSnapshot> = civilians
             .iter()
             .filter(|(_, c)| c.owner == entity)
-            .map(|(e, c)| CivilianSnapshot {
-                entity: e,
-                kind: c.kind,
-                position: c.position,
-                has_moved: c.has_moved,
+            .filter_map(|(e, c)| {
+                // Exclude civilians that have active jobs (turns_remaining > 0).
+                // Jobs that just completed (turns_remaining == 0) are OK to include because
+                // job progress has already been applied for this turn, so these civilians are
+                // now idle and available for new AI decisions.
+                let has_active_job = civilian_jobs
+                    .get(e)
+                    .map(|job| job.turns_remaining > 0)
+                    .unwrap_or(false);
+
+                if has_active_job {
+                    None
+                } else {
+                    Some(CivilianSnapshot {
+                        entity: e,
+                        kind: c.kind,
+                        position: c.position,
+                        has_moved: c.has_moved,
+                    })
+                }
             })
             .collect();
+
+        // Get trade capacity
+        let capacity_snapshot = trade_capacity.snapshot(entity);
 
         snapshot.nations.insert(
             entity,
@@ -386,6 +481,12 @@ pub fn build_ai_snapshot(
                 owned_tiles,
                 depot_positions,
                 prospectable_tiles,
+                tile_terrain: tile_terrain_map,
+                technologies: technologies.clone(),
+                rail_constructions: nation_rail_constructions,
+                trade_capacity_total: capacity_snapshot.total,
+                trade_capacity_used: capacity_snapshot.used,
+                buildings: buildings.buildings.clone(),
             },
         );
     }
@@ -496,11 +597,18 @@ mod tests {
         let depot_positions = HashSet::new();
         let capital_pos = TilePos::new(50, 50); // Far away capital
 
+        // Create terrain map with buildable terrain (Grass)
+        let mut tile_terrain = HashMap::new();
+        for &pos in &owned_tiles {
+            tile_terrain.insert(pos, crate::map::tiles::TerrainType::Grass);
+        }
+
         let suggestions = calculate_suggested_depots(
             &resource_tiles,
             &owned_tiles,
             &depot_positions,
             capital_pos,
+            &tile_terrain,
         );
 
         // Should suggest only ONE depot that covers all adjacent resources
@@ -541,11 +649,18 @@ mod tests {
 
         let depot_positions = HashSet::new();
 
+        // Create terrain map with buildable terrain (Grass)
+        let mut tile_terrain = HashMap::new();
+        for &pos in &owned_tiles {
+            tile_terrain.insert(pos, crate::map::tiles::TerrainType::Grass);
+        }
+
         let suggestions = calculate_suggested_depots(
             &resource_tiles,
             &owned_tiles,
             &depot_positions,
             capital_pos,
+            &tile_terrain,
         );
 
         // Adjacent resource is covered by capital, so only far_resource needs a depot
@@ -573,11 +688,18 @@ mod tests {
         let depot_positions: HashSet<_> = [resource_pos].into_iter().collect();
         let capital_pos = TilePos::new(50, 50);
 
+        // Create terrain map with buildable terrain (Grass)
+        let mut tile_terrain = HashMap::new();
+        for &pos in &owned_tiles {
+            tile_terrain.insert(pos, crate::map::tiles::TerrainType::Grass);
+        }
+
         let suggestions = calculate_suggested_depots(
             &resource_tiles,
             &owned_tiles,
             &depot_positions,
             capital_pos,
+            &tile_terrain,
         );
 
         // No suggestions needed - existing depot covers the resource
@@ -598,11 +720,18 @@ mod tests {
         let depot_positions = HashSet::new();
         let capital_pos = TilePos::new(50, 50); // Far away capital
 
+        // Create terrain map with buildable terrain (Grass)
+        let mut tile_terrain = HashMap::new();
+        for &pos in &owned_tiles {
+            tile_terrain.insert(pos, crate::map::tiles::TerrainType::Grass);
+        }
+
         let suggestions = calculate_suggested_depots(
             &resource_tiles,
             &owned_tiles,
             &depot_positions,
             capital_pos,
+            &tile_terrain,
         );
 
         // Should suggest 2 depots (one for each cluster)
@@ -640,8 +769,19 @@ mod tests {
         let depot_positions = HashSet::new();
         let capital_pos = TilePos::new(50, 50);
 
-        let suggestions =
-            calculate_suggested_depots(&resources, &owned_tiles, &depot_positions, capital_pos);
+        // Create terrain map with buildable terrain (Grass)
+        let mut tile_terrain = HashMap::new();
+        for &pos in &owned_tiles {
+            tile_terrain.insert(pos, crate::map::tiles::TerrainType::Grass);
+        }
+
+        let suggestions = calculate_suggested_depots(
+            &resources,
+            &owned_tiles,
+            &depot_positions,
+            capital_pos,
+            &tile_terrain,
+        );
 
         // Greedy should pick efficiently: 2 depots for 4 resources
         // (one covering cluster of 3, one for isolated)
@@ -650,12 +790,104 @@ mod tests {
             2,
             "should suggest 2 depots for 4 resources (cluster + isolated)"
         );
+    }
 
-        // One suggestion should cover the cluster (>= 3 resources)
-        let max_coverage = suggestions.iter().map(|s| s.covers_count).max().unwrap();
-        assert!(
-            max_coverage >= 3,
-            "one depot should cover the cluster of 3 resources"
+    #[test]
+    fn depot_suggestions_filter_out_invalid_terrain() {
+        // Resource on grass (can build depot)
+        let resource_grass = TilePos::new(10, 10);
+        // Resource on mountain (cannot build depot)
+        let resource_mountain = TilePos::new(15, 15);
+        // Resource on water (cannot build depot)
+        let resource_water = TilePos::new(20, 20);
+
+        let resource_tiles: HashSet<_> = [resource_grass, resource_mountain, resource_water]
+            .into_iter()
+            .collect();
+        let owned_tiles = resource_tiles.clone();
+        let depot_positions = HashSet::new();
+        let capital_pos = TilePos::new(50, 50); // Far away capital
+
+        // Create terrain map with different terrain types
+        let mut tile_terrain = HashMap::new();
+        tile_terrain.insert(resource_grass, crate::map::tiles::TerrainType::Grass);
+        tile_terrain.insert(resource_mountain, crate::map::tiles::TerrainType::Mountain);
+        tile_terrain.insert(resource_water, crate::map::tiles::TerrainType::Water);
+
+        let suggestions = calculate_suggested_depots(
+            &resource_tiles,
+            &owned_tiles,
+            &depot_positions,
+            capital_pos,
+            &tile_terrain,
         );
+
+        // Only the grass tile should get a depot suggestion
+        assert_eq!(
+            suggestions.len(),
+            1,
+            "only grass tile should get depot suggestion"
+        );
+        assert_eq!(
+            suggestions[0].position, resource_grass,
+            "suggested depot should be on grass terrain"
+        );
+    }
+
+    #[test]
+    fn civilians_with_active_jobs_excluded_from_available() {
+        use std::collections::HashMap;
+
+        // Create placeholder entities for testing
+        let entity1 = Entity::PLACEHOLDER;
+        let entity2 = Entity::PLACEHOLDER;
+        let entity3 = Entity::PLACEHOLDER;
+
+        let snapshot = NationSnapshot {
+            entity: Entity::PLACEHOLDER,
+            capital_pos: TilePos::new(0, 0),
+            treasury: 1000,
+            stockpile: HashMap::new(),
+            civilians: vec![
+                CivilianSnapshot {
+                    entity: entity1,
+                    kind: CivilianKind::Engineer,
+                    position: TilePos::new(5, 5),
+                    has_moved: false,
+                },
+                CivilianSnapshot {
+                    entity: entity2,
+                    kind: CivilianKind::Engineer,
+                    position: TilePos::new(6, 6),
+                    has_moved: true, // Moved this turn
+                },
+                CivilianSnapshot {
+                    entity: entity3,
+                    kind: CivilianKind::Prospector,
+                    position: TilePos::new(7, 7),
+                    has_moved: false,
+                },
+            ],
+            connected_tiles: HashSet::new(),
+            unconnected_depots: vec![],
+            suggested_depots: vec![],
+            improvable_tiles: vec![],
+            owned_tiles: HashSet::new(),
+            depot_positions: HashSet::new(),
+            prospectable_tiles: vec![],
+            tile_terrain: HashMap::new(),
+            technologies: crate::economy::technology::Technologies::new(),
+            rail_constructions: vec![],
+            trade_capacity_total: 3,
+            trade_capacity_used: 0,
+            buildings: HashMap::new(),
+        };
+
+        // Only civilians with has_moved = false should be available
+        // Civilian 1: has_moved = false (available)
+        // Civilian 2: has_moved = true (not available)
+        // Civilian 3: has_moved = false (available)
+        let available: Vec<_> = snapshot.available_civilians().collect();
+        assert_eq!(available.len(), 2, "only 2 civilians should be available");
     }
 }

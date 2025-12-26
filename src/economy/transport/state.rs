@@ -42,7 +42,7 @@ impl TransportCommodity {
             Iron => &[Good::Iron],
             Precious => &[Good::Gold, Good::Gems],
             Oil => &[Good::Oil],
-            Fabric => &[Good::Fabric, Good::Cloth],
+            Fabric => &[Good::Fabric],
             Lumber => &[Good::Lumber],
             Paper => &[Good::Paper],
             Steel => &[Good::Steel],
@@ -50,7 +50,7 @@ impl TransportCommodity {
             Clothing => &[Good::Clothing],
             Furniture => &[Good::Furniture],
             Hardware => &[Good::Hardware],
-            Armaments => &[Good::Armaments],
+            Armaments => &[Good::Arms],
             CannedFood => &[Good::CannedFood],
             Horses => &[Good::Horses],
         }
@@ -69,7 +69,7 @@ impl TransportCommodity {
             Iron => Some(TransportCommodity::Iron),
             Gold | Gems => Some(TransportCommodity::Precious),
             Oil => Some(TransportCommodity::Oil),
-            Fabric | Cloth => Some(TransportCommodity::Fabric),
+            Fabric => Some(TransportCommodity::Fabric),
             Lumber => Some(TransportCommodity::Lumber),
             Paper => Some(TransportCommodity::Paper),
             Steel => Some(TransportCommodity::Steel),
@@ -77,10 +77,10 @@ impl TransportCommodity {
             Clothing => Some(TransportCommodity::Clothing),
             Furniture => Some(TransportCommodity::Furniture),
             Hardware => Some(TransportCommodity::Hardware),
-            Armaments => Some(TransportCommodity::Armaments),
+            Arms => Some(TransportCommodity::Armaments),
             CannedFood => Some(TransportCommodity::CannedFood),
             Horses => Some(TransportCommodity::Horses),
-            Transport | Ship => None, // Transport & ships convert to capacity
+            Transport => None, // Transport converts to capacity, ships are entities
         }
     }
 

@@ -10,10 +10,8 @@ use crate::civilians::{
 };
 use crate::economy::allocation::Allocations;
 use crate::economy::goods::Good;
-use crate::economy::nation::{Capital, Name, Nation, NationColor, PlayerNation};
-use crate::economy::production::{
-    Building, BuildingKind, Buildings, ProductionChoice, ProductionSettings,
-};
+use crate::economy::nation::{Capital, Nation, NationColor, PlayerNation};
+use crate::economy::production::{Building, BuildingKind, Buildings, ProductionSettings};
 use crate::economy::reservation::{ReservationSystem, ResourcePool};
 use crate::economy::stockpile::Stockpile;
 use crate::economy::technology::{Technologies, Technology};
@@ -116,7 +114,6 @@ fn register_reflect_types(app: &mut App) {
         .register_type::<ResourcePool>()
         .register_type::<Stockpile>()
         .register_type::<Treasury>()
-        .register_type::<ProductionChoice>()
         .register_type::<ProductionSettings>()
         .register_type::<Building>()
         .register_type::<Buildings>()
@@ -247,10 +244,7 @@ fn rebuild_runtime_state_after_load(
         }
 
         // Identify player nation by name
-        if name
-            .map(|Name(label)| label.as_str() == "Player")
-            .unwrap_or(false)
-        {
+        if name.map(|name| name.as_str() == "Player").unwrap_or(false) {
             player_entity = Some(entity);
         }
     }
@@ -291,7 +285,7 @@ mod tests {
     use crate::civilians::{Civilian, CivilianId, CivilianKind};
     use crate::economy::allocation::Allocations;
     use crate::economy::goods::Good;
-    use crate::economy::nation::{Capital, Name, Nation, NationColor, PlayerNation};
+    use crate::economy::nation::{Capital, Nation, NationColor, PlayerNation};
     use crate::economy::reservation::ReservationSystem;
     use crate::economy::stockpile::Stockpile;
     use crate::economy::technology::{Technologies, Technology};
@@ -305,6 +299,7 @@ mod tests {
     };
     use crate::turn_system::{TurnPhase, TurnSystem};
     use crate::ui::menu::AppState;
+    use bevy::prelude::Name;
 
     #[derive(Component, Reflect, Default, Clone)]
     #[reflect(Component)]
@@ -428,7 +423,7 @@ mod tests {
                 commands.spawn((
                     Save,
                     Nation,
-                    Name("Player".to_string()),
+                    Name::new("Player"),
                     Allocations::default(),
                     ReservationSystem::default(),
                 ));
@@ -496,7 +491,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Nation,
-                Name("Rustonia".to_string()),
+                Name::new("Rustonia"),
                 NationColor(Color::srgb(0.3, 0.4, 0.8)),
                 Capital(TilePos { x: 4, y: 9 }),
                 Treasury::new(1_234),
@@ -571,10 +566,10 @@ mod tests {
             let mut nation_query = world.query::<(Entity, &Name, &Treasury, &Stockpile)>();
             let (nation_entity, name, treasury, stockpile) = nation_query
                 .iter(world)
-                .find(|(_, name, _, _)| name.0 == "Rustonia")
+                .find(|(_, name, _, _)| name.as_str() == "Rustonia")
                 .expect("nation restored");
 
-            assert_eq!(name.0, "Rustonia");
+            assert_eq!(name.as_str(), "Rustonia");
             assert_eq!(treasury.total(), 1_234i64);
             assert_eq!(stockpile.get(Good::Steel), 5u32);
             assert_eq!(stockpile.get(Good::Grain), 12u32);

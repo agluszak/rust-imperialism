@@ -18,11 +18,17 @@ pub struct RescindOrdersPanel;
 /// Show/hide civilian orders UI based on selection messages using metadata-driven buttons
 pub fn update_civilian_orders_ui(
     mut commands: Commands,
+    player_nation: Option<Res<crate::economy::PlayerNation>>,
     mut select_events: MessageReader<SelectCivilian>,
     mut deselect_events: MessageReader<DeselectCivilian>,
     civilians: Query<&Civilian>,
     existing_panel: Query<Entity, With<CivilianOrdersPanel>>,
 ) {
+    // Early exit if no player nation set
+    let Some(player) = player_nation else {
+        return;
+    };
+
     // Handle deselect first (always hides panel)
     if !deselect_events.is_empty() {
         deselect_events.clear();
@@ -40,6 +46,11 @@ pub fn update_civilian_orders_ui(
         selection_changed = true;
 
         if let Ok(civilian) = civilians.get(event.entity) {
+            // Only show UI for player-owned units
+            if civilian.owner != player.entity() {
+                continue;
+            }
+
             let definition = civilian.kind.definition();
             if definition.show_orders_panel && !definition.orders.is_empty() {
                 panel_request = Some((event.entity, definition.display_name, definition.orders));
@@ -152,21 +163,18 @@ pub fn update_civilian_orders_ui(
 /// Event-driven system that only runs when selection actually changes
 pub fn update_rescind_orders_ui(
     mut commands: Commands,
+    player_nation: Option<Res<crate::economy::PlayerNation>>,
     mut select_events: MessageReader<SelectCivilian>,
     mut deselect_events: MessageReader<DeselectCivilian>,
-    civilians_with_prev: Query<&PreviousPosition, With<Civilian>>,
+    civilians_with_prev: Query<(&Civilian, &PreviousPosition)>,
     existing_panel: Query<Entity, With<RescindOrdersPanel>>,
 ) {
-    // Handle deselect first (always hides panel)
-    if !deselect_events.is_empty() {
-        deselect_events.clear();
-        for entity in existing_panel.iter() {
-            commands.entity(entity).despawn();
-        }
+    // Early exit if no player nation set
+    let Some(player) = player_nation else {
         return;
-    }
+    };
 
-    // Handle individual deselect events (hide panel)
+    // Handle deselect first (always hides panel)
     if !deselect_events.is_empty() {
         deselect_events.clear();
         for entity in existing_panel.iter() {
@@ -178,7 +186,11 @@ pub fn update_rescind_orders_ui(
     // Handle selection events - check if selected civilian has PreviousPosition
     let mut selected_data = None;
     for event in select_events.read() {
-        if let Ok(prev_pos) = civilians_with_prev.get(event.entity) {
+        if let Ok((civilian, prev_pos)) = civilians_with_prev.get(event.entity) {
+            // Only show UI for player-owned units
+            if civilian.owner != player.entity() {
+                continue;
+            }
             selected_data = Some((event.entity, *prev_pos));
         }
     }

@@ -35,6 +35,13 @@ pub enum NationGoal {
     ProspectTile { tile: TilePos, priority: f32 },
     /// Hire a new civilian.
     HireCivilian { kind: CivilianKind, priority: f32 },
+    /// Produce goods in a building.
+    ProduceGoods {
+        building: Entity,
+        good: Good,
+        qty: u32,
+        priority: f32,
+    },
 }
 
 impl NationGoal {
@@ -47,6 +54,7 @@ impl NationGoal {
             NationGoal::ImproveTile { priority, .. } => *priority,
             NationGoal::ProspectTile { priority, .. } => *priority,
             NationGoal::HireCivilian { priority, .. } => *priority,
+            NationGoal::ProduceGoods { priority, .. } => *priority,
         }
     }
 }
@@ -58,7 +66,16 @@ pub struct NationPlan {
     pub civilian_tasks: HashMap<Entity, CivilianTask>,
     pub market_buys: Vec<(Good, u32)>,
     pub market_sells: Vec<(Good, u32)>,
+    pub production_orders: Vec<ProductionOrder>,
     pub civilians_to_hire: Vec<CivilianKind>,
+    pub transport_allocations: Vec<(crate::economy::transport::TransportCommodity, u32)>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ProductionOrder {
+    pub building: Entity,
+    pub output: Good,
+    pub qty: u32,
 }
 
 /// A task assigned to a specific civilian.
@@ -99,10 +116,12 @@ pub fn plan_nation(nation: &NationSnapshot, snapshot: &AiSnapshot) -> NationPlan
 
     // 1. Generate all goals
     generate_market_goals(nation, snapshot, &mut plan.goals);
+    generate_value_added_trade(nation, snapshot, &mut plan);
     generate_infrastructure_goals(nation, &mut plan.goals);
     generate_improvement_goals(nation, &mut plan.goals);
     generate_prospecting_goals(nation, &mut plan.goals);
     generate_hiring_goals(nation, &mut plan.goals);
+    generate_production_goals(nation, &mut plan.goals);
 
     // 2. Sort goals by priority (highest first)
     plan.goals.sort_by(|a, b| {
@@ -114,7 +133,7 @@ pub fn plan_nation(nation: &NationSnapshot, snapshot: &AiSnapshot) -> NationPlan
     // 3. Assign civilians to goals
     assign_civilians_to_goals(nation, &plan.goals, &mut plan.civilian_tasks);
 
-    // 4. Generate concrete market orders from goals
+    // 4. Generate concrete orders from goals
     for goal in &plan.goals {
         match goal {
             NationGoal::BuyResource { good, qty, .. } => {
@@ -129,9 +148,25 @@ pub fn plan_nation(nation: &NationSnapshot, snapshot: &AiSnapshot) -> NationPlan
                     plan.civilians_to_hire.push(*kind);
                 }
             }
+            NationGoal::ProduceGoods {
+                building,
+                good,
+                qty,
+                ..
+            } => {
+                plan.production_orders.push(ProductionOrder {
+                    building: *building,
+                    output: *good,
+                    qty: *qty,
+                });
+            }
             _ => {}
         }
     }
+
+    // 5. Generate transport allocations and production orders
+    generate_transport_allocations(nation, &mut plan);
+    generate_production_orders(nation, &mut plan);
 
     plan
 }
@@ -180,6 +215,86 @@ fn generate_market_goals(
     }
 }
 
+fn generate_value_added_trade(
+    nation: &NationSnapshot,
+    snapshot: &AiSnapshot,
+    plan: &mut NationPlan,
+) {
+    let buildings = &nation.buildings;
+
+    let Some(steel_mill) = buildings.get(&crate::economy::production::BuildingKind::SteelMill)
+    else {
+        return;
+    };
+
+    let Some(metal_works) = buildings.get(&crate::economy::production::BuildingKind::MetalWorks)
+    else {
+        return;
+    };
+
+    // Basic price heuristics: only pursue hardware production if the spread is profitable
+    let iron_price = snapshot.market.price_for(Good::Iron);
+    let coal_price = snapshot.market.price_for(Good::Coal);
+    let steel_price = snapshot.market.price_for(Good::Steel);
+    let hardware_price = snapshot.market.price_for(Good::Hardware);
+
+    let steel_input_cost = iron_price.saturating_add(coal_price);
+    let hardware_input_cost = steel_price.saturating_mul(2);
+
+    if hardware_price <= hardware_input_cost {
+        return; // Not profitable to craft hardware right now
+    }
+
+    // Target a small batch to ensure AI can progress
+    let desired_hardware = metal_works.capacity.min(2);
+    if desired_hardware == 0 {
+        return;
+    }
+
+    // Ensure we have enough steel lined up to feed hardware production
+    let steel_needed = desired_hardware.saturating_mul(2);
+    let available_steel = nation.available_amount(Good::Steel);
+    let steel_shortfall = steel_needed.saturating_sub(available_steel);
+
+    if steel_shortfall > 0 && steel_price > steel_input_cost {
+        // Steel is profitable to craft; queue production and buy inputs
+        let steel_batches = steel_shortfall.min(steel_mill.capacity);
+        plan.production_orders.push(ProductionOrder {
+            building: nation.entity,
+            output: Good::Steel,
+            qty: steel_batches,
+        });
+
+        // Buy the raw inputs required to cover the steel shortfall
+        let required_iron = steel_batches;
+        let required_coal = steel_batches;
+
+        let iron_have = nation.available_amount(Good::Iron);
+        let coal_have = nation.available_amount(Good::Coal);
+
+        let iron_buy = required_iron.saturating_sub(iron_have);
+        let coal_buy = required_coal.saturating_sub(coal_have);
+
+        if iron_buy > 0 {
+            plan.market_buys.push((Good::Iron, iron_buy));
+        }
+
+        if coal_buy > 0 {
+            plan.market_buys.push((Good::Coal, coal_buy));
+        }
+    }
+
+    // Queue hardware production using available + incoming steel
+    plan.production_orders.push(ProductionOrder {
+        building: nation.entity,
+        output: Good::Hardware,
+        qty: desired_hardware,
+    });
+
+    // Plan to sell the finished goods once produced
+    plan.market_sells.push((Good::Hardware, desired_hardware));
+}
+
 fn generate_infrastructure_goals(nation: &NationSnapshot, goals: &mut Vec<NationGoal>) {
     // Add goals for building depots at optimal locations (calculated via greedy set-cover)
     for depot in &nation.suggested_depots {
@@ -198,8 +313,8 @@ fn generate_infrastructure_goals(nation: &NationSnapshot, goals: &mut Vec<Nation
 
     // Add goals for connecting existing unconnected depots
     for depot in &nation.unconnected_depots {
-        // Priority decreases with distance
-        let priority = (1.0 / (1.0 + depot.distance_from_capital as f32)).clamp(0.2, 0.9);
+        // Priority decreases with distance, but existing depots are important
+        let priority = (1.2 / (1.0 + depot.distance_from_capital as f32 * 0.1)).clamp(0.4, 0.95);
         goals.push(NationGoal::ConnectDepot {
             tile: depot.position,
             priority,
@@ -257,6 +372,15 @@ fn generate_hiring_goals(nation: &NationSnapshot, goals: &mut Vec<NationGoal>) {
             }
         }
     }
+}
+
+fn generate_production_goals(nation: &NationSnapshot, goals: &mut Vec<NationGoal>) {
+    // Ships are now automatically constructed from materials in stockpile
+    // The construct_ships_from_production system will build ships when
+    // Steel, Lumber, and Fuel are available
+    // TODO: AI could prioritize acquiring these materials when trade capacity is low
+    let _ = nation; // Suppress unused warning
+    let _ = goals;
 }
 
 fn assign_civilians_to_goals(
@@ -374,40 +498,49 @@ fn plan_engineer_depot_task(
     engineer_pos: TilePos,
     target: TilePos,
 ) -> Option<CivilianTask> {
-    // If we're at the target, build the depot
-    if engineer_pos == target {
-        return Some(CivilianTask::BuildDepot);
+    // 1. Find the bridgehead: the connected tile closest to target
+    let bridgehead = nation
+        .connected_tiles
+        .iter()
+        .min_by_key(|t| {
+            (
+                t.to_hex().distance_to(target.to_hex()),
+                if **t == engineer_pos { 0 } else { 1 }, // Prefer current tile if tied for distance
+                t.x,                                     // Consistent tie-breaking
+                t.y,
+            )
+        })
+        .copied()?;
+
+    // 2. If we are not at the bridgehead, teleport there
+    if engineer_pos != bridgehead {
+        return Some(CivilianTask::MoveTo { target: bridgehead });
     }
 
-    // If we're on a connected tile, try to build rail toward target
-    if nation.connected_tiles.contains(&engineer_pos) {
-        // Find adjacent tile that gets us closer to target
-        if let Some(next_tile) = find_step_toward(engineer_pos, target, &nation.owned_tiles)
-            && is_adjacent(engineer_pos, next_tile)
-        {
-            return Some(CivilianTask::BuildRailTo { target: next_tile });
+    // 3. We are at the bridgehead. If it's the target, build the depot.
+    if bridgehead == target {
+        if can_build_depot_here(target, nation) {
+            return Some(CivilianTask::BuildDepot);
         }
+        return None;
     }
 
-    // If not on connected tiles, move to the closest connected tile first
-    // This ensures we build rails to the depot location (connected infrastructure)
-    // Note: If connected_tiles is empty (no rail network yet), we fall through to the next case
-    if !nation.connected_tiles.contains(&engineer_pos) {
-        let closest_connected = nation
-            .connected_tiles
-            .iter()
-            .min_by_key(|t| engineer_pos.to_hex().distance_to(t.to_hex()));
-        if let Some(&connected_tile) = closest_connected {
-            return Some(CivilianTask::MoveTo {
-                target: connected_tile,
-            });
+    // 4. We are at the bridgehead but not at the target. Build rail towards target.
+    if let Some(next_tile) = find_step_toward(bridgehead, target, &nation.owned_tiles) {
+        // next_tile MUST be unconnected if bridgehead was the closest connected tile.
+        if !nation.connected_tiles.contains(&next_tile) {
+            // Check if this rail segment is already being built
+            if is_rail_being_built(bridgehead, next_tile, nation) {
+                return None;
+            }
+
+            if can_build_rail_between(bridgehead, next_tile, nation) {
+                return Some(CivilianTask::BuildRailTo { target: next_tile });
+            }
+        } else {
+            // Should not happen if bridgehead logic is correct, but for safety:
+            return Some(CivilianTask::MoveTo { target: next_tile });
         }
-    }
-
-    // Fallback: if we're on connected tiles but can't build rail adjacent (e.g., blocked),
-    // move directly toward target
-    if nation.owned_tiles.contains(&target) {
-        return Some(CivilianTask::MoveTo { target });
     }
 
     None
@@ -419,34 +552,45 @@ fn plan_engineer_rail_task(
     engineer_pos: TilePos,
     depot_pos: TilePos,
 ) -> Option<CivilianTask> {
-    // If we're on a connected tile, try to build rail toward the depot
-    if nation.connected_tiles.contains(&engineer_pos) {
-        // Find adjacent tile that gets us closer to depot
-        if let Some(next_tile) = find_step_toward(engineer_pos, depot_pos, &nation.owned_tiles)
-            && is_adjacent(engineer_pos, next_tile)
-            && !nation.connected_tiles.contains(&next_tile)
-        {
-            return Some(CivilianTask::BuildRailTo { target: next_tile });
-        }
+    // 1. Find the bridgehead: the connected tile closest to depot_pos
+    let bridgehead = nation
+        .connected_tiles
+        .iter()
+        .min_by_key(|t| {
+            (
+                t.to_hex().distance_to(depot_pos.to_hex()),
+                if **t == engineer_pos { 0 } else { 1 }, // Prefer current tile if tied for distance
+                t.x,                                     // Consistent tie-breaking
+                t.y,
+            )
+        })
+        .copied()?;
+
+    // 2. If we are not at the bridgehead, teleport there
+    if engineer_pos != bridgehead {
+        return Some(CivilianTask::MoveTo { target: bridgehead });
     }
 
-    // If not on connected tiles, move directly to the closest connected tile
-    // Note: If connected_tiles is empty (no rail network yet), we fall through to the next case
-    if !nation.connected_tiles.contains(&engineer_pos) {
-        // Find the closest connected tile
-        let closest_connected = nation
-            .connected_tiles
-            .iter()
-            .min_by_key(|t| engineer_pos.to_hex().distance_to(t.to_hex()));
-        if let Some(&connected_tile) = closest_connected {
-            return Some(CivilianTask::MoveTo {
-                target: connected_tile,
-            });
-        }
-    } else {
-        // We're on connected tiles - move directly toward the depot
-        if nation.owned_tiles.contains(&depot_pos) {
-            return Some(CivilianTask::MoveTo { target: depot_pos });
+    // 3. We are at the bridgehead. If it's the depot_pos, we are done (connected).
+    if bridgehead == depot_pos {
+        return None;
+    }
+
+    // 4. We are at the bridgehead but not at the depot. Build rail towards depot.
+    if let Some(next_tile) = find_step_toward(bridgehead, depot_pos, &nation.owned_tiles) {
+        // next_tile MUST be unconnected if bridgehead was the closest connected tile.
+        if !nation.connected_tiles.contains(&next_tile) {
+            // Check if this rail segment is already being built
+            if is_rail_being_built(bridgehead, next_tile, nation) {
+                return None;
+            }
+
+            if can_build_rail_between(bridgehead, next_tile, nation) {
+                return Some(CivilianTask::BuildRailTo { target: next_tile });
+            }
+        } else {
+            // Should not happen if bridgehead logic is correct, but for safety:
+            return Some(CivilianTask::MoveTo { target: next_tile });
         }
     }
 
@@ -470,7 +614,13 @@ fn find_step_toward(
         .into_iter()
         .filter_map(|hex| hex.to_tile_pos())
         .filter(|pos| allowed_tiles.contains(pos))
-        .min_by_key(|pos| pos.to_hex().distance_to(to_hex))
+        .min_by_key(|pos| {
+            (
+                pos.to_hex().distance_to(to_hex),
+                pos.x, // Consistent tie-breaking
+                pos.y,
+            )
+        })
 }
 
 /// Check if two positions are adjacent on the hex grid.
@@ -478,9 +628,104 @@ fn is_adjacent(a: TilePos, b: TilePos) -> bool {
     a.to_hex().distance_to(b.to_hex()) == 1
 }
 
+/// Check if a rail is currently under construction between two tiles.
+fn is_rail_being_built(a: TilePos, b: TilePos, nation: &NationSnapshot) -> bool {
+    let edge = crate::economy::transport::ordered_edge(a, b);
+    nation
+        .rail_constructions
+        .iter()
+        .any(|rc| crate::economy::transport::ordered_edge(rc.from, rc.to) == edge)
+}
+
+/// Check if a rail can be built on a tile given the nation's technologies.
+fn can_build_rail_here(tile_pos: TilePos, nation: &NationSnapshot) -> bool {
+    nation
+        .tile_terrain
+        .get(&tile_pos)
+        .map(|terrain| {
+            crate::economy::transport::can_build_rail_on_terrain(terrain, &nation.technologies).0
+        })
+        .unwrap_or(false)
+}
+
+/// Check if a rail can be built between two adjacent tiles.
+/// Both tiles must support rail construction given the nation's technologies.
+fn can_build_rail_between(from: TilePos, to: TilePos, nation: &NationSnapshot) -> bool {
+    can_build_rail_here(from, nation) && can_build_rail_here(to, nation)
+}
+
+/// Check if a depot can be built on a tile.
+fn can_build_depot_here(tile_pos: TilePos, nation: &NationSnapshot) -> bool {
+    nation
+        .tile_terrain
+        .get(&tile_pos)
+        .map(crate::economy::transport::can_build_depot_on_terrain)
+        .unwrap_or(false)
+}
+
+/// Generate transport allocations based on available resources and capacity.
+/// Since we don't have snapshot data for transport capacity yet, we use a simple heuristic:
+/// allocate generously to all resource types that might be available.
+fn generate_transport_allocations(_nation: &NationSnapshot, plan: &mut NationPlan) {
+    use crate::economy::transport::TransportCommodity;
+
+    // Allocate high capacity to essential resources
+    // These values are generous to ensure AI doesn't starve from lack of transport
+    let allocations = [
+        (TransportCommodity::Grain, 10),
+        (TransportCommodity::Fruit, 8),
+        (TransportCommodity::Fiber, 8),
+        (TransportCommodity::Meat, 8),
+        (TransportCommodity::Timber, 10),
+        (TransportCommodity::Coal, 10),
+        (TransportCommodity::Iron, 10),
+        (TransportCommodity::Precious, 5),
+        (TransportCommodity::Oil, 8),
+        (TransportCommodity::Fabric, 5),
+        (TransportCommodity::Lumber, 5),
+        (TransportCommodity::Paper, 5),
+        (TransportCommodity::Steel, 5),
+        (TransportCommodity::Fuel, 5),
+        (TransportCommodity::Clothing, 3),
+        (TransportCommodity::Furniture, 3),
+        (TransportCommodity::Hardware, 3),
+        (TransportCommodity::Armaments, 3),
+        (TransportCommodity::CannedFood, 3),
+        (TransportCommodity::Horses, 2),
+    ];
+
+    for (commodity, amount) in allocations {
+        plan.transport_allocations.push((commodity, amount));
+    }
+}
+
+/// Generate production orders to build transport capacity.
+/// AI should produce Transport goods when it has the resources.
+fn generate_production_orders(nation: &NationSnapshot, _plan: &mut NationPlan) {
+    // Check if we have steel and lumber for Transport production
+    let steel_available = nation.available_amount(Good::Steel);
+    let lumber_available = nation.available_amount(Good::Lumber);
+
+    // If we have materials, produce some transport capacity
+    if steel_available >= 2 && lumber_available >= 2 {
+        // Find the railyard building entity (we don't have it in snapshot, so skip for now)
+        // TODO: Add building entities to NationSnapshot so AI can issue production orders
+        // For now, the allocation alone should help since players can manually produce
+        info!(
+            "AI Nation {:?} has materials for Transport production (Steel: {}, Lumber: {})",
+            nation.entity, steel_available, lumber_available
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use bevy::prelude::*;
+    use bevy_ecs_tilemap::prelude::TilePos;
+    use std::collections::HashMap;
+
     use super::*;
+    use crate::ai::snapshot::NationSnapshot;
 
     #[test]
     fn test_goal_priority_ordering() {
@@ -528,6 +773,12 @@ mod tests {
         owned_tiles.insert(connected_tile);
         owned_tiles.insert(target);
 
+        // Create terrain map with buildable terrain (Grass)
+        let mut tile_terrain = HashMap::new();
+        for &pos in &owned_tiles {
+            tile_terrain.insert(pos, crate::map::tiles::TerrainType::Grass);
+        }
+
         let snapshot = NationSnapshot {
             entity: Entity::PLACEHOLDER,
             capital_pos: TilePos::new(0, 0),
@@ -541,6 +792,12 @@ mod tests {
             owned_tiles,
             depot_positions: HashSet::new(),
             prospectable_tiles: vec![],
+            tile_terrain,
+            technologies: crate::economy::technology::Technologies::new(),
+            rail_constructions: vec![],
+            trade_capacity_total: 3,
+            trade_capacity_used: 0,
+            buildings: HashMap::new(),
         };
 
         let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);
@@ -566,6 +823,12 @@ mod tests {
         owned_tiles.insert(next_step);
         owned_tiles.insert(target);
 
+        // Create terrain map with buildable terrain (Grass)
+        let mut tile_terrain = HashMap::new();
+        for &pos in &owned_tiles {
+            tile_terrain.insert(pos, crate::map::tiles::TerrainType::Grass);
+        }
+
         let snapshot = NationSnapshot {
             entity: Entity::PLACEHOLDER,
             capital_pos: TilePos::new(0, 0),
@@ -579,11 +842,82 @@ mod tests {
             owned_tiles,
             depot_positions: HashSet::new(),
             prospectable_tiles: vec![],
+            tile_terrain,
+            technologies: crate::economy::technology::Technologies::new(),
+            rail_constructions: vec![],
+            trade_capacity_total: 3,
+            trade_capacity_used: 0,
+            buildings: HashMap::new(),
         };
 
         let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);
 
         // Should build rail to adjacent tile toward target
         assert!(matches!(task, Some(CivilianTask::BuildRailTo { target: t }) if t == next_step));
+    }
+
+    #[test]
+    fn test_engineer_bridgehead_loop() {
+        use std::collections::HashSet;
+
+        // Two connected tiles (0,0) and (0,1) equally close to target (1,1)
+        // Capital at (0,0), another connected tile at (0,1).
+        // Hub at (1,1).
+        let capital_pos = TilePos::new(0, 0);
+        let pos_0_1 = TilePos::new(0, 1);
+        let target = TilePos::new(1, 1);
+
+        let mut connected_tiles = HashSet::new();
+        connected_tiles.insert(capital_pos);
+        connected_tiles.insert(pos_0_1);
+
+        let mut owned_tiles = HashSet::new();
+        owned_tiles.insert(capital_pos);
+        owned_tiles.insert(pos_0_1);
+        owned_tiles.insert(target);
+
+        let mut tile_terrain = HashMap::new();
+        for &pos in &owned_tiles {
+            tile_terrain.insert(pos, crate::map::tiles::TerrainType::Grass);
+        }
+
+        let snapshot = NationSnapshot {
+            entity: Entity::PLACEHOLDER,
+            capital_pos,
+            treasury: 1000,
+            stockpile: HashMap::new(),
+            civilians: vec![],
+            connected_tiles,
+            unconnected_depots: vec![],
+            suggested_depots: vec![],
+            improvable_tiles: vec![],
+            owned_tiles,
+            depot_positions: HashSet::new(),
+            prospectable_tiles: vec![],
+            tile_terrain,
+            technologies: crate::economy::technology::Technologies::new(),
+            rail_constructions: vec![],
+            trade_capacity_total: 3,
+            trade_capacity_used: 0,
+            buildings: HashMap::new(),
+        };
+
+        // If bridgehead logic picks (0,0) as better than (0,1) due to tie-breaking,
+        // and engineer is at (0,1), it will MoveTo (0,0).
+        let task = plan_engineer_rail_task(&snapshot, pos_0_1, target);
+
+        // This is fine if it leads to progress.
+        // But if then it tries to move from (0,0) to (0,1), it's a loop.
+        if let Some(CivilianTask::MoveTo { target: t }) = task
+            && t == capital_pos
+        {
+            // Now check what happens at (0,0)
+            let task2 = plan_engineer_rail_task(&snapshot, capital_pos, target);
+            // If task2 is MoveTo(0,1), we have a loop!
+            assert!(
+                !matches!(task2, Some(CivilianTask::MoveTo { target: next }) if next == pos_0_1),
+                "Loop detected: (0,1) -> (0,0) -> (0,1)"
+            );
+        }
     }
 }

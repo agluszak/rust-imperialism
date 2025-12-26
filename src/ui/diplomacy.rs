@@ -9,7 +9,7 @@ use crate::diplomacy::{
     DiplomaticOrder, DiplomaticOrderKind, DiplomaticRelation, ForeignAidLedger, RelationshipBand,
     resolve_offer_response,
 };
-use crate::economy::{Name, NationInstance, PlayerNation, Treasury};
+use crate::economy::{NationInstance, PlayerNation, Treasury};
 use crate::ui::button_style::{
     AccentButton, DangerButton, NORMAL_ACCENT, NORMAL_BUTTON, NORMAL_DANGER,
 };
@@ -190,7 +190,7 @@ fn setup_diplomacy_screen(
             if Some(instance) == player_instance {
                 None
             } else {
-                Some((instance, name.0.clone()))
+                Some((instance, name.to_string()))
             }
         })
         .collect();
@@ -753,7 +753,7 @@ fn update_nation_buttons(
     // Build name lookup by entity
     let name_map: HashMap<Entity, String> = names
         .iter()
-        .map(|(inst, n)| (inst.entity(), n.0.clone()))
+        .map(|(inst, n)| (inst.entity(), n.to_string()))
         .collect();
 
     for (button, mut text, mut color) in buttons.iter_mut() {
@@ -837,7 +837,7 @@ fn update_detail_panel(
     let selected_name = names
         .iter()
         .find(|(e, _)| *e == selected.entity())
-        .map(|(_, name)| name.0.clone())
+        .map(|(_, name)| name.to_string())
         .unwrap_or_else(|| format!("Nation {:?}", selected.entity()));
 
     if let Ok(mut text) = text_queries.p0().single_mut() {
@@ -992,7 +992,7 @@ fn update_pending_offers(
 
     let mut names: HashMap<NationInstance, String> = HashMap::new();
     for (instance, name) in nations.iter() {
-        names.insert(instance, name.0.clone());
+        names.insert(instance, name.to_string());
     }
 
     let relevant: Vec<DiplomaticOffer> = offers.iter_for(player_instance).cloned().collect();

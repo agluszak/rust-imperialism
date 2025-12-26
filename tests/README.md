@@ -72,8 +72,10 @@ fn test_turn_system() {
 # Run all tests
 cargo test
 
-# Run only integration tests
-cargo test --test integration_tests
+# Run specific integration test suite
+cargo test --test core_mechanics
+cargo test --test ai_civilian_commands
+cargo test --test ai_resource_flow
 
 # Run specific test
 cargo test test_health_component
@@ -86,7 +88,11 @@ cargo test -- --nocapture
 
 ```
 tests/
-├── integration_tests.rs    # Main integration test suite
+├── common/                # Shared test utilities
+│   └── mod.rs
+├── core_mechanics.rs      # Basic system and utility tests
+├── ai_civilian_commands.rs # AI command validation and execution tests
+├── ai_resource_flow.rs    # Complex multi-turn AI behavior tests
 └── README.md              # This documentation
 
 src/
