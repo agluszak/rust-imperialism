@@ -13,6 +13,7 @@ use crate::ai::snapshot::{AiSnapshot, NationSnapshot, resource_target_days};
 use crate::civilians::types::CivilianKind;
 use crate::economy::goods::Good;
 use crate::economy::market::MARKET_RESOURCES;
+use crate::economy::production::BuildingKind;
 
 /// A goal that a nation wants to accomplish.
 #[derive(Debug, Clone)]
@@ -35,6 +36,13 @@ pub enum NationGoal {
     ProspectTile { tile: TilePos, priority: f32 },
     /// Hire a new civilian.
     HireCivilian { kind: CivilianKind, priority: f32 },
+    /// Produce goods in a building.
+    ProduceGoods {
+        building: Entity,
+        good: Good,
+        qty: u32,
+        priority: f32,
+    },
 }
 
 impl NationGoal {
@@ -47,6 +55,7 @@ impl NationGoal {
             NationGoal::ImproveTile { priority, .. } => *priority,
             NationGoal::ProspectTile { priority, .. } => *priority,
             NationGoal::HireCivilian { priority, .. } => *priority,
+            NationGoal::ProduceGoods { priority, .. } => *priority,
         }
     }
 }
@@ -59,6 +68,7 @@ pub struct NationPlan {
     pub market_buys: Vec<(Good, u32)>,
     pub market_sells: Vec<(Good, u32)>,
     pub civilians_to_hire: Vec<CivilianKind>,
+    pub production_orders: Vec<(Entity, Good, u32)>,
 }
 
 /// A task assigned to a specific civilian.
@@ -103,6 +113,7 @@ pub fn plan_nation(nation: &NationSnapshot, snapshot: &AiSnapshot) -> NationPlan
     generate_improvement_goals(nation, &mut plan.goals);
     generate_prospecting_goals(nation, &mut plan.goals);
     generate_hiring_goals(nation, &mut plan.goals);
+    generate_production_goals(nation, &mut plan.goals);
 
     // 2. Sort goals by priority (highest first)
     plan.goals.sort_by(|a, b| {
@@ -128,6 +139,9 @@ pub fn plan_nation(nation: &NationSnapshot, snapshot: &AiSnapshot) -> NationPlan
                     // Only hire 1 per turn
                     plan.civilians_to_hire.push(*kind);
                 }
+            }
+            NationGoal::ProduceGoods { building, good, qty, .. } => {
+                plan.production_orders.push((*building, *good, *qty));
             }
             _ => {}
         }
@@ -253,6 +267,44 @@ fn generate_hiring_goals(nation: &NationSnapshot, goals: &mut Vec<NationGoal>) {
                 goals.push(NationGoal::HireCivilian {
                     kind,
                     priority: 0.4, // Medium priority
+                });
+            }
+        }
+    }
+}
+
+fn generate_production_goals(nation: &NationSnapshot, goals: &mut Vec<NationGoal>) {
+    // Check if we need more trade capacity (ships)
+    let utilization = nation.trade_capacity_utilization();
+    
+    // If trade capacity is over 70% utilized, prioritize building more ships
+    if utilization > 0.7 {
+        // Check if we have a shipyard
+        if nation.buildings.contains_key(&BuildingKind::Shipyard) {
+            // Check if we have the inputs: 1 Steel, 1 Lumber, 1 Fuel
+            let steel = nation.available_amount(Good::Steel);
+            let lumber = nation.available_amount(Good::Lumber);
+            let fuel = nation.available_amount(Good::Fuel);
+            
+            let can_build = steel.min(lumber).min(fuel);
+            
+            if can_build > 0 {
+                // Build as many ships as possible, but cap at a reasonable number per turn
+                let qty = can_build.min(5);
+                
+                // Priority increases with utilization
+                // At 70% utilization: 0.7 priority
+                // At 90% utilization: 0.9 priority
+                // At 100% utilization: 1.0 priority (highest)
+                let priority = utilization.min(1.0) * 1.0;
+                
+                // Find the building entity - we'll use the nation entity as a placeholder
+                // The actual building entity will be resolved when executing the order
+                goals.push(NationGoal::ProduceGoods {
+                    building: nation.entity,
+                    good: Good::Ship,
+                    qty,
+                    priority,
                 });
             }
         }
@@ -611,6 +663,9 @@ mod tests {
             tile_terrain,
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
+            trade_capacity_total: 3,
+            trade_capacity_used: 0,
+            buildings: HashMap::new(),
         };
 
         let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);
@@ -658,6 +713,9 @@ mod tests {
             tile_terrain,
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
+            trade_capacity_total: 3,
+            trade_capacity_used: 0,
+            buildings: HashMap::new(),
         };
 
         let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);
@@ -707,6 +765,9 @@ mod tests {
             tile_terrain,
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
+            trade_capacity_total: 3,
+            trade_capacity_used: 0,
+            buildings: HashMap::new(),
         };
 
         // If bridgehead logic picks (0,0) as better than (0,1) due to tie-breaking,

@@ -10,8 +10,9 @@ use crate::ai::planner::{CivilianTask, NationPlan, plan_nation};
 use crate::ai::snapshot::AiSnapshot;
 use crate::civilians::types::CivilianOrderKind;
 use crate::economy::NationInstance;
+use crate::economy::production::Buildings;
 use crate::messages::civilians::CivilianCommand;
-use crate::messages::{AdjustMarketOrder, HireCivilian, MarketInterest};
+use crate::messages::{AdjustMarketOrder, AdjustProduction, HireCivilian, MarketInterest};
 
 /// Main AI execution system - runs once per EnemyTurn.
 ///
@@ -21,12 +22,13 @@ use crate::messages::{AdjustMarketOrder, HireCivilian, MarketInterest};
 /// 3. Sends orders to execute the plan
 pub fn execute_ai_turn(
     snapshot: Res<AiSnapshot>,
-    ai_nations: Query<NationInstance, With<AiNation>>,
+    ai_nations: Query<(NationInstance, &Buildings), With<AiNation>>,
     mut civilian_commands: MessageWriter<CivilianCommand>,
     mut market_orders: MessageWriter<AdjustMarketOrder>,
     mut hire_messages: MessageWriter<HireCivilian>,
+    mut production_orders: MessageWriter<AdjustProduction>,
 ) {
-    for nation in ai_nations.iter() {
+    for (nation, buildings) in ai_nations.iter() {
         let Some(nation_snapshot) = snapshot.get_nation(nation.entity()) else {
             continue;
         };
@@ -38,9 +40,11 @@ pub fn execute_ai_turn(
         execute_plan(
             &plan,
             nation,
+            buildings,
             &mut civilian_commands,
             &mut market_orders,
             &mut hire_messages,
+            &mut production_orders,
         );
     }
 }
@@ -48,9 +52,11 @@ pub fn execute_ai_turn(
 fn execute_plan(
     plan: &NationPlan,
     nation: NationInstance,
+    _buildings: &Buildings,
     civilian_commands: &mut MessageWriter<CivilianCommand>,
     market_orders: &mut MessageWriter<AdjustMarketOrder>,
     hire_messages: &mut MessageWriter<HireCivilian>,
+    production_orders: &mut MessageWriter<AdjustProduction>,
 ) {
     // Send civilian orders
     for (&civilian_entity, task) in &plan.civilian_tasks {
@@ -87,6 +93,20 @@ fn execute_plan(
         hire_messages.write(HireCivilian {
             nation,
             kind: *kind,
+        });
+    }
+
+    // Send production orders
+    // Note: The building entity is stored in the nation_snapshot but we need the actual building entity
+    // For now, we'll use the Buildings component to find the right building
+    for (_building_entity, good, qty) in &plan.production_orders {
+        // Find the building entity from the Buildings collection
+        // Since Buildings is a HashMap in the nation entity, we need to use the nation entity itself
+        production_orders.write(AdjustProduction {
+            nation,
+            building: nation.entity(), // The Buildings component is on the nation entity
+            output_good: *good,
+            target_output: *qty,
         });
     }
 }
