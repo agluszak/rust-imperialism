@@ -24,7 +24,7 @@ pub struct AiPlugin;
 impl Plugin for AiPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<snapshot::AiSnapshot>();
-        
+
         // NOTE: build_ai_snapshot has a complex function signature that causes issues
         // when trying to use it in chains or tuples. We register it separately and ensure
         // it runs before execute_ai_turn using ordering constraints.
@@ -32,7 +32,7 @@ impl Plugin for AiPlugin {
             OnEnter(TurnPhase::EnemyTurn),
             snapshot::build_ai_snapshot.before(EnemyTurnSet::Actions),
         );
-        
+
         app.add_systems(
             OnEnter(TurnPhase::EnemyTurn),
             execute::execute_ai_turn.in_set(EnemyTurnSet::Actions),

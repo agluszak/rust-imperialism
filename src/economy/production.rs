@@ -260,17 +260,21 @@ pub fn collect_connected_production(
                 }
 
                 let good = resource_type.to_good();
-                
+
                 // Check if there's an allocated transport capacity for this resource
                 if let Some(commodity) = TransportCommodity::from_good(good) {
                     let allocation = transport_allocations.slot(nation_entity, commodity);
                     let amount_to_collect = allocation.granted.min(*total_output);
-                    
+
                     if amount_to_collect > 0 {
                         stockpile.add(good, amount_to_collect);
                         info!(
                             "Nation {:?} collected {} {:?} from connected production (allocated: {}, available: {})",
-                            nation_entity, amount_to_collect, good, allocation.granted, total_output
+                            nation_entity,
+                            amount_to_collect,
+                            good,
+                            allocation.granted,
+                            total_output
                         );
                     } else if allocation.granted == 0 {
                         info!(
@@ -926,34 +930,8 @@ const RAILYARD_RECIPE: ProductionRecipe = ProductionRecipe {
     variants: &RAILYARD_VARIANTS,
 };
 
-const SHIPYARD_INPUTS: [Ingredient; 3] = [
-    Ingredient {
-        good: Good::Steel,
-        amount: 1,
-    },
-    Ingredient {
-        good: Good::Lumber,
-        amount: 1,
-    },
-    Ingredient {
-        good: Good::Fuel,
-        amount: 1,
-    },
-];
-const SHIPYARD_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
-    good: Good::Ship,
-    amount: 1,
-}];
-const SHIPYARD_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
-    choice: None,
-    variant: RecipeVariant {
-        inputs: &SHIPYARD_INPUTS,
-        outputs: &SHIPYARD_OUTPUTS,
-    },
-}];
-const SHIPYARD_RECIPE: ProductionRecipe = ProductionRecipe {
-    variants: &SHIPYARD_VARIANTS,
-};
+// Note: Shipyard no longer has a production recipe as ships are constructed
+// directly as entities, not as goods. See ships::construction module.
 
 const PRODUCTION_RECIPES: &[(BuildingKind, &ProductionRecipe)] = &[
     (BuildingKind::TextileMill, &TEXTILE_RECIPE),
@@ -965,7 +943,6 @@ const PRODUCTION_RECIPES: &[(BuildingKind, &ProductionRecipe)] = &[
     (BuildingKind::MetalWorks, &METAL_RECIPE),
     (BuildingKind::Refinery, &REFINERY_RECIPE),
     (BuildingKind::Railyard, &RAILYARD_RECIPE),
-    (BuildingKind::Shipyard, &SHIPYARD_RECIPE),
 ];
 
 pub fn production_recipe(kind: BuildingKind) -> Option<&'static ProductionRecipe> {

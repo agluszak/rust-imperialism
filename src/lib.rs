@@ -16,6 +16,7 @@ use crate::map::rendering::improvement_rendering::ImprovementRenderingPlugin;
 use crate::map::rendering::prospecting_markers::ProspectingMarkersPlugin;
 use crate::map::rendering::{TransportDebugPlugin, TransportRenderingPlugin};
 use crate::save::GameSavePlugin;
+use crate::ships::ShipsPlugin;
 use crate::turn_system::TurnSystemPlugin;
 use crate::ui::GameUIPlugin;
 use crate::ui::menu::AppState;
@@ -45,6 +46,7 @@ pub mod messages;
 pub mod orders;
 pub mod resources;
 pub mod save;
+pub mod ships;
 pub mod turn_system;
 pub mod ui;
 
@@ -71,6 +73,7 @@ pub fn app() -> App {
             MapSetupPlugin,
             TurnSystemPlugin,
             EconomyPlugin,
+            ShipsPlugin,
             AiPlugin, // New unified AI plugin
             CivilianPlugin,
             DiplomacyPlugin,

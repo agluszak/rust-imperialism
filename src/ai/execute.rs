@@ -10,6 +10,7 @@ use crate::ai::planner::{CivilianTask, NationPlan, plan_nation};
 use crate::ai::snapshot::AiSnapshot;
 use crate::civilians::types::CivilianOrderKind;
 use crate::economy::NationInstance;
+use crate::economy::production::Buildings;
 use crate::messages::civilians::CivilianCommand;
 use crate::messages::{AdjustMarketOrder, AdjustProduction, HireCivilian, MarketInterest};
 
@@ -21,14 +22,14 @@ use crate::messages::{AdjustMarketOrder, AdjustProduction, HireCivilian, MarketI
 /// 3. Sends orders to execute the plan
 pub fn execute_ai_turn(
     snapshot: Res<AiSnapshot>,
-    ai_nations: Query<NationInstance, With<AiNation>>,
+    ai_nations: Query<(NationInstance, &Buildings), With<AiNation>>,
     mut civilian_commands: MessageWriter<CivilianCommand>,
     mut market_orders: MessageWriter<AdjustMarketOrder>,
     mut hire_messages: MessageWriter<HireCivilian>,
     mut production_orders: MessageWriter<AdjustProduction>,
     mut transport_orders: MessageWriter<crate::economy::transport::TransportAdjustAllocation>,
 ) {
-    for nation in ai_nations.iter() {
+    for (nation, buildings) in ai_nations.iter() {
         let Some(nation_snapshot) = snapshot.get_nation(nation.entity()) else {
             continue;
         };
@@ -40,6 +41,7 @@ pub fn execute_ai_turn(
         execute_plan(
             &plan,
             nation,
+            buildings,
             &mut civilian_commands,
             &mut market_orders,
             &mut hire_messages,
@@ -52,6 +54,7 @@ pub fn execute_ai_turn(
 fn execute_plan(
     plan: &NationPlan,
     nation: NationInstance,
+    _buildings: &Buildings,
     civilian_commands: &mut MessageWriter<CivilianCommand>,
     market_orders: &mut MessageWriter<AdjustMarketOrder>,
     hire_messages: &mut MessageWriter<HireCivilian>,
@@ -97,12 +100,12 @@ fn execute_plan(
     }
 
     // Send production orders
-    for (building, output_good, target) in &plan.production_orders {
+    for (building_entity, good, qty) in &plan.production_orders {
         production_orders.write(AdjustProduction {
             nation,
-            building: *building,
-            output_good: *output_good,
-            target_output: *target,
+            building: *building_entity,
+            output_good: *good,
+            target_output: *qty,
         });
     }
 

@@ -182,11 +182,13 @@ impl Plugin for EconomyPlugin {
         // Conversion: Convert goods to capacity
         app.add_systems(
             OnEnter(TurnPhase::Processing),
-            (
-                transport::convert_transport_goods_to_capacity,
-                trade_capacity::convert_ships_to_trade_capacity,
-            )
-                .in_set(ProcessingSet::Conversion),
+            transport::convert_transport_goods_to_capacity.in_set(ProcessingSet::Conversion),
+        );
+
+        // Update trade capacity from ships at the start of PlayerTurn
+        app.add_systems(
+            OnEnter(TurnPhase::PlayerTurn),
+            trade_capacity::update_trade_capacity_from_ships,
         );
     }
 }

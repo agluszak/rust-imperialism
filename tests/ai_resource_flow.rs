@@ -17,6 +17,7 @@ fn test_ai_resource_discovery_and_collection() {
     use rust_imperialism::economy::{
         EconomyPlugin,
         nation::{Capital, Nation},
+        production::Buildings,
         stockpile::Stockpile,
         technology::Technologies,
         transport::Depot,
@@ -95,6 +96,7 @@ fn test_ai_resource_discovery_and_collection() {
             Stockpile::default(),
             Treasury::default(),
             Technologies::default(),
+            Buildings::default(),
         ))
         .id();
 
@@ -348,6 +350,7 @@ fn test_ai_respects_terrain_constraints() {
     use rust_imperialism::economy::{
         EconomyPlugin,
         nation::{Capital, Nation},
+        production::Buildings,
         stockpile::Stockpile,
         technology::Technologies,
         treasury::Treasury,
@@ -435,6 +438,7 @@ fn test_ai_respects_terrain_constraints() {
             Stockpile::default(),
             Treasury::new(10000), // Enough money for construction
             Technologies::new(),  // No technologies unlocked
+            Buildings::default(),
         ))
         .id();
 
@@ -542,6 +546,7 @@ fn test_two_engineers_splitting_paths() {
     use rust_imperialism::economy::{
         EconomyPlugin,
         nation::{Capital, Nation},
+        production::Buildings,
         stockpile::Stockpile,
         technology::Technologies,
         transport::{Depot, Rails},
@@ -604,6 +609,7 @@ fn test_two_engineers_splitting_paths() {
             Stockpile::default(),
             Treasury::new(10000),
             Technologies::default(),
+            Buildings::default(),
         ))
         .id();
 

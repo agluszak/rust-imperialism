@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 use std::collections::HashMap;
 
-use crate::economy::{Good, nation::Nation, stockpile::Stockpile};
-use crate::turn_system::{TurnPhase, TurnSystem};
+use crate::economy::nation::Nation;
+use crate::ships::Ship;
 
 /// Base amount of cargo holds every nation starts with.
 pub const BASE_TRADE_CAPACITY: u32 = 3;
@@ -74,24 +74,23 @@ pub fn initialize_trade_capacity(
     }
 }
 
-/// Convert completed ships into persistent trade capacity at the end of processing.
-pub fn convert_ships_to_trade_capacity(
+/// Update trade capacity based on ships owned by each nation.
+/// Runs at the start of PlayerTurn phase.
+pub fn update_trade_capacity_from_ships(
     mut capacity: ResMut<TradeCapacity>,
-    mut stockpiles: Query<(Entity, &mut Stockpile)>,
-    turn: Res<TurnSystem>,
+    ships: Query<&Ship>,
+    nations: Query<Entity, With<Nation>>,
 ) {
-    if turn.phase != TurnPhase::Processing {
-        return;
-    }
+    for nation in nations.iter() {
+        // Count total cargo capacity from all ships owned by this nation
+        let total_from_ships: u32 = ships
+            .iter()
+            .filter(|ship| ship.owner == nation)
+            .map(|ship| ship.cargo_capacity())
+            .sum();
 
-    for (nation, mut stockpile) in stockpiles.iter_mut() {
-        let ships_in_stock = stockpile.get(Good::Ship);
-        if ships_in_stock == 0 {
-            continue;
-        }
-
-        let converted = stockpile.take_up_to(Good::Ship, ships_in_stock);
+        // Update the nation's trade capacity (base + ships)
         let snapshot = capacity.snapshot_mut(nation);
-        snapshot.total += converted;
+        snapshot.total = BASE_TRADE_CAPACITY + total_from_ships;
     }
 }

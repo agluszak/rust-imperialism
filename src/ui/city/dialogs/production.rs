@@ -107,7 +107,7 @@ fn spawn_production_content(
         BuildingKind::MetalWorks => vec![Good::Hardware, Good::Armaments],
         BuildingKind::Refinery => vec![Good::Fuel],
         BuildingKind::Railyard => vec![Good::Transport],
-        BuildingKind::Shipyard => vec![Good::Ship],
+        BuildingKind::Shipyard => vec![], // Ships are entities, not goods
         _ => vec![],
     };
 

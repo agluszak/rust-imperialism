@@ -27,9 +27,7 @@ fn test_resource_collection_requires_transport_allocation() {
         let mut production = app.world_mut().resource_mut::<ConnectedProduction>();
         production.totals.insert(
             nation,
-            [(ResourceType::Grain, (1, 10))]
-                .into_iter()
-                .collect(),
+            [(ResourceType::Grain, (1, 10))].into_iter().collect(),
         );
     }
 
@@ -38,10 +36,7 @@ fn test_resource_collection_requires_transport_allocation() {
         let mut capacity = app.world_mut().resource_mut::<TransportCapacity>();
         capacity.nations.insert(
             nation,
-            rust_imperialism::economy::transport::CapacitySnapshot {
-                total: 20,
-                used: 0,
-            },
+            rust_imperialism::economy::transport::CapacitySnapshot { total: 20, used: 0 },
         );
     }
 
