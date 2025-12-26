@@ -11,7 +11,7 @@ use crate::ai::snapshot::AiSnapshot;
 use crate::civilians::types::CivilianOrderKind;
 use crate::economy::NationInstance;
 use crate::messages::civilians::CivilianCommand;
-use crate::messages::{AdjustMarketOrder, HireCivilian, MarketInterest};
+use crate::messages::{AdjustMarketOrder, AdjustProduction, HireCivilian, MarketInterest};
 
 /// Main AI execution system - runs once per EnemyTurn.
 ///
@@ -25,6 +25,8 @@ pub fn execute_ai_turn(
     mut civilian_commands: MessageWriter<CivilianCommand>,
     mut market_orders: MessageWriter<AdjustMarketOrder>,
     mut hire_messages: MessageWriter<HireCivilian>,
+    mut production_orders: MessageWriter<AdjustProduction>,
+    mut transport_orders: MessageWriter<crate::economy::transport::TransportAdjustAllocation>,
 ) {
     for nation in ai_nations.iter() {
         let Some(nation_snapshot) = snapshot.get_nation(nation.entity()) else {
@@ -41,6 +43,8 @@ pub fn execute_ai_turn(
             &mut civilian_commands,
             &mut market_orders,
             &mut hire_messages,
+            &mut production_orders,
+            &mut transport_orders,
         );
     }
 }
@@ -51,6 +55,8 @@ fn execute_plan(
     civilian_commands: &mut MessageWriter<CivilianCommand>,
     market_orders: &mut MessageWriter<AdjustMarketOrder>,
     hire_messages: &mut MessageWriter<HireCivilian>,
+    production_orders: &mut MessageWriter<AdjustProduction>,
+    transport_orders: &mut MessageWriter<crate::economy::transport::TransportAdjustAllocation>,
 ) {
     // Send civilian orders
     for (&civilian_entity, task) in &plan.civilian_tasks {
@@ -87,6 +93,25 @@ fn execute_plan(
         hire_messages.write(HireCivilian {
             nation,
             kind: *kind,
+        });
+    }
+
+    // Send production orders
+    for (building, output_good, target) in &plan.production_orders {
+        production_orders.write(AdjustProduction {
+            nation,
+            building: *building,
+            output_good: *output_good,
+            target_output: *target,
+        });
+    }
+
+    // Send transport allocation orders
+    for (commodity, requested) in &plan.transport_allocations {
+        transport_orders.write(crate::economy::transport::TransportAdjustAllocation {
+            nation: nation.entity(),
+            commodity: *commodity,
+            requested: *requested,
         });
     }
 }
