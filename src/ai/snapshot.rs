@@ -12,7 +12,7 @@ use crate::civilians::types::{Civilian, CivilianKind, ProspectingKnowledge};
 use crate::economy::goods::Good;
 use crate::economy::market::{MARKET_RESOURCES, MarketPriceModel, MarketVolume};
 use crate::economy::nation::{Capital, Nation};
-use crate::economy::production::{Buildings};
+use crate::economy::production::Buildings;
 use crate::economy::stockpile::{Stockpile, StockpileEntry};
 use crate::economy::transport::{Depot, Rails};
 use crate::economy::treasury::Treasury;
@@ -45,7 +45,7 @@ pub struct NationSnapshot {
     pub stockpile: HashMap<Good, StockpileEntry>,
     pub civilians: Vec<CivilianSnapshot>,
     pub connected_tiles: HashSet<TilePos>,
-    pub buildings: Option<Buildings>,
+    pub buildings: Buildings,
     pub unconnected_depots: Vec<DepotInfo>,
     /// Optimal depot locations calculated via greedy set-cover algorithm.
     pub suggested_depots: Vec<SuggestedDepot>,
@@ -247,7 +247,7 @@ pub fn build_ai_snapshot(
             &Stockpile,
             &Treasury,
             &crate::economy::technology::Technologies,
-            Option<&Buildings>,
+            &Buildings,
         ),
         (With<AiNation>, With<Nation>),
     >,
@@ -277,9 +277,7 @@ pub fn build_ai_snapshot(
     };
 
     // Build per-nation snapshots
-    for (entity, capital, stockpile, treasury, technologies, buildings) in
-        ai_nations.iter()
-    {
+    for (entity, capital, stockpile, treasury, technologies, buildings) in ai_nations.iter() {
         let capital_pos = capital.0;
         let capital_hex = capital_pos.to_hex();
 
@@ -463,7 +461,7 @@ pub fn build_ai_snapshot(
                 tile_terrain: tile_terrain_map,
                 technologies: technologies.clone(),
                 rail_constructions: nation_rail_constructions,
-                buildings: buildings.cloned(),
+                buildings: buildings.clone(),
             },
         );
     }
@@ -855,7 +853,7 @@ mod tests {
             tile_terrain: HashMap::new(),
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
-            buildings: None,
+            buildings: Buildings::default(),
         };
 
         // Only civilians with has_moved = false should be available

@@ -194,9 +194,7 @@ fn generate_value_added_trade(
     snapshot: &AiSnapshot,
     plan: &mut NationPlan,
 ) {
-    let Some(buildings) = nation.buildings.as_ref() else {
-        return;
-    };
+    let buildings = &nation.buildings;
 
     let Some(steel_mill) = buildings.get(crate::economy::production::BuildingKind::SteelMill)
     else {
@@ -633,6 +631,7 @@ fn can_build_depot_here(tile_pos: TilePos, nation: &NationSnapshot) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::economy::production::Buildings;
 
     #[test]
     fn test_goal_priority_ordering() {
@@ -702,7 +701,7 @@ mod tests {
             tile_terrain,
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
-            buildings: None,
+            buildings: Buildings::default(),
         };
 
         let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);
@@ -750,7 +749,7 @@ mod tests {
             tile_terrain,
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
-            buildings: None,
+            buildings: Buildings::default(),
         };
 
         let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);
@@ -800,7 +799,7 @@ mod tests {
             tile_terrain,
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
-            buildings: None,
+            buildings: Buildings::default(),
         };
 
         // If bridgehead logic picks (0,0) as better than (0,1) due to tie-breaking,

@@ -405,7 +405,6 @@ pub struct ProductionSettings {
     pub target_output: u32,
 }
 
-
 #[derive(Component, Debug, Clone, Copy, Reflect)]
 #[reflect(Component)]
 pub struct Building {

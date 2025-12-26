@@ -107,10 +107,10 @@ fn inputs_for_output(kind: BuildingKind, output: Good) -> Vec<(Good, u32)> {
     let Some(recipe) = production_recipe(kind) else {
         return vec![];
     };
-    
+
     // Get all variants that produce this output
     let variants = recipe.variants_for_output(output);
-    
+
     // Use the first variant as a representative estimate
     // (In reality, the choice is made dynamically based on stockpile)
     if let Some(variant_info) = variants.first() {
