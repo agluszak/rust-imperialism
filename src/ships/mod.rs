@@ -13,10 +13,7 @@ pub struct ShipsPlugin;
 impl Plugin for ShipsPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<Ship>()
-            .add_systems(
-                OnEnter(TurnPhase::PlayerTurn),
-                reset_ship_movement_flags,
-            )
+            .add_systems(OnEnter(TurnPhase::PlayerTurn), reset_ship_movement_flags)
             .add_systems(
                 OnEnter(TurnPhase::Processing),
                 construction::construct_ships_from_production,

@@ -62,7 +62,8 @@ pub struct NationSnapshot {
     pub trade_capacity_total: u32,
     pub trade_capacity_used: u32,
     /// Buildings owned by this nation.
-    pub buildings: HashMap<crate::economy::production::BuildingKind, crate::economy::production::Building>,
+    pub buildings:
+        HashMap<crate::economy::production::BuildingKind, crate::economy::production::Building>,
 }
 
 /// Snapshot of rail construction.
@@ -93,7 +94,8 @@ impl NationSnapshot {
 
     /// Get available trade capacity (not currently used).
     pub fn trade_capacity_available(&self) -> u32 {
-        self.trade_capacity_total.saturating_sub(self.trade_capacity_used)
+        self.trade_capacity_total
+            .saturating_sub(self.trade_capacity_used)
     }
 
     /// Get trade capacity utilization as a percentage (0.0 to 1.0).
@@ -251,6 +253,7 @@ pub fn resource_target_days(good: Good) -> f32 {
 }
 
 /// Builds the complete AI snapshot at the start of EnemyTurn.
+#[allow(clippy::too_many_arguments)]
 pub fn build_ai_snapshot(
     mut snapshot: ResMut<AiSnapshot>,
     turn: Res<TurnCounter>,

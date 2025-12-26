@@ -4,9 +4,10 @@ use bevy::prelude::*;
 use moonshine_save::prelude::Save;
 
 /// Type of merchant ship (based on manual: Trader, Indiaman, Steamship, Clipper, Freighter)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Default)]
 pub enum ShipKind {
     /// Basic merchant ship (Trader)
+    #[default]
     Trader,
     /// Intermediate merchant ship (Indiaman)
     Indiaman,
@@ -28,12 +29,6 @@ impl ShipKind {
             ShipKind::Clipper => 2,
             ShipKind::Freighter => 3,
         }
-    }
-}
-
-impl Default for ShipKind {
-    fn default() -> Self {
-        ShipKind::Trader
     }
 }
 

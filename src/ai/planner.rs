@@ -139,7 +139,12 @@ pub fn plan_nation(nation: &NationSnapshot, snapshot: &AiSnapshot) -> NationPlan
                     plan.civilians_to_hire.push(*kind);
                 }
             }
-            NationGoal::ProduceGoods { building, good, qty, .. } => {
+            NationGoal::ProduceGoods {
+                building,
+                good,
+                qty,
+                ..
+            } => {
                 plan.production_orders.push((*building, *good, *qty));
             }
             _ => {}
@@ -565,7 +570,7 @@ fn can_build_depot_here(tile_pos: TilePos, nation: &NationSnapshot) -> bool {
 mod tests {
     use bevy::prelude::*;
     use bevy_ecs_tilemap::prelude::TilePos;
-    use std::collections::{HashMap, HashSet};
+    use std::collections::HashMap;
 
     use super::*;
     use crate::ai::snapshot::NationSnapshot;
