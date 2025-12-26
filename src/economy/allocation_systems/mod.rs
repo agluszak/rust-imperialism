@@ -200,7 +200,7 @@ fn process_production_adjustment(
         Good::CannedFood => BuildingKind::FoodProcessingCenter,
         Good::Clothing => BuildingKind::ClothingFactory,
         Good::Furniture => BuildingKind::FurnitureFactory,
-        Good::Hardware | Good::Armaments => BuildingKind::MetalWorks,
+        Good::Hardware | Good::Arms => BuildingKind::MetalWorks,
         Good::Fuel => BuildingKind::Refinery,
         Good::Transport => BuildingKind::Railyard,
         _ => {

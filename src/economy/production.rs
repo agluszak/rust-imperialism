@@ -862,7 +862,7 @@ const HARDWARE_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
     amount: 1,
 }];
 const ARMAMENT_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
-    good: Good::Armaments,
+    good: Good::Arms,
     amount: 1,
 }];
 const METAL_VARIANTS: [RecipeVariantDefinition; 2] = [
