@@ -706,6 +706,8 @@ mod tests {
             tile_terrain,
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
+            buildings: None,
+            production_settings: None,
         };
 
         let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);
@@ -753,6 +755,8 @@ mod tests {
             tile_terrain,
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
+            buildings: None,
+            production_settings: None,
         };
 
         let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);
@@ -802,6 +806,8 @@ mod tests {
             tile_terrain,
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
+            buildings: None,
+            production_settings: None,
         };
 
         // If bridgehead logic picks (0,0) as better than (0,1) due to tie-breaking,
