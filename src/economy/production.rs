@@ -279,11 +279,14 @@ pub fn collect_connected_production(
                         );
                     }
                 } else {
-                    // Fallback for goods without transport commodity mapping (shouldn't happen for resources)
-                    stockpile.add(good, *total_output);
-                    warn!(
-                        "Nation {:?} collected {} {:?} without transport allocation (no commodity mapping)",
-                        nation_entity, total_output, good
+                    // This should never happen for resources - all resource types have commodity mappings
+                    error!(
+                        "Missing TransportCommodity mapping for good {:?} when collecting connected production for nation {:?}. This violates the transport allocation mechanic.",
+                        good, nation_entity
+                    );
+                    panic!(
+                        "Missing TransportCommodity mapping for good {:?} during connected production collection",
+                        good
                     );
                 }
             }

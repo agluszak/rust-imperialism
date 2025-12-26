@@ -27,10 +27,10 @@ impl Plugin for AiPlugin {
         
         // NOTE: build_ai_snapshot has a complex function signature that causes issues
         // when trying to use it in chains or tuples. We register it separately and ensure
-        // it runs before execute_ai_turn using system sets.
+        // it runs before execute_ai_turn using ordering constraints.
         app.add_systems(
             OnEnter(TurnPhase::EnemyTurn),
-            snapshot::build_ai_snapshot,
+            snapshot::build_ai_snapshot.before(EnemyTurnSet::Actions),
         );
         
         app.add_systems(
