@@ -183,15 +183,6 @@ pub fn update_rescind_orders_ui(
         return;
     }
 
-    // Handle individual deselect events (hide panel)
-    if !deselect_events.is_empty() {
-        deselect_events.clear();
-        for entity in existing_panel.iter() {
-            commands.entity(entity).despawn();
-        }
-        return;
-    }
-
     // Handle selection events - check if selected civilian has PreviousPosition
     let mut selected_data = None;
     for event in select_events.read() {

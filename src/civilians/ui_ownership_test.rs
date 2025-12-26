@@ -7,6 +7,39 @@ use crate::civilians::ui_components::{update_civilian_orders_ui, CivilianOrdersP
 use crate::economy::{Nation, PlayerNation};
 use bevy_ecs_tilemap::prelude::TilePos;
 
+/// Helper function to send a SelectCivilian event
+fn send_select_event(world: &mut World, entity: Entity) {
+    let mut system_state: SystemState<MessageWriter<SelectCivilian>> =
+        SystemState::new(world);
+    let mut writer = system_state.get_mut(world);
+    writer.write(SelectCivilian { entity });
+    system_state.apply(world);
+}
+
+/// Helper function to run the UI update system
+fn run_ui_update_system(world: &mut World) {
+    let mut system_state: SystemState<(
+        Commands,
+        Option<Res<PlayerNation>>,
+        MessageReader<SelectCivilian>,
+        MessageReader<DeselectCivilian>,
+        Query<&Civilian>,
+        Query<Entity, With<CivilianOrdersPanel>>,
+    )> = SystemState::new(world);
+
+    let (commands, player_nation, select_events, deselect_events, civilians, existing_panel) =
+        system_state.get_mut(world);
+    update_civilian_orders_ui(
+        commands,
+        player_nation,
+        select_events,
+        deselect_events,
+        civilians,
+        existing_panel,
+    );
+    system_state.apply(world);
+}
+
 /// Test that civilian orders UI is NOT shown for enemy units
 #[test]
 fn test_ui_not_shown_for_enemy_units() {
@@ -36,48 +69,19 @@ fn test_ui_not_shown_for_enemy_units() {
         .id();
 
     // Send SelectCivilian event for enemy unit
-    {
-        let mut system_state: SystemState<MessageWriter<SelectCivilian>> =
-            SystemState::new(&mut world);
-        let mut writer = system_state.get_mut(&mut world);
-        writer.write(SelectCivilian {
-            entity: enemy_civilian_entity,
-        });
-        system_state.apply(&mut world);
-    }
+    send_select_event(&mut world, enemy_civilian_entity);
 
     // Run the UI update system
-    {
-        let mut system_state: SystemState<(
-            Commands,
-            Option<Res<PlayerNation>>,
-            MessageReader<SelectCivilian>,
-            MessageReader<DeselectCivilian>,
-            Query<&Civilian>,
-            Query<Entity, With<CivilianOrdersPanel>>,
-        )> = SystemState::new(&mut world);
-
-        let (commands, player_nation, select_events, deselect_events, civilians, existing_panel) =
-            system_state.get_mut(&mut world);
-        update_civilian_orders_ui(
-            commands,
-            player_nation,
-            select_events,
-            deselect_events,
-            civilians,
-            existing_panel,
-        );
-        system_state.apply(&mut world);
-    }
+    run_ui_update_system(&mut world);
 
     // Verify that NO UI panel was created
-    let panels: Vec<Entity> = world
+    let panel_count = world
         .query_filtered::<Entity, With<CivilianOrdersPanel>>()
         .iter(&world)
-        .collect();
+        .count();
 
-    assert!(
-        panels.is_empty(),
+    assert_eq!(
+        panel_count, 0,
         "UI panel should NOT be shown for enemy units"
     );
 }
@@ -108,49 +112,19 @@ fn test_ui_shown_for_player_units() {
         .id();
 
     // Send SelectCivilian event for player unit
-    {
-        let mut system_state: SystemState<MessageWriter<SelectCivilian>> =
-            SystemState::new(&mut world);
-        let mut writer = system_state.get_mut(&mut world);
-        writer.write(SelectCivilian {
-            entity: player_civilian_entity,
-        });
-        system_state.apply(&mut world);
-    }
+    send_select_event(&mut world, player_civilian_entity);
 
     // Run the UI update system
-    {
-        let mut system_state: SystemState<(
-            Commands,
-            Option<Res<PlayerNation>>,
-            MessageReader<SelectCivilian>,
-            MessageReader<DeselectCivilian>,
-            Query<&Civilian>,
-            Query<Entity, With<CivilianOrdersPanel>>,
-        )> = SystemState::new(&mut world);
-
-        let (commands, player_nation, select_events, deselect_events, civilians, existing_panel) =
-            system_state.get_mut(&mut world);
-        update_civilian_orders_ui(
-            commands,
-            player_nation,
-            select_events,
-            deselect_events,
-            civilians,
-            existing_panel,
-        );
-        system_state.apply(&mut world);
-    }
+    run_ui_update_system(&mut world);
 
     // Verify that a UI panel WAS created
-    let panels: Vec<Entity> = world
+    let panel_count = world
         .query_filtered::<Entity, With<CivilianOrdersPanel>>()
         .iter(&world)
-        .collect();
+        .count();
 
     assert_eq!(
-        panels.len(),
-        1,
+        panel_count, 1,
         "UI panel should be shown for player-owned units"
     );
 }
@@ -179,48 +153,19 @@ fn test_ui_not_shown_without_player_nation() {
         .id();
 
     // Send SelectCivilian event
-    {
-        let mut system_state: SystemState<MessageWriter<SelectCivilian>> =
-            SystemState::new(&mut world);
-        let mut writer = system_state.get_mut(&mut world);
-        writer.write(SelectCivilian {
-            entity: civilian_entity,
-        });
-        system_state.apply(&mut world);
-    }
+    send_select_event(&mut world, civilian_entity);
 
     // Run the UI update system
-    {
-        let mut system_state: SystemState<(
-            Commands,
-            Option<Res<PlayerNation>>,
-            MessageReader<SelectCivilian>,
-            MessageReader<DeselectCivilian>,
-            Query<&Civilian>,
-            Query<Entity, With<CivilianOrdersPanel>>,
-        )> = SystemState::new(&mut world);
-
-        let (commands, player_nation, select_events, deselect_events, civilians, existing_panel) =
-            system_state.get_mut(&mut world);
-        update_civilian_orders_ui(
-            commands,
-            player_nation,
-            select_events,
-            deselect_events,
-            civilians,
-            existing_panel,
-        );
-        system_state.apply(&mut world);
-    }
+    run_ui_update_system(&mut world);
 
     // Verify that NO UI panel was created
-    let panels: Vec<Entity> = world
+    let panel_count = world
         .query_filtered::<Entity, With<CivilianOrdersPanel>>()
         .iter(&world)
-        .collect();
+        .count();
 
-    assert!(
-        panels.is_empty(),
+    assert_eq!(
+        panel_count, 0,
         "UI panel should NOT be shown when there is no player nation"
     );
 }
