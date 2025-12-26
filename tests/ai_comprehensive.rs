@@ -452,11 +452,9 @@ fn check_progress(app: &mut App, ai_nation: Entity, progress: &mut TestProgress,
         .world_mut()
         .run_system_once(
             move |depots: Query<&Depot>| {
-                let total = depots.iter().filter(|d| d.owner == ai_nation).count();
-                let connected = depots
-                    .iter()
-                    .filter(|d| d.owner == ai_nation && d.connected)
-                    .count();
+                let owned_depots: Vec<_> = depots.iter().filter(|d| d.owner == ai_nation).collect();
+                let total = owned_depots.len();
+                let connected = owned_depots.iter().filter(|d| d.connected).count();
                 (total, connected)
             },
         )
@@ -502,11 +500,11 @@ fn check_progress(app: &mut App, ai_nation: Entity, progress: &mut TestProgress,
         progress.resources_collected = true;
     }
 
-    // Check for civilian hiring
+    // Check for civilian hiring (cache count to avoid repeated iteration)
     let civilian_count = app
         .world_mut()
         .run_system_once(
-            move |civilians: Query<&Civilian>| {
+            move |civilians: Query<&Civilian, With<AiControlledCivilian>>| {
                 civilians.iter().filter(|c| c.owner == ai_nation).count()
             },
         )
