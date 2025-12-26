@@ -1,6 +1,6 @@
 use crate::{
     civilians::CivilianKind,
-    economy::{BuildingKind, Good, WorkerSkill, production::ProductionChoice},
+    economy::{BuildingKind, Good, WorkerSkill},
 };
 use bevy::prelude::*;
 
@@ -62,13 +62,6 @@ pub struct BuildingButton {
 /// Marker for hire civilian buttons
 #[derive(Component)]
 pub struct HireCivilianButton(pub CivilianKind);
-
-/// Marker for production choice buttons
-#[derive(Component)]
-pub struct ProductionChoiceButton {
-    pub building_entity: Entity,
-    pub choice: ProductionChoice,
-}
 
 /// Marker for production dialog labor display
 #[derive(Component)]

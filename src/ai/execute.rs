@@ -100,12 +100,12 @@ fn execute_plan(
     }
 
     // Send production orders
-    for (building_entity, good, qty) in &plan.production_orders {
+    for order in &plan.production_orders {
         production_orders.write(AdjustProduction {
             nation,
-            building: *building_entity,
-            output_good: *good,
-            target_output: *qty,
+            building: order.building,
+            output_good: order.output,
+            target_output: order.qty,
         });
     }
 

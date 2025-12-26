@@ -14,6 +14,8 @@ pub const MARKET_RESOURCES: &[Good] = &[
     Good::Timber,
     Good::Coal,
     Good::Iron,
+    Good::Steel,
+    Good::Hardware,
     Good::Oil,
 ];
 
@@ -153,6 +155,8 @@ fn default_price_table() -> HashMap<Good, u32> {
     map.insert(Good::Timber, 70);
     map.insert(Good::Coal, 100);
     map.insert(Good::Iron, 100);
+    map.insert(Good::Steel, 180);
+    map.insert(Good::Hardware, 320);
     map.insert(Good::Oil, 110);
     map
 }
