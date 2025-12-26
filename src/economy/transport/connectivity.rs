@@ -31,7 +31,7 @@ pub fn compute_rail_connectivity(
         return;
     }
     events.clear();
-    
+
     // Build the rail graph once
     let graph = build_rail_graph(&rails);
 
@@ -68,14 +68,14 @@ pub fn compute_rail_connectivity(
     for mut depot in depots.iter_mut() {
         depot.connected = nation_reachable
             .get(&depot.owner)
-            .map_or(false, |reachable: &HashSet<TilePos>| reachable.contains(&depot.position));
+            .is_some_and(|reachable: &HashSet<TilePos>| reachable.contains(&depot.position));
     }
 
     // Update all ports in a single pass using cached reachability sets
     for mut port in ports.iter_mut() {
         port.connected = nation_reachable
             .get(&port.owner)
-            .map_or(false, |reachable: &HashSet<TilePos>| reachable.contains(&port.position));
+            .is_some_and(|reachable: &HashSet<TilePos>| reachable.contains(&port.position));
     }
 }
 

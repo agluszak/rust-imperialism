@@ -53,10 +53,8 @@ pub fn render_borders(
     };
 
     // Build province ownership lookup map once to avoid O(n²) lookups
-    let province_owners: HashMap<ProvinceId, Option<Entity>> = provinces
-        .iter()
-        .map(|p| (p.id, p.owner))
-        .collect();
+    let province_owners: HashMap<ProvinceId, Option<Entity>> =
+        provinces.iter().map(|p| (p.id, p.owner)).collect();
 
     // Check each tile and its neighbors to find borders
     for province in provinces.iter() {
@@ -79,8 +77,14 @@ pub fn render_borders(
                             // Found a border between tiles
                             if tile_prov.province_id != neighbor_prov.province_id {
                                 // Use cached province ownership lookup - O(1) instead of O(n)
-                                let tile_owner = province_owners.get(&tile_prov.province_id).copied().flatten();
-                                let neighbor_owner = province_owners.get(&neighbor_prov.province_id).copied().flatten();
+                                let tile_owner = province_owners
+                                    .get(&tile_prov.province_id)
+                                    .copied()
+                                    .flatten();
+                                let neighbor_owner = province_owners
+                                    .get(&neighbor_prov.province_id)
+                                    .copied()
+                                    .flatten();
 
                                 // Check if it's an international border
                                 let is_international = tile_owner != neighbor_owner;

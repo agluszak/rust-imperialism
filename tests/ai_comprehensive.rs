@@ -23,6 +23,7 @@ use rust_imperialism::economy::{
     EconomyPlugin,
     goods::Good,
     nation::{Capital, Nation},
+    production::Buildings,
     stockpile::Stockpile,
     technology::Technologies,
     transport::Depot,
@@ -75,12 +76,12 @@ fn test_comprehensive_ai_capabilities() {
 
     // Define key positions for various resources
     let capital_pos = TilePos { x: 10, y: 10 };
-    
+
     // Hidden minerals (need prospecting)
     let coal_pos = TilePos { x: 12, y: 8 };
     let iron_pos = TilePos { x: 13, y: 8 };
     let gold_pos = TilePos { x: 11, y: 7 };
-    
+
     // Visible resources (no prospecting needed)
     let grain_pos = TilePos { x: 8, y: 10 };
     let timber_pos = TilePos { x: 9, y: 11 };
@@ -95,7 +96,7 @@ fn test_comprehensive_ai_capabilities() {
     for x in 5..16 {
         for y in 5..16 {
             let pos = TilePos { x, y };
-            
+
             // Determine terrain type
             let terrain = if pos == timber_pos {
                 TerrainType::Forest
@@ -109,7 +110,7 @@ fn test_comprehensive_ai_capabilities() {
                 .world_mut()
                 .spawn((TileProvince { province_id }, terrain))
                 .id();
-            
+
             tile_storage.set(&pos, tile_entity);
             province_tiles.push(pos);
 
@@ -166,6 +167,7 @@ fn test_comprehensive_ai_capabilities() {
             Stockpile::default(),
             Treasury::new(5000), // Good amount for hiring and trading
             Technologies::default(),
+            Buildings::default(),
         ))
         .id();
 
@@ -307,7 +309,7 @@ fn test_comprehensive_ai_capabilities() {
         progress.rails_built,
         "AI should build rails to connect depots"
     );
-    
+
     // Optional goals (nice to have but may take longer)
     if !progress.civilian_hired {
         println!("Note: AI did not hire additional civilians (optional goal)");
@@ -330,7 +332,7 @@ struct TestProgress {
     rails_built: bool,
     resources_collected: bool,
     civilian_hired: bool,
-    
+
     // Detailed counters
     prospected_tiles: usize,
     developed_mines: usize,
@@ -352,29 +354,57 @@ impl TestProgress {
     }
 
     fn print_final_summary(&self) {
-        println!("Resources Discovered: {} ({})", 
-            if self.resources_discovered { "✓" } else { "✗" },
-            self.prospected_tiles);
-        println!("Resources Mined: {} ({})",
+        println!(
+            "Resources Discovered: {} ({})",
+            if self.resources_discovered {
+                "✓"
+            } else {
+                "✗"
+            },
+            self.prospected_tiles
+        );
+        println!(
+            "Resources Mined: {} ({})",
             if self.resources_mined { "✓" } else { "✗" },
-            self.developed_mines);
-        println!("Visible Resources Improved: {} ({})",
-            if self.visible_resources_improved { "✓" } else { "✗" },
-            self.improved_tiles);
-        println!("Depot Built: {} ({})",
+            self.developed_mines
+        );
+        println!(
+            "Visible Resources Improved: {} ({})",
+            if self.visible_resources_improved {
+                "✓"
+            } else {
+                "✗"
+            },
+            self.improved_tiles
+        );
+        println!(
+            "Depot Built: {} ({})",
             if self.depot_built { "✓" } else { "✗" },
-            self.depots_count);
-        println!("Depot Connected: {} ({})",
+            self.depots_count
+        );
+        println!(
+            "Depot Connected: {} ({})",
             if self.depot_connected { "✓" } else { "✗" },
-            self.connected_depots_count);
-        println!("Rails Built: {} ({} segments)",
+            self.connected_depots_count
+        );
+        println!(
+            "Rails Built: {} ({} segments)",
             if self.rails_built { "✓" } else { "✗" },
-            self.rail_segments);
-        println!("Resources Collected: {}",
-            if self.resources_collected { "✓" } else { "✗" });
-        println!("Civilian Hired: {} ({} total civilians)",
+            self.rail_segments
+        );
+        println!(
+            "Resources Collected: {}",
+            if self.resources_collected {
+                "✓"
+            } else {
+                "✗"
+            }
+        );
+        println!(
+            "Civilian Hired: {} ({} total civilians)",
             if self.civilian_hired { "✓" } else { "✗" },
-            self.civilians_count);
+            self.civilians_count
+        );
     }
 }
 
@@ -389,9 +419,12 @@ fn check_progress(app: &mut App, ai_nation: Entity, progress: &mut TestProgress,
             (count, count > 0)
         })
         .unwrap();
-    
+
     if any_prospected && !progress.resources_discovered {
-        println!("✓ Turn {}: Resources discovered! ({} tiles prospected)", turn, prospected_count);
+        println!(
+            "✓ Turn {}: Resources discovered! ({} tiles prospected)",
+            turn, prospected_count
+        );
         progress.resources_discovered = true;
     }
     progress.prospected_tiles = prospected_count;
@@ -414,9 +447,12 @@ fn check_progress(app: &mut App, ai_nation: Entity, progress: &mut TestProgress,
             (developed, developed > 0)
         })
         .unwrap();
-    
+
     if any_developed && !progress.resources_mined {
-        println!("✓ Turn {}: Mines developed! ({} developed)", turn, developed_count);
+        println!(
+            "✓ Turn {}: Mines developed! ({} developed)",
+            turn, developed_count
+        );
         progress.resources_mined = true;
     }
     progress.developed_mines = developed_count;
@@ -440,9 +476,12 @@ fn check_progress(app: &mut App, ai_nation: Entity, progress: &mut TestProgress,
             (improved, improved > 0)
         })
         .unwrap();
-    
+
     if any_improved && !progress.visible_resources_improved {
-        println!("✓ Turn {}: Visible resources improved! ({} improved)", turn, improved_count);
+        println!(
+            "✓ Turn {}: Visible resources improved! ({} improved)",
+            turn, improved_count
+        );
         progress.visible_resources_improved = true;
     }
     progress.improved_tiles = improved_count;
@@ -450,22 +489,26 @@ fn check_progress(app: &mut App, ai_nation: Entity, progress: &mut TestProgress,
     // Check for depots
     let (depot_count, connected_count) = app
         .world_mut()
-        .run_system_once(
-            move |depots: Query<&Depot>| {
-                let owned_depots: Vec<_> = depots.iter().filter(|d| d.owner == ai_nation).collect();
-                let total = owned_depots.len();
-                let connected = owned_depots.iter().filter(|d| d.connected).count();
-                (total, connected)
-            },
-        )
+        .run_system_once(move |depots: Query<&Depot>| {
+            let owned_depots: Vec<_> = depots.iter().filter(|d| d.owner == ai_nation).collect();
+            let total = owned_depots.len();
+            let connected = owned_depots.iter().filter(|d| d.connected).count();
+            (total, connected)
+        })
         .unwrap();
-    
+
     if depot_count > 0 && !progress.depot_built {
-        println!("✓ Turn {}: Depot built! ({} total depots)", turn, depot_count);
+        println!(
+            "✓ Turn {}: Depot built! ({} total depots)",
+            turn, depot_count
+        );
         progress.depot_built = true;
     }
     if connected_count > 0 && !progress.depot_connected {
-        println!("✓ Turn {}: Depot connected! ({} connected)", turn, connected_count);
+        println!(
+            "✓ Turn {}: Depot connected! ({} connected)",
+            turn, connected_count
+        );
         progress.depot_connected = true;
     }
     progress.depots_count = depot_count;
@@ -476,9 +519,12 @@ fn check_progress(app: &mut App, ai_nation: Entity, progress: &mut TestProgress,
         .world_mut()
         .run_system_once(|rails: Res<rust_imperialism::economy::transport::Rails>| rails.0.len())
         .unwrap();
-    
+
     if rail_count > 0 && !progress.rails_built {
-        println!("✓ Turn {}: Rails built! ({} rail segments)", turn, rail_count);
+        println!(
+            "✓ Turn {}: Rails built! ({} rail segments)",
+            turn, rail_count
+        );
         progress.rails_built = true;
     }
     progress.rail_segments = rail_count;
@@ -494,7 +540,7 @@ fn check_progress(app: &mut App, ai_nation: Entity, progress: &mut TestProgress,
                 || s.get(Good::Timber) > 0
         })
         .unwrap_or(false);
-    
+
     if stockpile_has_resources && !progress.resources_collected {
         println!("✓ Turn {}: Resources collected in stockpile!", turn);
         progress.resources_collected = true;
@@ -509,9 +555,12 @@ fn check_progress(app: &mut App, ai_nation: Entity, progress: &mut TestProgress,
             },
         )
         .unwrap();
-    
+
     if civilian_count > 4 && !progress.civilian_hired {
-        println!("✓ Turn {}: Additional civilian hired! ({} total)", turn, civilian_count);
+        println!(
+            "✓ Turn {}: Additional civilian hired! ({} total)",
+            turn, civilian_count
+        );
         progress.civilian_hired = true;
     }
     progress.civilians_count = civilian_count;
@@ -522,7 +571,10 @@ fn print_status_summary(progress: &TestProgress, turn: u32) {
     println!("  Prospected: {}", progress.prospected_tiles);
     println!("  Developed mines: {}", progress.developed_mines);
     println!("  Improved tiles: {}", progress.improved_tiles);
-    println!("  Depots: {} ({} connected)", progress.depots_count, progress.connected_depots_count);
+    println!(
+        "  Depots: {} ({} connected)",
+        progress.depots_count, progress.connected_depots_count
+    );
     println!("  Rail segments: {}", progress.rail_segments);
     println!("  Civilians: {}", progress.civilians_count);
     println!("  Resources collected: {}", progress.resources_collected);
