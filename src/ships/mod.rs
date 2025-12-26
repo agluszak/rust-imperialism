@@ -5,16 +5,14 @@ use crate::turn_system::TurnPhase;
 pub mod construction;
 pub mod types;
 
-pub use types::{NextShipId, Ship, ShipId, ShipKind};
+pub use types::{Ship, ShipKind};
 
 /// Plugin for ship management
 pub struct ShipsPlugin;
 
 impl Plugin for ShipsPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<NextShipId>()
-            .register_type::<ShipId>()
-            .register_type::<Ship>()
+        app.register_type::<Ship>()
             .add_systems(
                 OnEnter(TurnPhase::PlayerTurn),
                 reset_ship_movement_flags,

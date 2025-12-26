@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::economy::nation::NationInstance;
 use crate::economy::stockpile::Stockpile;
 use crate::economy::Good;
-use crate::ships::types::{NextShipId, Ship, ShipKind};
+use crate::ships::types::{Ship, ShipKind};
 
 /// Message to request ship construction
 #[derive(Message, Debug, Clone, Copy)]
@@ -17,7 +17,6 @@ pub struct ConstructShip {
 pub fn construct_ships_from_production(
     mut commands: Commands,
     mut nations: Query<(Entity, &mut Stockpile)>,
-    mut next_ship_id: ResMut<NextShipId>,
 ) {
     for (nation_entity, mut stockpile) in nations.iter_mut() {
         // Check for materials to build ships (Steel, Lumber, Fuel)
@@ -34,15 +33,14 @@ pub fn construct_ships_from_production(
             stockpile.take_up_to(Good::Lumber, actually_built);
             stockpile.take_up_to(Good::Fuel, actually_built);
             
-            // Spawn ship entities
-            for _ in 0..actually_built {
-                let ship_id = next_ship_id.next_id();
-                commands.spawn((
-                    Ship::new(ShipKind::Trader, nation_entity, ship_id),
-                    Name::new(format!("Trade Ship {}", ship_id.0)),
-                ));
+            // Spawn ship entities (use entity ID as the unique identifier)
+            for i in 0..actually_built {
+                let ship_entity = commands.spawn((
+                    Ship::new(ShipKind::Trader, nation_entity),
+                    Name::new(format!("Trade Ship #{}", i + 1)),
+                )).id();
                 
-                info!("Constructed ship for nation {:?}", nation_entity);
+                info!("Constructed ship {:?} for nation {:?}", ship_entity, nation_entity);
             }
         }
     }

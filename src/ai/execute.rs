@@ -97,14 +97,10 @@ fn execute_plan(
     }
 
     // Send production orders
-    // Note: The building entity is stored in the nation_snapshot but we need the actual building entity
-    // For now, we'll use the Buildings component to find the right building
-    for (_building_entity, good, qty) in &plan.production_orders {
-        // Find the building entity from the Buildings collection
-        // Since Buildings is a HashMap in the nation entity, we need to use the nation entity itself
+    for (building_entity, good, qty) in &plan.production_orders {
         production_orders.write(AdjustProduction {
             nation,
-            building: nation.entity(), // The Buildings component is on the nation entity
+            building: *building_entity,
             output_good: *good,
             target_output: *qty,
         });
