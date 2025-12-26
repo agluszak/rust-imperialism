@@ -244,18 +244,45 @@ pub fn calculate_connected_production(
 
 /// Collects resources from connected production and adds them to nation stockpiles.
 /// Runs at the start of each turn (PlayerTurn phase) to harvest resources.
+/// Resources are only collected up to the allocated transport capacity for each commodity.
 pub fn collect_connected_production(
     connected: Res<ConnectedProduction>,
+    transport_allocations: Res<crate::economy::transport::TransportAllocations>,
     mut nations: Query<(Entity, &mut Stockpile)>,
 ) {
+    use crate::economy::transport::TransportCommodity;
+
     for (nation_entity, mut stockpile) in nations.iter_mut() {
         if let Some(nation_totals) = connected.totals.get(&nation_entity) {
             for (resource_type, (_improvement_count, total_output)) in nation_totals.iter() {
-                if *total_output > 0 {
-                    let good = resource_type.to_good();
+                if *total_output == 0 {
+                    continue;
+                }
+
+                let good = resource_type.to_good();
+                
+                // Check if there's an allocated transport capacity for this resource
+                if let Some(commodity) = TransportCommodity::from_good(good) {
+                    let allocation = transport_allocations.slot(nation_entity, commodity);
+                    let amount_to_collect = allocation.granted.min(*total_output);
+                    
+                    if amount_to_collect > 0 {
+                        stockpile.add(good, amount_to_collect);
+                        info!(
+                            "Nation {:?} collected {} {:?} from connected production (allocated: {}, available: {})",
+                            nation_entity, amount_to_collect, good, allocation.granted, total_output
+                        );
+                    } else if allocation.granted == 0 {
+                        info!(
+                            "Nation {:?} has {} {:?} available but no transport capacity allocated",
+                            nation_entity, total_output, good
+                        );
+                    }
+                } else {
+                    // Fallback for goods without transport commodity mapping (shouldn't happen for resources)
                     stockpile.add(good, *total_output);
-                    info!(
-                        "Nation {:?} collected {} {:?} from connected production",
+                    warn!(
+                        "Nation {:?} collected {} {:?} without transport allocation (no commodity mapping)",
                         nation_entity, total_output, good
                     );
                 }
