@@ -6,7 +6,7 @@ use crate::economy::workforce::systems::calculate_recruitment_cap;
 use crate::economy::workforce::types::{RecruitmentCapacity, Workforce};
 use crate::map::province::Province;
 use crate::messages::workforce::RecruitWorkers;
-use crate::turn_system::{TurnPhase, TurnSystem};
+use crate::turn_system::TurnPhase;
 
 /// Component tracking queued recruitment orders for a nation
 #[derive(Component, Debug, Clone, Default, Reflect)]
@@ -98,11 +98,11 @@ pub fn handle_recruitment(
 
 /// System to execute queued recruitment orders during turn processing (Logic Layer)
 pub fn execute_recruitment_orders(
-    turn: Res<TurnSystem>,
+    phase: Res<State<TurnPhase>>,
     mut nations: Query<(&mut RecruitmentQueue, &mut Workforce, &mut Stockpile)>,
 ) {
     // Only execute during Processing phase
-    if turn.phase != TurnPhase::Processing {
+    if *phase.get() != TurnPhase::Processing {
         return;
     }
 

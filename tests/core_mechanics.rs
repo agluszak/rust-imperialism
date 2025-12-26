@@ -3,24 +3,20 @@
 //! These tests verify basic systems like turn management, UI state, and hex utilities.
 
 #[test]
-fn test_turn_system() {
-    use rust_imperialism::turn_system::{TurnPhase, TurnSystem};
+fn test_turn_counter() {
+    use rust_imperialism::turn_system::{TurnCounter, TurnPhase};
 
-    let mut turn_system = TurnSystem::default();
-    assert_eq!(turn_system.current_turn, 1);
-    assert_eq!(turn_system.phase, TurnPhase::PlayerTurn);
+    // Test TurnCounter
+    let mut counter = TurnCounter::new(1);
+    assert_eq!(counter.current, 1);
 
-    // Manually advance phases (since advance_turn was removed)
-    turn_system.phase = TurnPhase::Processing;
-    assert_eq!(turn_system.phase, TurnPhase::Processing);
+    counter.increment();
+    assert_eq!(counter.current, 2);
 
-    turn_system.phase = TurnPhase::EnemyTurn;
-    assert_eq!(turn_system.phase, TurnPhase::EnemyTurn);
-
-    turn_system.phase = TurnPhase::PlayerTurn;
-    turn_system.current_turn += 1;
-    assert_eq!(turn_system.phase, TurnPhase::PlayerTurn);
-    assert_eq!(turn_system.current_turn, 2); // New turn
+    // Test TurnPhase enum
+    assert_eq!(TurnPhase::default(), TurnPhase::PlayerTurn);
+    assert_ne!(TurnPhase::PlayerTurn, TurnPhase::Processing);
+    assert_ne!(TurnPhase::Processing, TurnPhase::EnemyTurn);
 }
 
 #[test]

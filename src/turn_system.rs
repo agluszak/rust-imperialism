@@ -87,42 +87,12 @@ pub enum EnemyTurnSet {
 }
 
 // ============================================================================
-// Transition Events (for systems that need to react to phase changes)
-// ============================================================================
-
-/// Fired when a new turn starts (entering PlayerTurn from EnemyTurn).
-#[derive(Message, Debug, Clone)]
-pub struct NewTurnStarted {
-    pub turn: u32,
-}
-
-/// Fired when processing phase begins.
-#[derive(Message, Debug, Clone)]
-pub struct ProcessingStarted {
-    pub turn: u32,
-}
-
-/// Fired when enemy turn begins.
-#[derive(Message, Debug, Clone)]
-pub struct EnemyTurnStarted {
-    pub turn: u32,
-}
-
-// ============================================================================
 // Commands for Turn Control
 // ============================================================================
 
 /// Command to end the player's turn and begin processing.
 #[derive(Message, Debug, Clone)]
 pub struct EndPlayerTurn;
-
-/// Command to advance from Processing to EnemyTurn.
-#[derive(Message, Debug, Clone)]
-pub struct BeginEnemyTurn;
-
-/// Command to advance from EnemyTurn to next PlayerTurn.
-#[derive(Message, Debug, Clone)]
-pub struct BeginNextTurn;
 
 // ============================================================================
 // Plugin
@@ -135,12 +105,7 @@ impl Plugin for TurnSystemPlugin {
         // Register state and resources
         app.init_state::<TurnPhase>()
             .insert_resource(TurnCounter::new(1))
-            .add_message::<EndPlayerTurn>()
-            .add_message::<BeginEnemyTurn>()
-            .add_message::<BeginNextTurn>()
-            .add_message::<NewTurnStarted>()
-            .add_message::<ProcessingStarted>()
-            .add_message::<EnemyTurnStarted>();
+            .add_message::<EndPlayerTurn>();
 
         // Configure system set ordering for PlayerTurn
         app.configure_sets(
@@ -179,38 +144,32 @@ impl Plugin for TurnSystemPlugin {
                 .chain(),
         );
 
-        // Phase transition systems
+        // Logging systems for phase transitions
         app.add_systems(
             OnEnter(TurnPhase::PlayerTurn),
-            (fire_new_turn_event, log_turn_start)
-                .chain()
-                .before(PlayerTurnSet::Collection),
+            log_turn_start.before(PlayerTurnSet::Collection),
         );
 
         app.add_systems(
             OnEnter(TurnPhase::Processing),
-            (fire_processing_event, log_processing_start)
-                .chain()
-                .before(ProcessingSet::Finalize),
+            log_processing_start.before(ProcessingSet::Finalize),
         );
 
         app.add_systems(
             OnEnter(TurnPhase::EnemyTurn),
-            (fire_enemy_turn_event, log_enemy_turn_start)
-                .chain()
-                .before(EnemyTurnSet::Setup),
+            log_enemy_turn_start.before(EnemyTurnSet::Setup),
         );
 
-        // Auto-transition: Processing → EnemyTurn (fires BeginEnemyTurn after all Processing systems)
+        // Auto-transition: Processing → EnemyTurn (after all Processing systems)
         app.add_systems(
             OnEnter(TurnPhase::Processing),
-            fire_begin_enemy_turn.after(ProcessingSet::Conversion),
+            transition_to_enemy_turn.after(ProcessingSet::Conversion),
         );
 
-        // Auto-transition: EnemyTurn → PlayerTurn (fires BeginNextTurn after all EnemyTurn systems)
+        // Auto-transition: EnemyTurn → PlayerTurn (after all EnemyTurn systems)
         app.add_systems(
             OnEnter(TurnPhase::EnemyTurn),
-            fire_begin_next_turn.after(EnemyTurnSet::Orders),
+            transition_to_next_turn.after(EnemyTurnSet::Orders),
         );
 
         // Input handling (runs every frame during gameplay)
@@ -221,15 +180,10 @@ impl Plugin for TurnSystemPlugin {
                 .run_if(in_state(TurnPhase::PlayerTurn)),
         );
 
-        // Transition command handlers - these read messages and change state
+        // Transition command handler for player ending turn
         app.add_systems(
             Update,
-            (
-                handle_end_player_turn,
-                handle_begin_enemy_turn,
-                handle_begin_next_turn,
-            )
-                .run_if(in_state(AppState::InGame)),
+            handle_end_player_turn.run_if(in_state(AppState::InGame)),
         );
 
         // Calendar advancement (on new turn)
@@ -237,29 +191,7 @@ impl Plugin for TurnSystemPlugin {
             OnEnter(TurnPhase::PlayerTurn),
             advance_calendar.in_set(PlayerTurnSet::Maintenance),
         );
-
-        // Legacy TurnSystem sync (for gradual migration)
-        app.init_resource::<TurnSystem>().add_systems(
-            Update,
-            sync_legacy_turn_system.run_if(in_state(AppState::InGame)),
-        );
     }
-}
-
-// ============================================================================
-// Event Firing Systems (run on phase entry)
-// ============================================================================
-
-fn fire_new_turn_event(turn: Res<TurnCounter>, mut events: MessageWriter<NewTurnStarted>) {
-    events.write(NewTurnStarted { turn: turn.current });
-}
-
-fn fire_processing_event(turn: Res<TurnCounter>, mut events: MessageWriter<ProcessingStarted>) {
-    events.write(ProcessingStarted { turn: turn.current });
-}
-
-fn fire_enemy_turn_event(turn: Res<TurnCounter>, mut events: MessageWriter<EnemyTurnStarted>) {
-    events.write(EnemyTurnStarted { turn: turn.current });
 }
 
 // ============================================================================
@@ -326,42 +258,26 @@ fn handle_end_player_turn(
     }
 }
 
-fn handle_begin_enemy_turn(
-    mut messages: MessageReader<BeginEnemyTurn>,
-    mut next_state: ResMut<NextState<TurnPhase>>,
-) {
-    for _ in messages.read() {
-        next_state.set(TurnPhase::EnemyTurn);
-    }
+// ============================================================================
+// Auto-Transition Systems
+// ============================================================================
+
+/// Automatically transitions from Processing to EnemyTurn.
+/// Runs at the end of OnEnter(Processing) after all processing systems complete.
+fn transition_to_enemy_turn(mut next_state: ResMut<NextState<TurnPhase>>) {
+    info!("Processing complete, beginning enemy turn...");
+    next_state.set(TurnPhase::EnemyTurn);
 }
 
-fn handle_begin_next_turn(
-    mut messages: MessageReader<BeginNextTurn>,
+/// Automatically transitions from EnemyTurn to next PlayerTurn.
+/// Runs at the end of OnEnter(EnemyTurn) after all AI systems complete.
+fn transition_to_next_turn(
     mut next_state: ResMut<NextState<TurnPhase>>,
     mut turn: ResMut<TurnCounter>,
 ) {
-    for _ in messages.read() {
-        turn.increment();
-        next_state.set(TurnPhase::PlayerTurn);
-    }
-}
-
-// ============================================================================
-// Auto-Transition Triggers
-// ============================================================================
-
-/// Automatically triggers the transition from Processing to EnemyTurn.
-/// This fires at the end of the OnEnter(Processing) schedule.
-fn fire_begin_enemy_turn(mut events: MessageWriter<BeginEnemyTurn>) {
-    info!("Processing complete, beginning enemy turn...");
-    events.write(BeginEnemyTurn);
-}
-
-/// Automatically triggers the transition from EnemyTurn to next PlayerTurn.
-/// This fires at the end of the OnEnter(EnemyTurn) schedule.
-fn fire_begin_next_turn(mut events: MessageWriter<BeginNextTurn>) {
-    info!("Enemy turn complete, beginning next player turn...");
-    events.write(BeginNextTurn);
+    turn.increment();
+    info!("Enemy turn complete, beginning turn {}...", turn.current);
+    next_state.set(TurnPhase::PlayerTurn);
 }
 
 // ============================================================================
@@ -385,47 +301,6 @@ fn advance_calendar(mut calendar: Option<ResMut<Calendar>>, turn: Res<TurnCounte
             }
         };
     }
-}
-
-// ============================================================================
-// Backward Compatibility Layer
-// ============================================================================
-
-/// Legacy TurnSystem resource for gradual migration.
-/// New code should use TurnCounter + TurnPhase state directly.
-#[derive(Resource, Debug, Clone, Reflect)]
-#[reflect(Resource)]
-pub struct TurnSystem {
-    pub current_turn: u32,
-    pub phase: TurnPhase,
-    /// Deprecated: No longer needed with OnEnter scheduling
-    pub last_job_processing_turn: u32,
-}
-
-impl Default for TurnSystem {
-    fn default() -> Self {
-        Self {
-            current_turn: 1,
-            phase: TurnPhase::PlayerTurn,
-            last_job_processing_turn: 0,
-        }
-    }
-}
-
-impl TurnSystem {
-    pub fn is_player_turn(&self) -> bool {
-        self.phase == TurnPhase::PlayerTurn
-    }
-}
-
-/// Sync legacy TurnSystem with new state (for gradual migration).
-pub fn sync_legacy_turn_system(
-    turn: Res<TurnCounter>,
-    phase: Res<State<TurnPhase>>,
-    mut legacy: ResMut<TurnSystem>,
-) {
-    legacy.current_turn = turn.current;
-    legacy.phase = *phase.get();
 }
 
 #[cfg(test)]

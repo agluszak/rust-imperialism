@@ -14,10 +14,10 @@ fn test_ai_move_command_executes() {
     };
     use rust_imperialism::map::province::{Province, ProvinceId, TileProvince};
     use rust_imperialism::messages::civilians::CivilianCommandRejected;
-    use rust_imperialism::turn_system::TurnSystem;
+    use rust_imperialism::turn_system::TurnCounter;
 
     let mut world = World::new();
-    world.init_resource::<TurnSystem>();
+    world.init_resource::<TurnCounter>();
     world.init_resource::<Messages<CivilianCommand>>();
     world.init_resource::<Messages<CivilianCommandRejected>>();
     world.init_resource::<Messages<DeselectCivilian>>();
@@ -93,10 +93,10 @@ fn test_illegal_rail_command_rejected() {
     };
     use rust_imperialism::map::province::{Province, ProvinceId, TileProvince};
     use rust_imperialism::messages::civilians::{CivilianCommandError, CivilianCommandRejected};
-    use rust_imperialism::turn_system::TurnSystem;
+    use rust_imperialism::turn_system::TurnCounter;
 
     let mut world = World::new();
-    world.init_resource::<TurnSystem>();
+    world.init_resource::<TurnCounter>();
     world.init_resource::<Messages<CivilianCommand>>();
     world.init_resource::<Messages<CivilianCommandRejected>>();
     world.init_resource::<Messages<DeselectCivilian>>();

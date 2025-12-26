@@ -4,20 +4,14 @@ use crate::economy::PlayerNation;
 use crate::economy::goods::Good;
 use crate::economy::stockpile::Stockpile;
 use crate::economy::workforce::types::{WorkerHealth, Workforce};
-use crate::turn_system::{TurnPhase, TurnSystem};
 
 /// System that feeds workers at the start of each player turn
 /// Implements the feeding preference cycle: preferred raw → canned → wrong raw (sick) → none (dead)
+/// NOTE: Registered via OnEnter(TurnPhase::PlayerTurn), so no phase check needed.
 pub fn feed_workers(
-    turn: Res<TurnSystem>,
     mut nations: Query<(Entity, &mut Workforce, &mut Stockpile)>,
     player_nation: Option<Res<PlayerNation>>,
 ) {
-    // Only run at start of player turn
-    if turn.phase != TurnPhase::PlayerTurn {
-        return;
-    }
-
     for (entity, mut workforce, mut stockpile) in nations.iter_mut() {
         let is_player = player_nation
             .as_ref()

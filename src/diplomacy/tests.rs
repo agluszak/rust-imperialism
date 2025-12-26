@@ -8,11 +8,11 @@ use crate::diplomacy::{
     process_diplomatic_orders, resolve_offer_response, sync_diplomatic_pairs,
 };
 use crate::economy::{Nation, NationInstance, Treasury};
-use crate::turn_system::{TurnPhase, TurnSystem};
+use crate::turn_system::TurnCounter;
 
 fn setup_world() -> World {
     let mut world = World::new();
-    world.init_resource::<TurnSystem>();
+    world.init_resource::<TurnCounter>();
     world.init_resource::<Messages<DiplomaticOrder>>();
     world.insert_resource(DiplomacyState::default());
     world.insert_resource(ForeignAidLedger::default());
@@ -40,7 +40,7 @@ fn consulate_requires_funds_and_relations() {
     let player_inst = nation_instance(&world, player);
     let minor_inst = nation_instance(&world, minor);
 
-    world.resource_mut::<TurnSystem>().phase = TurnPhase::Processing;
+    // Phase is handled by OnEnter scheduling - no need to set manually in tests
 
     // Ensure relations are tracked
     let _ = world.run_system_once(sync_diplomatic_pairs);
@@ -111,7 +111,7 @@ fn recurring_aid_transfers_each_turn() {
     let donor_inst = nation_instance(&world, donor);
     let recipient_inst = nation_instance(&world, recipient);
 
-    world.resource_mut::<TurnSystem>().phase = TurnPhase::Processing;
+    // Phase is handled by OnEnter scheduling - no need to set manually in tests
 
     // Initialize relations and record the aid order
     let _ = world.run_system_once(sync_diplomatic_pairs);
@@ -131,7 +131,7 @@ fn recurring_aid_transfers_each_turn() {
     let _ = world.run_system_once(process_diplomatic_orders);
 
     // At start of next player turn apply recurring aid
-    world.resource_mut::<TurnSystem>().phase = TurnPhase::PlayerTurn;
+    // Phase is handled by OnEnter scheduling - no need to set manually in tests
     let _ = world.run_system_once(
         |ledger: Res<ForeignAidLedger>,
          state: ResMut<DiplomacyState>,
@@ -178,7 +178,7 @@ fn embassy_requires_consulate_and_relations() {
     let empire_inst = nation_instance(&world, empire);
     let neighbor_inst = nation_instance(&world, neighbor);
 
-    world.resource_mut::<TurnSystem>().phase = TurnPhase::Processing;
+    // Phase is handled by OnEnter scheduling - no need to set manually in tests
     let _ = world.run_system_once(sync_diplomatic_pairs);
 
     // Attempt to open an embassy without a consulate
@@ -252,7 +252,7 @@ fn declare_war_shifts_world_opinion() {
     let friend_inst = nation_instance(&world, friend);
     let foe_inst = nation_instance(&world, foe);
 
-    world.resource_mut::<TurnSystem>().phase = TurnPhase::Processing;
+    // Phase is handled by OnEnter scheduling - no need to set manually in tests
     let _ = world.run_system_once(sync_diplomatic_pairs);
 
     // Friend admires the rival, foe despises them
@@ -312,7 +312,7 @@ fn offer_peace_creates_pending_offer() {
     let player_inst = nation_instance(&world, player);
     let foe_inst = nation_instance(&world, foe);
 
-    world.resource_mut::<TurnSystem>().phase = TurnPhase::Processing;
+    // Phase is handled by OnEnter scheduling - no need to set manually in tests
     let _ = world.run_system_once(sync_diplomatic_pairs);
 
     world
@@ -354,7 +354,7 @@ fn proposing_non_aggression_creates_offer() {
     let player_inst = nation_instance(&world, player);
     let neighbor_inst = nation_instance(&world, neighbor);
 
-    world.resource_mut::<TurnSystem>().phase = TurnPhase::Processing;
+    // Phase is handled by OnEnter scheduling - no need to set manually in tests
     let _ = world.run_system_once(sync_diplomatic_pairs);
 
     world
@@ -446,7 +446,7 @@ fn declare_war_triggers_alliance_calls() {
     let defender_ally_inst = nation_instance(&world, defender_ally);
     let aggressor_ally_inst = nation_instance(&world, aggressor_ally);
 
-    world.resource_mut::<TurnSystem>().phase = TurnPhase::Processing;
+    // Phase is handled by OnEnter scheduling - no need to set manually in tests
     let _ = world.run_system_once(sync_diplomatic_pairs);
 
     {

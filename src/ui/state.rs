@@ -1,4 +1,4 @@
-use crate::turn_system::{TurnPhase, TurnSystem};
+use crate::turn_system::{TurnCounter, TurnPhase};
 use bevy::prelude::*;
 
 /// Centralized UI state that consolidates all game state needed by UI systems
@@ -23,24 +23,16 @@ impl Default for TurnState {
     }
 }
 
-impl From<&TurnSystem> for TurnState {
-    fn from(turn_system: &TurnSystem) -> Self {
-        Self {
-            current_turn: turn_system.current_turn,
-            phase: turn_system.phase,
-        }
-    }
-}
-
 impl UIState {
-    /// Update UI state from world resources
-    pub fn update(&mut self, turn_system: &TurnSystem) {
-        self.turn = turn_system.into();
+    /// Update UI state from turn counter and phase
+    pub fn update(&mut self, turn: u32, phase: TurnPhase) {
+        self.turn.current_turn = turn;
+        self.turn.phase = phase;
     }
 
     /// Check if any UI-relevant state has changed
-    pub fn needs_update(&self, turn_system: &TurnSystem) -> bool {
-        self.turn.current_turn != turn_system.current_turn || self.turn.phase != turn_system.phase
+    pub fn needs_update(&self, turn: u32, phase: TurnPhase) -> bool {
+        self.turn.current_turn != turn || self.turn.phase != phase
     }
 
     /// Get formatted turn display text
@@ -55,10 +47,17 @@ impl UIState {
 }
 
 /// System to collect game state and update the centralized UIState resource
-pub fn collect_ui_state(mut ui_state: ResMut<UIState>, turn_system: Res<TurnSystem>) {
+pub fn collect_ui_state(
+    mut ui_state: ResMut<UIState>,
+    turn_counter: Res<TurnCounter>,
+    phase: Res<State<TurnPhase>>,
+) {
+    let current_turn = turn_counter.current;
+    let current_phase = *phase.get();
+
     // Only update if something has changed to avoid unnecessary UI updates
-    if ui_state.needs_update(&turn_system) {
-        ui_state.update(&turn_system);
+    if ui_state.needs_update(current_turn, current_phase) {
+        ui_state.update(current_turn, current_phase);
     }
 }
 
@@ -78,8 +77,8 @@ pub fn notify_ui_state_changes(
 
 #[cfg(test)]
 mod tests {
-    use crate::turn_system::{TurnPhase, TurnSystem};
-    use crate::ui::state::{TurnState, UIState};
+    use crate::turn_system::TurnPhase;
+    use crate::ui::state::UIState;
 
     #[test]
     fn test_ui_state_default() {
@@ -90,31 +89,17 @@ mod tests {
     }
 
     #[test]
-    fn test_turn_state_conversion() {
-        let turn_system = TurnSystem {
-            phase: TurnPhase::Processing,
-            ..Default::default()
-        };
-
-        let turn_state = TurnState::from(&turn_system);
-        assert_eq!(turn_state.current_turn, 1);
-        assert_eq!(turn_state.phase, TurnPhase::Processing);
-    }
-
-    #[test]
     fn test_ui_state_update_and_change_detection() {
         let mut ui_state = UIState::default();
-        let mut turn_system = TurnSystem::default();
 
         // Initially, UI does not need update for the same turn state
-        assert!(!ui_state.needs_update(&turn_system));
+        assert!(!ui_state.needs_update(1, TurnPhase::PlayerTurn));
 
         // Simulate a phase change that should trigger UI update
-        turn_system.phase = TurnPhase::Processing; // Manually set phase
-        assert!(ui_state.needs_update(&turn_system));
+        assert!(ui_state.needs_update(1, TurnPhase::Processing));
 
         // Apply update and verify text
-        ui_state.update(&turn_system);
+        ui_state.update(1, TurnPhase::Processing);
         assert_eq!(ui_state.turn_display_text(), "Turn: 1 - Processing");
     }
 }

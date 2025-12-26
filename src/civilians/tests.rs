@@ -11,7 +11,7 @@ use crate::economy::nation::Nation;
 use crate::economy::transport::{PlaceImprovement, Rails, ordered_edge};
 use crate::map::province::{Province, ProvinceId, TileProvince};
 use crate::resources::{DevelopmentLevel, ResourceType, TileResource};
-use crate::turn_system::{TurnPhase, TurnSystem};
+use crate::turn_system::TurnCounter;
 use bevy::ecs::system::{RunSystemOnce, SystemState};
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
@@ -20,7 +20,7 @@ use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
 fn test_engineer_does_not_start_job_on_existing_rail() {
     let mut world = World::new();
     world.init_resource::<Rails>();
-    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
 
     // Initialize event resources that the system uses
@@ -100,7 +100,7 @@ fn test_engineer_does_not_start_job_on_existing_rail() {
 fn test_engineer_starts_job_on_new_rail() {
     let mut world = World::new();
     world.init_resource::<Rails>();
-    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
 
     // Initialize event resources that the system uses
@@ -254,7 +254,7 @@ fn test_miner_supports_mine_order() {
 #[test]
 fn test_prospector_starts_prospecting_job() {
     let mut world = World::new();
-    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
 
     world.init_resource::<Messages<DeselectCivilian>>();
@@ -381,7 +381,7 @@ fn test_prospecting_job_reveals_resource_on_completion() {
 #[test]
 fn miner_requires_discovery_before_mining() {
     let mut world = World::new();
-    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
@@ -446,7 +446,7 @@ fn miner_requires_discovery_before_mining() {
 #[test]
 fn new_owner_must_reprospect_before_mining() {
     let mut world = World::new();
-    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
@@ -676,11 +676,7 @@ fn test_rescind_orders_removes_civilian_order_component() {
     let mut world = World::new();
 
     // Setup turn system
-    world.insert_resource(TurnSystem {
-        current_turn: 1,
-        phase: TurnPhase::PlayerTurn,
-        last_job_processing_turn: 0,
-    });
+    world.insert_resource(TurnCounter::new(1));
 
     // Initialize message resources
     world.init_resource::<Messages<RescindOrders>>();
@@ -757,11 +753,7 @@ fn test_rescind_orders_removes_civilian_job_and_order() {
     let mut world = World::new();
 
     // Setup turn system
-    world.insert_resource(TurnSystem {
-        current_turn: 1,
-        phase: TurnPhase::PlayerTurn,
-        last_job_processing_turn: 0,
-    });
+    world.insert_resource(TurnCounter::new(1));
 
     // Initialize message resources
     world.init_resource::<Messages<RescindOrders>>();
@@ -915,11 +907,7 @@ fn test_rescind_wakes_sleeping_civilian() {
     use crate::civilians::systems::handle_rescind_orders;
 
     let mut world = World::new();
-    world.insert_resource(TurnSystem {
-        current_turn: 1,
-        phase: TurnPhase::PlayerTurn,
-        last_job_processing_turn: 0,
-    });
+    world.insert_resource(TurnCounter::new(1));
     world.init_resource::<Messages<RescindOrders>>();
 
     let tile_pos = TilePos { x: 5, y: 5 };
@@ -969,7 +957,7 @@ fn test_rescind_wakes_sleeping_civilian() {
 #[test]
 fn miner_respects_max_development_level() {
     let mut world = World::new();
-    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
@@ -1024,7 +1012,7 @@ fn miner_respects_max_development_level() {
 #[test]
 fn farmer_starts_improvement_job_on_visible_resource() {
     let mut world = World::new();
-    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
@@ -1083,7 +1071,7 @@ fn farmer_starts_improvement_job_on_visible_resource() {
 #[test]
 fn prospecting_knowledge_is_nation_private() {
     let mut world = World::new();
-    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
@@ -1175,7 +1163,7 @@ fn prospecting_markers_filtered_by_player_nation() {
     use crate::map::rendering::prospecting_markers::render_prospected_mineral_markers;
 
     let mut world = World::new();
-    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
     world.init_resource::<Messages<DeselectCivilian>>();
 
@@ -1290,7 +1278,7 @@ fn prospecting_markers_filtered_by_player_nation() {
 #[test]
 fn multiple_nations_can_prospect_same_tile_independently() {
     let mut world = World::new();
-    world.init_resource::<crate::turn_system::TurnSystem>();
+    world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
     world.init_resource::<Messages<DeselectCivilian>>();
 

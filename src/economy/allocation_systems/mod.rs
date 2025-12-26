@@ -17,7 +17,6 @@ use crate::{
         AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, MarketInterest,
     },
     orders::OrdersQueue,
-    turn_system::TurnSystem,
 };
 
 // ============================================================================
@@ -644,8 +643,8 @@ fn process_market_adjustment(
 
 /// Finalize allocations at turn end (when entering Processing phase)
 /// Consumes reservations and queues orders for execution
+/// NOTE: Registered via OnEnter(TurnPhase::Processing), so no phase check needed.
 pub fn finalize_allocations(
-    _turn: Res<TurnSystem>,
     mut nations: Query<(
         &Allocations,
         &mut ReservationSystem,
@@ -657,9 +656,6 @@ pub fn finalize_allocations(
     )>,
     mut buildings: Query<&mut crate::economy::production::ProductionSettings>,
 ) {
-    // Note: This system only runs when TurnSystem changes AND phase == Processing
-    // due to run_if conditions in lib.rs, so no need for phase check here
-
     for (
         allocations,
         mut reservations,
@@ -741,8 +737,8 @@ pub fn finalize_allocations(
 
 /// Reset allocations at start of PlayerTurn
 /// Releases all reservations and clears allocation structures
+/// NOTE: Registered via OnEnter(TurnPhase::PlayerTurn), so no phase check needed.
 pub fn reset_allocations(
-    _turn: Res<TurnSystem>,
     mut nations: Query<(
         &mut Allocations,
         &mut ReservationSystem,
@@ -751,9 +747,6 @@ pub fn reset_allocations(
         &mut Treasury,
     )>,
 ) {
-    // Note: This system only runs when TurnSystem changes AND phase == PlayerTurn
-    // due to run_if conditions in lib.rs, so no need for phase check here
-
     for (mut allocations, mut reservations, mut stockpile, mut workforce, mut treasury) in
         nations.iter_mut()
     {

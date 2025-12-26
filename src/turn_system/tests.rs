@@ -1,4 +1,4 @@
-use crate::turn_system::{TurnCounter, TurnPhase, TurnSystem};
+use crate::turn_system::{TurnCounter, TurnPhase};
 
 #[test]
 fn test_turn_counter_default() {
@@ -46,24 +46,4 @@ fn test_turn_phase_copy() {
     let phase = TurnPhase::EnemyTurn;
     let copied = phase;
     assert_eq!(phase, copied);
-}
-
-#[test]
-fn test_legacy_turn_system_default() {
-    let turn_system = TurnSystem::default();
-    assert_eq!(turn_system.current_turn, 1);
-    assert_eq!(turn_system.phase, TurnPhase::PlayerTurn);
-    assert!(turn_system.is_player_turn());
-}
-
-#[test]
-fn test_legacy_turn_system_is_player_turn() {
-    let mut turn_system = TurnSystem::default();
-    assert!(turn_system.is_player_turn());
-
-    turn_system.phase = TurnPhase::Processing;
-    assert!(!turn_system.is_player_turn());
-
-    turn_system.phase = TurnPhase::EnemyTurn;
-    assert!(!turn_system.is_player_turn());
 }

@@ -11,7 +11,7 @@ use crate::economy::transport::{Rails, ordered_edge};
 use crate::economy::{ImprovementKind, PlaceImprovement};
 use crate::map::province::{Province, TileProvince};
 use crate::resources::{DevelopmentLevel, TileResource};
-use crate::turn_system::TurnSystem;
+use crate::turn_system::TurnCounter;
 
 /// Execute Engineer orders (building infrastructure)
 pub fn execute_engineer_orders(
@@ -20,7 +20,7 @@ pub fn execute_engineer_orders(
     mut improvement_writer: MessageWriter<PlaceImprovement>,
     mut deselect_writer: MessageWriter<DeselectCivilian>,
     rails: Res<Rails>,
-    turn: Res<TurnSystem>,
+    turn: Res<TurnCounter>,
     tile_storage_query: Query<(&TileStorage, &TilemapSize)>,
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
@@ -113,7 +113,7 @@ fn handle_build_rail_order(
     improvement_writer: &mut MessageWriter<PlaceImprovement>,
     deselect_writer: &mut MessageWriter<DeselectCivilian>,
     rails: &Res<Rails>,
-    turn: &Res<TurnSystem>,
+    turn: &Res<TurnCounter>,
     tile_storage_query: &Query<(&TileStorage, &TilemapSize)>,
     tile_provinces: &Query<&TileProvince>,
     provinces: &Query<&Province>,
@@ -159,10 +159,9 @@ fn handle_build_rail_order(
         civilian.position = to;
         civilian.has_moved = true;
         deselect_writer.write(DeselectCivilian);
-        commands.entity(entity).insert((
-            PreviousPosition(previous_pos),
-            ActionTurn(turn.current_turn),
-        ));
+        commands
+            .entity(entity)
+            .insert((PreviousPosition(previous_pos), ActionTurn(turn.current)));
     } else {
         // Rail doesn't exist - start construction
         // Send PlaceImprovement message with engineer entity
@@ -186,7 +185,7 @@ fn handle_build_rail_order(
                 target: to,
             },
             PreviousPosition(previous_pos),
-            ActionTurn(turn.current_turn),
+            ActionTurn(turn.current),
         ));
     }
 }
@@ -197,7 +196,7 @@ fn handle_build_depot_order(
     civilian: &mut Civilian,
     improvement_writer: &mut MessageWriter<PlaceImprovement>,
     deselect_writer: &mut MessageWriter<DeselectCivilian>,
-    turn: &Res<TurnSystem>,
+    turn: &Res<TurnCounter>,
 ) {
     // Store previous position for potential undo
     let previous_pos = civilian.position;
@@ -220,7 +219,7 @@ fn handle_build_depot_order(
             target: civilian.position,
         },
         PreviousPosition(previous_pos),
-        ActionTurn(turn.current_turn),
+        ActionTurn(turn.current),
     ));
 }
 
@@ -230,7 +229,7 @@ fn handle_build_port_order(
     civilian: &mut Civilian,
     improvement_writer: &mut MessageWriter<PlaceImprovement>,
     deselect_writer: &mut MessageWriter<DeselectCivilian>,
-    turn: &Res<TurnSystem>,
+    turn: &Res<TurnCounter>,
 ) {
     // Store previous position for potential undo
     let previous_pos = civilian.position;
@@ -253,7 +252,7 @@ fn handle_build_port_order(
             target: civilian.position,
         },
         PreviousPosition(previous_pos),
-        ActionTurn(turn.current_turn),
+        ActionTurn(turn.current),
     ));
 }
 
@@ -262,7 +261,7 @@ pub fn execute_prospector_orders(
     mut commands: Commands,
     mut prospectors: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
     mut deselect_writer: MessageWriter<DeselectCivilian>,
-    turn: Res<TurnSystem>,
+    turn: Res<TurnCounter>,
     tile_storage_query: Query<(&TileStorage, &TilemapSize)>,
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
@@ -347,7 +346,7 @@ pub fn execute_prospector_orders(
                             target: to,
                         },
                         PreviousPosition(previous_pos),
-                        ActionTurn(turn.current_turn),
+                        ActionTurn(turn.current),
                     ));
 
                     info!(
@@ -374,7 +373,7 @@ pub fn execute_civilian_improvement_orders(
     mut commands: Commands,
     mut civilians: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
     mut deselect_writer: MessageWriter<DeselectCivilian>,
-    turn: Res<TurnSystem>,
+    turn: Res<TurnCounter>,
     tile_storage_query: Query<(&TileStorage, &TilemapSize)>,
     tile_provinces: Query<&TileProvince>,
     provinces: Query<&Province>,
@@ -483,7 +482,7 @@ pub fn execute_civilian_improvement_orders(
                     commands.entity(entity).insert((
                         job,
                         PreviousPosition(previous_pos),
-                        ActionTurn(turn.current_turn),
+                        ActionTurn(turn.current),
                     ));
 
                     info!(

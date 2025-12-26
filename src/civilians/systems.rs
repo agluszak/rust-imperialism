@@ -12,7 +12,7 @@ use crate::economy::treasury::Treasury;
 use crate::map::province::{Province, TileProvince};
 use crate::map::rendering::MapVisualFor;
 use crate::messages::civilians::{CivilianCommand, CivilianCommandError, CivilianCommandRejected};
-use crate::turn_system::TurnSystem;
+use crate::turn_system::TurnCounter;
 
 /// Handle clicks on civilian visuals to select them
 pub fn handle_civilian_click(
@@ -190,7 +190,7 @@ pub fn execute_move_orders(
     mut commands: Commands,
     mut civilians: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
     mut deselect_writer: MessageWriter<DeselectCivilian>,
-    turn: Res<TurnSystem>,
+    turn: Res<TurnCounter>,
 ) {
     for (entity, mut civilian, order) in civilians.iter_mut() {
         if let CivilianOrderKind::Move { to } = order.target {
@@ -204,10 +204,9 @@ pub fn execute_move_orders(
             deselect_writer.write(DeselectCivilian);
 
             // Add PreviousPosition and ActionTurn to allow rescinding
-            commands.entity(entity).insert((
-                PreviousPosition(previous_pos),
-                ActionTurn(turn.current_turn),
-            ));
+            commands
+                .entity(entity)
+                .insert((PreviousPosition(previous_pos), ActionTurn(turn.current)));
 
             info!(
                 "{:?} (owner: {:?}) moved from ({}, {}) to ({}, {})",
@@ -276,8 +275,8 @@ pub fn handle_rescind_orders(world: &mut World) {
         events_to_process.len()
     );
 
-    // Get turn system for refund logic
-    let current_turn = world.resource::<TurnSystem>().current_turn;
+    // Get turn counter for refund logic
+    let current_turn = world.resource::<TurnCounter>().current;
 
     // Process each rescind event
     for event in events_to_process {

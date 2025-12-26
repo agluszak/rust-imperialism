@@ -24,7 +24,7 @@ use crate::economy::workforce::{
 use crate::economy::{Calendar, Season};
 use crate::map::province::{City, Province, ProvinceId};
 use crate::map::province_setup::ProvincesGenerated;
-use crate::turn_system::{TurnPhase, TurnSystem};
+use crate::turn_system::{TurnCounter, TurnPhase};
 use crate::ui::menu::AppState;
 
 /// Plugin that wires the moonshine save/load pipeline into the game.
@@ -121,7 +121,7 @@ fn register_reflect_types(app: &mut App) {
         .register_type::<Season>()
         .register_type::<Calendar>()
         .register_type::<TurnPhase>()
-        .register_type::<TurnSystem>()
+        .register_type::<TurnCounter>()
         .register_type::<RecruitmentCapacity>()
         .register_type::<RecruitmentQueue>()
         .register_type::<TrainingQueue>()
@@ -170,7 +170,7 @@ fn process_save_requests(
             .exclude_component::<Allocations>()
             .exclude_component::<ReservationSystem>()
             .include_resource::<Calendar>()
-            .include_resource::<TurnSystem>()
+            .include_resource::<TurnCounter>()
             .include_resource::<Roads>()
             .include_resource::<Rails>()
             .include_resource::<ProspectingKnowledge>()
@@ -297,7 +297,7 @@ mod tests {
     use crate::save::{
         GameSavePlugin, LoadGameCompleted, LoadGameRequest, SaveGameCompleted, SaveGameRequest,
     };
-    use crate::turn_system::{TurnPhase, TurnSystem};
+    use crate::turn_system::TurnCounter;
     use crate::ui::menu::AppState;
     use bevy::prelude::Name;
 
@@ -326,7 +326,7 @@ mod tests {
         {
             let world = app.world_mut();
             world.insert_resource(Calendar::default());
-            world.insert_resource(TurnSystem::default());
+            world.insert_resource(TurnCounter::default());
             world.insert_resource(Roads::default());
             world.insert_resource(Rails::default());
             world.insert_resource(ProvincesGenerated);
@@ -482,9 +482,8 @@ mod tests {
         }
 
         {
-            let mut turn_system = app.world_mut().resource_mut::<TurnSystem>();
-            turn_system.current_turn = 5;
-            turn_system.phase = TurnPhase::EnemyTurn;
+            let mut turn_counter = app.world_mut().resource_mut::<TurnCounter>();
+            turn_counter.current = 5;
         }
 
         let nation_entity = app
@@ -537,7 +536,7 @@ mod tests {
         let mut app = init_test_app();
         {
             app.world_mut().resource_mut::<Calendar>().year = 1900;
-            app.world_mut().resource_mut::<TurnSystem>().current_turn = 1;
+            app.world_mut().resource_mut::<TurnCounter>().current = 1;
         }
 
         let load_request_path = path.clone();
@@ -557,9 +556,8 @@ mod tests {
         assert_eq!(calendar.year, 1822);
         assert_eq!(calendar.season, Season::Autumn);
 
-        let turn_system = app.world().resource::<TurnSystem>();
-        assert_eq!(turn_system.current_turn, 5);
-        assert_eq!(turn_system.phase, TurnPhase::EnemyTurn);
+        let turn_counter = app.world().resource::<TurnCounter>();
+        assert_eq!(turn_counter.current, 5);
 
         {
             let world = app.world_mut();

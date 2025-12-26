@@ -25,19 +25,11 @@ pub fn initialize_transport_capacity(
 }
 
 /// Convert Transport goods from stockpile to transport capacity.
-/// Runs during processing phase to accumulate produced transport.
+/// NOTE: Registered via OnEnter(TurnPhase::Processing), so no phase check needed.
 pub fn convert_transport_goods_to_capacity(
     mut capacity: ResMut<TransportCapacity>,
     mut stockpiles: Query<(Entity, &mut crate::economy::stockpile::Stockpile)>,
-    turn: Res<crate::turn_system::TurnSystem>,
 ) {
-    use crate::turn_system::TurnPhase;
-
-    // Only convert at the end of processing phase
-    if turn.phase != TurnPhase::Processing {
-        return;
-    }
-
     for (nation, mut stockpile) in stockpiles.iter_mut() {
         let transport_in_stock = stockpile.get(Good::Transport);
         if transport_in_stock > 0 {
