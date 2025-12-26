@@ -58,10 +58,6 @@ pub struct NationSnapshot {
     pub technologies: crate::economy::technology::Technologies,
     /// Rails currently under construction by this nation.
     pub rail_constructions: Vec<RailConstructionSnapshot>,
-    /// Transport capacity information.
-    pub transport_capacity: TransportCapacitySnapshot,
-    /// Connected production available from the rail network.
-    pub connected_production: HashMap<crate::resources::ResourceType, u32>,
 }
 
 /// Snapshot of rail construction.
@@ -219,14 +215,6 @@ pub struct MarketSnapshot {
     pub prices: HashMap<Good, u32>,
 }
 
-/// Snapshot of transport capacity state.
-#[derive(Debug, Clone, Default)]
-pub struct TransportCapacitySnapshot {
-    pub total: u32,
-    pub used: u32,
-    pub allocated: HashMap<crate::economy::transport::TransportCommodity, u32>,
-}
-
 impl MarketSnapshot {
     pub fn price_for(&self, good: Good) -> u32 {
         self.prices.get(&good).copied().unwrap_or(100)
@@ -245,20 +233,33 @@ pub fn resource_target_days(good: Good) -> f32 {
 }
 
 /// Builds the complete AI snapshot at the start of EnemyTurn.
-/// This is an exclusive system because the function has too many parameters
-/// for Bevy's trait system to handle in a regular system.
-pub fn build_ai_snapshot(world: &mut World) {
-    // Get all the data we need from the world
-    let turn_current = world.resource::<TurnCounter>().current;
-    let pricing = world.resource::<MarketPriceModel>().clone();
-    let rails = world.resource::<Rails>().clone();
-    let transport_capacity = world.resource::<crate::economy::transport::TransportCapacity>().clone();
-    let transport_allocations = world.resource::<crate::economy::transport::TransportAllocations>().clone();
-    let connected_production = world.resource::<crate::economy::production::ConnectedProduction>().clone();
-    
-    // Update snapshot
-    let mut snapshot = world.resource_mut::<AiSnapshot>();
-    snapshot.turn = turn_current;
+pub fn build_ai_snapshot(
+    mut snapshot: ResMut<AiSnapshot>,
+    turn: Res<TurnCounter>,
+    pricing: Res<MarketPriceModel>,
+    rails: Res<Rails>,
+    ai_nations: Query<
+        (
+            Entity,
+            &Capital,
+            &Stockpile,
+            &Treasury,
+            &crate::economy::technology::Technologies,
+        ),
+        (With<AiNation>, With<Nation>),
+    >,
+    civilians: Query<(Entity, &Civilian)>,
+    civilian_jobs: Query<&crate::civilians::types::CivilianJob>,
+    rail_constructions: Query<&crate::economy::transport::RailConstruction>,
+    depots: Query<&Depot>,
+    provinces: Query<&Province>,
+    tile_storage: Query<&TileStorage>,
+    tile_resources: Query<&TileResource>,
+    tile_terrain: Query<&crate::map::tiles::TerrainType>,
+    potential_minerals: Query<&PotentialMineral>,
+    prospecting: Option<Res<ProspectingKnowledge>>,
+) {
+    snapshot.turn = turn.current;
     snapshot.nations.clear();
 
     // Build market snapshot
@@ -267,22 +268,14 @@ pub fn build_ai_snapshot(world: &mut World) {
         let price = pricing.price_for(good, MarketVolume::default());
         snapshot.market.prices.insert(good, price);
     }
-    
-    // Drop mutable borrow before we continue
-    drop(snapshot);
-    
-    // Now build nation snapshots
-    build_nation_snapshots_exclusive(world, &rails, &transport_capacity, &transport_allocations, &connected_production);
-}
 
-/// Helper to build nation snapshots in an exclusive system context
-fn build_nation_snapshots_exclusive(
-    world: &mut World,
-    rails: &Rails,
-    transport_capacity: &crate::economy::transport::TransportCapacity,
-    transport_allocations: &crate::economy::transport::TransportAllocations,
-    connected_production: &crate::economy::production::ConnectedProduction,
-) {
+    let Ok(storage) = tile_storage.single() else {
+        return;
+    };
+
+    // Build per-nation snapshots
+    for (entity, capital, stockpile, treasury, technologies) in ai_nations.iter() {
+        let capital_pos = capital.0;
         let capital_hex = capital_pos.to_hex();
 
         // Collect stockpile entries
@@ -447,24 +440,6 @@ fn build_nation_snapshots_exclusive(
             })
             .collect();
 
-        // Get transport capacity info
-        let capacity_snapshot = transport_capacity.snapshot(entity);
-        let nation_allocs = transport_allocations.nations.get(&entity);
-        let mut allocated_map = HashMap::new();
-        if let Some(allocs) = nation_allocs {
-            for (commodity, slot) in &allocs.commodities {
-                allocated_map.insert(*commodity, slot.granted);
-            }
-        }
-        
-        // Get connected production info
-        let mut production_map = HashMap::new();
-        if let Some(nation_prod) = connected_production.totals.get(&entity) {
-            for (resource_type, (_count, total)) in nation_prod.iter() {
-                production_map.insert(*resource_type, *total);
-            }
-        }
-
         snapshot.nations.insert(
             entity,
             NationSnapshot {
@@ -483,12 +458,6 @@ fn build_nation_snapshots_exclusive(
                 tile_terrain: tile_terrain_map,
                 technologies: technologies.clone(),
                 rail_constructions: nation_rail_constructions,
-                transport_capacity: TransportCapacitySnapshot {
-                    total: capacity_snapshot.total,
-                    used: capacity_snapshot.used,
-                    allocated: allocated_map,
-                },
-                connected_production: production_map,
             },
         );
     }
@@ -880,8 +849,6 @@ mod tests {
             tile_terrain: HashMap::new(),
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
-            transport_capacity: TransportCapacitySnapshot::default(),
-            connected_production: HashMap::new(),
         };
 
         // Only civilians with has_moved = false should be available
