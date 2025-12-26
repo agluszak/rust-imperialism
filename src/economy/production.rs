@@ -896,34 +896,8 @@ const RAILYARD_RECIPE: ProductionRecipe = ProductionRecipe {
     variants: &RAILYARD_VARIANTS,
 };
 
-const SHIPYARD_INPUTS: [Ingredient; 3] = [
-    Ingredient {
-        good: Good::Steel,
-        amount: 1,
-    },
-    Ingredient {
-        good: Good::Lumber,
-        amount: 1,
-    },
-    Ingredient {
-        good: Good::Fuel,
-        amount: 1,
-    },
-];
-const SHIPYARD_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
-    good: Good::Ship,
-    amount: 1,
-}];
-const SHIPYARD_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
-    choice: None,
-    variant: RecipeVariant {
-        inputs: &SHIPYARD_INPUTS,
-        outputs: &SHIPYARD_OUTPUTS,
-    },
-}];
-const SHIPYARD_RECIPE: ProductionRecipe = ProductionRecipe {
-    variants: &SHIPYARD_VARIANTS,
-};
+// Note: Shipyard no longer has a production recipe as ships are constructed
+// directly as entities, not as goods. See ships::construction module.
 
 const PRODUCTION_RECIPES: &[(BuildingKind, &ProductionRecipe)] = &[
     (BuildingKind::TextileMill, &TEXTILE_RECIPE),
@@ -935,7 +909,6 @@ const PRODUCTION_RECIPES: &[(BuildingKind, &ProductionRecipe)] = &[
     (BuildingKind::MetalWorks, &METAL_RECIPE),
     (BuildingKind::Refinery, &REFINERY_RECIPE),
     (BuildingKind::Railyard, &RAILYARD_RECIPE),
-    (BuildingKind::Shipyard, &SHIPYARD_RECIPE),
 ];
 
 pub fn production_recipe(kind: BuildingKind) -> Option<&'static ProductionRecipe> {

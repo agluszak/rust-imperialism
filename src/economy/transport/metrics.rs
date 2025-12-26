@@ -127,7 +127,8 @@ fn inputs_for_output(
         BuildingKind::MetalWorks => vec![(Good::Steel, 2)],
         BuildingKind::Refinery => vec![(Good::Oil, 2)],
         BuildingKind::Railyard => vec![(Good::Steel, 1), (Good::Lumber, 1)],
-        BuildingKind::Shipyard => vec![(Good::Steel, 1), (Good::Lumber, 1), (Good::Fuel, 1)],
+        // Shipyard no longer has recipe - ships are entities not goods
+        BuildingKind::Shipyard => vec![],
         BuildingKind::Capitol | BuildingKind::TradeSchool | BuildingKind::PowerPlant => vec![],
     }
 }
@@ -199,7 +200,7 @@ pub fn update_transport_demand_snapshot(
                 Good::Hardware | Good::Armaments => BuildingKind::MetalWorks,
                 Good::Fuel => BuildingKind::Refinery,
                 Good::Transport => BuildingKind::Railyard,
-                Good::Ship => BuildingKind::Shipyard,
+                // Ships are no longer goods
                 _ => continue,
             };
 

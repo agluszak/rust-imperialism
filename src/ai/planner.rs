@@ -13,7 +13,6 @@ use crate::ai::snapshot::{AiSnapshot, NationSnapshot, resource_target_days};
 use crate::civilians::types::CivilianKind;
 use crate::economy::goods::Good;
 use crate::economy::market::MARKET_RESOURCES;
-use crate::economy::production::BuildingKind;
 
 /// A goal that a nation wants to accomplish.
 #[derive(Debug, Clone)]
@@ -274,41 +273,12 @@ fn generate_hiring_goals(nation: &NationSnapshot, goals: &mut Vec<NationGoal>) {
 }
 
 fn generate_production_goals(nation: &NationSnapshot, goals: &mut Vec<NationGoal>) {
-    // Check if we need more trade capacity (ships)
-    let utilization = nation.trade_capacity_utilization();
-    
-    // If trade capacity is over 70% utilized, prioritize building more ships
-    if utilization > 0.7 {
-        // Check if we have a shipyard
-        if nation.buildings.contains_key(&BuildingKind::Shipyard) {
-            // Check if we have the inputs: 1 Steel, 1 Lumber, 1 Fuel
-            let steel = nation.available_amount(Good::Steel);
-            let lumber = nation.available_amount(Good::Lumber);
-            let fuel = nation.available_amount(Good::Fuel);
-            
-            let can_build = steel.min(lumber).min(fuel);
-            
-            if can_build > 0 {
-                // Build as many ships as possible, but cap at a reasonable number per turn
-                let qty = can_build.min(5);
-                
-                // Priority increases with utilization
-                // At 70% utilization: 0.7 priority
-                // At 90% utilization: 0.9 priority
-                // At 100% utilization: 1.0 priority (highest)
-                let priority = utilization.min(1.0) * 1.0;
-                
-                // Find the building entity - we'll use the nation entity as a placeholder
-                // The actual building entity will be resolved when executing the order
-                goals.push(NationGoal::ProduceGoods {
-                    building: nation.entity,
-                    good: Good::Ship,
-                    qty,
-                    priority,
-                });
-            }
-        }
-    }
+    // Ships are now automatically constructed from materials in stockpile
+    // The construct_ships_from_production system will build ships when
+    // Steel, Lumber, and Fuel are available
+    // TODO: AI could prioritize acquiring these materials when trade capacity is low
+    let _ = nation; // Suppress unused warning
+    let _ = goals;
 }
 
 fn assign_civilians_to_goals(
@@ -792,113 +762,5 @@ mod tests {
                 "Loop detected: (0,1) -> (0,0) -> (0,1)"
             );
         }
-    }
-
-    #[test]
-    fn test_ship_production_goal_when_trade_capacity_high() {
-        use crate::economy::production::{Building, BuildingKind};
-        use crate::economy::stockpile::StockpileEntry;
-        
-        let mut stockpile = HashMap::new();
-        stockpile.insert(
-            Good::Steel,
-            StockpileEntry {
-                good: Good::Steel,
-                total: 10,
-                available: 10,
-                reserved: 0,
-            },
-        );
-        stockpile.insert(
-            Good::Lumber,
-            StockpileEntry {
-                good: Good::Lumber,
-                total: 10,
-                available: 10,
-                reserved: 0,
-            },
-        );
-        stockpile.insert(
-            Good::Fuel,
-            StockpileEntry {
-                good: Good::Fuel,
-                total: 10,
-                available: 10,
-                reserved: 0,
-            },
-        );
-
-        let mut buildings = HashMap::new();
-        buildings.insert(BuildingKind::Shipyard, Building::shipyard());
-
-        let snapshot = NationSnapshot {
-            entity: Entity::PLACEHOLDER,
-            capital_pos: TilePos::new(0, 0),
-            treasury: 1000,
-            stockpile,
-            civilians: vec![],
-            connected_tiles: HashSet::new(),
-            unconnected_depots: vec![],
-            suggested_depots: vec![],
-            improvable_tiles: vec![],
-            owned_tiles: HashSet::new(),
-            depot_positions: HashSet::new(),
-            prospectable_tiles: vec![],
-            tile_terrain: HashMap::new(),
-            technologies: crate::economy::technology::Technologies::new(),
-            rail_constructions: vec![],
-            trade_capacity_total: 10,
-            trade_capacity_used: 8, // 80% utilization
-            buildings,
-        };
-
-        let mut goals = Vec::new();
-        generate_production_goals(&snapshot, &mut goals);
-
-        // Should generate a ship production goal
-        assert_eq!(goals.len(), 1);
-        match &goals[0] {
-            NationGoal::ProduceGoods { good, qty, priority, .. } => {
-                assert_eq!(*good, Good::Ship);
-                assert!(qty > &0 && qty <= &5);
-                assert!(priority >= &0.7 && priority <= &1.0);
-            }
-            _ => panic!("Expected ProduceGoods goal"),
-        }
-    }
-
-    #[test]
-    fn test_no_ship_production_goal_when_trade_capacity_low() {
-        use crate::economy::production::{Building, BuildingKind};
-
-        let mut buildings = HashMap::new();
-        buildings.insert(BuildingKind::Shipyard, Building::shipyard());
-
-        let snapshot = NationSnapshot {
-            entity: Entity::PLACEHOLDER,
-            capital_pos: TilePos::new(0, 0),
-            treasury: 1000,
-            stockpile: HashMap::new(),
-            civilians: vec![],
-            connected_tiles: HashSet::new(),
-            unconnected_depots: vec![],
-            suggested_depots: vec![],
-            improvable_tiles: vec![],
-            owned_tiles: HashSet::new(),
-            depot_positions: HashSet::new(),
-            prospectable_tiles: vec![],
-            tile_terrain: HashMap::new(),
-            technologies: crate::economy::technology::Technologies::new(),
-            rail_constructions: vec![],
-            trade_capacity_total: 10,
-            trade_capacity_used: 5, // 50% utilization
-            buildings,
-        };
-
-        let mut goals = Vec::new();
-        generate_production_goals(&snapshot, &mut goals);
-
-        // Should not generate ship production goal when utilization is below 70%
-        assert_eq!(goals.len(), 0);
     }
 }
