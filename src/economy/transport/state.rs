@@ -80,7 +80,7 @@ impl TransportCommodity {
             Armaments => Some(TransportCommodity::Armaments),
             CannedFood => Some(TransportCommodity::CannedFood),
             Horses => Some(TransportCommodity::Horses),
-            Transport | Ship => None, // Transport & ships convert to capacity
+            Transport => None, // Transport converts to capacity, ships are entities
         }
     }
 

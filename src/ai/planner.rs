@@ -35,6 +35,13 @@ pub enum NationGoal {
     ProspectTile { tile: TilePos, priority: f32 },
     /// Hire a new civilian.
     HireCivilian { kind: CivilianKind, priority: f32 },
+    /// Produce goods in a building.
+    ProduceGoods {
+        building: Entity,
+        good: Good,
+        qty: u32,
+        priority: f32,
+    },
 }
 
 impl NationGoal {
@@ -47,6 +54,7 @@ impl NationGoal {
             NationGoal::ImproveTile { priority, .. } => *priority,
             NationGoal::ProspectTile { priority, .. } => *priority,
             NationGoal::HireCivilian { priority, .. } => *priority,
+            NationGoal::ProduceGoods { priority, .. } => *priority,
         }
     }
 }
@@ -60,6 +68,7 @@ pub struct NationPlan {
     pub market_sells: Vec<(Good, u32)>,
     pub production_orders: Vec<ProductionOrder>,
     pub civilians_to_hire: Vec<CivilianKind>,
+    pub transport_allocations: Vec<(crate::economy::transport::TransportCommodity, u32)>,
 }
 
 #[derive(Debug, Clone)]
@@ -112,6 +121,7 @@ pub fn plan_nation(nation: &NationSnapshot, snapshot: &AiSnapshot) -> NationPlan
     generate_improvement_goals(nation, &mut plan.goals);
     generate_prospecting_goals(nation, &mut plan.goals);
     generate_hiring_goals(nation, &mut plan.goals);
+    generate_production_goals(nation, &mut plan.goals);
 
     // 2. Sort goals by priority (highest first)
     plan.goals.sort_by(|a, b| {
@@ -123,7 +133,7 @@ pub fn plan_nation(nation: &NationSnapshot, snapshot: &AiSnapshot) -> NationPlan
     // 3. Assign civilians to goals
     assign_civilians_to_goals(nation, &plan.goals, &mut plan.civilian_tasks);
 
-    // 4. Generate concrete market orders from goals
+    // 4. Generate concrete orders from goals
     for goal in &plan.goals {
         match goal {
             NationGoal::BuyResource { good, qty, .. } => {
@@ -138,9 +148,25 @@ pub fn plan_nation(nation: &NationSnapshot, snapshot: &AiSnapshot) -> NationPlan
                     plan.civilians_to_hire.push(*kind);
                 }
             }
+            NationGoal::ProduceGoods {
+                building,
+                good,
+                qty,
+                ..
+            } => {
+                plan.production_orders.push(ProductionOrder {
+                    building: *building,
+                    output: *good,
+                    qty: *qty,
+                });
+            }
             _ => {}
         }
     }
+
+    // 5. Generate transport allocations and production orders
+    generate_transport_allocations(nation, &mut plan);
+    generate_production_orders(nation, &mut plan);
 
     plan
 }
@@ -196,12 +222,12 @@ fn generate_value_added_trade(
 ) {
     let buildings = &nation.buildings;
 
-    let Some(steel_mill) = buildings.get(crate::economy::production::BuildingKind::SteelMill)
+    let Some(steel_mill) = buildings.get(&crate::economy::production::BuildingKind::SteelMill)
     else {
         return;
     };
 
-    let Some(metal_works) = buildings.get(crate::economy::production::BuildingKind::MetalWorks)
+    let Some(metal_works) = buildings.get(&crate::economy::production::BuildingKind::MetalWorks)
     else {
         return;
     };
@@ -346,6 +372,15 @@ fn generate_hiring_goals(nation: &NationSnapshot, goals: &mut Vec<NationGoal>) {
             }
         }
     }
+}
+
+fn generate_production_goals(nation: &NationSnapshot, goals: &mut Vec<NationGoal>) {
+    // Ships are now automatically constructed from materials in stockpile
+    // The construct_ships_from_production system will build ships when
+    // Steel, Lumber, and Fuel are available
+    // TODO: AI could prioritize acquiring these materials when trade capacity is low
+    let _ = nation; // Suppress unused warning
+    let _ = goals;
 }
 
 fn assign_civilians_to_goals(
@@ -628,10 +663,69 @@ fn can_build_depot_here(tile_pos: TilePos, nation: &NationSnapshot) -> bool {
         .unwrap_or(false)
 }
 
+/// Generate transport allocations based on available resources and capacity.
+/// Since we don't have snapshot data for transport capacity yet, we use a simple heuristic:
+/// allocate generously to all resource types that might be available.
+fn generate_transport_allocations(_nation: &NationSnapshot, plan: &mut NationPlan) {
+    use crate::economy::transport::TransportCommodity;
+
+    // Allocate high capacity to essential resources
+    // These values are generous to ensure AI doesn't starve from lack of transport
+    let allocations = [
+        (TransportCommodity::Grain, 10),
+        (TransportCommodity::Fruit, 8),
+        (TransportCommodity::Fiber, 8),
+        (TransportCommodity::Meat, 8),
+        (TransportCommodity::Timber, 10),
+        (TransportCommodity::Coal, 10),
+        (TransportCommodity::Iron, 10),
+        (TransportCommodity::Precious, 5),
+        (TransportCommodity::Oil, 8),
+        (TransportCommodity::Fabric, 5),
+        (TransportCommodity::Lumber, 5),
+        (TransportCommodity::Paper, 5),
+        (TransportCommodity::Steel, 5),
+        (TransportCommodity::Fuel, 5),
+        (TransportCommodity::Clothing, 3),
+        (TransportCommodity::Furniture, 3),
+        (TransportCommodity::Hardware, 3),
+        (TransportCommodity::Armaments, 3),
+        (TransportCommodity::CannedFood, 3),
+        (TransportCommodity::Horses, 2),
+    ];
+
+    for (commodity, amount) in allocations {
+        plan.transport_allocations.push((commodity, amount));
+    }
+}
+
+/// Generate production orders to build transport capacity.
+/// AI should produce Transport goods when it has the resources.
+fn generate_production_orders(nation: &NationSnapshot, _plan: &mut NationPlan) {
+    // Check if we have steel and lumber for Transport production
+    let steel_available = nation.available_amount(Good::Steel);
+    let lumber_available = nation.available_amount(Good::Lumber);
+
+    // If we have materials, produce some transport capacity
+    if steel_available >= 2 && lumber_available >= 2 {
+        // Find the railyard building entity (we don't have it in snapshot, so skip for now)
+        // TODO: Add building entities to NationSnapshot so AI can issue production orders
+        // For now, the allocation alone should help since players can manually produce
+        info!(
+            "AI Nation {:?} has materials for Transport production (Steel: {}, Lumber: {})",
+            nation.entity, steel_available, lumber_available
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use bevy::prelude::*;
+    use bevy_ecs_tilemap::prelude::TilePos;
+    use std::collections::HashMap;
+
     use super::*;
-    use crate::economy::production::Buildings;
+    use crate::ai::snapshot::NationSnapshot;
 
     #[test]
     fn test_goal_priority_ordering() {
@@ -701,7 +795,9 @@ mod tests {
             tile_terrain,
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
-            buildings: Buildings::default(),
+            trade_capacity_total: 3,
+            trade_capacity_used: 0,
+            buildings: HashMap::new(),
         };
 
         let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);
@@ -749,7 +845,9 @@ mod tests {
             tile_terrain,
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
-            buildings: Buildings::default(),
+            trade_capacity_total: 3,
+            trade_capacity_used: 0,
+            buildings: HashMap::new(),
         };
 
         let task = plan_engineer_depot_task(&snapshot, engineer_pos, target);
@@ -799,7 +897,9 @@ mod tests {
             tile_terrain,
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
-            buildings: Buildings::default(),
+            trade_capacity_total: 3,
+            trade_capacity_used: 0,
+            buildings: HashMap::new(),
         };
 
         // If bridgehead logic picks (0,0) as better than (0,1) due to tie-breaking,

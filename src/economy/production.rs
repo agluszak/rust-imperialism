@@ -244,19 +244,53 @@ pub fn calculate_connected_production(
 
 /// Collects resources from connected production and adds them to nation stockpiles.
 /// Runs at the start of each turn (PlayerTurn phase) to harvest resources.
+/// Resources are only collected up to the allocated transport capacity for each commodity.
 pub fn collect_connected_production(
     connected: Res<ConnectedProduction>,
+    transport_allocations: Res<crate::economy::transport::TransportAllocations>,
     mut nations: Query<(Entity, &mut Stockpile)>,
 ) {
+    use crate::economy::transport::TransportCommodity;
+
     for (nation_entity, mut stockpile) in nations.iter_mut() {
         if let Some(nation_totals) = connected.totals.get(&nation_entity) {
             for (resource_type, (_improvement_count, total_output)) in nation_totals.iter() {
-                if *total_output > 0 {
-                    let good = resource_type.to_good();
-                    stockpile.add(good, *total_output);
-                    info!(
-                        "Nation {:?} collected {} {:?} from connected production",
-                        nation_entity, total_output, good
+                if *total_output == 0 {
+                    continue;
+                }
+
+                let good = resource_type.to_good();
+
+                // Check if there's an allocated transport capacity for this resource
+                if let Some(commodity) = TransportCommodity::from_good(good) {
+                    let allocation = transport_allocations.slot(nation_entity, commodity);
+                    let amount_to_collect = allocation.granted.min(*total_output);
+
+                    if amount_to_collect > 0 {
+                        stockpile.add(good, amount_to_collect);
+                        info!(
+                            "Nation {:?} collected {} {:?} from connected production (allocated: {}, available: {})",
+                            nation_entity,
+                            amount_to_collect,
+                            good,
+                            allocation.granted,
+                            total_output
+                        );
+                    } else if allocation.granted == 0 {
+                        info!(
+                            "Nation {:?} has {} {:?} available but no transport capacity allocated",
+                            nation_entity, total_output, good
+                        );
+                    }
+                } else {
+                    // This should never happen for resources - all resource types have commodity mappings
+                    error!(
+                        "Missing TransportCommodity mapping for good {:?} when collecting connected production for nation {:?}. This violates the transport allocation mechanic.",
+                        good, nation_entity
+                    );
+                    panic!(
+                        "Missing TransportCommodity mapping for good {:?} during connected production collection",
+                        good
                     );
                 }
             }
@@ -891,33 +925,8 @@ const RAILYARD_RECIPE: ProductionRecipe = ProductionRecipe {
     variants: &RAILYARD_VARIANTS,
 };
 
-const SHIPYARD_INPUTS: [Ingredient; 3] = [
-    Ingredient {
-        good: Good::Steel,
-        amount: 1,
-    },
-    Ingredient {
-        good: Good::Lumber,
-        amount: 1,
-    },
-    Ingredient {
-        good: Good::Fuel,
-        amount: 1,
-    },
-];
-const SHIPYARD_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
-    good: Good::Ship,
-    amount: 1,
-}];
-const SHIPYARD_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
-    variant: RecipeVariant {
-        inputs: &SHIPYARD_INPUTS,
-        outputs: &SHIPYARD_OUTPUTS,
-    },
-}];
-const SHIPYARD_RECIPE: ProductionRecipe = ProductionRecipe {
-    variants: &SHIPYARD_VARIANTS,
-};
+// Note: Shipyard no longer has a production recipe as ships are constructed
+// directly as entities, not as goods. See ships::construction module.
 
 const PRODUCTION_RECIPES: &[(BuildingKind, &ProductionRecipe)] = &[
     (BuildingKind::TextileMill, &TEXTILE_RECIPE),
@@ -929,7 +938,6 @@ const PRODUCTION_RECIPES: &[(BuildingKind, &ProductionRecipe)] = &[
     (BuildingKind::MetalWorks, &METAL_RECIPE),
     (BuildingKind::Refinery, &REFINERY_RECIPE),
     (BuildingKind::Railyard, &RAILYARD_RECIPE),
-    (BuildingKind::Shipyard, &SHIPYARD_RECIPE),
 ];
 
 pub fn production_recipe(kind: BuildingKind) -> Option<&'static ProductionRecipe> {

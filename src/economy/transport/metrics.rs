@@ -192,7 +192,7 @@ pub fn update_transport_demand_snapshot(
                 Good::Hardware | Good::Armaments => BuildingKind::MetalWorks,
                 Good::Fuel => BuildingKind::Refinery,
                 Good::Transport => BuildingKind::Railyard,
-                Good::Ship => BuildingKind::Shipyard,
+                // Ships are no longer goods
                 _ => continue,
             };
 

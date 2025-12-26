@@ -12,7 +12,6 @@ use crate::civilians::types::{Civilian, CivilianKind, ProspectingKnowledge};
 use crate::economy::goods::Good;
 use crate::economy::market::{MARKET_RESOURCES, MarketPriceModel, MarketVolume};
 use crate::economy::nation::{Capital, Nation};
-use crate::economy::production::Buildings;
 use crate::economy::stockpile::{Stockpile, StockpileEntry};
 use crate::economy::transport::{Depot, Rails};
 use crate::economy::treasury::Treasury;
@@ -45,7 +44,6 @@ pub struct NationSnapshot {
     pub stockpile: HashMap<Good, StockpileEntry>,
     pub civilians: Vec<CivilianSnapshot>,
     pub connected_tiles: HashSet<TilePos>,
-    pub buildings: Buildings,
     pub unconnected_depots: Vec<DepotInfo>,
     /// Optimal depot locations calculated via greedy set-cover algorithm.
     pub suggested_depots: Vec<SuggestedDepot>,
@@ -60,6 +58,12 @@ pub struct NationSnapshot {
     pub technologies: crate::economy::technology::Technologies,
     /// Rails currently under construction by this nation.
     pub rail_constructions: Vec<RailConstructionSnapshot>,
+    /// Trade capacity information.
+    pub trade_capacity_total: u32,
+    pub trade_capacity_used: u32,
+    /// Buildings owned by this nation.
+    pub buildings:
+        HashMap<crate::economy::production::BuildingKind, crate::economy::production::Building>,
 }
 
 /// Snapshot of rail construction.
@@ -86,6 +90,20 @@ impl NationSnapshot {
     /// Get civilians that haven't acted this turn.
     pub fn available_civilians(&self) -> impl Iterator<Item = &CivilianSnapshot> {
         self.civilians.iter().filter(|c| !c.has_moved)
+    }
+
+    /// Get available trade capacity (not currently used).
+    pub fn trade_capacity_available(&self) -> u32 {
+        self.trade_capacity_total
+            .saturating_sub(self.trade_capacity_used)
+    }
+
+    /// Get trade capacity utilization as a percentage (0.0 to 1.0).
+    pub fn trade_capacity_utilization(&self) -> f32 {
+        if self.trade_capacity_total == 0 {
+            return 0.0;
+        }
+        self.trade_capacity_used as f32 / self.trade_capacity_total as f32
     }
 }
 
@@ -235,11 +253,13 @@ pub fn resource_target_days(good: Good) -> f32 {
 }
 
 /// Builds the complete AI snapshot at the start of EnemyTurn.
+#[allow(clippy::too_many_arguments)]
 pub fn build_ai_snapshot(
     mut snapshot: ResMut<AiSnapshot>,
     turn: Res<TurnCounter>,
     pricing: Res<MarketPriceModel>,
     rails: Res<Rails>,
+    trade_capacity: Res<crate::economy::trade_capacity::TradeCapacity>,
     ai_nations: Query<
         (
             Entity,
@@ -247,7 +267,7 @@ pub fn build_ai_snapshot(
             &Stockpile,
             &Treasury,
             &crate::economy::technology::Technologies,
-            &Buildings,
+            &crate::economy::production::Buildings,
         ),
         (With<AiNation>, With<Nation>),
     >,
@@ -443,6 +463,9 @@ pub fn build_ai_snapshot(
             })
             .collect();
 
+        // Get trade capacity
+        let capacity_snapshot = trade_capacity.snapshot(entity);
+
         snapshot.nations.insert(
             entity,
             NationSnapshot {
@@ -461,7 +484,9 @@ pub fn build_ai_snapshot(
                 tile_terrain: tile_terrain_map,
                 technologies: technologies.clone(),
                 rail_constructions: nation_rail_constructions,
-                buildings: buildings.clone(),
+                trade_capacity_total: capacity_snapshot.total,
+                trade_capacity_used: capacity_snapshot.used,
+                buildings: buildings.buildings.clone(),
             },
         );
     }
@@ -853,7 +878,9 @@ mod tests {
             tile_terrain: HashMap::new(),
             technologies: crate::economy::technology::Technologies::new(),
             rail_constructions: vec![],
-            buildings: Buildings::default(),
+            trade_capacity_total: 3,
+            trade_capacity_used: 0,
+            buildings: HashMap::new(),
         };
 
         // Only civilians with has_moved = false should be available
