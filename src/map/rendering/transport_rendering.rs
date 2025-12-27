@@ -331,10 +331,10 @@ fn render_shadow_rail(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    // Find selected Engineer
+    // Find selected Engineer (Optimized O(1) lookup)
     let selected_engineer = selected_civilian
         .0
-        .and_then(|selected| civilians.iter().find(|(entity, _)| *entity == selected))
+        .and_then(|entity| civilians.get(entity).ok())
         .filter(|(_, c)| c.kind == CivilianKind::Engineer)
         .map(|(_, c)| c);
 
