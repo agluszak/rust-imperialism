@@ -24,3 +24,6 @@ moonshine-kind = "0.4"
 [features]
 default = ["debug"]
 debug = ["dep:bevy-inspector-egui"]
+
+[profile.release]
+debug = true
