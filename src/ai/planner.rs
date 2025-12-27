@@ -95,6 +95,25 @@ pub enum CivilianTask {
     Idle,
 }
 
+/// Extension trait to get the next position from a task.
+pub trait CivilianTaskExt {
+    /// Returns the position the civilian will be in next turn.
+    fn next_position(&self, current_pos: TilePos) -> TilePos;
+}
+
+impl CivilianTaskExt for CivilianTask {
+    fn next_position(&self, current_pos: TilePos) -> TilePos {
+        match self {
+            CivilianTask::BuildRailTo { target } => *target,
+            CivilianTask::MoveTo { target } => *target,
+            CivilianTask::BuildDepot => current_pos,
+            CivilianTask::ImproveTile { .. } => current_pos,
+            CivilianTask::ProspectTile { .. } => current_pos,
+            CivilianTask::Idle => current_pos,
+        }
+    }
+}
+
 /// Civilian hiring targets per type.
 const CIVILIAN_TARGETS: &[(CivilianKind, usize)] = &[
     (CivilianKind::Engineer, 2),
@@ -542,14 +561,7 @@ fn assign_civilians_to_goals(
             let current_pos = unplanned_positions.remove(&entity).unwrap();
 
             // Add new position to reserved
-            let target_pos = match task {
-                CivilianTask::MoveTo { target } => target,
-                CivilianTask::BuildRailTo { target } => target, // Moves to target
-                CivilianTask::BuildDepot => current_pos,        // Stays put
-                CivilianTask::ImproveTile { .. } => current_pos, // Stays put (job)
-                CivilianTask::ProspectTile { .. } => current_pos, // Stays put (job)
-                CivilianTask::Idle => current_pos,
-            };
+            let target_pos = task.next_position(current_pos);
             reserved_positions.insert(target_pos);
         }
     }
@@ -870,6 +882,34 @@ mod tests {
 
     use super::*;
     use crate::ai::snapshot::NationSnapshot;
+
+    #[test]
+    fn test_civilian_task_next_position() {
+        let current_pos = TilePos::new(1, 1);
+        let target_pos = TilePos::new(2, 2);
+
+        assert_eq!(
+            CivilianTask::BuildRailTo { target: target_pos }.next_position(current_pos),
+            target_pos
+        );
+        assert_eq!(
+            CivilianTask::MoveTo { target: target_pos }.next_position(current_pos),
+            target_pos
+        );
+        assert_eq!(
+            CivilianTask::BuildDepot.next_position(current_pos),
+            current_pos
+        );
+        assert_eq!(
+            CivilianTask::ImproveTile { target: target_pos }.next_position(current_pos),
+            current_pos
+        );
+        assert_eq!(
+            CivilianTask::ProspectTile { target: target_pos }.next_position(current_pos),
+            current_pos
+        );
+        assert_eq!(CivilianTask::Idle.next_position(current_pos), current_pos);
+    }
 
     #[test]
     fn test_goal_priority_ordering() {
