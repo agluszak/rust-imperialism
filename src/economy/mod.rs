@@ -61,16 +61,17 @@ impl Plugin for EconomyPlugin {
             .insert_resource(transport::TransportDemandSnapshot::default())
             .insert_resource(OrdersQueue::default());
 
-        // Register messages
-        app.add_message::<transport::PlaceImprovement>()
-            .add_message::<transport::RecomputeConnectivity>()
-            .add_message::<transport::TransportAdjustAllocation>()
-            .add_message::<AdjustRecruitment>()
-            .add_message::<AdjustTraining>()
-            .add_message::<AdjustProduction>()
-            .add_message::<AdjustMarketOrder>()
-            .add_message::<RecruitWorkers>()
-            .add_message::<TrainWorker>();
+        // Register observers and messages
+        // Note: Observer order matters for RecomputeConnectivity - compute_rail_connectivity
+        // must run before calculate_connected_production
+        app.add_observer(transport::apply_improvements)
+            .add_observer(transport::compute_rail_connectivity)
+            .add_observer(production::calculate_connected_production)
+            .add_observer(transport::apply_transport_allocations)
+            .add_observer(allocation_systems::apply_recruitment_adjustments)
+            .add_observer(allocation_systems::apply_training_adjustments)
+            .add_observer(allocation_systems::apply_production_adjustments)
+            .add_observer(allocation_systems::apply_market_order_adjustments);
 
         // Configure the economy system set to run only in-game
         app.configure_sets(Update, EconomySet.run_if(in_state(AppState::InGame)));
@@ -79,38 +80,15 @@ impl Plugin for EconomyPlugin {
         // Core systems that run every frame (Update schedule)
         // ====================================================================
 
-        // Transport and connectivity (must run every frame to track changes)
+        // Transport and connectivity
+        // Note: apply_improvements, compute_rail_connectivity, calculate_connected_production,
+        // and apply_transport_allocations are now observers, not scheduled systems
         app.add_systems(
             Update,
             (
                 transport::initialize_transport_capacity,
                 trade_capacity::initialize_trade_capacity,
-                transport::apply_improvements,
-                transport::compute_rail_connectivity.after(transport::apply_improvements),
-                production::calculate_connected_production
-                    .after(transport::compute_rail_connectivity),
-                transport::update_transport_demand_snapshot
-                    .after(production::calculate_connected_production),
-                transport::apply_transport_allocations,
-            )
-                .in_set(EconomySet),
-        );
-
-        // Allocation adjustment systems (player can adjust during their turn)
-        app.add_systems(
-            Update,
-            (
-                workforce::execute_recruitment_orders,
-                workforce::execute_training_orders,
-                workforce::handle_recruitment,
-                workforce::handle_training,
-                (
-                    allocation_systems::apply_recruitment_adjustments,
-                    allocation_systems::apply_training_adjustments,
-                    allocation_systems::apply_production_adjustments,
-                    allocation_systems::apply_market_order_adjustments,
-                )
-                    .chain(),
+                transport::update_transport_demand_snapshot,
             )
                 .in_set(EconomySet),
         );
@@ -183,6 +161,16 @@ impl Plugin for EconomyPlugin {
         app.add_systems(
             OnEnter(TurnPhase::Processing),
             transport::convert_transport_goods_to_capacity.in_set(ProcessingSet::Conversion),
+        );
+
+        // Recruitment and training execution (after finalization)
+        app.add_systems(
+            OnEnter(TurnPhase::Processing),
+            (
+                workforce::execute_recruitment_orders,
+                workforce::execute_training_orders,
+            )
+                .after(ProcessingSet::Finalize),
         );
 
         // Update trade capacity from ships at the start of PlayerTurn

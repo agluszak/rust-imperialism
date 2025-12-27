@@ -5,7 +5,6 @@ use crate::economy::stockpile::Stockpile;
 use crate::economy::treasury::Treasury;
 use crate::economy::workforce::types::{WorkerSkill, Workforce};
 use crate::messages::workforce::TrainWorker;
-use crate::turn_system::TurnPhase;
 
 /// Component tracking queued training orders for a nation
 #[derive(Component, Debug, Clone, Default, Reflect)]
@@ -128,8 +127,8 @@ pub fn handle_training(
 }
 
 /// System to execute queued training orders during turn processing (Logic Layer)
+/// NOTE: Registered via OnEnter(TurnPhase::Processing), so no phase check needed.
 pub fn execute_training_orders(
-    phase: Res<State<TurnPhase>>,
     mut nations: Query<(
         &mut TrainingQueue,
         &mut Workforce,
@@ -139,11 +138,6 @@ pub fn execute_training_orders(
 ) {
     const TRAINING_COST_PAPER: u32 = 1;
     const TRAINING_COST_CASH: i64 = 100;
-
-    // Only execute during Processing phase
-    if *phase.get() != TurnPhase::Processing {
-        return;
-    }
 
     for (mut queue, mut workforce, mut stockpile, mut treasury) in nations.iter_mut() {
         if queue.orders.is_empty() {

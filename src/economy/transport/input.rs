@@ -12,10 +12,10 @@ use crate::map::tiles::TerrainType;
 use crate::economy::{nation::PlayerNation, technology::Technologies, treasury::Treasury};
 
 /// Apply improvement placements (Input Layer)
-/// Reads PlaceImprovement messages, validates, charges treasury, spawns entities
+/// Observer triggered by PlaceImprovement events, validates, charges treasury, spawns entities
 pub fn apply_improvements(
+    trigger: On<PlaceImprovement>,
     mut commands: Commands,
-    mut ev: MessageReader<PlaceImprovement>,
     mut roads: ResMut<Roads>,
     rails: ResMut<Rails>,
     player: Option<Res<PlayerNation>>,
@@ -24,37 +24,36 @@ pub fn apply_improvements(
     tile_storage_query: Query<&TileStorage>,
     tile_types: Query<&TerrainType>,
 ) {
-    for e in ev.read() {
-        match e.kind {
-            ImprovementKind::Road => {
-                handle_road_placement(e.a, e.b, &mut roads, &player, &mut treasuries);
-            }
-            ImprovementKind::Rail => {
-                handle_rail_construction(
-                    &mut commands,
-                    e,
-                    &rails,
-                    &player,
-                    &mut treasuries,
-                    &nations,
-                    &tile_storage_query,
-                    &tile_types,
-                );
-            }
-            ImprovementKind::Depot => {
-                handle_depot_placement(&mut commands, e.a, e.nation, &player, &mut treasuries);
-            }
-            ImprovementKind::Port => {
-                handle_port_placement(
-                    &mut commands,
-                    e.a,
-                    e.nation,
-                    &player,
-                    &mut treasuries,
-                    &tile_storage_query,
-                    &tile_types,
-                );
-            }
+    let e = trigger.event();
+    match e.kind {
+        ImprovementKind::Road => {
+            handle_road_placement(e.a, e.b, &mut roads, &player, &mut treasuries);
+        }
+        ImprovementKind::Rail => {
+            handle_rail_construction(
+                &mut commands,
+                e,
+                &rails,
+                &player,
+                &mut treasuries,
+                &nations,
+                &tile_storage_query,
+                &tile_types,
+            );
+        }
+        ImprovementKind::Depot => {
+            handle_depot_placement(&mut commands, e.a, e.nation, &player, &mut treasuries);
+        }
+        ImprovementKind::Port => {
+            handle_port_placement(
+                &mut commands,
+                e.a,
+                e.nation,
+                &player,
+                &mut treasuries,
+                &tile_storage_query,
+                &tile_types,
+            );
         }
     }
 }

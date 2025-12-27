@@ -8,7 +8,7 @@ use crate::civilians::types::{
     PreviousPosition, ProspectingKnowledge,
 };
 use crate::economy::nation::Nation;
-use crate::economy::transport::{PlaceImprovement, Rails, ordered_edge};
+use crate::economy::transport::{Rails, ordered_edge};
 use crate::map::province::{Province, ProvinceId, TileProvince};
 use crate::resources::{DevelopmentLevel, ResourceType, TileResource};
 use crate::turn_system::TurnCounter;
@@ -23,8 +23,9 @@ fn test_engineer_does_not_start_job_on_existing_rail() {
     world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
 
-    // Initialize event resources that the system uses
-    world.init_resource::<Messages<PlaceImprovement>>();
+    // Initialize message resources that the system uses
+    // Note: PlaceImprovement is now an Event triggered via commands.trigger(),
+    // so it doesn't need a Messages resource
     world.init_resource::<Messages<DeselectCivilian>>();
 
     // Create a nation entity
@@ -103,8 +104,9 @@ fn test_engineer_starts_job_on_new_rail() {
     world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
 
-    // Initialize event resources that the system uses
-    world.init_resource::<Messages<PlaceImprovement>>();
+    // Initialize message resources that the system uses
+    // Note: PlaceImprovement is now an Event triggered via commands.trigger(),
+    // so it doesn't need a Messages resource
     world.init_resource::<Messages<DeselectCivilian>>();
 
     // Create a nation entity

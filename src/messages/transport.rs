@@ -3,8 +3,9 @@ use bevy_ecs_tilemap::prelude::TilePos;
 
 use crate::economy::transport::ImprovementKind;
 
-/// Message to place a transport improvement between two tiles.
-#[derive(Message, Debug, Clone, Copy)]
+/// Event to place a transport improvement between two tiles.
+/// Triggered via `commands.trigger(PlaceImprovement { ... })`.
+#[derive(Event, Debug, Clone, Copy)]
 pub struct PlaceImprovement {
     pub a: TilePos,
     pub b: TilePos,
@@ -13,8 +14,9 @@ pub struct PlaceImprovement {
     pub engineer: Option<Entity>,
 }
 
-/// Message to trigger rail network connectivity recomputation after topology changes.
-#[derive(Message, Debug, Clone, Copy)]
+/// Event to trigger rail network connectivity recomputation after topology changes.
+/// Triggered via `commands.trigger(RecomputeConnectivity)`.
+#[derive(Event, Debug, Clone, Copy)]
 pub struct RecomputeConnectivity;
 
 #[cfg(test)]

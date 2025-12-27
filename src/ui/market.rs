@@ -1,4 +1,3 @@
-use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::ui::widget::Button as OldButton;
 use bevy::ui_widgets::{Activate, Button};
@@ -448,8 +447,8 @@ fn update_market_price_texts(
 
 fn market_mode_button_clicked(
     trigger: On<Activate>,
+    mut commands: Commands,
     button: Query<&MarketModeButton>,
-    mut writer: MessageWriter<AdjustMarketOrder>,
     player: Option<Res<PlayerNation>>,
     allocations: Query<&Allocations>,
     mut sell_controls: Query<(&MarketSellControls, &mut Node)>,
@@ -487,12 +486,12 @@ fn market_mode_button_clicked(
         Some(clicked_mode) // Switch to this mode
     };
 
-    // Send messages to update allocations (only if state needs to change)
+    // Send events to update allocations (only if state needs to change)
     match new_mode {
         Some(MarketMode::Buy) => {
             // Express buy interest (only if not already set)
             if !has_buy {
-                writer.write(AdjustMarketOrder {
+                commands.trigger(AdjustMarketOrder {
                     nation: player.instance(),
                     good,
                     kind: MarketInterest::Buy,
@@ -501,7 +500,7 @@ fn market_mode_button_clicked(
             }
             // Clear any sell orders when switching to buy
             if has_sell {
-                writer.write(AdjustMarketOrder {
+                commands.trigger(AdjustMarketOrder {
                     nation: player.instance(),
                     good,
                     kind: MarketInterest::Sell,
@@ -512,7 +511,7 @@ fn market_mode_button_clicked(
         Some(MarketMode::Sell) => {
             // Clear buy interest if switching from buy mode
             if has_buy {
-                writer.write(AdjustMarketOrder {
+                commands.trigger(AdjustMarketOrder {
                     nation: player.instance(),
                     good,
                     kind: MarketInterest::Buy,
@@ -524,7 +523,7 @@ fn market_mode_button_clicked(
         None => {
             // Clear both modes
             if has_buy {
-                writer.write(AdjustMarketOrder {
+                commands.trigger(AdjustMarketOrder {
                     nation: player.instance(),
                     good,
                     kind: MarketInterest::Buy,
@@ -532,7 +531,7 @@ fn market_mode_button_clicked(
                 });
             }
             if has_sell {
-                writer.write(AdjustMarketOrder {
+                commands.trigger(AdjustMarketOrder {
                     nation: player.instance(),
                     good,
                     kind: MarketInterest::Sell,

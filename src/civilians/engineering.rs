@@ -17,7 +17,6 @@ use crate::turn_system::TurnCounter;
 pub fn execute_engineer_orders(
     mut commands: Commands,
     mut engineers: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
-    mut improvement_writer: MessageWriter<PlaceImprovement>,
     mut deselect_writer: MessageWriter<DeselectCivilian>,
     rails: Res<Rails>,
     turn: Res<TurnCounter>,
@@ -63,7 +62,6 @@ pub fn execute_engineer_orders(
                     entity,
                     &mut civilian,
                     to,
-                    &mut improvement_writer,
                     &mut deselect_writer,
                     &rails,
                     &turn,
@@ -77,7 +75,6 @@ pub fn execute_engineer_orders(
                     &mut commands,
                     entity,
                     &mut civilian,
-                    &mut improvement_writer,
                     &mut deselect_writer,
                     &turn,
                 );
@@ -87,7 +84,6 @@ pub fn execute_engineer_orders(
                     &mut commands,
                     entity,
                     &mut civilian,
-                    &mut improvement_writer,
                     &mut deselect_writer,
                     &turn,
                 );
@@ -110,7 +106,6 @@ fn handle_build_rail_order(
     entity: Entity,
     civilian: &mut Civilian,
     to: TilePos,
-    improvement_writer: &mut MessageWriter<PlaceImprovement>,
     deselect_writer: &mut MessageWriter<DeselectCivilian>,
     rails: &Res<Rails>,
     turn: &Res<TurnCounter>,
@@ -164,8 +159,8 @@ fn handle_build_rail_order(
             .insert((PreviousPosition(previous_pos), ActionTurn(turn.current)));
     } else {
         // Rail doesn't exist - start construction
-        // Send PlaceImprovement message with engineer entity
-        improvement_writer.write(PlaceImprovement {
+        // Trigger PlaceImprovement event with engineer entity
+        commands.trigger(PlaceImprovement {
             a: civilian.position,
             b: to,
             kind: ImprovementKind::Rail,
@@ -194,14 +189,13 @@ fn handle_build_depot_order(
     commands: &mut Commands,
     entity: Entity,
     civilian: &mut Civilian,
-    improvement_writer: &mut MessageWriter<PlaceImprovement>,
     deselect_writer: &mut MessageWriter<DeselectCivilian>,
     turn: &Res<TurnCounter>,
 ) {
     // Store previous position for potential undo
     let previous_pos = civilian.position;
 
-    improvement_writer.write(PlaceImprovement {
+    commands.trigger(PlaceImprovement {
         a: civilian.position,
         b: civilian.position, // Depot is single-tile
         kind: ImprovementKind::Depot,
@@ -227,14 +221,13 @@ fn handle_build_port_order(
     commands: &mut Commands,
     entity: Entity,
     civilian: &mut Civilian,
-    improvement_writer: &mut MessageWriter<PlaceImprovement>,
     deselect_writer: &mut MessageWriter<DeselectCivilian>,
     turn: &Res<TurnCounter>,
 ) {
     // Store previous position for potential undo
     let previous_pos = civilian.position;
 
-    improvement_writer.write(PlaceImprovement {
+    commands.trigger(PlaceImprovement {
         a: civilian.position,
         b: civilian.position,
         kind: ImprovementKind::Port,

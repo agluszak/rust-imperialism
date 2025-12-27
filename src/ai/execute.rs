@@ -21,13 +21,11 @@ use crate::messages::{AdjustMarketOrder, AdjustProduction, HireCivilian, MarketI
 /// 2. Generates a plan for each AI nation
 /// 3. Sends orders to execute the plan
 pub fn execute_ai_turn(
+    mut commands: Commands,
     snapshot: Res<AiSnapshot>,
     ai_nations: Query<(NationInstance, &Buildings), With<AiNation>>,
     mut civilian_commands: MessageWriter<CivilianCommand>,
-    mut market_orders: MessageWriter<AdjustMarketOrder>,
     mut hire_messages: MessageWriter<HireCivilian>,
-    mut production_orders: MessageWriter<AdjustProduction>,
-    mut transport_orders: MessageWriter<crate::economy::transport::TransportAdjustAllocation>,
 ) {
     for (nation, buildings) in ai_nations.iter() {
         let Some(nation_snapshot) = snapshot.get_nation(nation.entity()) else {
@@ -39,29 +37,25 @@ pub fn execute_ai_turn(
 
         // Execute the plan
         execute_plan(
+            &mut commands,
             &snapshot,
             &plan,
             nation,
             buildings,
             &mut civilian_commands,
-            &mut market_orders,
             &mut hire_messages,
-            &mut production_orders,
-            &mut transport_orders,
         );
     }
 }
 
 fn execute_plan(
+    commands: &mut Commands,
     snapshot: &AiSnapshot,
     plan: &NationPlan,
     nation: NationInstance,
     _buildings: &Buildings,
     civilian_commands: &mut MessageWriter<CivilianCommand>,
-    market_orders: &mut MessageWriter<AdjustMarketOrder>,
     hire_messages: &mut MessageWriter<HireCivilian>,
-    production_orders: &mut MessageWriter<AdjustProduction>,
-    transport_orders: &mut MessageWriter<crate::economy::transport::TransportAdjustAllocation>,
 ) {
     // Build map of current positions for this nation's civilians
     // This allows us to know "who is at tile X" to establish dependencies
@@ -88,7 +82,7 @@ fn execute_plan(
 
     // Send market buy orders
     for (good, qty) in &plan.market_buys {
-        market_orders.write(AdjustMarketOrder {
+        commands.trigger(AdjustMarketOrder {
             nation,
             good: *good,
             kind: MarketInterest::Buy,
@@ -98,7 +92,7 @@ fn execute_plan(
 
     // Send market sell orders
     for (good, qty) in &plan.market_sells {
-        market_orders.write(AdjustMarketOrder {
+        commands.trigger(AdjustMarketOrder {
             nation,
             good: *good,
             kind: MarketInterest::Sell,
@@ -116,7 +110,7 @@ fn execute_plan(
 
     // Send production orders
     for order in &plan.production_orders {
-        production_orders.write(AdjustProduction {
+        commands.trigger(AdjustProduction {
             nation,
             building: order.building,
             output_good: order.output,
@@ -126,7 +120,7 @@ fn execute_plan(
 
     // Send transport allocation orders
     for (commodity, requested) in &plan.transport_allocations {
-        transport_orders.write(crate::economy::transport::TransportAdjustAllocation {
+        commands.trigger(crate::economy::transport::TransportAdjustAllocation {
             nation: nation.entity(),
             commodity: *commodity,
             requested: *requested,

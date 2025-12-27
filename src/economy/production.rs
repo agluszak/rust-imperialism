@@ -1,4 +1,3 @@
-use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::iter;
@@ -59,9 +58,9 @@ impl ConnectedTileSource {
 }
 
 /// Calculates the total production from all resource tiles connected to the rail network.
-/// This system runs after `compute_rail_connectivity` and only when connectivity changes.
+/// Observer triggered by RecomputeConnectivity events (runs after compute_rail_connectivity).
 pub fn calculate_connected_production(
-    connectivity_events: Option<MessageReader<crate::economy::transport::RecomputeConnectivity>>,
+    _trigger: On<crate::economy::transport::RecomputeConnectivity>,
     mut production: ResMut<ConnectedProduction>,
     connected_depots: Query<&Depot>,
     connected_ports: Query<&Port>,
@@ -70,14 +69,6 @@ pub fn calculate_connected_production(
     tile_resources: Query<&TileResource>,
     prospecting_knowledge: Res<ProspectingKnowledge>,
 ) {
-    // Only recompute when connectivity changed (or always in tests where message isn't registered)
-    if let Some(events) = connectivity_events
-        && events.is_empty()
-    {
-        return;
-    }
-    // Note: we don't consume the events here because compute_rail_connectivity already did
-
     // Clear previous data
     production.totals.clear();
     production.tiles.clear();
@@ -301,6 +292,7 @@ pub fn collect_connected_production(
 #[cfg(test)]
 mod tests {
     use crate::economy::production::{ConnectedTileSource, calculate_connected_production};
+    use crate::economy::transport::RecomputeConnectivity;
     use crate::economy::*;
     use crate::{
         civilians::types::ProspectingKnowledge,
@@ -316,6 +308,7 @@ mod tests {
         let mut app = App::new();
         app.insert_resource(ConnectedProduction::default());
         app.insert_resource(ProspectingKnowledge::default());
+        app.add_observer(calculate_connected_production);
 
         let (tilemap_entity, mut tile_storage) = create_test_tilemap(app.world_mut(), 3, 3);
         let capital_pos = TilePos { x: 1, y: 1 };
@@ -338,8 +331,8 @@ mod tests {
 
         let nation = app.world_mut().spawn(Capital(capital_pos)).id();
 
-        app.add_systems(Update, calculate_connected_production);
-        app.update();
+        // Trigger the observer
+        app.world_mut().trigger(RecomputeConnectivity);
 
         let production = app.world().resource::<ConnectedProduction>();
         let nation_output = production
@@ -369,6 +362,7 @@ mod tests {
         let mut app = App::new();
         app.insert_resource(ConnectedProduction::default());
         app.insert_resource(ProspectingKnowledge::default());
+        app.add_observer(calculate_connected_production);
 
         let (tilemap_entity, tile_storage) = create_test_tilemap(app.world_mut(), 3, 3);
         app.world_mut()
@@ -383,8 +377,8 @@ mod tests {
             is_river: false,
         });
 
-        app.add_systems(Update, calculate_connected_production);
-        app.update();
+        // Trigger the observer
+        app.world_mut().trigger(RecomputeConnectivity);
 
         let production = app.world().resource::<ConnectedProduction>();
         let nation_output = production

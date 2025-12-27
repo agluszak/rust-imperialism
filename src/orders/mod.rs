@@ -57,6 +57,14 @@ impl OrdersQueue {
         std::mem::take(&mut self.transport)
     }
 
+    pub fn peek_production(&self) -> &[AdjustProduction] {
+        &self.production
+    }
+
+    pub fn peek_market(&self) -> &[AdjustMarketOrder] {
+        &self.market
+    }
+
     pub fn is_empty(&self) -> bool {
         self.production.is_empty()
             && self.recruitment.is_empty()

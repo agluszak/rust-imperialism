@@ -7,13 +7,11 @@ use common::transition_to_phase;
 
 #[test]
 fn test_ai_climbs_value_chain_when_hardware_is_profitable() {
-    use bevy::ecs::message::MessageReader;
-    use bevy::ecs::system::RunSystemOnce;
     use bevy::prelude::*;
     use bevy::state::app::StatesPlugin;
     use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
 
-    use rust_imperialism::ai::{AiNation, AiSnapshot};
+    use rust_imperialism::ai::{AiNation, AiSnapshot, planner::plan_nation};
     use rust_imperialism::civilians::types::ProspectingKnowledge;
     use rust_imperialism::economy::{
         EconomyPlugin,
@@ -26,7 +24,6 @@ fn test_ai_climbs_value_chain_when_hardware_is_profitable() {
     };
     use rust_imperialism::map::province::{Province, ProvinceId, TileProvince};
     use rust_imperialism::map::tiles::TerrainType;
-    use rust_imperialism::messages::{AdjustMarketOrder, AdjustProduction, MarketInterest};
     use rust_imperialism::turn_system::{TurnPhase, TurnSystemPlugin};
     use rust_imperialism::ui::menu::AppState;
     use rust_imperialism::ui::mode::GameMode;
@@ -106,107 +103,129 @@ fn test_ai_climbs_value_chain_when_hardware_is_profitable() {
         city_tile: capital_pos,
     });
 
-    println!("\n=== Starting AI Value-Added Trade Integration Test ===");
-    println!("Market prices:");
-    println!("  Iron: 50, Coal: 45");
-    println!("  Steel: 140 (cost: 95, profit: 45)");
-    println!("  Hardware: 360 (cost: 280, profit: 80)");
+    // Run one turn cycle to build AI snapshot
+    app.update(); // Initial update in PlayerTurn
 
-    // Run one turn cycle
-    app.update(); // PlayerTurn
+    // Transition to Processing phase, which auto-transitions to EnemyTurn
+    // This runs build_ai_snapshot and execute_ai_turn
     transition_to_phase(&mut app, TurnPhase::Processing);
-    transition_to_phase(&mut app, TurnPhase::EnemyTurn);
 
-    // After EnemyTurn, AI should have planned and issued orders
-    // Check that AI issued the expected market orders
-    let market_orders = app
-        .world_mut()
-        .run_system_once(|mut reader: MessageReader<AdjustMarketOrder>| {
-            reader.read().cloned().collect::<Vec<_>>()
-        })
-        .unwrap();
+    // Verify AI snapshot was built correctly
+    let snapshot = app
+        .world()
+        .get_resource::<AiSnapshot>()
+        .expect("AI snapshot should be created");
 
-    println!("\nMarket orders issued by AI:");
-    for order in &market_orders {
-        println!("  {:?} {} of {:?}", order.kind, order.requested, order.good);
-    }
+    let nation_snapshot = snapshot
+        .get_nation(ai_nation)
+        .expect("AI nation should be in snapshot");
 
-    // Should buy iron and coal
-    let iron_buys: Vec<_> = market_orders
+    // Verify snapshot has correct data
+    assert_eq!(
+        nation_snapshot.treasury, 10_000,
+        "Treasury should be preserved"
+    );
+    assert!(
+        !nation_snapshot.buildings.is_empty(),
+        "Buildings should be in snapshot"
+    );
+    assert!(
+        nation_snapshot
+            .buildings
+            .contains_key(&rust_imperialism::economy::production::BuildingKind::SteelMill),
+        "Should have SteelMill"
+    );
+    assert!(
+        nation_snapshot
+            .buildings
+            .contains_key(&rust_imperialism::economy::production::BuildingKind::MetalWorks),
+        "Should have MetalWorks"
+    );
+
+    // Verify market prices in snapshot
+    assert_eq!(
+        snapshot.market.price_for(Good::Iron),
+        50,
+        "Iron price should be 50"
+    );
+    assert_eq!(
+        snapshot.market.price_for(Good::Coal),
+        45,
+        "Coal price should be 45"
+    );
+    assert_eq!(
+        snapshot.market.price_for(Good::Steel),
+        140,
+        "Steel price should be 140"
+    );
+    assert_eq!(
+        snapshot.market.price_for(Good::Hardware),
+        360,
+        "Hardware price should be 360"
+    );
+
+    // Now verify the AI planner generates correct value-added trade plan
+    let plan = plan_nation(nation_snapshot, snapshot);
+
+    // Should buy iron and coal for steel production
+    let iron_buys: Vec<_> = plan
+        .market_buys
         .iter()
-        .filter(|o| o.good == Good::Iron && matches!(o.kind, MarketInterest::Buy))
+        .filter(|(good, _)| *good == Good::Iron)
         .collect();
-    let coal_buys: Vec<_> = market_orders
+    let coal_buys: Vec<_> = plan
+        .market_buys
         .iter()
-        .filter(|o| o.good == Good::Coal && matches!(o.kind, MarketInterest::Buy))
+        .filter(|(good, _)| *good == Good::Coal)
         .collect();
 
     assert!(
         !iron_buys.is_empty(),
-        "AI should buy iron for steel production"
+        "AI should plan to buy iron for steel production. market_buys: {:?}",
+        plan.market_buys
     );
     assert!(
         !coal_buys.is_empty(),
-        "AI should buy coal for steel production"
+        "AI should plan to buy coal for steel production. market_buys: {:?}",
+        plan.market_buys
     );
 
     // Should sell hardware
-    let hardware_sells: Vec<_> = market_orders
+    let hardware_sells: Vec<_> = plan
+        .market_sells
         .iter()
-        .filter(|o| o.good == Good::Hardware && matches!(o.kind, MarketInterest::Sell))
+        .filter(|(good, _)| *good == Good::Hardware)
         .collect();
 
     assert!(
         !hardware_sells.is_empty(),
-        "AI should sell manufactured hardware"
+        "AI should plan to sell manufactured hardware. market_sells: {:?}",
+        plan.market_sells
     );
 
-    // Check production orders
-    let production_orders = app
-        .world_mut()
-        .run_system_once(|mut reader: MessageReader<AdjustProduction>| {
-            reader.read().cloned().collect::<Vec<_>>()
-        })
-        .unwrap();
-
-    println!("\nProduction orders issued by AI:");
-    for order in &production_orders {
-        println!("  {} units of {:?}", order.target_output, order.output_good);
-    }
-
     // Should plan steel production
-    let steel_orders: Vec<_> = production_orders
+    let steel_orders: Vec<_> = plan
+        .production_orders
         .iter()
-        .filter(|o| o.output_good == Good::Steel)
+        .filter(|o| o.output == Good::Steel)
         .collect();
 
     assert!(
         !steel_orders.is_empty(),
-        "AI should plan steel production from iron and coal"
+        "AI should plan steel production from iron and coal. production_orders: {:?}",
+        plan.production_orders
     );
 
     // Should plan hardware production
-    let hardware_orders: Vec<_> = production_orders
+    let hardware_orders: Vec<_> = plan
+        .production_orders
         .iter()
-        .filter(|o| o.output_good == Good::Hardware)
+        .filter(|o| o.output == Good::Hardware)
         .collect();
 
     assert!(
         !hardware_orders.is_empty(),
-        "AI should plan hardware production from steel"
+        "AI should plan hardware production from steel. production_orders: {:?}",
+        plan.production_orders
     );
-
-    // No longer checking production choice since it's now determined dynamically
-    // based on stockpile availability at production time
-
-    // Check AI snapshot to verify planning worked
-    if let Some(snapshot) = app.world().get_resource::<AiSnapshot>()
-        && let Some(nation_snapshot) = snapshot.get_nation(ai_nation)
-    {
-        println!("\nAI Nation State:");
-        println!("  Treasury: {}", nation_snapshot.treasury);
-        println!("  Stockpile: {:?}", nation_snapshot.stockpile);
-    }
-
-    println!("\n=== Test Complete: AI successfully planned value-added trading ===");
 }

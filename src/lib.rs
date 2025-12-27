@@ -21,6 +21,7 @@ use crate::turn_system::TurnSystemPlugin;
 use crate::ui::GameUIPlugin;
 use crate::ui::menu::AppState;
 use crate::ui::mode::GameMode;
+#[cfg(feature = "debug")]
 use bevy::dev_tools::states::log_transitions;
 use bevy::image::ImagePlugin;
 use bevy::prelude::*;
@@ -63,9 +64,13 @@ pub fn app() -> App {
         ))
         // App state management
         .insert_state(AppState::MainMenu)
-        .add_sub_state::<GameMode>()
-        .add_systems(Update, log_transitions::<AppState>)
-        .add_systems(Update, log_transitions::<GameMode>)
+        .add_sub_state::<GameMode>();
+
+    #[cfg(feature = "debug")]
+    app.add_systems(Update, log_transitions::<AppState>)
+        .add_systems(Update, log_transitions::<GameMode>);
+
+    app
         // Game plugins
         .add_plugins((
             TilemapBackend,

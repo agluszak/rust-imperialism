@@ -130,12 +130,12 @@ impl Plugin for TransportUIPlugin {
 pub fn handle_transport_selection(
     mut ev: MessageReader<TransportSelectTile>,
     mut tool: ResMut<TransportToolState>,
-    mut place_writer: MessageWriter<PlaceImprovement>,
+    mut commands: Commands,
 ) {
     for e in ev.read() {
         if let Some(a) = tool.first.take() {
             let b = e.pos;
-            place_writer.write(PlaceImprovement {
+            commands.trigger(PlaceImprovement {
                 a,
                 b,
                 kind: ImprovementKind::Road,
@@ -529,13 +529,13 @@ fn transport_adjustment_button(
     observe(
         move |_activate: On<Activate>,
               allocations: Res<TransportAllocations>,
-              mut adjust_writer: MessageWriter<TransportAdjustAllocation>| {
+              mut commands: Commands| {
             let slot = transport_slot(&allocations, nation, commodity);
             let current = slot.requested;
             let new_requested = adjust_requested(current, delta);
 
             if new_requested != current {
-                adjust_writer.write(TransportAdjustAllocation {
+                commands.trigger(TransportAdjustAllocation {
                     nation,
                     commodity,
                     requested: new_requested,

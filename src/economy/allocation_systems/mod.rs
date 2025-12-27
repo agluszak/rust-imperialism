@@ -1,4 +1,3 @@
-use bevy::ecs::message::{MessageReader, MessageWriter};
 use bevy::prelude::*;
 
 use crate::economy::{
@@ -7,7 +6,6 @@ use crate::economy::{
     production::{BuildingKind, Buildings, building_for_output},
     reservation::ReservationSystem,
     stockpile::Stockpile,
-    transport::PlaceImprovement,
     treasury::Treasury,
     workforce::{RecruitmentCapacity, types::*},
 };
@@ -26,12 +24,10 @@ use crate::{
 /// Apply production allocation adjustments using unit-by-unit reservations
 /// Each +1 adds one ReservationId, each -1 removes one
 pub fn apply_production_adjustments(
-    mut messages: MessageReader<AdjustProduction>,
+    trigger: On<AdjustProduction>,
     mut orders: ResMut<OrdersQueue>,
 ) {
-    for msg in messages.read() {
-        orders.queue_production(*msg);
-    }
+    orders.queue_production(*trigger.event());
 }
 
 /// Calculate inputs needed for one unit of production, intelligently choosing
@@ -114,12 +110,10 @@ pub(crate) fn calculate_inputs_for_one_unit(
 
 /// Apply recruitment allocation adjustments using unit-by-unit reservations
 pub fn apply_recruitment_adjustments(
-    mut messages: MessageReader<AdjustRecruitment>,
+    trigger: On<AdjustRecruitment>,
     mut orders: ResMut<OrdersQueue>,
 ) {
-    for msg in messages.read() {
-        orders.queue_recruitment(*msg);
-    }
+    orders.queue_recruitment(*trigger.event());
 }
 
 // ============================================================================
@@ -127,13 +121,8 @@ pub fn apply_recruitment_adjustments(
 // ============================================================================
 
 /// Apply training allocation adjustments using unit-by-unit reservations
-pub fn apply_training_adjustments(
-    mut messages: MessageReader<AdjustTraining>,
-    mut orders: ResMut<OrdersQueue>,
-) {
-    for msg in messages.read() {
-        orders.queue_training(*msg);
-    }
+pub fn apply_training_adjustments(trigger: On<AdjustTraining>, mut orders: ResMut<OrdersQueue>) {
+    orders.queue_training(*trigger.event());
 }
 
 // ============================================================================
@@ -142,12 +131,10 @@ pub fn apply_training_adjustments(
 
 /// Apply market buy/sell allocation adjustments using reservations
 pub fn apply_market_order_adjustments(
-    mut messages: MessageReader<AdjustMarketOrder>,
+    trigger: On<AdjustMarketOrder>,
     mut orders: ResMut<OrdersQueue>,
 ) {
-    for msg in messages.read() {
-        orders.queue_market(*msg);
-    }
+    orders.queue_market(*trigger.event());
 }
 
 pub fn execute_queued_production_orders(
@@ -516,17 +503,14 @@ pub fn execute_queued_market_orders(
     }
 }
 
-pub fn execute_queued_transport_orders(
-    mut orders: ResMut<OrdersQueue>,
-    mut writer: MessageWriter<PlaceImprovement>,
-) {
+pub fn execute_queued_transport_orders(mut orders: ResMut<OrdersQueue>, mut commands: Commands) {
     let queued = orders.take_transport();
     if queued.is_empty() {
         return;
     }
 
     for order in queued {
-        writer.write(order);
+        commands.trigger(order);
     }
 }
 

@@ -41,8 +41,9 @@ pub fn convert_transport_goods_to_capacity(
     }
 }
 
-/// Message emitted from UI sliders requesting a new allocation level.
-#[derive(Message, Debug, Clone, Copy)]
+/// Event emitted from UI sliders requesting a new allocation level.
+/// Triggered via `commands.trigger(TransportAdjustAllocation { ... })`.
+#[derive(Event, Debug, Clone, Copy)]
 pub struct TransportAdjustAllocation {
     pub nation: Entity,
     pub commodity: TransportCommodity,
@@ -50,45 +51,42 @@ pub struct TransportAdjustAllocation {
 }
 
 /// Apply allocation adjustments while respecting total capacity and available supply.
+/// Observer triggered by TransportAdjustAllocation events.
 pub fn apply_transport_allocations(
+    trigger: On<TransportAdjustAllocation>,
     mut capacity: ResMut<TransportCapacity>,
     mut allocations: ResMut<TransportAllocations>,
-    mut requests: MessageReader<TransportAdjustAllocation>,
     demand_snapshot: Res<TransportDemandSnapshot>,
 ) {
-    let mut message_count = 0;
-    for request in requests.read() {
-        message_count += 1;
+    let request = trigger.event();
 
-        let nation_alloc = allocations.ensure_nation(request.nation);
-        let slot = nation_alloc.slot_mut(request.commodity);
+    let nation_alloc = allocations.ensure_nation(request.nation);
+    let slot = nation_alloc.slot_mut(request.commodity);
 
-        // Clamp requested amount to available supply
-        let available_supply = demand_snapshot
-            .nations
-            .get(&request.nation)
-            .and_then(|map| map.get(&request.commodity))
-            .map(|entry| entry.supply)
-            .unwrap_or(0);
+    // Clamp requested amount to available supply
+    let available_supply = demand_snapshot
+        .nations
+        .get(&request.nation)
+        .and_then(|map| map.get(&request.commodity))
+        .map(|entry| entry.supply)
+        .unwrap_or(0);
 
-        let clamped = request.requested.min(available_supply);
+    let clamped = request.requested.min(available_supply);
 
-        slot.requested = clamped;
-    }
+    slot.requested = clamped;
 
-    if message_count > 0 {
-        // Recompute granted totals per nation.
-        for (nation, nation_alloc) in allocations.nations.iter_mut() {
-            let mut remaining = capacity.snapshot(*nation).total;
-            for commodity in TransportCommodity::ORDERED.iter() {
-                if let Some(slot) = nation_alloc.commodities.get_mut(commodity) {
-                    let granted = slot.requested.min(remaining);
-                    slot.granted = granted;
-                    remaining = remaining.saturating_sub(granted);
-                }
+    // Recompute granted totals for this nation
+    let nation = request.nation;
+    if let Some(nation_alloc) = allocations.nations.get_mut(&nation) {
+        let mut remaining = capacity.snapshot(nation).total;
+        for commodity in TransportCommodity::ORDERED.iter() {
+            if let Some(slot) = nation_alloc.commodities.get_mut(commodity) {
+                let granted = slot.requested.min(remaining);
+                slot.granted = granted;
+                remaining = remaining.saturating_sub(granted);
             }
-            capacity.snapshot_mut(*nation).used = capacity.snapshot(*nation).total - remaining;
         }
+        capacity.snapshot_mut(nation).used = capacity.snapshot(nation).total - remaining;
     }
 }
 

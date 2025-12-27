@@ -9,7 +9,6 @@ pub fn advance_rail_construction(
     mut commands: Commands,
     mut constructions: Query<(Entity, &mut RailConstruction)>,
     mut rails: ResMut<Rails>,
-    mut connectivity_events: MessageWriter<RecomputeConnectivity>,
 ) {
     for (entity, mut construction) in constructions.iter_mut() {
         construction.turns_remaining -= 1;
@@ -20,7 +19,7 @@ pub fn advance_rail_construction(
             rails.0.insert(edge);
 
             // Trigger connectivity recomputation since topology changed
-            connectivity_events.write(RecomputeConnectivity);
+            commands.trigger(RecomputeConnectivity);
 
             info!(
                 "Rail construction complete: ({}, {}) to ({}, {})",

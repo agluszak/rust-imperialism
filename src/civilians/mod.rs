@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
 use crate::turn_system::{PlayerTurnSet, TurnPhase};
+use crate::ui::menu::AppState;
+use crate::ui::mode::GameMode;
 
 // Re-exports for public API
 pub use crate::messages::civilians::{
@@ -65,8 +67,8 @@ impl Plugin for CivilianPlugin {
                 .in_set(PlayerTurnSet::Maintenance),
         );
 
-        app.init_resource::<crate::civilians::types::ProspectingKnowledge>()
-            .init_resource::<crate::civilians::types::NextCivilianId>()
+        app.init_resource::<ProspectingKnowledge>()
+            .init_resource::<NextCivilianId>()
             .init_resource::<SelectedCivilian>()
             .add_message::<SelectCivilian>()
             .add_message::<CivilianCommand>()
@@ -74,24 +76,25 @@ impl Plugin for CivilianPlugin {
             .add_message::<DeselectCivilian>()
             .add_message::<RescindOrders>()
             .add_message::<HireCivilian>()
-            // Selection handler runs always to react to events immediately
+            // Selection handlers: only run in-game to avoid processing during menu
             .add_systems(
                 Update,
                 (
                     systems::handle_civilian_selection,
                     systems::handle_deselect_key,
                     systems::handle_deselection,
-                ),
+                )
+                    .run_if(in_state(AppState::InGame)),
             )
             .add_systems(
                 Update,
-                hiring::spawn_hired_civilian.run_if(in_state(crate::ui::menu::AppState::InGame)),
+                hiring::spawn_hired_civilian.run_if(in_state(AppState::InGame)),
             )
             .add_systems(
                 Update,
                 systems::handle_rescind_orders
                     .before(systems::handle_civilian_commands)
-                    .run_if(in_state(crate::ui::mode::GameMode::Map)),
+                    .run_if(in_state(GameMode::Map)),
             )
             .add_systems(
                 Update,
@@ -108,7 +111,7 @@ impl Plugin for CivilianPlugin {
                     ui_components::update_rescind_orders_ui,
                 )
                     .chain()
-                    .run_if(in_state(crate::ui::mode::GameMode::Map)),
+                    .run_if(in_state(GameMode::Map)),
             );
 
         // ====================================================================

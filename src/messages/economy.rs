@@ -9,20 +9,20 @@ pub enum MarketInterest {
     Sell,
 }
 
-#[derive(Message, Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
 pub struct AdjustRecruitment {
     pub nation: NationInstance,
     pub requested: u32,
 }
 
-#[derive(Message, Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
 pub struct AdjustTraining {
     pub nation: NationInstance,
     pub from_skill: WorkerSkill,
     pub requested: u32,
 }
 
-#[derive(Message, Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
 pub struct AdjustProduction {
     pub nation: NationInstance,
     pub building: Entity,
@@ -30,7 +30,7 @@ pub struct AdjustProduction {
     pub target_output: u32,
 }
 
-#[derive(Message, Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
 pub struct AdjustMarketOrder {
     pub nation: NationInstance,
     pub good: Good,

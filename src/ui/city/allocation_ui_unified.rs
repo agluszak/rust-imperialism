@@ -82,12 +82,9 @@ fn allocation_requirement(
 pub fn adjust_allocation_on_click(allocation_type: AllocationType, delta: i32) -> impl Bundle {
     observe(
         move |_activate: On<Activate>,
+              mut commands: Commands,
               player_nation: Option<Res<PlayerNation>>,
-              allocations: Query<&Allocations>,
-              mut recruit_writer: MessageWriter<AdjustRecruitment>,
-              mut train_writer: MessageWriter<AdjustTraining>,
-              mut prod_writer: MessageWriter<AdjustProduction>,
-              mut market_writer: MessageWriter<AdjustMarketOrder>| {
+              allocations: Query<&Allocations>| {
             let Some(player) = player_nation else {
                 return;
             };
@@ -103,7 +100,7 @@ pub fn adjust_allocation_on_click(allocation_type: AllocationType, delta: i32) -
                 AllocationType::Recruitment => {
                     let current = allocation_value(alloc, allocation_type);
                     let new_requested = (current as i32 + delta).max(0) as u32;
-                    recruit_writer.write(AdjustRecruitment {
+                    commands.trigger(AdjustRecruitment {
                         nation: player_instance,
                         requested: new_requested,
                     });
@@ -116,7 +113,7 @@ pub fn adjust_allocation_on_click(allocation_type: AllocationType, delta: i32) -
                 AllocationType::Training(from_skill) => {
                     let current = allocation_value(alloc, allocation_type);
                     let new_requested = (current as i32 + delta).max(0) as u32;
-                    train_writer.write(AdjustTraining {
+                    commands.trigger(AdjustTraining {
                         nation: player_instance,
                         from_skill,
                         requested: new_requested,
@@ -130,7 +127,7 @@ pub fn adjust_allocation_on_click(allocation_type: AllocationType, delta: i32) -
                 AllocationType::Production(building_entity, output_good) => {
                     let current = allocation_value(alloc, allocation_type);
                     let new_target = (current as i32 + delta).max(0) as u32;
-                    prod_writer.write(AdjustProduction {
+                    commands.trigger(AdjustProduction {
                         nation: player_instance,
                         building: building_entity,
                         output_good,
@@ -145,7 +142,7 @@ pub fn adjust_allocation_on_click(allocation_type: AllocationType, delta: i32) -
                 AllocationType::MarketBuy(good) => {
                     let current = allocation_value(alloc, allocation_type);
                     let new_requested = (current as i32 + delta).max(0) as u32;
-                    market_writer.write(AdjustMarketOrder {
+                    commands.trigger(AdjustMarketOrder {
                         nation: player_instance,
                         good,
                         kind: MarketInterest::Buy,
@@ -160,7 +157,7 @@ pub fn adjust_allocation_on_click(allocation_type: AllocationType, delta: i32) -
                 AllocationType::MarketSell(good) => {
                     let current = allocation_value(alloc, allocation_type);
                     let new_requested = (current as i32 + delta).max(0) as u32;
-                    market_writer.write(AdjustMarketOrder {
+                    commands.trigger(AdjustMarketOrder {
                         nation: player_instance,
                         good,
                         kind: MarketInterest::Sell,
