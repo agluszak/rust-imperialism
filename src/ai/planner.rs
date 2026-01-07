@@ -542,14 +542,7 @@ fn assign_civilians_to_goals(
             let current_pos = unplanned_positions.remove(&entity).unwrap();
 
             // Add new position to reserved
-            let target_pos = match task {
-                CivilianTask::MoveTo { target } => target,
-                CivilianTask::BuildRailTo { target } => target, // Moves to target
-                CivilianTask::BuildDepot => current_pos,        // Stays put
-                CivilianTask::ImproveTile { .. } => current_pos, // Stays put (job)
-                CivilianTask::ProspectTile { .. } => current_pos, // Stays put (job)
-                CivilianTask::Idle => current_pos,
-            };
+            let target_pos = get_task_destination(&task, current_pos);
             reserved_positions.insert(target_pos);
         }
     }
@@ -558,6 +551,18 @@ fn assign_civilians_to_goals(
     for (entity, _pos) in unplanned_positions {
         tasks.entry(entity).or_insert(CivilianTask::Idle);
         // Implicitly reserved their current spot
+    }
+}
+
+/// Get the tile where a civilian will be after executing a task.
+fn get_task_destination(task: &CivilianTask, current_pos: TilePos) -> TilePos {
+    match task {
+        CivilianTask::MoveTo { target } => *target,
+        CivilianTask::BuildRailTo { target } => *target,
+        CivilianTask::ImproveTile { target } => *target,
+        CivilianTask::ProspectTile { target } => *target,
+        CivilianTask::BuildDepot => current_pos,
+        CivilianTask::Idle => current_pos,
     }
 }
 
@@ -596,23 +601,25 @@ fn plan_engineer_depot_task(
     }
 
     // 4. We are at the bridgehead but not at the target. Build rail towards target.
-    if let Some(next_tile) =
+    let Some(next_tile) =
         find_step_toward(bridgehead, target, &nation.owned_tiles, occupied_tiles)
-    {
-        // next_tile MUST be unconnected if bridgehead was the closest connected tile.
-        if !nation.connected_tiles.contains(&next_tile) {
-            // Check if this rail segment is already being built
-            if is_rail_being_built(bridgehead, next_tile, nation) {
-                return None;
-            }
+    else {
+        return None;
+    };
 
-            if can_build_rail_between(bridgehead, next_tile, nation) {
-                return Some(CivilianTask::BuildRailTo { target: next_tile });
-            }
-        } else {
-            // Should not happen if bridgehead logic is correct, but for safety:
-            return Some(CivilianTask::MoveTo { target: next_tile });
-        }
+    // next_tile MUST be unconnected if bridgehead was the closest connected tile.
+    if nation.connected_tiles.contains(&next_tile) {
+        // Should not happen if bridgehead logic is correct, but for safety:
+        return Some(CivilianTask::MoveTo { target: next_tile });
+    }
+
+    // Check if this rail segment is already being built
+    if is_rail_being_built(bridgehead, next_tile, nation) {
+        return None;
+    }
+
+    if can_build_rail_between(bridgehead, next_tile, nation) {
+        return Some(CivilianTask::BuildRailTo { target: next_tile });
     }
 
     None
@@ -641,10 +648,6 @@ fn plan_engineer_rail_task(
         .copied()?;
 
     // 2. Identify the "Frontier" of the Depot's rail line.
-    // The depot might have some rails attached to it locally (e.g. built by previous turns).
-    // We want the engineer to go to the END of this local network (closest to bridgehead)
-    // and extend it.
-
     let depot_frontier = find_rail_frontier(depot_pos, bridgehead, &snapshot.rails);
 
     // 3. Logic: Coordinate Movement to Frontier
@@ -664,23 +667,25 @@ fn plan_engineer_rail_task(
     }
 
     // 4. We are at the frontier. Build towards Bridgehead.
-    if let Some(next_tile) =
+    let Some(next_tile) =
         find_step_toward(depot_frontier, bridgehead, &nation.owned_tiles, avoid_tiles)
-    {
-        // If next_tile does not have rail, build it
-        if !can_move_on_rail(depot_frontier, next_tile, snapshot) {
-            // Check if this rail segment is already being built
-            if is_rail_being_built(depot_frontier, next_tile, nation) {
-                return None;
-            }
+    else {
+        return None;
+    };
 
-            if can_build_rail_between(depot_frontier, next_tile, nation) {
-                return Some(CivilianTask::BuildRailTo { target: next_tile });
-            }
-        } else {
-            // Rail exists, just move (shouldn't happen if frontier logic is correct)
-            return Some(CivilianTask::MoveTo { target: next_tile });
+    // If next_tile does not have rail, build it
+    if !can_move_on_rail(depot_frontier, next_tile, snapshot) {
+        // Check if this rail segment is already being built
+        if is_rail_being_built(depot_frontier, next_tile, nation) {
+            return None;
         }
+
+        if can_build_rail_between(depot_frontier, next_tile, nation) {
+            return Some(CivilianTask::BuildRailTo { target: next_tile });
+        }
+    } else {
+        // Rail exists, just move (shouldn't happen if frontier logic is correct)
+        return Some(CivilianTask::MoveTo { target: next_tile });
     }
 
     None
