@@ -9,7 +9,11 @@ use crate::economy::transport::validation::{are_adjacent, can_build_rail_on_terr
 use crate::map::tile_pos::{HexExt, TilePosExt};
 use crate::map::tiles::TerrainType;
 
-use crate::economy::{nation::PlayerNation, technology::Technologies, treasury::Treasury};
+use crate::economy::{
+    nation::{OwnedBy, PlayerNation},
+    technology::Technologies,
+    treasury::Treasury,
+};
 
 /// Apply improvement placements (Input Layer)
 /// Observer triggered by PlaceImprovement events, validates, charges treasury, spawns entities
@@ -207,13 +211,16 @@ fn handle_rail_construction(
     {
         if treasury.total() >= cost {
             treasury.subtract(cost);
-            commands.spawn(RailConstruction {
-                from: edge.0,
-                to: edge.1,
-                turns_remaining: 2,
-                owner: nation_entity,
-                engineer: e.engineer.unwrap_or(nation_entity),
-            });
+            commands.spawn((
+                RailConstruction {
+                    from: edge.0,
+                    to: edge.1,
+                    turns_remaining: 2,
+                    owner: nation_entity,
+                    engineer: e.engineer.unwrap_or(nation_entity),
+                },
+                OwnedBy(nation_entity),
+            ));
 
             info!(
                 "Started rail construction from ({}, {}) to ({}, {}) for ${} (2 turns)",
@@ -247,11 +254,14 @@ fn handle_depot_placement(
     {
         if treasury.total() >= cost {
             treasury.subtract(cost);
-            commands.spawn(Depot {
-                position: a,
-                owner: owner_entity,
-                connected: false, // Will be computed by connectivity system
-            });
+            commands.spawn((
+                Depot {
+                    position: a,
+                    owner: owner_entity,
+                    connected: false, // Will be computed by connectivity system
+                },
+                OwnedBy(owner_entity),
+            ));
             info!("Built depot at ({}, {}) for ${}", a.x, a.y, cost);
         } else {
             info!(
@@ -313,12 +323,15 @@ fn handle_port_placement(
     {
         if treasury.total() >= cost {
             treasury.subtract(cost);
-            commands.spawn(Port {
-                position: a,
-                owner: owner_entity,
-                connected: false,
-                is_river: false, // TODO: detect from terrain
-            });
+            commands.spawn((
+                Port {
+                    position: a,
+                    owner: owner_entity,
+                    connected: false,
+                    is_river: false, // TODO: detect from terrain
+                },
+                OwnedBy(owner_entity),
+            ));
             info!("Built port at ({}, {}) for ${}", a.x, a.y, cost);
         } else {
             info!(

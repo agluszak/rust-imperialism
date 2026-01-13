@@ -8,8 +8,16 @@ use crate::map::tile_pos::TilePosExt;
 pub struct InputPlugin;
 
 impl Plugin for InputPlugin {
-    fn build(&self, _app: &mut App) {
+    fn build(&self, app: &mut App) {
         // Tile click handling is done via observers attached to tiles in lib.rs
+        app.add_systems(Update, keyboard_input);
+    }
+}
+
+fn keyboard_input(keys: Res<ButtonInput<KeyCode>>, mut commands: Commands) {
+    if keys.just_pressed(KeyCode::KeyP) {
+        info!("P key pressed - triggering map pruning");
+        commands.insert_resource(crate::map::province_setup::TestMapConfig);
     }
 }
 

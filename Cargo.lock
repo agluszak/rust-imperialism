@@ -4890,6 +4890,7 @@ dependencies = [
  "moonshine-save",
  "noise",
  "rand 0.9.2",
+ "serde",
  "thiserror 2.0.17",
 ]
 

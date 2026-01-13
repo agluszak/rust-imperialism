@@ -10,6 +10,27 @@ use moonshine_save::prelude::Save;
 #[require(Save, Name)]
 pub struct Nation;
 
+/// Relationship from any game entity to the nation that owns it.
+/// Used for civilians, cities, provinces, depots, ports, ships, etc.
+#[derive(Component, Clone, Copy, Debug, Reflect)]
+#[reflect(Component)]
+#[require(Save)]
+#[relationship(relationship_target = NationMember)]
+pub struct OwnedBy(pub Entity);
+
+/// Auto-maintained target marker for entities owned by a nation.
+/// Automatically added/removed when OwnedBy relationship is changed.
+#[derive(Component, Clone, Copy, Debug, Reflect)]
+#[reflect(Component)]
+#[relationship_target(relationship = OwnedBy)]
+pub struct NationMember(Entity);
+
+impl NationMember {
+    pub fn nation(&self) -> Entity {
+        self.0
+    }
+}
+
 /// Type-safe handle to a nation entity.
 /// Can be used directly in queries: `Query<(NationInstance, &Name)>`
 pub type NationInstance = Instance<Nation>;

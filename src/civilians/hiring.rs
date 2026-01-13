@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
 
 use crate::civilians::Civilian;
-use crate::economy::{Capital, Treasury};
+use crate::economy::{Capital, OwnedBy, Treasury};
 use crate::map::tile_pos::TilePosExt;
 use crate::messages::civilians::HireCivilian;
 
@@ -70,6 +70,7 @@ pub fn spawn_hired_civilian(
                 civilian_id,
                 has_moved: false,
             },
+            OwnedBy(nation_entity),
             Name::new(name.clone()),
         ));
 

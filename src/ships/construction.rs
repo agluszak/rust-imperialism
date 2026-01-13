@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::economy::Good;
-use crate::economy::nation::NationInstance;
+use crate::economy::nation::{NationInstance, OwnedBy};
 use crate::economy::stockpile::Stockpile;
 use crate::ships::types::{Ship, ShipKind};
 
@@ -38,6 +38,7 @@ pub fn construct_ships_from_production(
                 let ship_entity = commands
                     .spawn((
                         Ship::new(ShipKind::Trader, nation_entity),
+                        OwnedBy(nation_entity),
                         Name::new(format!("Trade Ship #{}", i + 1)),
                     ))
                     .id();

@@ -55,6 +55,8 @@ impl Plugin for MapSetupPlugin {
                 province_setup::generate_provinces_system,
                 province_setup::assign_provinces_to_countries
                     .after(province_setup::generate_provinces_system),
+                province_setup::prune_to_test_map
+                    .after(province_setup::assign_provinces_to_countries),
             )
                 .run_if(in_state(AppState::InGame)),
         );

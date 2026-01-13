@@ -1,26 +1,33 @@
 use bevy::prelude::*;
-use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
+use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
 use std::collections::{HashMap, HashSet};
 
 use crate::ai::{AiControlledCivilian, AiNation};
 use crate::civilians::{Civilian, CivilianKind};
 use crate::constants::MAP_SIZE;
 use crate::economy::{
-    Allocations, Capital, Good, Nation, NationColor, PlayerNation, RecruitmentCapacity,
+    Allocations, Capital, Good, Nation, NationColor, OwnedBy, PlayerNation, RecruitmentCapacity,
     RecruitmentQueue, ReservationSystem, Stockpile, Technologies, TrainingQueue, Treasury,
     Workforce,
     production::{Buildings, ProductionSettings},
 };
+use crate::economy::{Rails, Roads};
 use crate::map::province::{City, Province, ProvinceId};
 use crate::map::province_gen::generate_provinces;
+use crate::map::rendering::{BorderLine, MapVisualFor};
 use crate::map::tile_pos::{HexExt, TilePosExt}; // Trait methods: to_hex(), distance_to()
 use crate::map::tiles::TerrainType;
 use crate::resources::{DevelopmentLevel, TileResource};
+use crate::ui::components::MapTilemap;
 
 /// Resource to track if provinces have been generated
 #[derive(Resource, Reflect, Default)]
 #[reflect(Resource)]
 pub struct ProvincesGenerated;
+
+/// Resource to enable map pruning for tests
+#[derive(Resource, Default)]
+pub struct TestMapConfig;
 
 /// Generate provinces after the tilemap is created
 pub fn generate_provinces_system(
@@ -258,6 +265,7 @@ pub fn assign_provinces_to_countries(
                     civilian_id,
                     has_moved: false,
                 },
+                OwnedBy(player_entity),
                 Name::new(name.clone()),
             ));
             info!("Spawned {} for player at ({}, {})", name, pos.x, pos.y);
@@ -290,6 +298,7 @@ pub fn assign_provinces_to_countries(
                     has_moved: false,
                 },
                 AiControlledCivilian,
+                OwnedBy(nation_entity),
                 Name::new(name.clone()),
             ));
             info!(
@@ -300,6 +309,143 @@ pub fn assign_provinces_to_countries(
     }
 
     info!("Province assignment complete!");
+}
+
+/// Prune the map to only include the Red nation's territory for tests
+pub fn prune_to_test_map(
+    mut commands: Commands,
+    test_config: Option<Res<TestMapConfig>>,
+    nations: Query<(Entity, &NationColor)>,
+    owned_entities: Query<(Entity, &OwnedBy)>,
+    provinces: Query<(Entity, &Province)>,
+    tiles: Query<(Entity, &TilePos)>,
+    mut tile_storage_query: Query<(&mut TileStorage, &TilemapSize)>,
+    border_lines: Query<Entity, With<BorderLine>>,
+    visuals: Query<(Entity, &MapVisualFor)>,
+    floating_visuals: Query<
+        Entity,
+        (
+            With<MapTilemap>,
+            Without<TilePos>,
+            Without<TilemapSize>,
+            Without<MapVisualFor>,
+        ),
+    >,
+    roads: Option<ResMut<Roads>>,
+    rails: Option<ResMut<Rails>>,
+) {
+    // Only run if TestMapConfig is present
+    if test_config.is_none() {
+        return;
+    }
+
+    info!("Pruning map to Red nation territory using relationships...");
+
+    // 1. Find the Red nation
+    let red_color = Color::srgb(0.8, 0.2, 0.2);
+    let mut red_nation_entity = None;
+
+    for (entity, color) in nations.iter() {
+        let linear = color.0.to_linear();
+        if (linear.red - red_color.to_linear().red).abs() < 0.01
+            && (linear.green - red_color.to_linear().green).abs() < 0.01
+            && (linear.blue - red_color.to_linear().blue).abs() < 0.01
+        {
+            red_nation_entity = Some(entity);
+            break;
+        }
+    }
+
+    let Some(red_nation) = red_nation_entity else {
+        warn!("Red nation not found for pruning!");
+        return;
+    };
+
+    // 2. Identify all entities to keep
+    let mut entities_to_keep = std::collections::HashSet::new();
+    entities_to_keep.insert(red_nation);
+
+    let mut tile_positions_to_keep = std::collections::HashSet::new();
+
+    // Provinces and their tiles
+    for (entity, province) in provinces.iter() {
+        if province.owner == Some(red_nation) {
+            entities_to_keep.insert(entity);
+            for pos in &province.tiles {
+                tile_positions_to_keep.insert(*pos);
+            }
+        } else {
+            commands.entity(entity).despawn();
+        }
+    }
+
+    // Other owned entities (civilians, ships, cities, depots, etc.)
+    for (entity, owned_by) in owned_entities.iter() {
+        if owned_by.0 == red_nation {
+            entities_to_keep.insert(entity);
+        }
+    }
+
+    // 3. Despawn non-kept entities
+    // Nations
+    for (entity, _) in nations.iter() {
+        if !entities_to_keep.contains(&entity) {
+            commands.entity(entity).despawn();
+        }
+    }
+
+    // Owned entities (Provinces, Cities, Civilians, Ships, Buildings)
+    for (entity, owned_by) in owned_entities.iter() {
+        if owned_by.0 != red_nation {
+            // Note: Province entities were also collected here.
+            // City entities were also collected here.
+            commands.entity(entity).despawn();
+        }
+    }
+
+    // 4. Despawn tiles and update storage
+    for (mut tile_storage, _) in tile_storage_query.iter_mut() {
+        let storage: &mut TileStorage = &mut tile_storage;
+        for (entity, pos) in tiles.iter() {
+            if !tile_positions_to_keep.contains(pos) {
+                commands.entity(entity).despawn();
+                storage.remove(pos);
+            }
+        }
+    }
+
+    // 5. Cleanup Visuals
+    // Visuals linked to entities
+    for (visual_entity, visual_for) in visuals.iter() {
+        if !entities_to_keep.contains(&visual_for.0) {
+            commands.entity(visual_entity).despawn();
+        }
+    }
+
+    // Floating visuals (UI, markers that are NOT linked to an entity)
+    for entity in floating_visuals.iter() {
+        commands.entity(entity).despawn();
+    }
+
+    // Border lines (always reset)
+    for entity in border_lines.iter() {
+        commands.entity(entity).despawn();
+    }
+
+    // 6. Prune Roads and Rails resources
+    if let Some(mut roads) = roads {
+        roads.0.retain(|(a, b)| {
+            tile_positions_to_keep.contains(a) && tile_positions_to_keep.contains(b)
+        });
+    }
+    if let Some(mut rails) = rails {
+        rails.0.retain(|(a, b)| {
+            tile_positions_to_keep.contains(a) && tile_positions_to_keep.contains(b)
+        });
+    }
+
+    // Remove the config so it only runs once
+    commands.remove_resource::<TestMapConfig>();
 }
 
 /// Assign a province to a country
@@ -313,8 +459,11 @@ fn assign_province_to_country(
     capitals: &mut Vec<(Entity, TilePos)>,
 ) {
     // Update province owner
-    if let Ok((_, mut province)) = provinces.get_mut(province_entity) {
+    if let Ok((province_entity, mut province)) = provinces.get_mut(province_entity) {
         province.owner = Some(country_entity);
+        commands
+            .entity(province_entity)
+            .insert(OwnedBy(country_entity));
     }
 
     // Create city entity
@@ -325,6 +474,7 @@ fn assign_province_to_country(
             is_capital,
         },
         city_tile,
+        OwnedBy(country_entity),
     ));
 
     // If this is a capital, add Capital component to the country
