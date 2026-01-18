@@ -229,8 +229,8 @@ fn test_ai_collects_resources_with_map_pruning() {
         }
 
         // Check for stockpile changes
-        if !stockpile_changed {
-            if let Some(stockpile) = app.world().get::<Stockpile>(red_nation) {
+        if !stockpile_changed
+            && let Some(stockpile) = app.world().get::<Stockpile>(red_nation) {
                 let coal = stockpile.get(rust_imperialism::economy::goods::Good::Coal);
                 let grain = stockpile.get(rust_imperialism::economy::goods::Good::Grain);
 
@@ -245,7 +245,6 @@ fn test_ai_collects_resources_with_map_pruning() {
                     stockpile_changed = true;
                 }
             }
-        }
     }
 
     // Final verification
