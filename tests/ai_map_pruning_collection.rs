@@ -142,28 +142,26 @@ fn test_ai_collects_resources_with_map_pruning() {
             x: capital_pos.x.saturating_add(2),
             y: capital_pos.y.saturating_add(2),
         };
-        if let Some(tile_entity) = tile_storage.get(&coal_pos) {
-            if province_tiles.contains(&coal_pos) {
+        if let Some(tile_entity) = tile_storage.get(&coal_pos)
+            && province_tiles.contains(&coal_pos) {
                 world
                     .entity_mut(tile_entity)
                     .insert(PotentialMineral::new(Some(ResourceType::Coal)));
                 println!("  Added potential Coal at {:?}", coal_pos);
             }
-        }
 
         // Add visible resources
         let grain_pos = TilePos {
             x: capital_pos.x.saturating_sub(2),
             y: capital_pos.y,
         };
-        if let Some(tile_entity) = tile_storage.get(&grain_pos) {
-            if province_tiles.contains(&grain_pos) {
+        if let Some(tile_entity) = tile_storage.get(&grain_pos)
+            && province_tiles.contains(&grain_pos) {
                 world
                     .entity_mut(tile_entity)
                     .insert(TileResource::visible(ResourceType::Grain));
                 println!("  Added visible Grain at {:?}", grain_pos);
             }
-        }
     }
 
     // Verify that we now have resources to work with
@@ -223,8 +221,8 @@ fn test_ai_collects_resources_with_map_pruning() {
         }
 
         // Check for stockpile changes
-        if !stockpile_changed {
-            if let Some(stockpile) = app.world().get::<Stockpile>(red_nation) {
+        if !stockpile_changed
+            && let Some(stockpile) = app.world().get::<Stockpile>(red_nation) {
                 let coal = stockpile.get(rust_imperialism::economy::goods::Good::Coal);
                 let grain = stockpile.get(rust_imperialism::economy::goods::Good::Grain);
 
@@ -238,7 +236,6 @@ fn test_ai_collects_resources_with_map_pruning() {
                     stockpile_changed = true;
                 }
             }
-        }
     }
 
     // Final verification
