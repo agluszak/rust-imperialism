@@ -73,6 +73,8 @@ fn test_ai_collects_resources_with_map_pruning() {
     println!("\n=== Starting AI Resource Collection Test with Map Pruning ===");
 
     // Run initial setup - map generation and pruning
+    // Need 12 updates for systems to run in sequence:
+    // setup_mock_tilemap -> generate_provinces_system -> assign_provinces_to_countries -> prune_to_test_map
     for _ in 0..12 {
         app.update();
     }
@@ -142,26 +144,30 @@ fn test_ai_collects_resources_with_map_pruning() {
             x: capital_pos.x.saturating_add(2),
             y: capital_pos.y.saturating_add(2),
         };
-        if let Some(tile_entity) = tile_storage.get(&coal_pos)
-            && province_tiles.contains(&coal_pos) {
+        if let Some(tile_entity) = tile_storage.get(&coal_pos) {
+            // Only add resource if position is within province tiles
+            if province_tiles.contains(&coal_pos) {
                 world
                     .entity_mut(tile_entity)
                     .insert(PotentialMineral::new(Some(ResourceType::Coal)));
                 println!("  Added potential Coal at {:?}", coal_pos);
             }
+        }
 
         // Add visible resources
         let grain_pos = TilePos {
             x: capital_pos.x.saturating_sub(2),
             y: capital_pos.y,
         };
-        if let Some(tile_entity) = tile_storage.get(&grain_pos)
-            && province_tiles.contains(&grain_pos) {
+        if let Some(tile_entity) = tile_storage.get(&grain_pos) {
+            // Only add resource if position is within province tiles
+            if province_tiles.contains(&grain_pos) {
                 world
                     .entity_mut(tile_entity)
                     .insert(TileResource::visible(ResourceType::Grain));
                 println!("  Added visible Grain at {:?}", grain_pos);
             }
+        }
     }
 
     // Verify that we now have resources to work with
@@ -184,6 +190,8 @@ fn test_ai_collects_resources_with_map_pruning() {
     // Track progress through the test
     let mut ai_performed_actions = false;
     let mut stockpile_changed = false;
+    // Run for 30 turns - sufficient for AI to demonstrate basic functionality
+    // (resource discovery, stockpile management) without making the test too slow
     let max_turns = 30;
 
     // Run the game for multiple turns
@@ -221,11 +229,12 @@ fn test_ai_collects_resources_with_map_pruning() {
         }
 
         // Check for stockpile changes
-        if !stockpile_changed
-            && let Some(stockpile) = app.world().get::<Stockpile>(red_nation) {
+        if !stockpile_changed {
+            if let Some(stockpile) = app.world().get::<Stockpile>(red_nation) {
                 let coal = stockpile.get(rust_imperialism::economy::goods::Good::Coal);
                 let grain = stockpile.get(rust_imperialism::economy::goods::Good::Grain);
 
+                // Check if stockpile values differ from baseline
                 if coal != initial_coal || grain != initial_grain {
                     println!(
                         "✓ Turn {}: Stockpile changed! Coal: {} ({:+}), Grain: {} ({:+})",
@@ -236,6 +245,7 @@ fn test_ai_collects_resources_with_map_pruning() {
                     stockpile_changed = true;
                 }
             }
+        }
     }
 
     // Final verification
