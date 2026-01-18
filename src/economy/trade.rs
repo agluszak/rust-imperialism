@@ -140,7 +140,7 @@ pub fn resolve_market_orders(
         // Use the current base price for all transactions this turn
         // The price updates for the *next* turn based on the activity we record now
         let price = pricing.current_price(good) as i64;
-        
+
         // Track demand: sum of everything bought + everything buyers WANTED to buy but couldn't (stockout)
         let mut total_demand_accumulated: u32 = 0;
 
@@ -148,7 +148,7 @@ pub fn resolve_market_orders(
 
         let mut seller_queue: VecDeque<(Entity, Vec<ReservationId>)> =
             sellers.into_iter().collect();
-        
+
         // We iterate buyers in order (First-Come-First-Served for now)
         // TODO: In the future, this order might be randomized or based on prestige/diplomacy
         for buyer in interested_buyers {
@@ -156,11 +156,11 @@ pub fn resolve_market_orders(
             if seller_queue.is_empty() {
                 // Determine how much they WOULD have bought (Unsatisfied Demand)
                 let unfulfilled_demand = estimate_potential_demand(
-                    buyer, 
-                    good, 
-                    price, 
-                    cash_map.get(&buyer).copied().unwrap_or(0), 
-                    capacity_available.get(&buyer).copied().unwrap_or(0)
+                    buyer,
+                    good,
+                    price,
+                    cash_map.get(&buyer).copied().unwrap_or(0),
+                    capacity_available.get(&buyer).copied().unwrap_or(0),
                 );
                 total_demand_accumulated += unfulfilled_demand;
                 continue;
@@ -176,26 +176,26 @@ pub fn resolve_market_orders(
             // Future UI hook will go here.
             let available_in_market: u32 = seller_queue.iter().map(|(_, r)| r.len() as u32).sum();
             let buyer_capacity = capacity_available.get(&buyer).copied().unwrap_or(0);
-            
+
             let quantity_wanted = decide_buyer_quantity(
                 buyer,
                 good,
                 price,
                 available_in_market,
                 cash_available,
-                buyer_capacity
+                buyer_capacity,
             );
-            
+
             // Record demand
             total_demand_accumulated += quantity_wanted;
 
             // Execute the purchase loop
             let mut quantity_to_buy = quantity_wanted;
-            
+
             while quantity_to_buy > 0 {
                 // Get next seller
                 let mut seller_entry: Option<(Entity, Vec<ReservationId>)> = None;
-                
+
                 // Find a valid seller (skip self-trading)
                 let queue_len = seller_queue.len();
                 for _ in 0..queue_len {
@@ -216,10 +216,10 @@ pub fn resolve_market_orders(
                 };
 
                 let seller_capacity = capacity_available.get(&seller).copied().unwrap_or(0);
-                
+
                 // Validate seller capacity
                 if seller_capacity == 0 {
-                     debug!(
+                    debug!(
                         "Skipping seller {:?} for {:?}: no trade capacity available",
                         seller, good
                     );
@@ -228,12 +228,12 @@ pub fn resolve_market_orders(
                     // If we discard them, the goods are effectively removed from market for this buyer.
                     // But we push them back for next buyer? No, if no cap, they can't sell to ANYONE.
                     // Ideally we should filter them out earlier, but capacity is dynamic.
-                    continue; 
+                    continue;
                 }
 
                 // Take one unit
                 let Some(reservation) = reservations.pop() else {
-                     continue;
+                    continue;
                 };
 
                 planned_trades.push(PlannedTrade {
@@ -243,7 +243,7 @@ pub fn resolve_market_orders(
                     buyer,
                     reservation,
                 });
-                
+
                 info!(
                     "Market trade: {:?} sold for ${} (seller: {:?}, buyer: {:?})",
                     good, price, seller, buyer
@@ -252,14 +252,14 @@ pub fn resolve_market_orders(
                 // Update State
                 cash_available -= price;
                 *cash_map.entry(seller).or_insert(0) += price;
-                
+
                 if let Some(entry) = capacity_available.get_mut(&seller) {
                     *entry = entry.saturating_sub(1);
                 }
                 if let Some(entry) = capacity_available.get_mut(&buyer) {
                     *entry = entry.saturating_sub(1);
                 }
-                
+
                 let seller_consumed = trade_capacity.consume(seller, 1);
                 let buyer_consumed = trade_capacity.consume(buyer, 1);
                 debug_assert!(seller_consumed && buyer_consumed, "trade capacity mismatch");
@@ -269,13 +269,13 @@ pub fn resolve_market_orders(
                 // Return seller to queue if they still have stock
                 if !reservations.is_empty() {
                     seller_queue.push_front((seller, reservations)); // Push front to keep buying from same seller?
-                    // Or push back to spread load? 
+                    // Or push back to spread load?
                     // Imperialism usually drains one seller then next.
-                    // But `seller_queue.push_back` was original. 
+                    // But `seller_queue.push_back` was original.
                     // Let's use push_front to minimize transaction fragmentation (buy all from A, then B).
                 }
             }
-            
+
             cash_map.insert(buyer, cash_available);
         }
 
@@ -415,9 +415,7 @@ fn decide_buyer_quantity(
     }
 
     let affordable = (cash_available / price).max(0) as u32;
-    available_quantity
-        .min(affordable)
-        .min(capacity_available)
+    available_quantity.min(affordable).min(capacity_available)
 }
 
 /// Estimates how much a buyer WOULD have bought if supply were unlimited.
@@ -431,7 +429,7 @@ fn estimate_potential_demand(
 ) -> u32 {
     // Similar to decide_buyer_quantity but ignores available_quantity.
     // Represents "How much do I want?"
-    
+
     if price <= 0 {
         return capacity_available;
     }
@@ -1222,7 +1220,9 @@ mod tests {
         );
 
         // Price rises for the NEXT turn due to high demand (2 buyers wanted 1 unit)
-        let new_price = world.resource::<MarketPriceModel>().current_price(Good::Coal);
+        let new_price = world
+            .resource::<MarketPriceModel>()
+            .current_price(Good::Coal);
         assert!(new_price > 100, "Price should rise for next turn");
     }
 

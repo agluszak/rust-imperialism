@@ -1,5 +1,6 @@
 use bevy::{
     app::{Plugin, PreUpdate},
+    camera::RenderTarget,
     ecs::{
         entity::Entity,
         query::With,
@@ -36,7 +37,13 @@ impl Plugin for TilemapBackend {
 
 fn tile_picking(
     pointers: Query<(&PointerId, &PointerLocation)>,
-    cameras: Query<(Entity, &Camera, &GlobalTransform, &Projection)>,
+    cameras: Query<(
+        Entity,
+        &Camera,
+        &GlobalTransform,
+        &Projection,
+        Option<&RenderTarget>,
+    )>,
     primary_window: Option<Single<Entity, With<PrimaryWindow>>>,
     tilemap_q: Query<(
         &TilemapSize,
@@ -56,12 +63,13 @@ fn tile_picking(
         .filter_map(|(p_id, p_loc)| p_loc.location().map(|l| (p_id, l)))
     {
         let mut blocked = false;
-        let Some((cam_entity, camera, cam_transform, cam_ortho)) = cameras
+        let Some((cam_entity, camera, cam_transform, cam_ortho, _)) = cameras
             .iter()
-            .filter(|(_, camera, _, _)| camera.is_active)
-            .find(|(_, camera, _, _)| {
-                camera
-                    .target
+            .filter(|(_, camera, _, _, _)| camera.is_active)
+            .find(|(_, _, _, _, render_target)| {
+                render_target
+                    .cloned()
+                    .unwrap_or_default()
                     .normalize(primary_window.as_deref().copied())
                     .is_some_and(|p| p == p_loc.target)
             })

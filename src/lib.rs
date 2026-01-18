@@ -59,6 +59,7 @@ pub fn app() -> App {
         .add_plugins((
             DefaultPlugins.set(ImagePlugin::default_nearest()),
             bmp_loader::ImperialismBmpLoaderPlugin,
+            bevy::input_focus::InputDispatchPlugin,
             bevy::ui_widgets::UiWidgetsPlugins,
             TilemapPlugin,
         ))

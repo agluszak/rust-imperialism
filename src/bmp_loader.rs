@@ -15,7 +15,7 @@ use thiserror::Error;
 /// RGB color that should be treated as transparent in Imperialism BMPs
 const TRANSPARENCY_COLOR: (u8, u8, u8) = (255, 0, 255);
 
-#[derive(Default)]
+#[derive(Default, TypePath)]
 pub struct ImperialismBmpLoader;
 
 #[derive(Debug, Error)]
@@ -41,7 +41,7 @@ impl AssetLoader for ImperialismBmpLoader {
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).await?;
 
-        info!("Loading BMP: {}", load_context.path().display());
+        info!("Loading BMP: {}", load_context.path());
 
         // Decode the BMP using the image crate
         let img = image::load_from_memory_with_format(&bytes, ImageFormat::Bmp)?;
@@ -49,8 +49,7 @@ impl AssetLoader for ImperialismBmpLoader {
         info!("BMP loaded: {}x{}", img.width(), img.height());
 
         // Convert to RGBA and handle transparency
-        let rgba_img =
-            convert_with_transparency(img, load_context.path().to_string_lossy().to_string());
+        let rgba_img = convert_with_transparency(img, load_context.path().to_string());
 
         // Convert to Bevy Image
         let (width, height) = rgba_img.dimensions();
