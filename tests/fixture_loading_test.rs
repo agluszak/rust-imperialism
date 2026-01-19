@@ -3,6 +3,7 @@
 mod common;
 
 use bevy::prelude::*;
+use bevy_ecs_tilemap::prelude::TilePos;
 use rust_imperialism::economy::nation::NationColor;
 use rust_imperialism::map::province::Province;
 
@@ -43,4 +44,8 @@ fn test_load_pruned_red_nation_fixture() {
         province_count += 1;
     }
     assert!(province_count > 0, "Should have provinces");
+
+    // Verify tile positions were loaded (tilemap types registered)
+    let tile_count = world.query::<&TilePos>().iter(world).count();
+    assert!(tile_count > 0, "Should have tile positions");
 }

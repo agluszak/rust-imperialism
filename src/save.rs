@@ -1,6 +1,9 @@
 use std::path::PathBuf;
 
 use bevy::prelude::*;
+use bevy_ecs_tilemap::prelude::{
+    TileColor, TileFlip, TilePos, TilePosOld, TileTextureIndex, TileVisible, TilemapId,
+};
 use moonshine_save::prelude::*;
 
 use crate::ai::markers::{AiControlledCivilian, AiNation};
@@ -157,7 +160,14 @@ fn register_reflect_types(app: &mut App) {
         .register_type::<ResourceType>()
         .register_type::<DevelopmentLevel>()
         .register_type::<TileResource>()
-        .register_type::<TileProvince>();
+        .register_type::<TileProvince>()
+        .register_type::<TilemapId>()
+        .register_type::<TilePos>()
+        .register_type::<TilePosOld>()
+        .register_type::<TileTextureIndex>()
+        .register_type::<TileVisible>()
+        .register_type::<TileColor>()
+        .register_type::<TileFlip>();
 }
 
 fn process_save_requests(

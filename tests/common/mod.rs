@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
 use bevy::prelude::*;
 use bevy::state::app::StatesPlugin;
@@ -82,8 +83,9 @@ pub fn load_fixture(app: &mut bevy::app::App, fixture_name: &str) -> bool {
         .commands()
         .trigger_load(LoadWorld::default_from_file(path));
 
-    // Run updates until load completes
-    for _ in 0..10 {
+    // Run updates until load completes or a timeout is reached
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while Instant::now() < deadline {
         app.update();
 
         // Check if load completed via our observer

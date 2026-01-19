@@ -14,7 +14,7 @@ name = "generate_test_map"
 path = "src/bin/generate_test_map.rs"
 
 [dependencies]
-bevy = { version = "0.18", features = ["bevy_dev_tools", "experimental_bevy_ui_widgets"] }
+bevy = { version = "0.18", features = ["bevy_dev_tools", "dynamic_linking", "experimental_bevy_ui_widgets"] }
 hexx = { version = "0.23", features = ["algorithms", "serde", "bevy"] }
 bevy_ecs_tilemap = "0.18"
 rand = "0.9.0"
