@@ -3,11 +3,16 @@ use std::time::{Duration, Instant};
 
 use bevy::prelude::*;
 use bevy::state::app::StatesPlugin;
+use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
 use moonshine_save::prelude::*;
+use rust_imperialism::ai::AiPlugin;
+use rust_imperialism::civilians::CivilianPlugin;
 use rust_imperialism::civilians::NextCivilianId;
+use rust_imperialism::economy::EconomyPlugin;
 use rust_imperialism::economy::transport::Rails;
 use rust_imperialism::save::GameSavePlugin;
 use rust_imperialism::turn_system::TurnPhase;
+use rust_imperialism::turn_system::TurnSystemPlugin;
 use rust_imperialism::ui::menu::AppState;
 use rust_imperialism::ui::mode::GameMode;
 
@@ -62,6 +67,73 @@ pub fn create_fixture_test_app() -> bevy::app::App {
     app.add_observer(on_fixture_loaded);
 
     app
+}
+
+/// Creates a test app configured for turn-based simulations with AI/economy logic.
+pub fn create_fixture_simulation_app() -> bevy::app::App {
+    let mut app = bevy::app::App::new();
+    app.add_plugins((MinimalPlugins, StatesPlugin));
+
+    app.init_state::<TurnPhase>();
+    app.insert_state(AppState::InGame);
+    app.add_sub_state::<GameMode>();
+
+    app.add_plugins((
+        TurnSystemPlugin,
+        EconomyPlugin,
+        AiPlugin,
+        CivilianPlugin,
+        GameSavePlugin,
+    ));
+
+    app.init_resource::<FixtureLoadCompleted>();
+    app.add_observer(on_fixture_loaded);
+
+    app
+}
+
+/// Rebuilds TileStorage from loaded tiles and spawns a tilemap entity.
+pub fn rebuild_tile_storage(app: &mut bevy::app::App) -> Entity {
+    let (tiles, map_size, existing_tilemaps) = {
+        let world = app.world_mut();
+
+        let mut tile_query = world.query::<(Entity, &TilePos)>();
+        let mut tiles = Vec::new();
+        let mut max_x = 0;
+        let mut max_y = 0;
+
+        for (entity, pos) in tile_query.iter(world) {
+            tiles.push((entity, *pos));
+            max_x = max_x.max(pos.x);
+            max_y = max_y.max(pos.y);
+        }
+
+        if tiles.is_empty() {
+            panic!("No tiles loaded; cannot rebuild TileStorage.");
+        }
+
+        let mut tilemap_query = world.query_filtered::<Entity, With<TileStorage>>();
+        let existing_tilemaps: Vec<Entity> = tilemap_query.iter(world).collect();
+
+        let map_size = TilemapSize {
+            x: max_x + 1,
+            y: max_y + 1,
+        };
+
+        (tiles, map_size, existing_tilemaps)
+    };
+
+    let world = app.world_mut();
+    for entity in existing_tilemaps {
+        world.entity_mut(entity).despawn();
+    }
+
+    let mut tile_storage = TileStorage::empty(map_size);
+    for (entity, pos) in tiles {
+        tile_storage.set(&pos, entity);
+    }
+
+    world.spawn((tile_storage, map_size)).id()
 }
 
 /// Loads a test fixture into the app. Returns true if load completed.
