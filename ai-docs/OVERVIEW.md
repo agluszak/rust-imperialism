@@ -1,4 +1,4 @@
-Below is a **developer‑focused teardown** of *Imperialism* (1997), organized so you can re‑build the whole machine in **Bevy + Rust** without guessing what the original systems were doing. Where a rule is specific to the 1997 game, I cite the manual.
+Below is a **developer-focused teardown** of *Imperialism* (1997), organized so you can re-build the whole machine in **Bevy + Rust** without guessing what the original systems were doing. The manual (`manual_text.txt`) is the source of truth for rules and numbers; this overview follows it.
 
 ---
 
@@ -31,12 +31,12 @@ Implement this as a single authoritative **TurnSystem** that drains per‑screen
 
 * Two country types: **Great Powers** (playable) and **Minor Nations** (non‑playable); random maps ship with **7 Great Powers** and **16 Minors**. Minors can be conquered/colonized; they never win.
 * **Provinces**: world is partitioned into provinces; random worlds have **120 provinces**; each Great Power starts with **8**, each Minor with **4**. Each province has exactly one **capital or town**. Provinces have a single owner at turn end; they’re taken, not split.
-* **Win condition**: global **Council of Governors** vote every ~10 years; world nominates two Great Powers; majority vote wins.
+* **Win condition**: the **Council of Governors** meets about every ten years; two Great Powers are nominated; victory requires **more than two-thirds** of provincial governors' votes.
 
 ### Map & tiles (what matters for systems)
 
 * Tiles carry **terrain** and optional **resource opportunity**. Some resources are visible from terrain (e.g., cotton on plantation); **minerals (coal/iron/gold/gems, later oil)** must be **discovered by a Prospector**.
-* A resource tile only contributes if it’s **connected** to your network (capital or port) via **rail + depot/port** (details in §3).
+* A resource tile only contributes if it is on/adjacent to a **connected depot/port** (the capital counts); connectivity follows the rail/port rules in §3.
 
 ---
 
@@ -59,7 +59,7 @@ Implement this as a single authoritative **TurnSystem** that drains per‑screen
 
 **Colonies vs conquest (economic angle)**
 
-* **Conquered provinces** act like your own: you can rail/port/fort them; resources join your network as normal. **Colonies** (won diplomatically/defensively) remain semi‑independent: their outputs are sold on the world market; you get **right of first refusal** and the **profits** flow via the “overseas profits” mechanic.
+* **Conquered provinces** act like your own: you can rail/port/fort them; resources join your network as normal. **Colonies** (peaceful takeover via economic power, bribery, or intervention) remain semi-independent: their outputs are sold on the world market; you get **right of first refusal** and the **profits** flow via the “overseas profits” mechanic.
 
 ---
 
@@ -71,18 +71,19 @@ Implement this as a single authoritative **TurnSystem** that drains per‑screen
 
 **Depots & ports: how gathering works**
 
-* A **Depot or Port** gathers **all commodities** in **its own tile + all adjacent tiles** (8‑neighborhood). Only **one** facility gathers a tile; space them at least **two tiles apart** to avoid duplication. Depots/ports must be **connected** to count.
-* **Connecting a Depot** means there is a **rail path** from that depot to the **capital** (optionally via a **port** and then sea). Unconnected = dead. A depot shows a **two‑light signal**: **green** connected, **red** not.
+* A **Depot or Port** gathers **all commodities** in **its own tile + adjacent tiles** within your country. Only **one** facility gathers a tile; space them at least **two tiles apart** to avoid duplication. Depots/ports must be **connected** to count.
+* **Connecting a Depot** means there is a **rail path** from that depot to the **capital** (optionally via a **port** that also has a depot, then sea). Unconnected = dead. A depot shows a **two‑light signal**: **green** connected, **red** not.
+* The **capital city** always counts as a connected depot and a connected port.
 * **Ports** can be **coastal** or **river**; generally easier to “connect” (don’t need rails to capital), but a **river port loses connection** if you lose a downstream province; **sea ports lose connection** if the adjacent **sea zone** is under **undisputed** enemy naval control.
 
 **Capacity model**
 
 * You have a national **Transport Capacity** (raised in **Railyard** on the Industry screen). The **Transport screen** lets you assign capacity **per commodity** via sliders; only commodities currently available are active.
-* **Moving regiments by rail** is limited by this same capacity, at **5 capacity per “armaments point”** of the regiment. You don’t have to steal capacity back from the Transport sliders to rail‑move an army, but the total system cap still limits how many regiment‑points you can move this turn.
+* **Moving regiments by rail** is limited by this same capacity, at **5 capacity per “armaments point”** of the regiment. The manual does not spell out slider interaction; treat rail moves as drawing from the same total cap so it stays predictable.
 
 **Town development via being connected**
 
-* Each owned province has a **town**. If you place a **connected** depot/port on/next to it, the town gradually starts producing **materials** (steel/lumber/fabric) and later **goods** (furniture/clothing/consumer goods). Max **goods** throughput = **½ materials** throughput. **Gold** adds cash; **gems** add more; **horses** are only for cav/artillery.
+* Each owned province has a **town**. If you place a **connected** depot/port on/next to it, the town starts producing **materials** (**steel/lumber/fabric**) and later **goods** (consumer goods only; no armaments). Max **goods** throughput = **1/2 materials** throughput. **Gold/gems** convert directly to cash (no warehouse, no trade); **horses** are only for cav/artillery builds.
 
 ---
 
@@ -96,14 +97,13 @@ Implement this as a single authoritative **TurnSystem** that drains per‑screen
     * **Wood**: 2×timber → 1×(lumber|paper); 2×lumber → 1×furniture
     * **Metal**: 1×iron + 1×coal → 1×steel; 2×steel → 1×(hardware|armaments)
     * **Oil**: 2×oil → 1×fuel
-    * **Food**: (2 grain + 2 livestock/fish + 2 fruit) → 2×canned food
-    * **Horses**: produced via the horse economy building
-      (Exact table shown in manual, but above is the same semantics.)
+    * **Food**: 2 grain + 1 fruit + 1 livestock|fish → 2×canned food (same ratio as worker diet)
+    * **Horses**: single-level resource from horse ranch terrain (used in armoury)
 
 **Workforce & training**
 
 * Workers supply **Labour**: **1 / 2 / 4** points per **untrained / trained / expert** worker. Train at **Trade School** (costs **paper + cash**) and the worker is removed from labour for that turn.
-* **Food consumption**: every worker eats **1 raw food** with a preference rotation (grain / fruit / livestock|fish / repeat). If the preferred type isn’t available, they will eat **canned food**; otherwise they get **sick** (0 labour). With **no food** they **die**.
+* **Food consumption**: every worker eats **1 raw food** with preferences cycling in groups of four: **grain, fruit, grain, livestock|fish**. If the preferred type isn’t available, they will eat **canned food**; otherwise they get **sick** (0 labour). With **no food** they **die**.
 * **Migration (Capitol building)** recruits **untrained workers** if you can supply **canned food + clothing + furniture**. Recruit cap per turn = **⌊provinces/4⌋** early; later an upgrade raises the cap to **⌊provinces/3⌋**.
 * **Power** (from **Power Plant** after Oil tech) adds **labour** for the turn; it isn’t a commodity and consumes **fuel** to boost available labour.
 
@@ -113,7 +113,7 @@ Implement this as a single authoritative **TurnSystem** that drains per‑screen
 
 **Shipyard**
 
-* Builds **merchant ships** (adds cargo holds / trade capacity and average speed) and **warships** (see §6). Ships don’t consume labour but do consume **lumber/steel** (and **armaments** for warships). Over‑building early will choke other industries.
+* Builds **merchant ships** (adds cargo holds / trade capacity and average speed) and **warships** (see §6). Ships don’t consume labour but do consume **lumber/steel**, **fabric**, and **coal or fuel** (plus **armaments** for warships). Over‑building early will choke other industries.
 
 ---
 
@@ -165,7 +165,7 @@ Implement this as a single authoritative **TurnSystem** that drains per‑screen
 
 **Navy & merchant marine**
 
-* **Merchant ships**: add cargo **capacity** and raise average **speed** (harder to intercept). War at sea can **intercept/sink** merchants; assign warships as **escorts**. Damaged warships must **repair in port**. Obsolete classes are **scrapped**, spreading XP.
+* **Merchant ships**: add cargo **capacity** and raise average **speed** (harder to intercept). War at sea can **intercept/sink** merchants; assign warships as **escorts**. Damaged warships must **repair in port**. Obsolete classes are **scrapped**.
 * Warships are “fast” (frigates/raiders/armoured cruisers/battlecruisers) vs “battle” (ships‑of‑the‑line/ironclads/advanced ironclads/dreadnoughts). **Range** is the dominant combat stat.
 * **Naval control** of a sea zone can **blockade ports** (breaks their connection; see §3).
 
@@ -300,7 +300,7 @@ Drive as much as possible from tables:
 * `CivilianWorkSystem`: executes Prospector/Miner/Farmer/... actions, bumps tile `resource.discovered/dev`, emits construction on Engineer orders, enforces “adjacent depot/port or capital” for counting outputs.
 * `NetworkConnectSystem`: BFS from capital and ports over **Rail** edges to mark **Depot/Port.connected** and produce **GatherZones** (tile + neighbors). Break connections if province along the line is lost or port is blockaded.
 * `TransportAllocationSystem`: applies **Transport screen** sliders to generate per‑commodity quotas; at end‑turn drain capacity into **Industry input queues**; compute “rail budget” available for army moves (5× armaments).
-* `TownGrowthSystem`: if town adjacent to connected depot/port, increment its **materials** and then **goods** capacities with the 1:2 (goods ≤ ½ materials) rule.
+* `TownGrowthSystem`: if town adjacent to connected depot/port, increment its **materials** and then **goods** capacities with the 1:2 (goods <= 1/2 materials) rule.
 * `IndustrySystem`: apply 2:1 transforms up to **site capacities** using **Labour + Power** as throughput caps; then pay unit build queues (regiments/ships).
 * `WorkforceSystem`: resolve migration caps, training costs (paper + cash), daily food preferences, sickness/starvation, canned food fallback.
 * `TradePhaseSystem`:
@@ -327,9 +327,9 @@ Drive as much as possible from tables:
 
 ## 11) Edge rules worth getting exactly right
 
-* **Depot/Port gathering radius** is **own tile + 6 neighbors**, unique gatherer per tile; spacing matters.
+* **Depot/Port gathering radius** is **own tile + adjacent tiles** (within your country), unique gatherer per tile; spacing matters.
 * **Rail move cost** is tied to **armaments points** of a unit (5 capacity per point). Keep this integer‑based to make movement limits legible.
-* **Food preference rotation** in groups of four workers (grain / fruit / livestock|fish / repeat); canned food is **universal**, stops sickness.
+* **Food preference rotation** in groups of four workers (grain / fruit / grain / livestock|fish); canned food is **universal**, stops sickness.
 * **Militia** are immobile, free, auto‑upgrade, and always defend hometown only.
 * **Naval “range wins”**: late‑era ships with longer range massacre earlier classes. Don’t over‑simulate; weight range heavily.
 * **Ports & sea control**: if the enemy has **undisputed** command in a sea zone, your adjacent ports **disconnect** that turn.
@@ -339,7 +339,7 @@ Drive as much as possible from tables:
 ## 12) Balance constants (from the manual; keep unless you want to redo economy)
 
 * Per‑tile outputs by **ResourceDev** (see §2).
-* **2→1** ratios in every economy; **steel = 1 iron + 1 coal**; **armaments** consume **steel**; **canned food** recipe ratio.
+* **2→1** ratios in every economy; **steel = 1 iron + 1 coal**; **armaments** consume **steel**; **canned food** recipe is **2 grain + 1 fruit + 1 livestock|fish → 2 canned food**.
 * **Factory/mill** cap build cost: **1 lumber + 1 steel** each; mills start at **2**, factories at **1**.
 * **Fort** mitigation: **20% entrenchment + 10% per fort level (×3)** → **50%** at max.
 * **Recruit cap**: ⌊provinces/4⌋ then ⌊provinces/3⌋ after upgrade.
@@ -348,7 +348,7 @@ Drive as much as possible from tables:
 
 ## 13) Implementation notes / traps
 
-* **Don’t tie army rail moves to Transport sliders**. Use **total capacity** as a separate check so players don’t micro sliders before every offensive (matches the manual’s intent).
+* **Rail moves vs transport sliders**: the manual only specifies the shared capacity cost (5 per armaments point). Decide whether rail moves draw from the same allocation or a separate UI cap; keep it predictable.
 * **Network recompute** only when rails/ports/ownership/sea control change; cache **Depot catchments** (tile+neighbors) by ID.
 * Keep **commodities** as a single enum with **category tags** (`Resource/Material/Good`); the 2:1 transforms then become a pure data table.
 * **Overseas profits**: settle them **after trade** into Treasury (do not deliver the physical goods to your Warehouse unless you actually bought them).
@@ -372,7 +372,7 @@ Here’s the **very‑general, top‑down** take on *Imperialism* (1997) mechani
 
 ## Board & screens
 
-* **Hex map**: the world is a hex‑tiled grid (pointy‑top look); sea zones make the hex tiling obvious in political view. Provinces overlay those tiles.
+* **Hex map**: the world is a hex-tiled grid; provinces overlay those tiles.
 * **Core UI modes**: one central **Terrain/Map** screen plus four orders screens: **Transport**, **Industry**, **Bid & Offers (trade)**, **Diplomacy**. You bounce through these each turn; everything commits on End Turn.
 
 ## Turn structure
@@ -400,7 +400,7 @@ Here’s the **very‑general, top‑down** take on *Imperialism* (1997) mechani
 ## Economy & transport (why rails matter)
 
 * **Tiles produce resources** (grain, timber, cotton, wool, iron, coal, gold, gems, oil) once developed; **prospector must discover minerals/oil first**.
-* **Transport network**: resources only reach industry if their **tile is connected** via **rail → depot → capital or port** (ports/river/coast rules apply). Engineers lay rail, build depots/ports; capacity (from railyard/merchant marine) limits how much you can move per turn.
+* **Transport network**: resources only reach industry if they are on/adjacent to a **connected depot/port** (the capital counts). Engineers lay rail and build depots/ports; **transport capacity** from the railyard limits internal movement. **Merchant marine** limits trade, not internal transport.
 * **Industry/Trade**: transported inputs hit the **warehouse** next turn, then get turned into higher‑tier goods/units on the **Industry** screen; world market trading is set on **Bid & Offers**. All of this executes at End Turn.
 
 ## War, conquest, colonies (the high notes)

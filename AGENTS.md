@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Economy-first, turn-based strategy game inspired by Imperialism (1997). Built with Bevy 0.18 ECS, hex-based maps, multi-nation economies. Reference `manual.pdf` for game mechanics.
+Economy-first, turn-based strategy game inspired by Imperialism (1997). Built with Bevy 0.18 ECS, hex-based maps, multi-nation economies. Reference `manual_text.txt` for game mechanics.
 
 **Tech stack:** Bevy 0.18, `bevy_ecs_tilemap` 0.18, `hexx` 0.23, `moonshine-save` for serialization.
 
@@ -59,7 +59,7 @@ fn my_button_handler(trigger: On<Activate>, /* params */) {
 
 - **No backwards compatibility**: Don't make components optional for old saves/tests. Update all spawn sites instead.
 - **Zero clippy warnings**: Always run `cargo clippy` before committing.
-- **Reference manual.pdf**: For game mechanics, rules, and original Imperialism behavior.
+- **Reference manual_text.txt**: For game mechanics, rules, and original Imperialism behavior.
 - **When in doubt, ask**: Clarify requirements rather than making assumptions.
 
 ## Adding Systems
@@ -76,6 +76,5 @@ app.add_systems(
 
 ## Key References
 
-- `manual.pdf` - Game mechanics and rules
-- `ai-docs/ALLOCATION_DESIGN.md` - Allocation system details
+- `manual_text.txt` - Game mechanics and rules
 - `OVERVIEW.md` - High-level game design
