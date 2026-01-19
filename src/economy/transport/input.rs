@@ -3,7 +3,7 @@ use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
 
 use crate::economy::transport::messages::PlaceImprovement;
 use crate::economy::transport::types::{
-    Depot, ImprovementKind, Port, RailConstruction, Rails, Roads, ordered_edge,
+    Depot, ImprovementKind, Port, RailConstruction, Rails, ordered_edge,
 };
 use crate::economy::transport::validation::{are_adjacent, can_build_rail_on_terrain};
 use crate::map::tile_pos::{HexExt, TilePosExt};
@@ -20,7 +20,6 @@ use crate::economy::{
 pub fn apply_improvements(
     trigger: On<PlaceImprovement>,
     mut commands: Commands,
-    mut roads: ResMut<Roads>,
     rails: ResMut<Rails>,
     player: Option<Res<PlayerNation>>,
     mut treasuries: Query<&mut Treasury>,
@@ -30,9 +29,6 @@ pub fn apply_improvements(
 ) {
     let e = trigger.event();
     match e.kind {
-        ImprovementKind::Road => {
-            handle_road_placement(e.a, e.b, &mut roads, &player, &mut treasuries);
-        }
         ImprovementKind::Rail => {
             handle_rail_construction(
                 &mut commands,
@@ -58,47 +54,6 @@ pub fn apply_improvements(
                 &tile_storage_query,
                 &tile_types,
             );
-        }
-    }
-}
-
-fn handle_road_placement(
-    a: TilePos,
-    b: TilePos,
-    roads: &mut ResMut<Roads>,
-    player: &Option<Res<PlayerNation>>,
-    treasuries: &mut Query<&mut Treasury>,
-) {
-    if !are_adjacent(a, b) {
-        return;
-    }
-    let edge = ordered_edge(a, b);
-    // Toggle behavior: if road exists, remove for free; otherwise place with cost
-    if roads.0.contains(&edge) {
-        roads.0.remove(&edge);
-        info!(
-            "Removed road between ({}, {}) and ({}, {})",
-            edge.0.x, edge.0.y, edge.1.x, edge.1.y
-        );
-    } else {
-        let cost: i64 = 10;
-        if let Some(player) = &player
-            && let Ok(mut treasury) = treasuries.get_mut(player.entity())
-        {
-            if treasury.total() >= cost {
-                treasury.subtract(cost);
-                roads.0.insert(edge);
-                info!(
-                    "Built road between ({}, {}) and ({}, {}) for ${}",
-                    edge.0.x, edge.0.y, edge.1.x, edge.1.y, cost
-                );
-            } else {
-                info!(
-                    "Not enough money to build road (need ${}, have ${})",
-                    cost,
-                    treasury.total()
-                );
-            }
         }
     }
 }

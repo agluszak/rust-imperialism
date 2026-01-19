@@ -8,7 +8,6 @@ use std::collections::HashSet;
 /// Type of transport improvement
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
 pub enum ImprovementKind {
-    Road,  // Early-game low-capacity transport
     Rail,  // High-capacity transport network
     Depot, // Gathers resources from tile + 8 neighbors
     Port,  // Coastal/river gathering point
@@ -34,11 +33,6 @@ pub struct Port {
     pub connected: bool,
     pub is_river: bool,
 }
-
-/// Roads are stored as ordered, undirected edge pairs between adjacent tiles
-#[derive(Resource, Default, Debug, Reflect)]
-#[reflect(Resource)]
-pub struct Roads(pub HashSet<(TilePos, TilePos)>);
 
 /// Rails are stored as ordered, undirected edge pairs between adjacent tiles
 #[derive(Resource, Default, Debug, Reflect)]

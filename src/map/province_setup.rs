@@ -5,13 +5,13 @@ use std::collections::{HashMap, HashSet};
 use crate::ai::{AiControlledCivilian, AiNation};
 use crate::civilians::{Civilian, CivilianKind};
 use crate::constants::MAP_SIZE;
+use crate::economy::Rails;
 use crate::economy::{
     Allocations, Capital, Good, Nation, NationColor, OwnedBy, PlayerNation, RecruitmentCapacity,
     RecruitmentQueue, ReservationSystem, Stockpile, Technologies, TrainingQueue, Treasury,
     Workforce,
     production::{Buildings, ProductionSettings},
 };
-use crate::economy::{Rails, Roads};
 use crate::map::province::{City, Province, ProvinceId};
 use crate::map::province_gen::generate_provinces;
 use crate::map::rendering::{BorderLine, MapVisualFor};
@@ -331,7 +331,6 @@ pub fn prune_to_test_map(
             Without<MapVisualFor>,
         ),
     >,
-    roads: Option<ResMut<Roads>>,
     rails: Option<ResMut<Rails>>,
 ) {
     // Only run if TestMapConfig is present
@@ -432,12 +431,7 @@ pub fn prune_to_test_map(
         commands.entity(entity).despawn();
     }
 
-    // 6. Prune Roads and Rails resources
-    if let Some(mut roads) = roads {
-        roads.0.retain(|(a, b)| {
-            tile_positions_to_keep.contains(a) && tile_positions_to_keep.contains(b)
-        });
-    }
+    // 6. Prune Rails resources
     if let Some(mut rails) = rails {
         rails.0.retain(|(a, b)| {
             tile_positions_to_keep.contains(a) && tile_positions_to_keep.contains(b)

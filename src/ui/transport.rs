@@ -138,13 +138,13 @@ pub fn handle_transport_selection(
             commands.trigger(PlaceImprovement {
                 a,
                 b,
-                kind: ImprovementKind::Road,
+                kind: ImprovementKind::Rail,
                 nation: None,
                 engineer: None,
             });
         } else {
             tool.first = Some(e.pos);
-            info!("Selected tile ({}, {}) for road start", e.pos.x, e.pos.y);
+            info!("Selected tile ({}, {}) for rail start", e.pos.x, e.pos.y);
         }
     }
 }

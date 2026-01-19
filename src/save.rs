@@ -15,7 +15,7 @@ use crate::economy::production::{Building, BuildingKind, Buildings, ProductionSe
 use crate::economy::reservation::{ReservationSystem, ResourcePool};
 use crate::economy::stockpile::Stockpile;
 use crate::economy::technology::{Technologies, Technology};
-use crate::economy::transport::{Depot, ImprovementKind, Port, RailConstruction, Rails, Roads};
+use crate::economy::transport::{Depot, ImprovementKind, Port, RailConstruction, Rails};
 use crate::economy::treasury::Treasury;
 use crate::economy::workforce::{
     RecruitmentCapacity, RecruitmentQueue, TrainingQueue, Worker, WorkerHealth, WorkerSkill,
@@ -149,7 +149,6 @@ fn register_reflect_types(app: &mut App) {
         .register_type::<Depot>()
         .register_type::<Port>()
         .register_type::<RailConstruction>()
-        .register_type::<Roads>()
         .register_type::<Rails>()
         .register_type::<ProvincesGenerated>()
         .register_type::<AiNation>()
@@ -178,7 +177,6 @@ fn process_save_requests(
             .exclude_component::<ReservationSystem>()
             .include_resource::<Calendar>()
             .include_resource::<TurnCounter>()
-            .include_resource::<Roads>()
             .include_resource::<Rails>()
             .include_resource::<ProspectingKnowledge>()
             .include_resource::<NextCivilianId>()
@@ -296,7 +294,7 @@ mod tests {
     use crate::economy::reservation::ReservationSystem;
     use crate::economy::stockpile::Stockpile;
     use crate::economy::technology::{Technologies, Technology};
-    use crate::economy::transport::{Rails, Roads};
+    use crate::economy::transport::Rails;
     use crate::economy::treasury::Treasury;
     use crate::economy::workforce::{RecruitmentQueue, TrainingQueue, Workforce};
     use crate::economy::{Calendar, Season};
@@ -334,7 +332,6 @@ mod tests {
             let world = app.world_mut();
             world.insert_resource(Calendar::default());
             world.insert_resource(TurnCounter::default());
-            world.insert_resource(Roads::default());
             world.insert_resource(Rails::default());
             world.insert_resource(ProvincesGenerated);
         }

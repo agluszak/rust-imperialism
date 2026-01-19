@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use crate::assets;
 use crate::civilians::SelectedCivilian;
 use crate::civilians::{Civilian, CivilianKind};
-use crate::economy::{Depot, Port, Rails, Roads};
+use crate::economy::{Depot, Port, Rails};
 use crate::map::rendering::{MapVisual, MapVisualFor};
 use crate::map::tile_pos::TilePosExt;
 use crate::ui::components::MapTilemap;
@@ -22,18 +22,11 @@ pub struct RailLineVisual {
     pub edge: (TilePos, TilePos),
 }
 
-/// Marker for road line visual entities with edge tracking
-#[derive(Component)]
-pub struct RoadLineVisual {
-    pub edge: (TilePos, TilePos),
-}
-
 /// Marker for shadow rail preview visual
 #[derive(Component)]
 pub struct ShadowRailVisual;
 
 const RAIL_COLOR: Color = Color::srgb(0.4, 0.4, 0.4);
-const ROAD_COLOR: Color = Color::srgb(0.6, 0.5, 0.4);
 const SHADOW_RAIL_COLOR: Color = Color::srgba(0.7, 0.7, 0.7, 0.4); // Semi-transparent
 const DEPOT_CONNECTED_COLOR: Color = Color::srgb(0.2, 0.8, 0.2);
 const DEPOT_DISCONNECTED_COLOR: Color = Color::srgb(0.8, 0.2, 0.2);
@@ -222,7 +215,6 @@ impl Plugin for TransportRenderingPlugin {
             Update,
             (
                 render_rails,
-                render_roads,
                 update_depot_visuals,
                 update_port_visuals,
                 render_shadow_rail,
@@ -253,29 +245,6 @@ fn render_rails(
         1.0,
         |edge| RailLineVisual { edge },
         |visual: &RailLineVisual| visual.edge,
-    );
-}
-
-/// Incrementally update road line visuals to match the Roads resource
-/// Only spawns/despawns changed edges instead of full redraw
-fn render_roads(
-    mut commands: Commands,
-    roads: Res<Roads>,
-    existing: Query<(Entity, &RoadLineVisual)>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-) {
-    sync_line_visuals(
-        &mut commands,
-        &roads.0,
-        roads.is_changed(),
-        &existing,
-        &mut meshes,
-        &mut materials,
-        ROAD_COLOR,
-        0.5,
-        |edge| RoadLineVisual { edge },
-        |visual: &RoadLineVisual| visual.edge,
     );
 }
 

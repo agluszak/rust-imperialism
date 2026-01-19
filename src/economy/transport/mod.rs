@@ -1,6 +1,6 @@
 // Core types and structs
 pub mod types;
-pub use types::{Depot, ImprovementKind, Port, RailConstruction, Rails, Roads, ordered_edge};
+pub use types::{Depot, ImprovementKind, Port, RailConstruction, Rails, ordered_edge};
 
 // Transport state (capacity, allocations, demand)
 pub mod state;

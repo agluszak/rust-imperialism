@@ -6,8 +6,8 @@ use bevy::state::app::StatesPlugin;
 use bevy_ecs_tilemap::prelude::*;
 use moonshine_save::prelude::*;
 use rust_imperialism::economy::transport::Rails;
-use rust_imperialism::map::province_setup::TestMapConfig;
 use rust_imperialism::map::TerrainType;
+use rust_imperialism::map::province_setup::TestMapConfig;
 use rust_imperialism::save::GameSavePlugin;
 use rust_imperialism::turn_system::TurnPhase;
 use rust_imperialism::ui::menu::AppState;
@@ -145,11 +145,7 @@ fn mark_tiles_for_save(
     state.tiles_marked = true;
 }
 
-fn trigger_save(
-    mut commands: Commands,
-    state: Res<GenerationState>,
-    mut triggered: Local<bool>,
-) {
+fn trigger_save(mut commands: Commands, state: Res<GenerationState>, mut triggered: Local<bool>) {
     if !state.tiles_marked || *triggered {
         return;
     }
@@ -172,7 +168,6 @@ fn trigger_save(
         .exclude_component::<rust_imperialism::economy::reservation::ReservationSystem>()
         .include_resource::<rust_imperialism::economy::Calendar>()
         .include_resource::<rust_imperialism::turn_system::TurnCounter>()
-        .include_resource::<rust_imperialism::economy::transport::Roads>()
         .include_resource::<rust_imperialism::economy::transport::Rails>()
         .include_resource::<rust_imperialism::civilians::ProspectingKnowledge>()
         .include_resource::<rust_imperialism::civilians::NextCivilianId>()

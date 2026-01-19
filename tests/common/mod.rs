@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy::state::app::StatesPlugin;
 use moonshine_save::prelude::*;
 use rust_imperialism::civilians::NextCivilianId;
-use rust_imperialism::economy::transport::{Rails, Roads};
+use rust_imperialism::economy::transport::Rails;
 use rust_imperialism::save::GameSavePlugin;
 use rust_imperialism::turn_system::TurnPhase;
 use rust_imperialism::ui::menu::AppState;
@@ -54,7 +54,6 @@ pub fn create_fixture_test_app() -> bevy::app::App {
 
     // Initialize resources that loaded data needs
     app.init_resource::<NextCivilianId>();
-    app.insert_resource(Roads::default());
     app.insert_resource(Rails::default());
 
     // Add load completion tracking
@@ -76,9 +75,7 @@ pub fn load_fixture(app: &mut bevy::app::App, fixture_name: &str) -> bool {
     }
 
     // Reset load completion flag
-    app.world_mut()
-        .resource_mut::<FixtureLoadCompleted>()
-        .0 = false;
+    app.world_mut().resource_mut::<FixtureLoadCompleted>().0 = false;
 
     // Trigger load
     app.world_mut()

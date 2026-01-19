@@ -218,7 +218,7 @@ mod tests {
         queue.queue_transport(PlaceImprovement {
             a: bevy_ecs_tilemap::prelude::TilePos { x: 0, y: 0 },
             b: bevy_ecs_tilemap::prelude::TilePos { x: 1, y: 0 },
-            kind: ImprovementKind::Road,
+            kind: ImprovementKind::Rail,
             nation: None,
             engineer: None,
         });

@@ -33,7 +33,7 @@ pub use reservation::{ReservationId, ReservationSystem, ResourcePool};
 pub use stockpile::Stockpile;
 pub use technology::{Technologies, Technology};
 pub use trade_capacity::{TradeCapacity, TradeCapacitySnapshot};
-pub use transport::{Depot, ImprovementKind, PlaceImprovement, Port, Rails, Roads};
+pub use transport::{Depot, ImprovementKind, PlaceImprovement, Port, Rails};
 pub use treasury::Treasury;
 pub use workforce::{
     RecruitWorkers, RecruitmentCapacity, RecruitmentQueue, TrainWorker, TrainingQueue, Worker,
@@ -52,7 +52,6 @@ impl Plugin for EconomyPlugin {
         // Register resources
         app.insert_resource(Calendar::default())
             .insert_resource(market::MarketPriceModel::default())
-            .insert_resource(transport::Roads::default())
             .insert_resource(transport::Rails::default())
             .insert_resource(production::ConnectedProduction::default())
             .insert_resource(transport::TransportCapacity::default())
