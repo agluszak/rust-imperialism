@@ -1,8 +1,8 @@
 # CLAUDE.md
 
-Economy-first, turn-based strategy game inspired by Imperialism (1997). Built with Bevy 0.17 ECS, hex-based maps, multi-nation economies. Reference `manual.pdf` for game mechanics.
+Economy-first, turn-based strategy game inspired by Imperialism (1997). Built with Bevy 0.18 ECS, hex-based maps, multi-nation economies. Reference `manual.pdf` for game mechanics.
 
-**Tech stack:** Bevy 0.17, `bevy_ecs_tilemap` 0.17, `hexx` 0.22, `moonshine-save` for serialization.
+**Tech stack:** Bevy 0.18, `bevy_ecs_tilemap` 0.18, `hexx` 0.23, `moonshine-save` for serialization.
 
 ## Architecture
 
@@ -34,8 +34,11 @@ Input Layer (observers, events) → Logic Layer (systems, state) → Rendering L
 
 **Testing:** Small tests (<50 lines) inline, large tests in separate `tests.rs`.
 
-**UI Buttons (Bevy 0.17):** Must use BOTH `Button` + `OldButton`. Use `.observe()` as builder method:
+**UI Buttons (Bevy 0.18):** Must use BOTH `Button` + `OldButton`. Import `Button` from `bevy::ui_widgets` and alias `bevy::ui::widget::Button as OldButton`. Use `.observe()` as builder method:
 ```rust
+use bevy::ui::widget::Button as OldButton;
+use bevy::ui_widgets::{Activate, Button};
+
 parent
     .spawn((
         Button,
@@ -43,10 +46,13 @@ parent
         Node { padding: UiRect::all(Val::Px(8.0)), ..default() },
         BackgroundColor(NORMAL_BUTTON),
     ))
-    .observe(move |_: On<Activate>, /* params */| {
-        // handler
-    })
+    .observe(my_button_handler)
     .with_children(|p| { p.spawn((Text::new("Label"), ...)); });
+
+fn my_button_handler(trigger: On<Activate>, /* params */) {
+    let target = trigger.event().entity;
+    // handler
+}
 ```
 
 ## Development Guidelines
