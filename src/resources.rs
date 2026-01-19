@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::economy::goods::Good;
 
 /// Types of resources that can be found/developed on tiles
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect)]
 pub enum ResourceType {
     // Agriculture
     Grain,
@@ -77,7 +77,7 @@ impl ResourceType {
 }
 
 /// Development level of a resource (0-3)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Reflect)]
 pub enum DevelopmentLevel {
     Lv0 = 0, // Undeveloped
     Lv1 = 1, // Basic development
@@ -86,7 +86,8 @@ pub enum DevelopmentLevel {
 }
 
 /// Component marking a tile as having a resource
-#[derive(Component, Debug, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy, Reflect)]
+#[reflect(Component)]
 pub struct TileResource {
     pub resource_type: ResourceType,
     pub development: DevelopmentLevel,

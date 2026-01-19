@@ -9,6 +9,10 @@ default-run = "main"
 name = "main"
 path = "src/bin/main.rs"
 
+[[bin]]
+name = "generate_test_map"
+path = "src/bin/generate_test_map.rs"
+
 [dependencies]
 bevy = { version = "0.18", features = ["bevy_dev_tools", "experimental_bevy_ui_widgets"] }
 hexx = { version = "0.23", features = ["algorithms", "serde", "bevy"] }

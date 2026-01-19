@@ -22,8 +22,10 @@ use crate::economy::workforce::{
     Workforce,
 };
 use crate::economy::{Calendar, Season};
-use crate::map::province::{City, Province, ProvinceId};
+use crate::map::province::{City, Province, ProvinceId, TileProvince};
 use crate::map::province_setup::ProvincesGenerated;
+use crate::map::tiles::TerrainType;
+use crate::resources::{DevelopmentLevel, ResourceType, TileResource};
 use crate::turn_system::{TurnCounter, TurnPhase};
 use crate::ui::menu::AppState;
 
@@ -151,7 +153,12 @@ fn register_reflect_types(app: &mut App) {
         .register_type::<Rails>()
         .register_type::<ProvincesGenerated>()
         .register_type::<AiNation>()
-        .register_type::<AiControlledCivilian>();
+        .register_type::<AiControlledCivilian>()
+        .register_type::<TerrainType>()
+        .register_type::<ResourceType>()
+        .register_type::<DevelopmentLevel>()
+        .register_type::<TileResource>()
+        .register_type::<TileProvince>();
 }
 
 fn process_save_requests(

@@ -1,5 +1,14 @@
-use bevy::prelude::NextState;
+use std::path::PathBuf;
+
+use bevy::prelude::*;
+use bevy::state::app::StatesPlugin;
+use moonshine_save::prelude::*;
+use rust_imperialism::civilians::NextCivilianId;
+use rust_imperialism::economy::transport::{Rails, Roads};
+use rust_imperialism::save::GameSavePlugin;
 use rust_imperialism::turn_system::TurnPhase;
+use rust_imperialism::ui::menu::AppState;
+use rust_imperialism::ui::mode::GameMode;
 
 /// Helper function to transition between turn phases in tests
 /// Encapsulates the double-update pattern needed for state transitions
@@ -9,4 +18,82 @@ pub fn transition_to_phase(app: &mut bevy::app::App, phase: TurnPhase) {
         .set(phase);
     app.update(); // Apply state transition
     app.update(); // Run systems in the new phase
+}
+
+/// Get the path to a test fixture file
+pub fn fixture_path(name: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join(name)
+}
+
+/// Filename for the pruned Red nation test map
+pub const PRUNED_RED_NATION_MAP: &str = "pruned_red_nation.ron";
+
+/// Resource to track if a fixture load has completed
+#[derive(Resource, Default)]
+struct FixtureLoadCompleted(bool);
+
+/// Observer that marks when load is complete
+fn on_fixture_loaded(_: On<Loaded>, mut completed: ResMut<FixtureLoadCompleted>) {
+    completed.0 = true;
+}
+
+/// Creates a test app configured for loading fixtures
+pub fn create_fixture_test_app() -> bevy::app::App {
+    let mut app = bevy::app::App::new();
+    app.add_plugins((MinimalPlugins, StatesPlugin));
+
+    app.init_state::<TurnPhase>();
+    app.insert_state(AppState::InGame);
+    app.add_sub_state::<GameMode>();
+
+    // Add save plugin for loading
+    app.add_plugins(GameSavePlugin);
+
+    // Initialize resources that loaded data needs
+    app.init_resource::<NextCivilianId>();
+    app.insert_resource(Roads::default());
+    app.insert_resource(Rails::default());
+
+    // Add load completion tracking
+    app.init_resource::<FixtureLoadCompleted>();
+    app.add_observer(on_fixture_loaded);
+
+    app
+}
+
+/// Loads a test fixture into the app. Returns true if load completed.
+pub fn load_fixture(app: &mut bevy::app::App, fixture_name: &str) -> bool {
+    let path = fixture_path(fixture_name);
+
+    if !path.exists() {
+        panic!(
+            "Fixture not found: {:?}. Run 'cargo run --bin generate_test_map' to generate it.",
+            path
+        );
+    }
+
+    // Reset load completion flag
+    app.world_mut()
+        .resource_mut::<FixtureLoadCompleted>()
+        .0 = false;
+
+    // Trigger load
+    app.world_mut()
+        .commands()
+        .trigger_load(LoadWorld::default_from_file(path));
+
+    // Run updates until load completes
+    for _ in 0..10 {
+        app.update();
+
+        // Check if load completed via our observer
+        if app.world().resource::<FixtureLoadCompleted>().0 {
+            return true;
+        }
+    }
+
+    false
 }

@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 
 /// Essential terrain types for gameplay
-#[derive(Component, Debug, Clone, Copy, PartialEq)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Reflect)]
+#[reflect(Component)]
 pub enum TerrainType {
     Grass,    // Plains - basic terrain, good movement
     Water,    // Ocean/rivers - impassable without ships
