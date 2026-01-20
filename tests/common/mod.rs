@@ -5,11 +5,11 @@ use bevy::prelude::*;
 use bevy::state::app::StatesPlugin;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapId, TilemapSize};
 use moonshine_save::prelude::*;
+use rust_imperialism::LogicPlugins;
 use rust_imperialism::civilians::NextCivilianId;
 use rust_imperialism::economy::transport::Rails;
 use rust_imperialism::save::GameSavePlugin;
 use rust_imperialism::turn_system::TurnPhase;
-use rust_imperialism::LogicPlugins;
 use rust_imperialism::ui::menu::AppState;
 use rust_imperialism::ui::mode::GameMode;
 

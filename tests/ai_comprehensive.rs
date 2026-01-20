@@ -17,6 +17,7 @@ use bevy::prelude::*;
 use bevy::state::app::StatesPlugin;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
 
+use rust_imperialism::LogicPlugins;
 use rust_imperialism::ai::{AiControlledCivilian, AiNation};
 use rust_imperialism::civilians::{Civilian, CivilianKind};
 use rust_imperialism::economy::{
@@ -37,7 +38,6 @@ use rust_imperialism::resources::{DevelopmentLevel, ResourceType, TileResource};
 use rust_imperialism::turn_system::TurnPhase;
 use rust_imperialism::ui::menu::AppState;
 use rust_imperialism::ui::mode::GameMode;
-use rust_imperialism::LogicPlugins;
 
 /// Main comprehensive integration test for all AI capabilities.
 ///

@@ -118,5 +118,3 @@ impl Plugin for CivilianLogicPlugin {
         );
     }
 }
-
-

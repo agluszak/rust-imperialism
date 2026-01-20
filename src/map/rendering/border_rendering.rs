@@ -6,7 +6,6 @@ use crate::economy::NationColor;
 use crate::map::province::{Province, ProvinceId, TileProvince};
 use crate::map::tile_pos::{HexExt, TilePosExt};
 
-
 /// Marker component for border line entities
 #[derive(Component)]
 pub struct BorderLine;

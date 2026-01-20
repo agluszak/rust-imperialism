@@ -5,15 +5,15 @@ use std::path::PathBuf;
 use bevy::app::AppExit;
 use bevy::image::ImagePlugin;
 use bevy::prelude::*;
-use bevy::render::view::screenshot::{save_to_disk, Screenshot, ScreenshotCaptured};
+use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured, save_to_disk};
 use bevy::window::{Window, WindowPlugin, WindowResolution};
 use bevy_ecs_tilemap::prelude::*;
 use moonshine_save::prelude::*;
-use rust_imperialism::constants::{get_hex_grid_size, MAP_SIZE, TILE_SIZE};
+use rust_imperialism::constants::{MAP_SIZE, TILE_SIZE, get_hex_grid_size};
 use rust_imperialism::map::rendering::terrain_atlas::TerrainAtlas;
 use rust_imperialism::ui::components::MapTilemap;
-use rust_imperialism::{LogicPlugins, MapRenderingPlugins};
 use rust_imperialism::ui::menu::AppState;
+use rust_imperialism::{LogicPlugins, MapRenderingPlugins};
 
 fn main() {
     let screenshot_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -51,11 +51,7 @@ fn main() {
     app.add_systems(Startup, (request_fixture_load, setup_camera));
     app.add_systems(
         Update,
-        (
-            clear_loaded_tilemap_refs,
-            build_tilemap_from_fixture,
-        )
-            .chain(),
+        (clear_loaded_tilemap_refs, build_tilemap_from_fixture).chain(),
     );
     app.add_systems(Update, (fit_camera_to_map, request_screenshot));
 

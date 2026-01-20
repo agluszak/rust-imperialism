@@ -8,9 +8,9 @@ pub mod terrain_atlas;
 pub mod transport_debug;
 pub mod transport_rendering;
 
-use bevy::prelude::*;
 use crate::ui::menu::AppState;
 use crate::ui::mode::GameMode;
+use bevy::prelude::*;
 
 // Re-exports for convenience
 pub use border_rendering::*;

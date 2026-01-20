@@ -9,15 +9,15 @@ pub use crate::economy::EconomyPlugin;
 pub use crate::helpers::camera::CameraPlugin;
 pub use crate::helpers::picking::TilemapBackend;
 pub use crate::input::InputPlugin;
-pub use crate::map::{MapGenerationPlugin, MapLogicPlugin};
 pub use crate::map::rendering::MapRenderingPlugin;
+pub use crate::map::{MapGenerationPlugin, MapLogicPlugin};
 use crate::save::GameSavePlugin;
 use crate::ships::ShipsPlugin;
 use crate::turn_system::TurnSystemPlugin;
 use crate::ui::GameUIPlugin;
-use bevy::app::PluginGroupBuilder;
 use crate::ui::menu::AppState;
 use crate::ui::mode::GameMode;
+use bevy::app::PluginGroupBuilder;
 #[cfg(feature = "debug")]
 use bevy::dev_tools::states::log_transitions;
 use bevy::image::ImagePlugin;
@@ -53,8 +53,7 @@ pub struct GameCorePlugin;
 
 impl Plugin for GameCorePlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<AppState>()
-            .add_sub_state::<GameMode>();
+        app.init_state::<AppState>().add_sub_state::<GameMode>();
 
         #[cfg(feature = "debug")]
         app.add_systems(Update, log_transitions::<AppState>)

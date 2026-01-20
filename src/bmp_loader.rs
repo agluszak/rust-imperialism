@@ -121,4 +121,3 @@ fn convert_with_transparency(
 
     rgba_img
 }
-

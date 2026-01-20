@@ -9,20 +9,20 @@ use bevy_ecs_tilemap::prelude::*;
 use moonshine_save::prelude::*;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use rust_imperialism::constants::TERRAIN_SEED;
+use rust_imperialism::LogicPlugins;
 use rust_imperialism::ai::AiControlledCivilian;
 use rust_imperialism::ai::AiNation;
 use rust_imperialism::civilians::Civilian;
+use rust_imperialism::constants::TERRAIN_SEED;
 use rust_imperialism::economy::nation::NationColor;
-use rust_imperialism::map::prospecting::PotentialMineral;
-use rust_imperialism::map::province_setup::TestMapConfig;
-use rust_imperialism::map::province::TileProvince;
-use rust_imperialism::map::province::Province;
-use rust_imperialism::map::terrain_gen::TerrainGenerator;
 use rust_imperialism::map::TerrainType;
+use rust_imperialism::map::prospecting::PotentialMineral;
+use rust_imperialism::map::province::Province;
+use rust_imperialism::map::province::TileProvince;
+use rust_imperialism::map::province_setup::TestMapConfig;
+use rust_imperialism::map::terrain_gen::TerrainGenerator;
 use rust_imperialism::resources::{ResourceType, TileResource};
 use rust_imperialism::ui::menu::AppState;
-use rust_imperialism::LogicPlugins;
 
 fn main() {
     println!("Generating pruned test map...");
@@ -131,7 +131,9 @@ fn setup_mock_tilemap(
                     } else {
                         ResourceType::Fruit
                     };
-                    commands.entity(tile_entity).insert(TileResource::visible(resource));
+                    commands
+                        .entity(tile_entity)
+                        .insert(TileResource::visible(resource));
                 }
                 TerrainType::Grass => {
                     if rng.random::<f32>() < 0.4 {
@@ -140,7 +142,9 @@ fn setup_mock_tilemap(
                         } else {
                             ResourceType::Livestock
                         };
-                        commands.entity(tile_entity).insert(TileResource::visible(resource));
+                        commands
+                            .entity(tile_entity)
+                            .insert(TileResource::visible(resource));
                     }
                 }
                 TerrainType::Forest => {
@@ -186,7 +190,11 @@ fn setup_mock_tilemap(
                 }
                 TerrainType::Desert => {
                     let has_oil = rng.random::<f32>() < 0.15;
-                    let mineral_type = if has_oil { Some(ResourceType::Oil) } else { None };
+                    let mineral_type = if has_oil {
+                        Some(ResourceType::Oil)
+                    } else {
+                        None
+                    };
                     commands
                         .entity(tile_entity)
                         .insert(PotentialMineral::new(mineral_type));
@@ -281,10 +289,10 @@ fn ensure_red_nation_for_target_tile(
                 commands.entity(entity).insert(AiControlledCivilian);
             }
         }
-    } else if let Ok((_, _, ai_marker)) = nations.get_mut(target_owner) {
-        if ai_marker.is_none() {
-            commands.entity(target_owner).insert(AiNation);
-        }
+    } else if let Ok((_, _, ai_marker)) = nations.get_mut(target_owner)
+        && ai_marker.is_none()
+    {
+        commands.entity(target_owner).insert(AiNation);
     }
 
     commands.insert_resource(TargetRedReady);

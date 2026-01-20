@@ -8,7 +8,6 @@ use crate::map::tile_pos::TilePosExt;
 use crate::resources::ResourceType;
 use crate::ui::components::MapTilemap;
 
-
 const MARKER_SIZE: f32 = 20.0;
 const MARKER_OFFSET_Y: f32 = 15.0; // Offset from tile center
 

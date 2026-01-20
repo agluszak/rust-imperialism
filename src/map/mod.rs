@@ -45,7 +45,10 @@ pub struct MapGenerationPlugin;
 impl Plugin for MapGenerationPlugin {
     fn build(&self, app: &mut App) {
         // Tilemap creation (Logic part)
-        app.add_systems(Update, create_tilemap_logic.run_if(in_state(AppState::InGame)));
+        app.add_systems(
+            Update,
+            create_tilemap_logic.run_if(in_state(AppState::InGame)),
+        );
 
         // Province generation (runs after tilemap is created)
         app.add_systems(
@@ -61,7 +64,6 @@ impl Plugin for MapGenerationPlugin {
         );
     }
 }
-
 
 /// Logic part of tilemap creation: spawns entities with terrain and resources
 fn create_tilemap_logic(mut commands: Commands, tilemap_created: Option<Res<TilemapCreated>>) {
@@ -207,7 +209,10 @@ pub struct TilemapRenderingInitialized;
 pub fn setup_tilemap_rendering(
     mut commands: Commands,
     terrain_atlas: Option<Res<rendering::TerrainAtlas>>,
-    tilemap_query: Query<(Entity, &TilemapSize, &TileStorage), Without<TilemapRenderingInitialized>>,
+    tilemap_query: Query<
+        (Entity, &TilemapSize, &TileStorage),
+        Without<TilemapRenderingInitialized>,
+    >,
     tiles_query: Query<(Entity, &TerrainType), Without<TileTextureIndex>>,
 ) {
     let Some(atlas) = terrain_atlas else {
@@ -248,15 +253,15 @@ pub fn setup_tilemap_rendering(
     for x in 0..map_size.x {
         for y in 0..map_size.y {
             let tile_pos = TilePos { x, y };
-            if let Some(tile_entity) = tile_storage.get(&tile_pos) {
-                if let Ok((_, terrain_type)) = tiles_query.get(tile_entity) {
-                    commands.entity(tile_entity).insert(TileBundle {
-                        position: tile_pos,
-                        tilemap_id: TilemapId(tilemap_entity),
-                        texture_index: TileTextureIndex(terrain_type.get_texture_index()),
-                        ..default()
-                    });
-                }
+            if let Some(tile_entity) = tile_storage.get(&tile_pos)
+                && let Ok((_, terrain_type)) = tiles_query.get(tile_entity)
+            {
+                commands.entity(tile_entity).insert(TileBundle {
+                    position: tile_pos,
+                    tilemap_id: TilemapId(tilemap_entity),
+                    texture_index: TileTextureIndex(terrain_type.get_texture_index()),
+                    ..default()
+                });
             }
         }
     }
@@ -289,7 +294,9 @@ pub fn setup_tilemap_input(
         }
     }
 
-    commands.entity(tilemap_entity).insert(TilemapInputInitialized);
+    commands
+        .entity(tilemap_entity)
+        .insert(TilemapInputInitialized);
 
     info!("Tilemap input setup complete!");
 }
