@@ -29,20 +29,18 @@ fn test_ai_resource_discovery_and_collection() {
     use rust_imperialism::resources::{ResourceType, TileResource};
     use rust_imperialism::turn_system::TurnPhase;
     use rust_imperialism::ui::menu::AppState;
-    use rust_imperialism::ui::mode::GameMode;
-    use rust_imperialism::{LogicPlugins, MapLogicPlugin};
+
+    use rust_imperialism::LogicPlugins;
 
     // Create a headless app with minimal plugins
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, StatesPlugin));
 
-    // Initialize game states
-    app.init_state::<TurnPhase>();
-    app.insert_state(AppState::InGame);
-    app.add_sub_state::<GameMode>(); // Required for CivilianLogicPlugin systems
+    // Add LogicPlugins (includes MapLogic but NOT MapGenerationPlugin)
+    app.add_plugins(LogicPlugins);
 
-    // Add LogicPlugins (excluding MapLogic to allow manual map setup)
-    app.add_plugins(LogicPlugins.build().disable::<MapLogicPlugin>());
+    // Force InGame state to trigger plugin systems
+    app.insert_state(AppState::InGame);
 
     // Manually create a small test map (5x5)
     let map_size = TilemapSize { x: 10, y: 10 };
@@ -356,20 +354,18 @@ fn test_ai_respects_terrain_constraints() {
     use rust_imperialism::resources::{ResourceType, TileResource};
     use rust_imperialism::turn_system::TurnPhase;
     use rust_imperialism::ui::menu::AppState;
-    use rust_imperialism::ui::mode::GameMode;
-    use rust_imperialism::{LogicPlugins, MapLogicPlugin};
+
+    use rust_imperialism::LogicPlugins;
 
     // Create a headless app with minimal plugins
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, StatesPlugin));
 
-    // Initialize game states
-    app.init_state::<TurnPhase>();
-    app.insert_state(AppState::InGame);
-    app.add_sub_state::<GameMode>();
+    // Add LogicPlugins (includes MapLogic but NOT MapGenerationPlugin)
+    app.add_plugins(LogicPlugins);
 
-    // Add LogicPlugins (excluding MapLogic)
-    app.add_plugins(LogicPlugins.build().disable::<MapLogicPlugin>());
+    // Force InGame state to trigger plugin systems
+    app.insert_state(AppState::InGame);
 
     // Create a test map with varied terrain
     let map_size = TilemapSize { x: 10, y: 10 };
@@ -545,20 +541,18 @@ fn test_two_engineers_splitting_paths() {
     use rust_imperialism::map::tiles::TerrainType;
     use rust_imperialism::turn_system::{TurnCounter, TurnPhase};
     use rust_imperialism::ui::menu::AppState;
-    use rust_imperialism::ui::mode::GameMode;
-    use rust_imperialism::{LogicPlugins, MapLogicPlugin};
+
+    use rust_imperialism::LogicPlugins;
 
     // Create a headless app with minimal plugins
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, StatesPlugin));
 
-    // Initialize game states
-    app.init_state::<TurnPhase>();
-    app.insert_state(AppState::InGame);
-    app.add_sub_state::<GameMode>();
+    // Add LogicPlugins (includes MapLogic but NOT MapGenerationPlugin)
+    app.add_plugins(LogicPlugins);
 
-    // Add LogicPlugins (excluding MapLogic)
-    app.add_plugins(LogicPlugins.build().disable::<MapLogicPlugin>());
+    // Force InGame state to trigger plugin systems
+    app.insert_state(AppState::InGame);
 
     let map_size = TilemapSize { x: 30, y: 30 };
     let mut tile_storage = TileStorage::empty(map_size);

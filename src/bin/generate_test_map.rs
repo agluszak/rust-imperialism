@@ -22,7 +22,7 @@ use rust_imperialism::map::terrain_gen::TerrainGenerator;
 use rust_imperialism::map::TerrainType;
 use rust_imperialism::resources::{ResourceType, TileResource};
 use rust_imperialism::ui::menu::AppState;
-use rust_imperialism::{LogicPlugins, MapLogicPlugin};
+use rust_imperialism::LogicPlugins;
 
 fn main() {
     println!("Generating pruned test map...");
@@ -32,8 +32,9 @@ fn main() {
     // Minimal plugins for headless generation
     app.add_plugins((MinimalPlugins, StatesPlugin));
 
-    // Use Logic group (except MapLogic to allow custom mock tilemap setup)
-    app.add_plugins(LogicPlugins.build().disable::<MapLogicPlugin>());
+    // Use Logic group
+    // We don't add MapGenerationPlugin to allow custom mock tilemap setup
+    app.add_plugins(LogicPlugins);
 
     // Force InGame state to trigger plugin systems
     app.insert_state(AppState::InGame);

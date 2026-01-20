@@ -12,7 +12,7 @@ use moonshine_save::prelude::*;
 use rust_imperialism::constants::{get_hex_grid_size, MAP_SIZE, TILE_SIZE};
 use rust_imperialism::map::rendering::terrain_atlas::TerrainAtlas;
 use rust_imperialism::ui::components::MapTilemap;
-use rust_imperialism::{LogicPlugins, MapLogicPlugin, MapRenderingPlugins};
+use rust_imperialism::{LogicPlugins, MapRenderingPlugins};
 use rust_imperialism::ui::menu::AppState;
 
 fn main() {
@@ -37,12 +37,8 @@ fn main() {
     );
 
     // Use Logic and Map Rendering groups
-    // Disable MapLogic because this tool has custom map setup
-    // We keep MapRenderingPlugin because it now consolidates all rendering systems we need
-    app.add_plugins((
-        LogicPlugins.build().disable::<MapLogicPlugin>(),
-        MapRenderingPlugins,
-    ));
+    // We don't add MapGenerationPlugin because this tool has custom map setup
+    app.add_plugins((LogicPlugins, MapRenderingPlugins));
 
     app.init_resource::<RenderState>();
     app.insert_resource(ScreenshotPath(screenshot_path));

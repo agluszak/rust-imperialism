@@ -30,13 +30,20 @@ pub use tiles::*;
 #[derive(Resource)]
 pub struct TilemapCreated;
 
-/// Plugin that handles map initialization and logic
+/// Plugin that handles core map logic and resources
 pub struct MapLogicPlugin;
 
 impl Plugin for MapLogicPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<province_setup::ProvincesGenerated>();
+    }
+}
 
+/// Plugin that handles random map and province generation
+pub struct MapGenerationPlugin;
+
+impl Plugin for MapGenerationPlugin {
+    fn build(&self, app: &mut App) {
         // Tilemap creation (Logic part)
         app.add_systems(Update, create_tilemap_logic.run_if(in_state(AppState::InGame)));
 

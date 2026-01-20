@@ -20,7 +20,6 @@ use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
 use rust_imperialism::ai::{AiControlledCivilian, AiNation};
 use rust_imperialism::civilians::{Civilian, CivilianKind};
 use rust_imperialism::economy::{
-    EconomyPlugin,
     goods::Good,
     nation::{Capital, Nation},
     production::Buildings,
@@ -38,7 +37,7 @@ use rust_imperialism::resources::{DevelopmentLevel, ResourceType, TileResource};
 use rust_imperialism::turn_system::TurnPhase;
 use rust_imperialism::ui::menu::AppState;
 use rust_imperialism::ui::mode::GameMode;
-use rust_imperialism::{LogicPlugins, MapLogicPlugin};
+use rust_imperialism::LogicPlugins;
 
 /// Main comprehensive integration test for all AI capabilities.
 ///
@@ -63,8 +62,11 @@ fn test_comprehensive_ai_capabilities() {
     app.insert_state(AppState::InGame);
     app.add_sub_state::<GameMode>();
 
-    // Add LogicPlugins (excluding MapLogic to allow manual map setup)
-    app.add_plugins(LogicPlugins.build().disable::<MapLogicPlugin>());
+    // Add LogicPlugins (includes MapLogic but NOT MapGenerationPlugin)
+    app.add_plugins(LogicPlugins);
+
+    // Force InGame state to trigger plugin systems
+    app.insert_state(AppState::InGame);
 
     // Create a large test map (20x20) with diverse resources
     let map_size = TilemapSize { x: 20, y: 20 };

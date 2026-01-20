@@ -9,7 +9,7 @@ pub use crate::economy::EconomyPlugin;
 pub use crate::helpers::camera::CameraPlugin;
 pub use crate::helpers::picking::TilemapBackend;
 pub use crate::input::InputPlugin;
-pub use crate::map::MapLogicPlugin;
+pub use crate::map::{MapGenerationPlugin, MapLogicPlugin};
 pub use crate::map::rendering::MapRenderingPlugin;
 use crate::save::GameSavePlugin;
 use crate::ships::ShipsPlugin;
@@ -124,7 +124,12 @@ pub fn app() -> App {
 
     app
         // Game plugins
-        .add_plugins((LogicPlugins, MapRenderingPlugins, InputPlugins));
+        .add_plugins((
+            LogicPlugins,
+            MapGenerationPlugin,
+            MapRenderingPlugins,
+            InputPlugins,
+        ));
 
     #[cfg(feature = "debug")]
     app.add_plugins((EguiPlugin::default(), WorldInspectorPlugin::new()));
