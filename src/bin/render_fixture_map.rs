@@ -9,22 +9,16 @@ use bevy::render::view::screenshot::{save_to_disk, Screenshot, ScreenshotCapture
 use bevy::window::{Window, WindowPlugin, WindowResolution};
 use bevy_ecs_tilemap::prelude::*;
 use moonshine_save::prelude::*;
-use rust_imperialism::bmp_loader::ImperialismBmpLoaderPlugin;
 use rust_imperialism::civilians::commands::SelectedCivilian;
 use rust_imperialism::civilians::types::ProspectingKnowledge;
-use rust_imperialism::civilians::CivilianRenderingPlugin;
 use rust_imperialism::constants::{get_hex_grid_size, MAP_SIZE, TILE_SIZE};
 use rust_imperialism::economy::ConnectedProduction;
 use rust_imperialism::economy::transport::Rails;
-use rust_imperialism::map::rendering::{
-    BorderRenderingPlugin, CityRenderingPlugin, ImprovementRenderingPlugin,
-    ProspectingMarkersPlugin, TransportRenderingPlugin,
-};
 use rust_imperialism::map::rendering::terrain_atlas::{
     build_terrain_atlas_when_ready, start_terrain_atlas_loading, TerrainAtlas,
 };
-use rust_imperialism::save::GameSavePlugin;
 use rust_imperialism::ui::components::MapTilemap;
+use rust_imperialism::{LogicPlugins, MapLogicPlugin, MapRenderingPlugin, MapRenderingPlugins};
 use rust_imperialism::ui::menu::AppState;
 use rust_imperialism::ui::mode::GameMode;
 
@@ -35,7 +29,7 @@ fn main() {
 
     let mut app = App::new();
 
-    app.add_plugins((
+    app.add_plugins(
         DefaultPlugins
             .set(ImagePlugin::default_nearest())
             .set(WindowPlugin {
@@ -47,15 +41,13 @@ fn main() {
                 }),
                 ..default()
             }),
-        ImperialismBmpLoaderPlugin,
-        TilemapPlugin,
-        GameSavePlugin,
-        TransportRenderingPlugin,
-        BorderRenderingPlugin,
-        CityRenderingPlugin,
-        ImprovementRenderingPlugin,
-        ProspectingMarkersPlugin,
-        CivilianRenderingPlugin,
+    );
+
+    // Use Logic and Map Rendering groups
+    // Disable MapLogic and MapRendering because this tool has custom map/atlas setup
+    app.add_plugins((
+        LogicPlugins.build().disable::<MapLogicPlugin>(),
+        MapRenderingPlugins.build().disable::<MapRenderingPlugin>(),
     ));
 
     app.insert_state(AppState::InGame);

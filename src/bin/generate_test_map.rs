@@ -22,10 +22,10 @@ use rust_imperialism::map::province::Province;
 use rust_imperialism::map::terrain_gen::TerrainGenerator;
 use rust_imperialism::map::TerrainType;
 use rust_imperialism::resources::{ResourceType, TileResource};
-use rust_imperialism::save::GameSavePlugin;
 use rust_imperialism::turn_system::TurnPhase;
 use rust_imperialism::ui::menu::AppState;
 use rust_imperialism::ui::mode::GameMode;
+use rust_imperialism::{LogicPlugins, MapLogicPlugin};
 
 fn main() {
     println!("Generating pruned test map...");
@@ -40,11 +40,10 @@ fn main() {
     app.insert_state(AppState::InGame);
     app.add_sub_state::<GameMode>();
 
-    // Add save plugin (handles reflection registration)
-    app.add_plugins(GameSavePlugin);
+    // Use Logic group (except MapLogic to allow custom mock tilemap setup)
+    app.add_plugins(LogicPlugins.build().disable::<MapLogicPlugin>());
 
-    // Add resources normally provided by other plugins
-    app.init_resource::<rust_imperialism::civilians::NextCivilianId>();
+    // Add resources normally provided by other plugins (some already in LogicPlugins but we might need more or specific ones)
     app.insert_resource(Rails::default());
 
     // Insert test config to trigger pruning
