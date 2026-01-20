@@ -9,7 +9,7 @@ use crate::economy::EconomyPlugin;
 use crate::helpers::camera::CameraPlugin;
 use crate::helpers::picking::TilemapBackend;
 use crate::input::InputPlugin;
-use crate::map::MapSetupPlugin;
+use crate::map::{MapLogicPlugin, MapRenderingPlugin, ProvinceGenerationPlugin};
 use crate::map::rendering::border_rendering::BorderRenderingPlugin;
 use crate::map::rendering::city_rendering::CityRenderingPlugin;
 use crate::map::rendering::improvement_rendering::ImprovementRenderingPlugin;
@@ -59,7 +59,7 @@ pub struct LogicPlugins;
 impl PluginGroup for LogicPlugins {
     fn build(self) -> bevy::app::PluginGroupBuilder {
         bevy::app::PluginGroupBuilder::start::<Self>()
-            .add(MapSetupPlugin)
+            .add(MapLogicPlugin)
             .add(TurnSystemPlugin)
             .add(EconomyPlugin)
             .add(ShipsPlugin)
@@ -77,6 +77,7 @@ pub struct MapRenderingPlugins;
 impl PluginGroup for MapRenderingPlugins {
     fn build(self) -> bevy::app::PluginGroupBuilder {
         bevy::app::PluginGroupBuilder::start::<Self>()
+            .add(MapRenderingPlugin)
             .add(CameraPlugin)
             .add(TransportRenderingPlugin)
             .add(TransportDebugPlugin)
@@ -124,6 +125,7 @@ pub fn app() -> App {
         // Game plugins - organized into three groups
         .add_plugins(TilemapBackend)
         .add_plugins(LogicPlugins)
+        .add_plugins(ProvinceGenerationPlugin) // Needed for full game map generation
         .add_plugins(MapRenderingPlugins)
         .add_plugins(InputPlugins);
 

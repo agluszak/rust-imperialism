@@ -30,10 +30,42 @@ pub use tiles::*;
 #[derive(Resource)]
 pub struct TilemapCreated;
 
-/// Plugin that handles map initialization and tilemap creation
-pub struct MapSetupPlugin;
+/// Plugin that handles province generation for the full game
+/// This should NOT be used in tests that create maps manually
+pub struct ProvinceGenerationPlugin;
 
-impl Plugin for MapSetupPlugin {
+impl Plugin for ProvinceGenerationPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            Update,
+            (
+                province_setup::generate_provinces_system,
+                province_setup::assign_provinces_to_countries
+                    .after(province_setup::generate_provinces_system),
+                province_setup::prune_to_test_map
+                    .after(province_setup::assign_provinces_to_countries),
+            )
+                .run_if(in_state(AppState::InGame)),
+        );
+    }
+}
+
+/// Plugin that handles map logic (no rendering, no automatic province generation)
+/// Use this for headless tests that create their own map setup
+pub struct MapLogicPlugin;
+
+impl Plugin for MapLogicPlugin {
+    fn build(&self, _app: &mut App) {
+        // Currently empty - map logic is handled by other systems
+        // This plugin exists for consistency and future extensibility
+    }
+}
+
+/// Plugin that handles map rendering (tilemap creation with textures)
+/// Use this with MapLogicPlugin for visual output
+pub struct MapRenderingPlugin;
+
+impl Plugin for MapRenderingPlugin {
     fn build(&self, app: &mut App) {
         // Terrain atlas loading
         app.add_systems(
@@ -47,19 +79,20 @@ impl Plugin for MapSetupPlugin {
 
         // Tilemap creation (waits for atlas to be ready)
         app.add_systems(Update, create_tilemap.run_if(in_state(AppState::InGame)));
+    }
+}
 
-        // Province generation (runs after tilemap is created)
-        app.add_systems(
-            Update,
-            (
-                province_setup::generate_provinces_system,
-                province_setup::assign_provinces_to_countries
-                    .after(province_setup::generate_provinces_system),
-                province_setup::prune_to_test_map
-                    .after(province_setup::assign_provinces_to_countries),
-            )
-                .run_if(in_state(AppState::InGame)),
-        );
+/// Legacy plugin that combines rendering and province generation
+/// Use this for the full game that generates maps from scratch
+pub struct MapSetupPlugin;
+
+impl Plugin for MapSetupPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins((
+            MapLogicPlugin,
+            MapRenderingPlugin,
+            ProvinceGenerationPlugin,
+        ));
     }
 }
 
