@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use bevy::prelude::*;
 use bevy::state::app::StatesPlugin;
-use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
+use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapId, TilemapSize};
 use moonshine_save::prelude::*;
 use rust_imperialism::ai::AiPlugin;
 use rust_imperialism::civilians::CivilianPlugin;
@@ -97,7 +97,7 @@ pub fn rebuild_tile_storage(app: &mut bevy::app::App) -> Entity {
     let (tiles, map_size, existing_tilemaps) = {
         let world = app.world_mut();
 
-        let mut tile_query = world.query::<(Entity, &TilePos)>();
+        let mut tile_query = world.query_filtered::<(Entity, &TilePos), With<TilemapId>>();
         let mut tiles = Vec::new();
         let mut max_x = 0;
         let mut max_y = 0;

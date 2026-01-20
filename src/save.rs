@@ -235,8 +235,9 @@ fn emit_load_completion(
 }
 
 fn rebuild_runtime_state_after_load(
-    _: On<Loaded>,
+    trigger: On<Loaded>,
     mut commands: Commands,
+    mut provinces: Query<&mut Province>,
     nations: Query<
         (
             Entity,
@@ -248,8 +249,10 @@ fn rebuild_runtime_state_after_load(
     >,
 ) {
     let mut player_entity = None;
+    let mut nation_entities = Vec::new();
 
     for (entity, name, allocations, reservations) in nations.iter() {
+        nation_entities.push(entity);
         if allocations.is_none() {
             commands.entity(entity).insert(Allocations::default());
         }
@@ -261,6 +264,31 @@ fn rebuild_runtime_state_after_load(
         // Identify player nation by name
         if name.map(|name| name.as_str() == "Player").unwrap_or(false) {
             player_entity = Some(entity);
+        }
+    }
+
+    let entity_map = &trigger.event().entity_map;
+    for mut province in provinces.iter_mut() {
+        if let Some(owner) = province.owner
+            && let Some(mapped) = entity_map.get(&owner)
+        {
+            province.owner = Some(*mapped);
+        }
+    }
+
+    if nation_entities.len() == 1 {
+        let fallback_owner = nation_entities[0];
+        let mut owned_any = false;
+        for province in provinces.iter_mut() {
+            if province.owner == Some(fallback_owner) {
+                owned_any = true;
+                break;
+            }
+        }
+        if !owned_any {
+            for mut province in provinces.iter_mut() {
+                province.owner = Some(fallback_owner);
+            }
         }
     }
 
