@@ -3,6 +3,7 @@ use bevy_ecs_tilemap::prelude::*;
 
 use crate::civilians::commands::SelectedCivilian;
 use crate::civilians::{Civilian, CivilianCommand, CivilianKind, CivilianOrderKind};
+use crate::map::rendering::HoveredTile;
 use crate::map::tile_pos::TilePosExt;
 
 pub struct InputPlugin;
@@ -10,14 +11,38 @@ pub struct InputPlugin;
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         // Tile click handling is done via observers attached to tiles in lib.rs
-        app.add_systems(Update, keyboard_input);
+        app.add_systems(Update, (keyboard_input, attach_tile_input_observers));
     }
 }
+
+#[derive(Component)]
+struct TileInputObserversAttached;
 
 fn keyboard_input(keys: Res<ButtonInput<KeyCode>>, mut commands: Commands) {
     if keys.just_pressed(KeyCode::KeyP) {
         info!("P key pressed - triggering map pruning");
         commands.insert_resource(crate::map::province_setup::TestMapConfig);
+    }
+}
+
+fn attach_tile_input_observers(
+    mut commands: Commands,
+    tiles: Query<
+        Entity,
+        (
+            With<TilePos>,
+            With<TilemapId>,
+            Without<TileInputObserversAttached>,
+        ),
+    >,
+) {
+    for entity in tiles.iter() {
+        commands
+            .entity(entity)
+            .observe(handle_tile_click)
+            .observe(handle_tile_hover)
+            .observe(handle_tile_out)
+            .insert(TileInputObserversAttached);
     }
 }
 
@@ -145,4 +170,27 @@ pub fn handle_tile_click(
             });
         }
     }
+}
+
+/// Track when mouse enters a tile
+fn handle_tile_hover(
+    trigger: On<Pointer<Over>>,
+    tile_positions: Query<&TilePos>,
+    hovered_tile: Option<ResMut<HoveredTile>>,
+) {
+    let Some(mut hovered_tile) = hovered_tile else {
+        return;
+    };
+
+    if let Ok(tile_pos) = tile_positions.get(trigger.entity) {
+        hovered_tile.0 = Some(*tile_pos);
+    }
+}
+
+/// Track when mouse leaves a tile
+fn handle_tile_out(_trigger: On<Pointer<Out>>, hovered_tile: Option<ResMut<HoveredTile>>) {
+    let Some(mut hovered_tile) = hovered_tile else {
+        return;
+    };
+    hovered_tile.0 = None;
 }

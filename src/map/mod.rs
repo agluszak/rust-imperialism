@@ -2,9 +2,7 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 
 use crate::constants::{MAP_SIZE, TERRAIN_SEED, TILE_SIZE};
-use crate::input::handle_tile_click;
 use crate::resources::{ResourceType, TileResource};
-use crate::ui::components::MapTilemap;
 use crate::ui::menu::AppState;
 
 // Map-related modules
@@ -30,23 +28,30 @@ pub use tiles::*;
 #[derive(Resource)]
 pub struct TilemapCreated;
 
-/// Plugin that handles map initialization and tilemap creation
-pub struct MapSetupPlugin;
+/// Configuration for whether map generation should run.
+#[derive(Resource, Debug, Clone)]
+pub struct MapGenerationConfig {
+    pub enabled: bool,
+}
 
-impl Plugin for MapSetupPlugin {
+impl Default for MapGenerationConfig {
+    fn default() -> Self {
+        Self { enabled: true }
+    }
+}
+
+/// Plugin that handles map initialization and tilemap data creation.
+pub struct MapLogicPlugin;
+
+impl Plugin for MapLogicPlugin {
     fn build(&self, app: &mut App) {
-        // Terrain atlas loading
-        app.add_systems(
-            Startup,
-            rendering::terrain_atlas::start_terrain_atlas_loading,
-        )
-        .add_systems(
-            Update,
-            rendering::terrain_atlas::build_terrain_atlas_when_ready,
-        );
+        app.init_resource::<MapGenerationConfig>();
 
-        // Tilemap creation (waits for atlas to be ready)
-        app.add_systems(Update, create_tilemap.run_if(in_state(AppState::InGame)));
+        // Tilemap data creation
+        app.add_systems(
+            Update,
+            create_tilemap_data.run_if(in_state(AppState::InGame)),
+        );
 
         // Province generation (runs after tilemap is created)
         app.add_systems(
@@ -63,26 +68,22 @@ impl Plugin for MapSetupPlugin {
     }
 }
 
-fn create_tilemap(
+fn create_tilemap_data(
     mut commands: Commands,
-    terrain_atlas: Option<Res<rendering::TerrainAtlas>>,
+    map_generation: Res<MapGenerationConfig>,
+    tilemaps: Query<Entity, With<TileStorage>>,
     tilemap_created: Option<Res<TilemapCreated>>,
 ) {
+    if !map_generation.enabled {
+        return;
+    }
+
     // Skip if tilemap already created
-    if tilemap_created.is_some() {
+    if tilemap_created.is_some() || !tilemaps.is_empty() {
         return;
     }
 
-    // Wait for the terrain atlas to be built
-    let Some(atlas) = terrain_atlas else {
-        return;
-    };
-
-    if !atlas.ready {
-        return;
-    }
-
-    info!("Terrain atlas ready, creating tilemap...");
+    info!("Creating tilemap data...");
 
     let map_size = TilemapSize {
         x: MAP_SIZE,
@@ -200,11 +201,7 @@ fn create_tilemap(
                 }
             }
 
-            let tile_entity = tile_entity_commands
-                .observe(handle_tile_click)
-                .observe(handle_tile_hover)
-                .observe(handle_tile_out)
-                .id();
+            let tile_entity = tile_entity_commands.id();
             tile_storage.set(&tile_pos, tile_entity);
         }
     }
@@ -231,37 +228,16 @@ fn create_tilemap(
     let map_type = TilemapType::Hexagon(HexCoordSystem::Row);
 
     commands.entity(tilemap_entity).insert((
-        TilemapBundle {
-            grid_size,
-            map_type,
-            size: map_size,
-            storage: tile_storage,
-            texture: TilemapTexture::Single(atlas.texture.clone()),
-            tile_size,
-            anchor: TilemapAnchor::Center,
-            ..Default::default()
-        },
-        MapTilemap, // Marker to control visibility
+        grid_size,
+        map_type,
+        map_size,
+        tile_storage,
+        tile_size,
+        TilemapAnchor::Center,
     ));
 
     // Mark tilemap as created
     commands.insert_resource(TilemapCreated);
 
     info!("Tilemap created successfully with resources!");
-}
-
-/// Track when mouse enters a tile
-fn handle_tile_hover(
-    trigger: On<Pointer<Over>>,
-    tile_positions: Query<&TilePos>,
-    mut hovered_tile: ResMut<rendering::HoveredTile>,
-) {
-    if let Ok(tile_pos) = tile_positions.get(trigger.entity) {
-        hovered_tile.0 = Some(*tile_pos);
-    }
-}
-
-/// Track when mouse leaves a tile
-fn handle_tile_out(_trigger: On<Pointer<Out>>, mut hovered_tile: ResMut<rendering::HoveredTile>) {
-    hovered_tile.0 = None;
 }

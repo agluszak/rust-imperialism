@@ -2,23 +2,7 @@
 //!
 //! This library exposes the core game components for testing and potential reuse.
 
-use crate::ai::AiPlugin;
-use crate::civilians::{CivilianPlugin, CivilianRenderingPlugin};
-use crate::diplomacy::DiplomacyPlugin;
-use crate::economy::EconomyPlugin;
-use crate::helpers::camera::CameraPlugin;
-use crate::helpers::picking::TilemapBackend;
-use crate::input::InputPlugin;
-use crate::map::MapSetupPlugin;
-use crate::map::rendering::border_rendering::BorderRenderingPlugin;
-use crate::map::rendering::city_rendering::CityRenderingPlugin;
-use crate::map::rendering::improvement_rendering::ImprovementRenderingPlugin;
-use crate::map::rendering::prospecting_markers::ProspectingMarkersPlugin;
-use crate::map::rendering::{TransportDebugPlugin, TransportRenderingPlugin};
-use crate::save::GameSavePlugin;
-use crate::ships::ShipsPlugin;
-use crate::turn_system::TurnSystemPlugin;
-use crate::ui::GameUIPlugin;
+use crate::plugins::{LogicPlugins, MapRenderingPlugins, PlayerInputPlugins};
 use crate::ui::menu::AppState;
 use crate::ui::mode::GameMode;
 #[cfg(feature = "debug")]
@@ -45,6 +29,7 @@ pub mod input;
 pub mod map;
 pub mod messages;
 pub mod orders;
+pub mod plugins;
 pub mod resources;
 pub mod save;
 pub mod ships;
@@ -73,29 +58,7 @@ pub fn app() -> App {
 
     app
         // Game plugins
-        .add_plugins((
-            TilemapBackend,
-            CameraPlugin,
-            MapSetupPlugin,
-            TurnSystemPlugin,
-            EconomyPlugin,
-            ShipsPlugin,
-            AiPlugin, // New unified AI plugin
-            CivilianPlugin,
-            DiplomacyPlugin,
-        ))
-        .add_plugins((
-            GameUIPlugin,
-            InputPlugin,
-            TransportRenderingPlugin,
-            TransportDebugPlugin,
-            BorderRenderingPlugin,
-            CityRenderingPlugin,
-            ImprovementRenderingPlugin,
-            ProspectingMarkersPlugin,
-            CivilianRenderingPlugin,
-        ))
-        .add_plugins(GameSavePlugin);
+        .add_plugins((LogicPlugins, MapRenderingPlugins, PlayerInputPlugins));
 
     #[cfg(feature = "debug")]
     app.add_plugins((EguiPlugin::default(), WorldInspectorPlugin::new()));

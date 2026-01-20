@@ -5,25 +5,13 @@ use std::path::PathBuf;
 use bevy::app::AppExit;
 use bevy::image::ImagePlugin;
 use bevy::prelude::*;
-use bevy::render::view::screenshot::{save_to_disk, Screenshot, ScreenshotCaptured};
+use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured, save_to_disk};
 use bevy::window::{Window, WindowPlugin, WindowResolution};
 use bevy_ecs_tilemap::prelude::*;
 use moonshine_save::prelude::*;
 use rust_imperialism::bmp_loader::ImperialismBmpLoaderPlugin;
-use rust_imperialism::civilians::commands::SelectedCivilian;
-use rust_imperialism::civilians::types::ProspectingKnowledge;
-use rust_imperialism::civilians::CivilianRenderingPlugin;
-use rust_imperialism::constants::{get_hex_grid_size, MAP_SIZE, TILE_SIZE};
-use rust_imperialism::economy::ConnectedProduction;
-use rust_imperialism::economy::transport::Rails;
-use rust_imperialism::map::rendering::{
-    BorderRenderingPlugin, CityRenderingPlugin, ImprovementRenderingPlugin,
-    ProspectingMarkersPlugin, TransportRenderingPlugin,
-};
-use rust_imperialism::map::rendering::terrain_atlas::{
-    build_terrain_atlas_when_ready, start_terrain_atlas_loading, TerrainAtlas,
-};
-use rust_imperialism::save::GameSavePlugin;
+use rust_imperialism::map::MapGenerationConfig;
+use rust_imperialism::plugins::{LogicPlugins, MapRenderingPlugins};
 use rust_imperialism::ui::components::MapTilemap;
 use rust_imperialism::ui::menu::AppState;
 use rust_imperialism::ui::mode::GameMode;
@@ -49,37 +37,21 @@ fn main() {
             }),
         ImperialismBmpLoaderPlugin,
         TilemapPlugin,
-        GameSavePlugin,
-        TransportRenderingPlugin,
-        BorderRenderingPlugin,
-        CityRenderingPlugin,
-        ImprovementRenderingPlugin,
-        ProspectingMarkersPlugin,
-        CivilianRenderingPlugin,
+        LogicPlugins,
+        MapRenderingPlugins,
     ));
 
     app.insert_state(AppState::InGame);
     app.add_sub_state::<GameMode>();
 
     app.init_resource::<RenderState>();
-    app.insert_resource(ConnectedProduction::default());
-    app.insert_resource(Rails::default());
-    app.insert_resource(SelectedCivilian::default());
-    app.insert_resource(ProspectingKnowledge::default());
+    app.insert_resource(MapGenerationConfig { enabled: false });
     app.insert_resource(ScreenshotPath(screenshot_path));
 
     app.add_observer(on_loaded);
 
-    app.add_systems(Startup, (request_fixture_load, start_terrain_atlas_loading, setup_camera));
-    app.add_systems(
-        Update,
-        (
-            clear_loaded_tilemap_refs,
-            build_terrain_atlas_when_ready,
-            build_tilemap_from_fixture,
-        )
-            .chain(),
-    );
+    app.add_systems(Startup, (request_fixture_load, setup_camera));
+    app.add_systems(Update, mark_tilemap_ready);
     app.add_systems(Update, (fit_camera_to_map, request_screenshot));
 
     app.run();
@@ -88,7 +60,6 @@ fn main() {
 #[derive(Resource, Default)]
 struct RenderState {
     loaded: bool,
-    cleared: bool,
     tilemap_ready: bool,
     camera_fitted: bool,
     frames_since_ready: u32,
@@ -115,26 +86,6 @@ fn on_loaded(_: On<Loaded>, mut state: ResMut<RenderState>) {
     state.loaded = true;
 }
 
-fn clear_loaded_tilemap_refs(
-    mut commands: Commands,
-    mut state: ResMut<RenderState>,
-    tilemaps: Query<Entity, With<TileStorage>>,
-    tiles: Query<Entity, With<TilemapId>>,
-) {
-    if !state.loaded || state.cleared {
-        return;
-    }
-
-    for entity in tilemaps.iter() {
-        commands.entity(entity).despawn();
-    }
-    for entity in tiles.iter() {
-        commands.entity(entity).remove::<TilemapId>();
-    }
-
-    state.cleared = true;
-}
-
 fn setup_camera(mut commands: Commands) {
     commands.spawn((
         Camera2d,
@@ -145,68 +96,13 @@ fn setup_camera(mut commands: Commands) {
     ));
 }
 
-fn build_tilemap_from_fixture(
-    mut commands: Commands,
-    mut state: ResMut<RenderState>,
-    atlas: Option<Res<TerrainAtlas>>,
-    tiles: Query<(Entity, &TilePos), With<TileTextureIndex>>,
-) {
-    if state.tilemap_ready || !state.loaded || !state.cleared {
+fn mark_tilemap_ready(tilemaps: Query<Entity, With<MapTilemap>>, mut state: ResMut<RenderState>) {
+    if state.tilemap_ready || !state.loaded {
         return;
     }
 
-    let Some(atlas) = atlas else {
+    if tilemaps.is_empty() {
         return;
-    };
-    if !atlas.ready {
-        return;
-    }
-
-    let mut tile_entries = Vec::new();
-    for (entity, pos) in tiles.iter() {
-        tile_entries.push((entity, *pos));
-    }
-
-    if tile_entries.is_empty() {
-        return;
-    }
-
-    let map_size = TilemapSize {
-        x: MAP_SIZE,
-        y: MAP_SIZE,
-    };
-
-    let mut tile_storage = TileStorage::empty(map_size);
-    for (entity, pos) in tile_entries.iter() {
-        tile_storage.set(pos, *entity);
-    }
-
-    let tile_size = TilemapTileSize {
-        x: TILE_SIZE,
-        y: TILE_SIZE,
-    };
-    let grid_size = get_hex_grid_size();
-    let map_type = TilemapType::Hexagon(HexCoordSystem::Row);
-
-    let tilemap_entity = commands
-        .spawn((
-            TilemapBundle {
-                grid_size,
-                map_type,
-                size: map_size,
-                storage: tile_storage,
-                texture: TilemapTexture::Single(atlas.texture.clone()),
-                tile_size,
-                anchor: TilemapAnchor::Center,
-                ..default()
-            },
-            MapTilemap,
-        ))
-        .id();
-
-    for (entity, pos) in tile_entries {
-        commands.entity(entity).insert(pos);
-        commands.entity(entity).insert(TilemapId(tilemap_entity));
     }
 
     state.tilemap_ready = true;
