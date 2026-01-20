@@ -5,14 +5,9 @@ use bevy::prelude::*;
 use bevy::state::app::StatesPlugin;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapId, TilemapSize};
 use moonshine_save::prelude::*;
-use rust_imperialism::ai::AiPlugin;
-use rust_imperialism::civilians::CivilianPlugin;
-use rust_imperialism::civilians::NextCivilianId;
-use rust_imperialism::economy::EconomyPlugin;
-use rust_imperialism::economy::transport::Rails;
-use rust_imperialism::save::GameSavePlugin;
+use rust_imperialism::map::MapGenerationConfig;
+use rust_imperialism::plugins::LogicPlugins;
 use rust_imperialism::turn_system::TurnPhase;
-use rust_imperialism::turn_system::TurnSystemPlugin;
 use rust_imperialism::ui::menu::AppState;
 use rust_imperialism::ui::mode::GameMode;
 
@@ -55,12 +50,9 @@ pub fn create_fixture_test_app() -> bevy::app::App {
     app.insert_state(AppState::InGame);
     app.add_sub_state::<GameMode>();
 
-    // Add save plugin for loading
-    app.add_plugins(GameSavePlugin);
-
-    // Initialize resources that loaded data needs
-    app.init_resource::<NextCivilianId>();
-    app.insert_resource(Rails::default());
+    app.add_plugins(LogicPlugins {
+        map_generation: MapGenerationConfig { enabled: false },
+    });
 
     // Add load completion tracking
     app.init_resource::<FixtureLoadCompleted>();
@@ -78,13 +70,9 @@ pub fn create_fixture_simulation_app() -> bevy::app::App {
     app.insert_state(AppState::InGame);
     app.add_sub_state::<GameMode>();
 
-    app.add_plugins((
-        TurnSystemPlugin,
-        EconomyPlugin,
-        AiPlugin,
-        CivilianPlugin,
-        GameSavePlugin,
-    ));
+    app.add_plugins(LogicPlugins {
+        map_generation: MapGenerationConfig { enabled: false },
+    });
 
     app.init_resource::<FixtureLoadCompleted>();
     app.add_observer(on_fixture_loaded);

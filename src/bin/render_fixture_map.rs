@@ -37,7 +37,9 @@ fn main() {
             }),
         ImperialismBmpLoaderPlugin,
         TilemapPlugin,
-        LogicPlugins,
+        LogicPlugins {
+            map_generation: MapGenerationConfig { enabled: false },
+        },
         MapRenderingPlugins,
     ));
 
@@ -45,7 +47,6 @@ fn main() {
     app.add_sub_state::<GameMode>();
 
     app.init_resource::<RenderState>();
-    app.insert_resource(MapGenerationConfig { enabled: false });
     app.insert_resource(ScreenshotPath(screenshot_path));
 
     app.add_observer(on_loaded);

@@ -41,11 +41,14 @@ impl Default for MapGenerationConfig {
 }
 
 /// Plugin that handles map initialization and tilemap data creation.
-pub struct MapLogicPlugin;
+#[derive(Debug, Clone, Default)]
+pub struct MapLogicPlugin {
+    pub generation: MapGenerationConfig,
+}
 
 impl Plugin for MapLogicPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<MapGenerationConfig>();
+        app.insert_resource(self.generation.clone());
 
         // Tilemap data creation
         app.add_systems(

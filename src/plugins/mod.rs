@@ -7,23 +7,28 @@ use crate::economy::EconomyPlugin;
 use crate::helpers::camera::CameraPlugin;
 use crate::helpers::picking::TilemapBackend;
 use crate::input::InputPlugin;
-use crate::map::MapLogicPlugin;
 use crate::map::rendering::{
     BorderRenderingPlugin, CityRenderingPlugin, ImprovementRenderingPlugin, MapRenderingPlugin,
     ProspectingMarkersPlugin, TransportDebugPlugin, TransportRenderingPlugin,
 };
+use crate::map::{MapGenerationConfig, MapLogicPlugin};
 use crate::save::GameSavePlugin;
 use crate::ships::ShipsPlugin;
 use crate::turn_system::TurnSystemPlugin;
 use crate::ui::GameUIPlugin;
 
 /// Core game logic plugins (no rendering or player input).
-pub struct LogicPlugins;
+#[derive(Debug, Clone, Default)]
+pub struct LogicPlugins {
+    pub map_generation: MapGenerationConfig,
+}
 
 impl Plugin for LogicPlugins {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            MapLogicPlugin,
+            MapLogicPlugin {
+                generation: self.map_generation.clone(),
+            },
             TurnSystemPlugin,
             EconomyPlugin,
             ShipsPlugin,

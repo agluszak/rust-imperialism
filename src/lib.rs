@@ -58,7 +58,11 @@ pub fn app() -> App {
 
     app
         // Game plugins
-        .add_plugins((LogicPlugins, MapRenderingPlugins, PlayerInputPlugins));
+        .add_plugins((
+            LogicPlugins::default(),
+            MapRenderingPlugins,
+            PlayerInputPlugins,
+        ));
 
     #[cfg(feature = "debug")]
     app.add_plugins((EguiPlugin::default(), WorldInspectorPlugin::new()));

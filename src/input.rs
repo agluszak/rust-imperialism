@@ -10,7 +10,7 @@ pub struct InputPlugin;
 
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
-        // Tile click handling is done via observers attached to tiles in lib.rs
+        // Tile click handling is done via observers attached to tiles here.
         app.add_systems(Update, (keyboard_input, attach_tile_input_observers));
     }
 }
