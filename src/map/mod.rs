@@ -50,19 +50,8 @@ impl Plugin for ProvinceGenerationPlugin {
     }
 }
 
-/// Plugin that handles map logic (no rendering, no automatic province generation)
-/// Use this for headless tests that create their own map setup
-pub struct MapLogicPlugin;
-
-impl Plugin for MapLogicPlugin {
-    fn build(&self, _app: &mut App) {
-        // Currently empty - map logic is handled by other systems
-        // This plugin exists for consistency and future extensibility
-    }
-}
-
 /// Plugin that handles map rendering (tilemap creation with textures)
-/// Use this with MapLogicPlugin for visual output
+/// Use this for visual output with rendering
 pub struct MapRenderingPlugin;
 
 impl Plugin for MapRenderingPlugin {
@@ -82,14 +71,13 @@ impl Plugin for MapRenderingPlugin {
     }
 }
 
-/// Legacy plugin that combines rendering and province generation
+/// Plugin that combines rendering and province generation
 /// Use this for the full game that generates maps from scratch
 pub struct MapSetupPlugin;
 
 impl Plugin for MapSetupPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            MapLogicPlugin,
             MapRenderingPlugin,
             ProvinceGenerationPlugin,
         ));

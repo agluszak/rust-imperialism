@@ -9,7 +9,7 @@ use crate::economy::EconomyPlugin;
 use crate::helpers::camera::CameraPlugin;
 use crate::helpers::picking::TilemapBackend;
 use crate::input::InputPlugin;
-use crate::map::{MapLogicPlugin, MapRenderingPlugin, ProvinceGenerationPlugin};
+use crate::map::{MapRenderingPlugin, ProvinceGenerationPlugin};
 use crate::map::rendering::border_rendering::BorderRenderingPlugin;
 use crate::map::rendering::city_rendering::CityRenderingPlugin;
 use crate::map::rendering::improvement_rendering::ImprovementRenderingPlugin;
@@ -59,7 +59,6 @@ pub struct LogicPlugins;
 impl PluginGroup for LogicPlugins {
     fn build(self) -> bevy::app::PluginGroupBuilder {
         bevy::app::PluginGroupBuilder::start::<Self>()
-            .add(MapLogicPlugin)
             .add(TurnSystemPlugin)
             .add(EconomyPlugin)
             .add(ShipsPlugin)

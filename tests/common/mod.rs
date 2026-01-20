@@ -5,8 +5,6 @@ use bevy::prelude::*;
 use bevy::state::app::StatesPlugin;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapId, TilemapSize};
 use moonshine_save::prelude::*;
-use rust_imperialism::civilians::NextCivilianId;
-use rust_imperialism::economy::transport::Rails;
 use rust_imperialism::turn_system::TurnPhase;
 use rust_imperialism::ui::menu::AppState;
 use rust_imperialism::ui::mode::GameMode;
@@ -52,11 +50,8 @@ pub fn create_fixture_test_app() -> bevy::app::App {
     app.add_sub_state::<GameMode>();
 
     // Add only logic plugins (headless)
+    // All necessary resources are initialized by the plugins themselves
     app.add_plugins(LogicPlugins);
-
-    // Initialize resources that loaded data needs (but are not in LogicPlugins)
-    app.init_resource::<NextCivilianId>();
-    app.insert_resource(Rails::default());
 
     // Add load completion tracking
     app.init_resource::<FixtureLoadCompleted>();
