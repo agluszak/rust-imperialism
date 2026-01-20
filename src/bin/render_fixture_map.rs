@@ -47,8 +47,9 @@ fn main() {
     app.insert_state(AppState::InGame);
 
     app.add_observer(on_loaded);
+    app.add_observer(exit_after_capture);
 
-    app.add_systems(Startup, (request_fixture_load, setup_camera));
+    app.add_systems(Startup, request_fixture_load);
     app.add_systems(
         Update,
         (clear_loaded_tilemap_refs, build_tilemap_from_fixture).chain(),
@@ -106,16 +107,6 @@ fn clear_loaded_tilemap_refs(
     }
 
     state.cleared = true;
-}
-
-fn setup_camera(mut commands: Commands) {
-    commands.spawn((
-        Camera2d,
-        Projection::Orthographic(OrthographicProjection {
-            scale: 1.0,
-            ..OrthographicProjection::default_2d()
-        }),
-    ));
 }
 
 fn build_tilemap_from_fixture(
@@ -256,8 +247,7 @@ fn request_screenshot(
 
     commands
         .spawn(Screenshot::primary_window())
-        .observe(save_to_disk(path.0.clone()))
-        .observe(exit_after_capture);
+        .observe(save_to_disk(path.0.clone()));
 
     state.screenshot_requested = true;
 }

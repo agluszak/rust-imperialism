@@ -12,8 +12,7 @@ pub struct InputPlugin;
 
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<SelectedCivilian>()
-            .add_systems(Update, keyboard_input);
+        app.add_systems(Update, keyboard_input);
 
         // Map tile input setup
         app.add_systems(
@@ -60,7 +59,7 @@ fn keyboard_input(keys: Res<ButtonInput<KeyCode>>, mut commands: Commands) {
 /// Handle tile clicks when any civilian is selected
 pub fn handle_tile_click(
     trigger: On<Pointer<Click>>,
-    selected_civilian: Res<SelectedCivilian>,
+    selected_civilian: Option<Res<SelectedCivilian>>,
     tile_positions: Query<&TilePos>,
     civilians: Query<(Entity, &Civilian)>,
     potential_minerals: Query<&crate::map::PotentialMineral>,
@@ -73,9 +72,10 @@ pub fn handle_tile_click(
     };
 
     // Get the selected civilian
-    let Some(selected) = selected_civilian.0 else {
+    let Some(selected_civilian) = selected_civilian else {
         return;
     };
+    let selected = selected_civilian.0;
     let Some((civilian_entity, civilian)) =
         civilians.iter().find(|(entity, _)| *entity == selected)
     else {

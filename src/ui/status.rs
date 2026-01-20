@@ -79,7 +79,7 @@ pub fn update_treasury_display(
 /// Update tile info display based on hovered tile
 pub fn update_tile_info_display(
     hovered_tile: Res<HoveredTile>,
-    selected_civilian: Res<SelectedCivilian>,
+    selected_civilian: Option<Res<SelectedCivilian>>,
     tile_storage_query: Query<&TileStorage>,
     tile_types: Query<&TerrainType>,
     tile_provinces: Query<&TileProvince>,
@@ -152,7 +152,8 @@ pub fn update_tile_info_display(
 
                     // If an engineer is selected, show buildability
                     let selected_engineer = selected_civilian
-                        .0
+                        .as_deref()
+                        .map(|selected| selected.0)
                         .and_then(|selected| {
                             civilians.iter().find(|(entity, _)| *entity == selected)
                         })

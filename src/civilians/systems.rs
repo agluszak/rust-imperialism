@@ -49,28 +49,38 @@ pub fn handle_deselect_key(
 
 /// Handle deselection event
 pub fn handle_deselection(
+    mut commands: Commands,
     mut events: MessageReader<DeselectCivilian>,
-    mut selected: ResMut<SelectedCivilian>,
+    selected: Option<Res<SelectedCivilian>>,
 ) {
+    let Some(selected) = selected else {
+        events.clear();
+        return;
+    };
+
+    let mut should_remove = false;
     for _ in events.read() {
-        if let Some(entity) = selected.0 {
-            info!("Deselected civilian {:?}", entity);
-            selected.0 = None;
-        }
+        should_remove = true;
+    }
+    if should_remove {
+        info!("Deselected civilian {:?}", selected.0);
+        commands.remove_resource::<SelectedCivilian>();
     }
 }
 
 /// Handle civilian selection events
 pub fn handle_civilian_selection(
+    mut commands: Commands,
     player_nation: Option<Res<crate::economy::PlayerNation>>,
     mut events: MessageReader<SelectCivilian>,
-    mut selected: ResMut<SelectedCivilian>,
+    selected: Option<Res<SelectedCivilian>>,
     civilians: Query<&Civilian>,
 ) {
     let Some(player) = player_nation else {
         return; // No player nation set yet
     };
 
+    let mut current_selection = selected.map(|selected| selected.0);
     for event in events.read() {
         info!(
             "Processing SelectCivilian event for entity {:?}",
@@ -92,13 +102,14 @@ pub fn handle_civilian_selection(
         }
 
         // If this unit is already selected, do nothing
-        if selected.0 == Some(event.entity) {
+        if current_selection == Some(event.entity) {
             info!("Civilian {:?} is already selected", event.entity);
             continue;
         }
 
         // Select the new civilian (automatically deselects any previously selected one)
-        selected.0 = Some(event.entity);
+        commands.insert_resource(SelectedCivilian(event.entity));
+        current_selection = Some(event.entity);
         info!("Selected civilian {:?}", event.entity);
     }
 }

@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
-/// UI-only resource tracking which civilian is currently selected
-/// This is purely for UI purposes and should not affect game logic
-#[derive(Resource, Default, Debug)]
-pub struct SelectedCivilian(pub Option<Entity>);
+/// UI-only resource tracking which civilian is currently selected.
+/// This resource exists only while a civilian is selected.
+#[derive(Resource, Debug, Clone, Copy)]
+pub struct SelectedCivilian(pub Entity);
 
 /// Message: Player selects a civilian unit
 #[derive(Message, Debug, Clone, Copy)]

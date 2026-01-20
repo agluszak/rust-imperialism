@@ -55,11 +55,12 @@ pub fn render_civilian_visuals(
 /// Update civilian visual colors based on selection, job status, and movement
 /// Uses relationship pattern for O(1) sprite lookups
 pub fn update_civilian_visual_colors(
-    selected: Res<SelectedCivilian>,
+    selected: Option<Res<SelectedCivilian>>,
     civilians: Query<(Entity, &Civilian, Option<&CivilianJob>, Option<&MapVisual>)>,
     mut visuals: Query<(&mut Sprite, &mut Transform)>,
     time: Res<Time>,
 ) {
+    let selected_entity = selected.as_deref().map(|s| s.0);
     // Calculate blink factor for working civilians (oscillates between 0.5 and 1.0)
     let blink_factor = (time.elapsed_secs() * 2.0).sin() * 0.25 + 0.75;
 
@@ -74,7 +75,7 @@ pub fn update_civilian_visual_colors(
             // 2. Working on job (green blink)
             // 3. Moved this turn (desaturated)
             // 4. Default (white)
-            let is_selected = selected.0 == Some(civilian_entity);
+            let is_selected = selected_entity == Some(civilian_entity);
             let color = if is_selected {
                 ENGINEER_SELECTED_COLOR
             } else if job.is_some() {

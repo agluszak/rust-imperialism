@@ -282,7 +282,7 @@ pub fn render_shadow_rail(
 ) {
     // Find selected Engineer (Optimized O(1) lookup)
     let selected_engineer = selected_civilian
-        .and_then(|s| s.0)
+        .map(|s| s.0)
         .and_then(|entity| civilians.get(entity).ok())
         .filter(|(_, c)| c.kind == CivilianKind::Engineer)
         .map(|(_, c)| c);
