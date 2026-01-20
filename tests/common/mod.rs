@@ -5,14 +5,11 @@ use bevy::prelude::*;
 use bevy::state::app::StatesPlugin;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapId, TilemapSize};
 use moonshine_save::prelude::*;
-use rust_imperialism::ai::AiPlugin;
-use rust_imperialism::civilians::CivilianPlugin;
+use rust_imperialism::LogicPlugins;
 use rust_imperialism::civilians::NextCivilianId;
-use rust_imperialism::economy::EconomyPlugin;
 use rust_imperialism::economy::transport::Rails;
 use rust_imperialism::save::GameSavePlugin;
 use rust_imperialism::turn_system::TurnPhase;
-use rust_imperialism::turn_system::TurnSystemPlugin;
 use rust_imperialism::ui::menu::AppState;
 use rust_imperialism::ui::mode::GameMode;
 
@@ -74,17 +71,11 @@ pub fn create_fixture_simulation_app() -> bevy::app::App {
     let mut app = bevy::app::App::new();
     app.add_plugins((MinimalPlugins, StatesPlugin));
 
-    app.init_state::<TurnPhase>();
-    app.insert_state(AppState::InGame);
-    app.add_sub_state::<GameMode>();
+    // Use LogicPlugins (includes MapLogic but NOT MapGenerationPlugin)
+    app.add_plugins(LogicPlugins);
 
-    app.add_plugins((
-        TurnSystemPlugin,
-        EconomyPlugin,
-        AiPlugin,
-        CivilianPlugin,
-        GameSavePlugin,
-    ));
+    // Force InGame state to trigger plugin systems
+    app.insert_state(AppState::InGame);
 
     app.init_resource::<FixtureLoadCompleted>();
     app.add_observer(on_fixture_loaded);

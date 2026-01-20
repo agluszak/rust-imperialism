@@ -8,21 +8,6 @@ use crate::map::tile_pos::TilePosExt;
 use crate::resources::ResourceType;
 use crate::ui::components::MapTilemap;
 
-/// Plugin to render prospecting result markers
-pub struct ProspectingMarkersPlugin;
-
-impl Plugin for ProspectingMarkersPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                render_prospected_empty_markers,
-                render_prospected_mineral_markers,
-            ),
-        );
-    }
-}
-
 const MARKER_SIZE: f32 = 20.0;
 const MARKER_OFFSET_Y: f32 = 15.0; // Offset from tile center
 

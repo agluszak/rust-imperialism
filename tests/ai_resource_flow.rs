@@ -15,7 +15,6 @@ fn test_ai_resource_discovery_and_collection() {
     use rust_imperialism::ai::{AiControlledCivilian, AiNation};
     use rust_imperialism::civilians::{Civilian, CivilianKind};
     use rust_imperialism::economy::{
-        EconomyPlugin,
         nation::{Capital, Nation},
         production::Buildings,
         stockpile::Stockpile,
@@ -28,26 +27,20 @@ fn test_ai_resource_discovery_and_collection() {
         province::{Province, ProvinceId, TileProvince},
     };
     use rust_imperialism::resources::{ResourceType, TileResource};
-    use rust_imperialism::turn_system::{TurnPhase, TurnSystemPlugin};
+    use rust_imperialism::turn_system::TurnPhase;
     use rust_imperialism::ui::menu::AppState;
-    use rust_imperialism::ui::mode::GameMode;
+
+    use rust_imperialism::LogicPlugins;
 
     // Create a headless app with minimal plugins
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, StatesPlugin));
 
-    // Initialize game states
-    app.init_state::<TurnPhase>();
-    app.insert_state(AppState::InGame);
-    app.add_sub_state::<GameMode>(); // Required for CivilianPlugin systems
+    // Add LogicPlugins (includes MapLogic but NOT MapGenerationPlugin)
+    app.add_plugins(LogicPlugins);
 
-    // Add only the necessary game plugins (no rendering)
-    app.add_plugins((
-        TurnSystemPlugin,
-        EconomyPlugin,
-        rust_imperialism::ai::AiPlugin,
-        rust_imperialism::civilians::CivilianPlugin,
-    ));
+    // Force InGame state to trigger plugin systems
+    app.insert_state(AppState::InGame);
 
     // Manually create a small test map (5x5)
     let map_size = TilemapSize { x: 10, y: 10 };
@@ -348,7 +341,6 @@ fn test_ai_respects_terrain_constraints() {
     use rust_imperialism::ai::{AiControlledCivilian, AiNation, AiSnapshot};
     use rust_imperialism::civilians::{Civilian, CivilianKind};
     use rust_imperialism::economy::{
-        EconomyPlugin,
         nation::{Capital, Nation},
         production::Buildings,
         stockpile::Stockpile,
@@ -360,26 +352,20 @@ fn test_ai_respects_terrain_constraints() {
         tiles::TerrainType,
     };
     use rust_imperialism::resources::{ResourceType, TileResource};
-    use rust_imperialism::turn_system::{TurnPhase, TurnSystemPlugin};
+    use rust_imperialism::turn_system::TurnPhase;
     use rust_imperialism::ui::menu::AppState;
-    use rust_imperialism::ui::mode::GameMode;
+
+    use rust_imperialism::LogicPlugins;
 
     // Create a headless app with minimal plugins
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, StatesPlugin));
 
-    // Initialize game states
-    app.init_state::<TurnPhase>();
-    app.insert_state(AppState::InGame);
-    app.add_sub_state::<GameMode>();
+    // Add LogicPlugins (includes MapLogic but NOT MapGenerationPlugin)
+    app.add_plugins(LogicPlugins);
 
-    // Add necessary game plugins
-    app.add_plugins((
-        TurnSystemPlugin,
-        EconomyPlugin,
-        rust_imperialism::ai::AiPlugin,
-        rust_imperialism::civilians::CivilianPlugin,
-    ));
+    // Force InGame state to trigger plugin systems
+    app.insert_state(AppState::InGame);
 
     // Create a test map with varied terrain
     let map_size = TilemapSize { x: 10, y: 10 };
@@ -544,7 +530,6 @@ fn test_two_engineers_splitting_paths() {
     use rust_imperialism::ai::{AiControlledCivilian, AiNation};
     use rust_imperialism::civilians::{Civilian, CivilianKind};
     use rust_imperialism::economy::{
-        EconomyPlugin,
         nation::{Capital, Nation},
         production::Buildings,
         stockpile::Stockpile,
@@ -554,26 +539,20 @@ fn test_two_engineers_splitting_paths() {
     };
     use rust_imperialism::map::province::{Province, ProvinceId, TileProvince};
     use rust_imperialism::map::tiles::TerrainType;
-    use rust_imperialism::turn_system::{TurnCounter, TurnPhase, TurnSystemPlugin};
+    use rust_imperialism::turn_system::{TurnCounter, TurnPhase};
     use rust_imperialism::ui::menu::AppState;
-    use rust_imperialism::ui::mode::GameMode;
+
+    use rust_imperialism::LogicPlugins;
 
     // Create a headless app with minimal plugins
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, StatesPlugin));
 
-    // Initialize game states
-    app.init_state::<TurnPhase>();
-    app.insert_state(AppState::InGame);
-    app.add_sub_state::<GameMode>();
+    // Add LogicPlugins (includes MapLogic but NOT MapGenerationPlugin)
+    app.add_plugins(LogicPlugins);
 
-    // Add game plugins
-    app.add_plugins((
-        TurnSystemPlugin,
-        EconomyPlugin,
-        rust_imperialism::ai::AiPlugin,
-        rust_imperialism::civilians::CivilianPlugin,
-    ));
+    // Force InGame state to trigger plugin systems
+    app.insert_state(AppState::InGame);
 
     let map_size = TilemapSize { x: 30, y: 30 };
     let mut tile_storage = TileStorage::empty(map_size);

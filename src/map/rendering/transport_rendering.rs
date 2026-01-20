@@ -9,8 +9,6 @@ use crate::economy::{Depot, Port, Rails};
 use crate::map::rendering::{MapVisual, MapVisualFor};
 use crate::map::tile_pos::TilePosExt;
 use crate::ui::components::MapTilemap;
-use crate::ui::menu::AppState;
-use crate::ui::mode::GameMode;
 
 /// Resource tracking the currently hovered tile
 #[derive(Resource, Default)]
@@ -207,27 +205,9 @@ fn spawn_structure_visual<T: Component + StructureVisual>(
     ));
 }
 
-pub struct TransportRenderingPlugin;
-
-impl Plugin for TransportRenderingPlugin {
-    fn build(&self, app: &mut App) {
-        app.init_resource::<HoveredTile>().add_systems(
-            Update,
-            (
-                render_rails,
-                update_depot_visuals,
-                update_port_visuals,
-                render_shadow_rail,
-            )
-                .run_if(in_state(GameMode::Map))
-                .run_if(in_state(AppState::InGame)),
-        );
-    }
-}
-
 /// Incrementally update rail line visuals to match the Rails resource
 /// Only spawns/despawns changed edges instead of full redraw
-fn render_rails(
+pub fn render_rails(
     mut commands: Commands,
     rails: Res<Rails>,
     existing: Query<(Entity, &RailLineVisual)>,
@@ -250,7 +230,7 @@ fn render_rails(
 
 /// Update depot visual colors based on connectivity
 /// Uses relationship pattern for O(1) sprite lookups and automatic cleanup
-fn update_depot_visuals(
+pub fn update_depot_visuals(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     new_depots: Query<(Entity, &Depot), Added<Depot>>,
@@ -271,7 +251,7 @@ fn update_depot_visuals(
 
 /// Update port visual colors based on connectivity
 /// Uses relationship pattern for O(1) sprite lookups and automatic cleanup
-fn update_port_visuals(
+pub fn update_port_visuals(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     new_ports: Query<(Entity, &Port), Added<Port>>,
@@ -291,9 +271,9 @@ fn update_port_visuals(
 }
 
 /// Render shadow rail preview when hovering over adjacent tiles with Engineer selected
-fn render_shadow_rail(
+pub fn render_shadow_rail(
     mut commands: Commands,
-    selected_civilian: Res<SelectedCivilian>,
+    selected_civilian: Option<Res<SelectedCivilian>>,
     civilians: Query<(Entity, &Civilian)>,
     hovered_tile: Res<HoveredTile>,
     existing_shadow: Query<Entity, With<ShadowRailVisual>>,
@@ -302,7 +282,7 @@ fn render_shadow_rail(
 ) {
     // Find selected Engineer (Optimized O(1) lookup)
     let selected_engineer = selected_civilian
-        .0
+        .and_then(|s| s.0)
         .and_then(|entity| civilians.get(entity).ok())
         .filter(|(_, c)| c.kind == CivilianKind::Engineer)
         .map(|(_, c)| c);
