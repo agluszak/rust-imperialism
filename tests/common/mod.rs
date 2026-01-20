@@ -5,16 +5,12 @@ use bevy::prelude::*;
 use bevy::state::app::StatesPlugin;
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapId, TilemapSize};
 use moonshine_save::prelude::*;
-use rust_imperialism::ai::AiPlugin;
-use rust_imperialism::civilians::CivilianPlugin;
 use rust_imperialism::civilians::NextCivilianId;
-use rust_imperialism::economy::EconomyPlugin;
 use rust_imperialism::economy::transport::Rails;
-use rust_imperialism::save::GameSavePlugin;
 use rust_imperialism::turn_system::TurnPhase;
-use rust_imperialism::turn_system::TurnSystemPlugin;
 use rust_imperialism::ui::menu::AppState;
 use rust_imperialism::ui::mode::GameMode;
+use rust_imperialism::LogicPlugins;
 
 /// Helper function to transition between turn phases in tests
 /// Encapsulates the double-update pattern needed for state transitions
@@ -55,10 +51,10 @@ pub fn create_fixture_test_app() -> bevy::app::App {
     app.insert_state(AppState::InGame);
     app.add_sub_state::<GameMode>();
 
-    // Add save plugin for loading
-    app.add_plugins(GameSavePlugin);
+    // Add only logic plugins (headless)
+    app.add_plugins(LogicPlugins);
 
-    // Initialize resources that loaded data needs
+    // Initialize resources that loaded data needs (but are not in LogicPlugins)
     app.init_resource::<NextCivilianId>();
     app.insert_resource(Rails::default());
 
@@ -78,13 +74,8 @@ pub fn create_fixture_simulation_app() -> bevy::app::App {
     app.insert_state(AppState::InGame);
     app.add_sub_state::<GameMode>();
 
-    app.add_plugins((
-        TurnSystemPlugin,
-        EconomyPlugin,
-        AiPlugin,
-        CivilianPlugin,
-        GameSavePlugin,
-    ));
+    // Add only logic plugins (headless)
+    app.add_plugins(LogicPlugins);
 
     app.init_resource::<FixtureLoadCompleted>();
     app.add_observer(on_fixture_loaded);

@@ -26,6 +26,7 @@ use bevy::dev_tools::states::log_transitions;
 use bevy::image::ImagePlugin;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::TilemapPlugin;
+use bevy::app::PluginGroup;
 
 #[cfg(feature = "debug")]
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
@@ -51,6 +52,54 @@ pub mod ships;
 pub mod turn_system;
 pub mod ui;
 
+/// Plugin group for core game logic (headless-compatible)
+/// Use this for tests that don't need rendering or player input
+pub struct LogicPlugins;
+
+impl PluginGroup for LogicPlugins {
+    fn build(self) -> bevy::app::PluginGroupBuilder {
+        bevy::app::PluginGroupBuilder::start::<Self>()
+            .add(MapSetupPlugin)
+            .add(TurnSystemPlugin)
+            .add(EconomyPlugin)
+            .add(ShipsPlugin)
+            .add(AiPlugin)
+            .add(CivilianPlugin)
+            .add(DiplomacyPlugin)
+            .add(GameSavePlugin)
+    }
+}
+
+/// Plugin group for map rendering (requires graphics/window)
+/// Use this with LogicPlugins for visual output without player interaction
+pub struct MapRenderingPlugins;
+
+impl PluginGroup for MapRenderingPlugins {
+    fn build(self) -> bevy::app::PluginGroupBuilder {
+        bevy::app::PluginGroupBuilder::start::<Self>()
+            .add(CameraPlugin)
+            .add(TransportRenderingPlugin)
+            .add(TransportDebugPlugin)
+            .add(BorderRenderingPlugin)
+            .add(CityRenderingPlugin)
+            .add(ImprovementRenderingPlugin)
+            .add(ProspectingMarkersPlugin)
+            .add(CivilianRenderingPlugin)
+    }
+}
+
+/// Plugin group for player input and UI (requires user interaction)
+/// Use this with LogicPlugins and MapRenderingPlugins for full game
+pub struct InputPlugins;
+
+impl PluginGroup for InputPlugins {
+    fn build(self) -> bevy::app::PluginGroupBuilder {
+        bevy::app::PluginGroupBuilder::start::<Self>()
+            .add(GameUIPlugin)
+            .add(InputPlugin)
+    }
+}
+
 pub fn app() -> App {
     let mut app = App::new();
 
@@ -72,30 +121,11 @@ pub fn app() -> App {
         .add_systems(Update, log_transitions::<GameMode>);
 
     app
-        // Game plugins
-        .add_plugins((
-            TilemapBackend,
-            CameraPlugin,
-            MapSetupPlugin,
-            TurnSystemPlugin,
-            EconomyPlugin,
-            ShipsPlugin,
-            AiPlugin, // New unified AI plugin
-            CivilianPlugin,
-            DiplomacyPlugin,
-        ))
-        .add_plugins((
-            GameUIPlugin,
-            InputPlugin,
-            TransportRenderingPlugin,
-            TransportDebugPlugin,
-            BorderRenderingPlugin,
-            CityRenderingPlugin,
-            ImprovementRenderingPlugin,
-            ProspectingMarkersPlugin,
-            CivilianRenderingPlugin,
-        ))
-        .add_plugins(GameSavePlugin);
+        // Game plugins - organized into three groups
+        .add_plugins(TilemapBackend)
+        .add_plugins(LogicPlugins)
+        .add_plugins(MapRenderingPlugins)
+        .add_plugins(InputPlugins);
 
     #[cfg(feature = "debug")]
     app.add_plugins((EguiPlugin::default(), WorldInspectorPlugin::new()));

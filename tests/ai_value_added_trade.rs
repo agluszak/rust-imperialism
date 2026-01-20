@@ -14,7 +14,6 @@ fn test_ai_climbs_value_chain_when_hardware_is_profitable() {
     use rust_imperialism::ai::{AiNation, AiSnapshot, planner::plan_nation};
     use rust_imperialism::civilians::types::ProspectingKnowledge;
     use rust_imperialism::economy::{
-        EconomyPlugin,
         goods::Good,
         nation::{Capital, Nation},
         production::{Buildings, ProductionSettings},
@@ -24,9 +23,10 @@ fn test_ai_climbs_value_chain_when_hardware_is_profitable() {
     };
     use rust_imperialism::map::province::{Province, ProvinceId, TileProvince};
     use rust_imperialism::map::tiles::TerrainType;
-    use rust_imperialism::turn_system::{TurnPhase, TurnSystemPlugin};
+    use rust_imperialism::turn_system::TurnPhase;
     use rust_imperialism::ui::menu::AppState;
     use rust_imperialism::ui::mode::GameMode;
+    use rust_imperialism::LogicPlugins;
 
     // Create a headless app with minimal plugins
     let mut app = App::new();
@@ -37,13 +37,8 @@ fn test_ai_climbs_value_chain_when_hardware_is_profitable() {
     app.insert_state(AppState::InGame);
     app.add_sub_state::<GameMode>();
 
-    // Add game plugins
-    app.add_plugins((
-        TurnSystemPlugin,
-        EconomyPlugin,
-        rust_imperialism::ai::AiPlugin,
-        rust_imperialism::civilians::CivilianPlugin,
-    ));
+    // Add only logic plugins (headless)
+    app.add_plugins(LogicPlugins);
 
     // Initialize required resources
     app.init_resource::<ProspectingKnowledge>();

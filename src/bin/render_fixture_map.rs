@@ -12,21 +12,16 @@ use moonshine_save::prelude::*;
 use rust_imperialism::bmp_loader::ImperialismBmpLoaderPlugin;
 use rust_imperialism::civilians::commands::SelectedCivilian;
 use rust_imperialism::civilians::types::ProspectingKnowledge;
-use rust_imperialism::civilians::CivilianRenderingPlugin;
 use rust_imperialism::constants::{get_hex_grid_size, MAP_SIZE, TILE_SIZE};
 use rust_imperialism::economy::ConnectedProduction;
 use rust_imperialism::economy::transport::Rails;
-use rust_imperialism::map::rendering::{
-    BorderRenderingPlugin, CityRenderingPlugin, ImprovementRenderingPlugin,
-    ProspectingMarkersPlugin, TransportRenderingPlugin,
-};
 use rust_imperialism::map::rendering::terrain_atlas::{
     build_terrain_atlas_when_ready, start_terrain_atlas_loading, TerrainAtlas,
 };
-use rust_imperialism::save::GameSavePlugin;
 use rust_imperialism::ui::components::MapTilemap;
 use rust_imperialism::ui::menu::AppState;
 use rust_imperialism::ui::mode::GameMode;
+use rust_imperialism::{LogicPlugins, MapRenderingPlugins};
 
 fn main() {
     let screenshot_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -35,6 +30,7 @@ fn main() {
 
     let mut app = App::new();
 
+    // Use map rendering and logic plugins (no input)
     app.add_plugins((
         DefaultPlugins
             .set(ImagePlugin::default_nearest())
@@ -49,13 +45,8 @@ fn main() {
             }),
         ImperialismBmpLoaderPlugin,
         TilemapPlugin,
-        GameSavePlugin,
-        TransportRenderingPlugin,
-        BorderRenderingPlugin,
-        CityRenderingPlugin,
-        ImprovementRenderingPlugin,
-        ProspectingMarkersPlugin,
-        CivilianRenderingPlugin,
+        LogicPlugins,
+        MapRenderingPlugins,
     ));
 
     app.insert_state(AppState::InGame);
