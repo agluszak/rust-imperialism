@@ -11,15 +11,26 @@ use crate::map::tile_pos::TilePosExt;
 const ENGINEER_SIZE: f32 = 64.0; // Match tile size
 const ENGINEER_SELECTED_COLOR: Color = Color::srgb(1.0, 0.8, 0.0); // Yellow/gold tint for selected units
 
-/// Create visual sprites for newly added civilian units
-/// Uses relationship pattern - sprite automatically despawns when civilian is removed
+/// Create visual sprites for civilians that don't yet have one.
+/// Uses relationship pattern - sprite automatically despawns when civilian is removed.
 pub fn render_civilian_visuals(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    new_civilians: Query<(Entity, &Civilian), Added<Civilian>>,
+    civilians: Query<(Entity, &Civilian, Option<&MapVisual>)>,
+    visuals: Query<(), With<MapVisualFor>>,
 ) {
-    // Only process newly added civilians - relationship handles cleanup automatically
-    for (civilian_entity, civilian) in new_civilians.iter() {
+    // Only process civilians missing a visual or with a stale visual reference.
+    for (civilian_entity, civilian, visual) in civilians.iter() {
+        let needs_visual = match visual {
+            None => true,
+            Some(visual) => visuals.get(visual.entity()).is_err(),
+        };
+        if !needs_visual {
+            continue;
+        }
+        if visual.is_some() {
+            commands.entity(civilian_entity).remove::<MapVisual>();
+        }
         let pos = civilian.position.to_world_pos();
 
         // Load the appropriate sprite for this civilian type

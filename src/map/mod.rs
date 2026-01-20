@@ -34,9 +34,7 @@ pub struct TilemapCreated;
 pub struct MapLogicPlugin;
 
 impl Plugin for MapLogicPlugin {
-    fn build(&self, app: &mut App) {
-        app.init_resource::<province_setup::ProvincesGenerated>();
-    }
+    fn build(&self, _app: &mut App) {}
 }
 
 /// Plugin that handles random map and province generation
