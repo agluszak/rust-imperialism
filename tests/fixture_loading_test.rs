@@ -78,15 +78,13 @@ fn test_red_nation_has_connected_rail_after_20_turns() {
         let world = app.world_mut();
         let red_color = Color::srgb(0.8, 0.2, 0.2);
         let mut nations_query = world.query::<(Entity, &NationColor, &Capital)>();
-        let red_nation = nations_query
-            .iter(world)
-            .find(|(_, color, _)| {
-                let linear = color.0.to_linear();
-                let expected = red_color.to_linear();
-                (linear.red - expected.red).abs() < 0.01
-                    && (linear.green - expected.green).abs() < 0.01
-                    && (linear.blue - expected.blue).abs() < 0.01
-            });
+        let red_nation = nations_query.iter(world).find(|(_, color, _)| {
+            let linear = color.0.to_linear();
+            let expected = red_color.to_linear();
+            (linear.red - expected.red).abs() < 0.01
+                && (linear.green - expected.green).abs() < 0.01
+                && (linear.blue - expected.blue).abs() < 0.01
+        });
 
         let (red_entity, _, capital) = red_nation.expect("Red nation with capital should exist");
         let rails_edges = world
@@ -103,19 +101,11 @@ fn test_red_nation_has_connected_rail_after_20_turns() {
     let has_target_edge = rails_edges
         .iter()
         .any(|(a, b)| *a == target || *b == target);
-    let debug = debug_rail_state(
-        app.world_mut(),
-        red_entity,
-        capital,
-        target,
-        &rails_edges,
-    );
+    let debug = debug_rail_state(app.world_mut(), red_entity, capital, target, &rails_edges);
     assert!(
         has_target_edge,
         "Expected rail edge to include target tile ({}, {}).\n{}",
-        target.x,
-        target.y,
-        debug
+        target.x, target.y, debug
     );
 
     let connected_tiles = connected_tiles_from(capital, &rails_edges);
@@ -201,10 +191,7 @@ fn debug_rail_state(
         }
     }
     near_edges.sort_by_key(|(a, b)| (a.x, a.y, b.x, b.y));
-    lines.push(format!(
-        "Edges near target: {}",
-        format_edges(&near_edges)
-    ));
+    lines.push(format!("Edges near target: {}", format_edges(&near_edges)));
 
     let connected_tiles = connected_tiles_from(capital, rails);
     lines.push(format!(
@@ -297,13 +284,18 @@ fn debug_rail_state(
     }
 
     let mut treasury_query = world.query::<(Entity, &rust_imperialism::economy::Treasury)>();
-    if let Some((_, treasury)) = treasury_query.iter(world).find(|(entity, _)| *entity == red_entity)
+    if let Some((_, treasury)) = treasury_query
+        .iter(world)
+        .find(|(entity, _)| *entity == red_entity)
     {
         lines.push(format!("Red treasury: {}", treasury.total()));
     }
 
     let mut owned_query = world.query::<&OwnedBy>();
-    let owned_count = owned_query.iter(world).filter(|owned_by| owned_by.0 == red_entity).count();
+    let owned_count = owned_query
+        .iter(world)
+        .filter(|owned_by| owned_by.0 == red_entity)
+        .count();
     lines.push(format!("Owned entities: {}", owned_count));
 
     let resource_count = world.query::<&TileResource>().iter(world).count();
@@ -352,9 +344,7 @@ fn debug_rail_state(
     let registry = world.resource::<AppTypeRegistry>().read();
     let province_reflect = registry
         .get(std::any::TypeId::of::<Province>())
-        .and_then(|registration| {
-            registration.data::<bevy::ecs::reflect::ReflectMapEntities>()
-        })
+        .and_then(|registration| registration.data::<bevy::ecs::reflect::ReflectMapEntities>())
         .is_some();
     lines.push(format!(
         "Province ReflectMapEntities registered: {}",

@@ -9,23 +9,20 @@ use bevy_ecs_tilemap::prelude::*;
 use moonshine_save::prelude::*;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use rust_imperialism::constants::TERRAIN_SEED;
+use rust_imperialism::LogicPlugins;
 use rust_imperialism::ai::AiControlledCivilian;
 use rust_imperialism::ai::AiNation;
 use rust_imperialism::civilians::Civilian;
-use rust_imperialism::economy::transport::Rails;
+use rust_imperialism::constants::TERRAIN_SEED;
 use rust_imperialism::economy::nation::NationColor;
-use rust_imperialism::map::prospecting::PotentialMineral;
-use rust_imperialism::map::province_setup::TestMapConfig;
-use rust_imperialism::map::province::TileProvince;
-use rust_imperialism::map::province::Province;
-use rust_imperialism::map::terrain_gen::TerrainGenerator;
 use rust_imperialism::map::TerrainType;
+use rust_imperialism::map::prospecting::PotentialMineral;
+use rust_imperialism::map::province::Province;
+use rust_imperialism::map::province::TileProvince;
+use rust_imperialism::map::province_setup::TestMapConfig;
+use rust_imperialism::map::terrain_gen::TerrainGenerator;
 use rust_imperialism::resources::{ResourceType, TileResource};
-use rust_imperialism::save::GameSavePlugin;
-use rust_imperialism::turn_system::TurnPhase;
 use rust_imperialism::ui::menu::AppState;
-use rust_imperialism::ui::mode::GameMode;
 
 fn main() {
     println!("Generating pruned test map...");
@@ -35,17 +32,12 @@ fn main() {
     // Minimal plugins for headless generation
     app.add_plugins((MinimalPlugins, StatesPlugin));
 
-    // Initialize game states
-    app.init_state::<TurnPhase>();
+    // Use Logic group
+    // We don't add MapGenerationPlugin to allow custom mock tilemap setup
+    app.add_plugins(LogicPlugins);
+
+    // Force InGame state to trigger plugin systems
     app.insert_state(AppState::InGame);
-    app.add_sub_state::<GameMode>();
-
-    // Add save plugin (handles reflection registration)
-    app.add_plugins(GameSavePlugin);
-
-    // Add resources normally provided by other plugins
-    app.init_resource::<rust_imperialism::civilians::NextCivilianId>();
-    app.insert_resource(Rails::default());
 
     // Insert test config to trigger pruning
     app.insert_resource(TestMapConfig);
@@ -139,7 +131,9 @@ fn setup_mock_tilemap(
                     } else {
                         ResourceType::Fruit
                     };
-                    commands.entity(tile_entity).insert(TileResource::visible(resource));
+                    commands
+                        .entity(tile_entity)
+                        .insert(TileResource::visible(resource));
                 }
                 TerrainType::Grass => {
                     if rng.random::<f32>() < 0.4 {
@@ -148,7 +142,9 @@ fn setup_mock_tilemap(
                         } else {
                             ResourceType::Livestock
                         };
-                        commands.entity(tile_entity).insert(TileResource::visible(resource));
+                        commands
+                            .entity(tile_entity)
+                            .insert(TileResource::visible(resource));
                     }
                 }
                 TerrainType::Forest => {
@@ -194,7 +190,11 @@ fn setup_mock_tilemap(
                 }
                 TerrainType::Desert => {
                     let has_oil = rng.random::<f32>() < 0.15;
-                    let mineral_type = if has_oil { Some(ResourceType::Oil) } else { None };
+                    let mineral_type = if has_oil {
+                        Some(ResourceType::Oil)
+                    } else {
+                        None
+                    };
                     commands
                         .entity(tile_entity)
                         .insert(PotentialMineral::new(mineral_type));
@@ -289,10 +289,10 @@ fn ensure_red_nation_for_target_tile(
                 commands.entity(entity).insert(AiControlledCivilian);
             }
         }
-    } else if let Ok((_, _, ai_marker)) = nations.get_mut(target_owner) {
-        if ai_marker.is_none() {
-            commands.entity(target_owner).insert(AiNation);
-        }
+    } else if let Ok((_, _, ai_marker)) = nations.get_mut(target_owner)
+        && ai_marker.is_none()
+    {
+        commands.entity(target_owner).insert(AiNation);
     }
 
     commands.insert_resource(TargetRedReady);

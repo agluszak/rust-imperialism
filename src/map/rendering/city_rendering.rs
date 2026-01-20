@@ -6,19 +6,10 @@ use crate::map::province::City;
 use crate::map::rendering::{MapVisual, MapVisualFor};
 use crate::map::tile_pos::TilePosExt;
 
-/// Plugin to render city sprites on the map
-pub struct CityRenderingPlugin;
-
-impl Plugin for CityRenderingPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(Update, (render_city_visuals, update_city_visual_positions));
-    }
-}
-
 const CITY_SIZE: f32 = 64.0; // Match tile size
 
 /// Create visual sprites for cities
-fn render_city_visuals(
+pub fn render_city_visuals(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     cities: Query<(Entity, &City, &TilePos), Added<City>>,
@@ -57,7 +48,7 @@ fn render_city_visuals(
 
 /// Update city visual positions when their TilePos changes
 /// Uses relationship pattern for O(1) sprite lookups
-fn update_city_visual_positions(
+pub fn update_city_visual_positions(
     cities: Query<(&TilePos, Option<&MapVisual>), (With<City>, Changed<TilePos>)>,
     mut visuals: Query<&mut Transform>,
 ) {

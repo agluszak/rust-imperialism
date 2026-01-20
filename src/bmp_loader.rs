@@ -121,12 +121,3 @@ fn convert_with_transparency(
 
     rgba_img
 }
-
-/// Plugin to register the Imperialism BMP loader
-pub struct ImperialismBmpLoaderPlugin;
-
-impl Plugin for ImperialismBmpLoaderPlugin {
-    fn build(&self, app: &mut App) {
-        app.register_asset_loader(ImperialismBmpLoader);
-    }
-}

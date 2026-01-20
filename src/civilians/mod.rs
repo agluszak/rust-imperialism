@@ -49,11 +49,11 @@ pub enum CivilianJobSet {
     Reset,
 }
 
-/// Core civilian gameplay plugin (logic, no rendering).
+/// Core civilian gameplay plugin (logic, no rendering, no input).
 /// Use this in headless tests.
-pub struct CivilianPlugin;
+pub struct CivilianLogicPlugin;
 
-impl Plugin for CivilianPlugin {
+impl Plugin for CivilianLogicPlugin {
     fn build(&self, app: &mut App) {
         // Configure civilian job set ordering
         app.configure_sets(
@@ -69,32 +69,15 @@ impl Plugin for CivilianPlugin {
 
         app.init_resource::<ProspectingKnowledge>()
             .init_resource::<NextCivilianId>()
-            .init_resource::<SelectedCivilian>()
             .add_message::<SelectCivilian>()
-            .add_message::<CivilianCommand>()
-            .add_message::<CivilianCommandRejected>()
             .add_message::<DeselectCivilian>()
             .add_message::<RescindOrders>()
+            .add_message::<CivilianCommand>()
+            .add_message::<CivilianCommandRejected>()
             .add_message::<HireCivilian>()
-            // Selection handlers: only run in-game to avoid processing during menu
-            .add_systems(
-                Update,
-                (
-                    systems::handle_civilian_selection,
-                    systems::handle_deselect_key,
-                    systems::handle_deselection,
-                )
-                    .run_if(in_state(AppState::InGame)),
-            )
             .add_systems(
                 Update,
                 hiring::spawn_hired_civilian.run_if(in_state(AppState::InGame)),
-            )
-            .add_systems(
-                Update,
-                systems::handle_rescind_orders
-                    .before(systems::handle_civilian_commands)
-                    .run_if(in_state(GameMode::Map)),
             )
             .add_systems(
                 Update,
@@ -107,8 +90,6 @@ impl Plugin for CivilianPlugin {
                     engineering::execute_engineer_orders,
                     engineering::execute_prospector_orders,
                     engineering::execute_civilian_improvement_orders,
-                    ui_components::update_civilian_orders_ui,
-                    ui_components::update_rescind_orders_ui,
                 )
                     .chain()
                     .run_if(in_state(GameMode::Map)),
@@ -134,24 +115,6 @@ impl Plugin for CivilianPlugin {
         app.add_systems(
             OnEnter(TurnPhase::PlayerTurn),
             jobs::reset_civilian_actions.in_set(CivilianJobSet::Reset),
-        );
-    }
-}
-
-/// Civilian rendering plugin (sprites and visual updates).
-/// Requires AssetServer and should not be added in headless tests.
-pub struct CivilianRenderingPlugin;
-
-impl Plugin for CivilianRenderingPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                rendering::render_civilian_visuals,
-                rendering::update_civilian_visual_colors,
-            )
-                .chain()
-                .run_if(in_state(crate::ui::mode::GameMode::Map)),
         );
     }
 }

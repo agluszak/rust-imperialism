@@ -5,28 +5,15 @@ use std::path::PathBuf;
 use bevy::app::AppExit;
 use bevy::image::ImagePlugin;
 use bevy::prelude::*;
-use bevy::render::view::screenshot::{save_to_disk, Screenshot, ScreenshotCaptured};
+use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured, save_to_disk};
 use bevy::window::{Window, WindowPlugin, WindowResolution};
 use bevy_ecs_tilemap::prelude::*;
 use moonshine_save::prelude::*;
-use rust_imperialism::bmp_loader::ImperialismBmpLoaderPlugin;
-use rust_imperialism::civilians::commands::SelectedCivilian;
-use rust_imperialism::civilians::types::ProspectingKnowledge;
-use rust_imperialism::civilians::CivilianRenderingPlugin;
-use rust_imperialism::constants::{get_hex_grid_size, MAP_SIZE, TILE_SIZE};
-use rust_imperialism::economy::ConnectedProduction;
-use rust_imperialism::economy::transport::Rails;
-use rust_imperialism::map::rendering::{
-    BorderRenderingPlugin, CityRenderingPlugin, ImprovementRenderingPlugin,
-    ProspectingMarkersPlugin, TransportRenderingPlugin,
-};
-use rust_imperialism::map::rendering::terrain_atlas::{
-    build_terrain_atlas_when_ready, start_terrain_atlas_loading, TerrainAtlas,
-};
-use rust_imperialism::save::GameSavePlugin;
+use rust_imperialism::constants::{MAP_SIZE, TILE_SIZE, get_hex_grid_size};
+use rust_imperialism::map::rendering::terrain_atlas::TerrainAtlas;
 use rust_imperialism::ui::components::MapTilemap;
 use rust_imperialism::ui::menu::AppState;
-use rust_imperialism::ui::mode::GameMode;
+use rust_imperialism::{LogicPlugins, MapRenderingPlugins};
 
 fn main() {
     let screenshot_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -35,7 +22,7 @@ fn main() {
 
     let mut app = App::new();
 
-    app.add_plugins((
+    app.add_plugins(
         DefaultPlugins
             .set(ImagePlugin::default_nearest())
             .set(WindowPlugin {
@@ -47,38 +34,24 @@ fn main() {
                 }),
                 ..default()
             }),
-        ImperialismBmpLoaderPlugin,
-        TilemapPlugin,
-        GameSavePlugin,
-        TransportRenderingPlugin,
-        BorderRenderingPlugin,
-        CityRenderingPlugin,
-        ImprovementRenderingPlugin,
-        ProspectingMarkersPlugin,
-        CivilianRenderingPlugin,
-    ));
+    );
 
-    app.insert_state(AppState::InGame);
-    app.add_sub_state::<GameMode>();
+    // Use Logic and Map Rendering groups
+    // We don't add MapGenerationPlugin because this tool has custom map setup
+    app.add_plugins((LogicPlugins, MapRenderingPlugins));
 
     app.init_resource::<RenderState>();
-    app.insert_resource(ConnectedProduction::default());
-    app.insert_resource(Rails::default());
-    app.insert_resource(SelectedCivilian::default());
-    app.insert_resource(ProspectingKnowledge::default());
     app.insert_resource(ScreenshotPath(screenshot_path));
+
+    // Force InGame state to trigger plugin systems
+    app.insert_state(AppState::InGame);
 
     app.add_observer(on_loaded);
 
-    app.add_systems(Startup, (request_fixture_load, start_terrain_atlas_loading, setup_camera));
+    app.add_systems(Startup, (request_fixture_load, setup_camera));
     app.add_systems(
         Update,
-        (
-            clear_loaded_tilemap_refs,
-            build_terrain_atlas_when_ready,
-            build_tilemap_from_fixture,
-        )
-            .chain(),
+        (clear_loaded_tilemap_refs, build_tilemap_from_fixture).chain(),
     );
     app.add_systems(Update, (fit_camera_to_map, request_screenshot));
 
