@@ -3,18 +3,14 @@
 //! This library exposes the core game components for testing and potential reuse.
 
 pub use crate::ai::AiPlugin;
-pub use crate::civilians::{CivilianInputPlugin, CivilianLogicPlugin, CivilianRenderingPlugin};
+pub use crate::civilians::CivilianLogicPlugin;
 pub use crate::diplomacy::DiplomacyPlugin;
 pub use crate::economy::EconomyPlugin;
 pub use crate::helpers::camera::CameraPlugin;
 pub use crate::helpers::picking::TilemapBackend;
 pub use crate::input::InputPlugin;
-pub use crate::map::{MapInputPlugin, MapLogicPlugin, MapRenderingPlugin};
-use crate::map::rendering::border_rendering::BorderRenderingPlugin;
-use crate::map::rendering::city_rendering::CityRenderingPlugin;
-use crate::map::rendering::improvement_rendering::ImprovementRenderingPlugin;
-use crate::map::rendering::prospecting_markers::ProspectingMarkersPlugin;
-use crate::map::rendering::{TransportDebugPlugin, TransportRenderingPlugin};
+pub use crate::map::MapLogicPlugin;
+pub use crate::map::rendering::MapRenderingPlugin;
 use crate::save::GameSavePlugin;
 use crate::ships::ShipsPlugin;
 use crate::turn_system::TurnSystemPlugin;
@@ -52,12 +48,27 @@ pub mod ships;
 pub mod turn_system;
 pub mod ui;
 
+/// Plugin for core game state management
+pub struct GameCorePlugin;
+
+impl Plugin for GameCorePlugin {
+    fn build(&self, app: &mut App) {
+        app.init_state::<AppState>()
+            .add_sub_state::<GameMode>();
+
+        #[cfg(feature = "debug")]
+        app.add_systems(Update, log_transitions::<AppState>)
+            .add_systems(Update, log_transitions::<GameMode>);
+    }
+}
+
 /// Group of plugins for core game logic
 pub struct LogicPlugins;
 
 impl PluginGroup for LogicPlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
+            .add(GameCorePlugin)
             .add(MapLogicPlugin)
             .add(TurnSystemPlugin)
             .add(EconomyPlugin)
@@ -76,17 +87,9 @@ impl PluginGroup for MapRenderingPlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
             .add(TilemapPlugin)
-            .add(bmp_loader::ImperialismBmpLoaderPlugin)
             .add(TilemapBackend)
             .add(CameraPlugin)
             .add(MapRenderingPlugin)
-            .add(TransportRenderingPlugin)
-            .add(TransportDebugPlugin)
-            .add(BorderRenderingPlugin)
-            .add(CityRenderingPlugin)
-            .add(ImprovementRenderingPlugin)
-            .add(ProspectingMarkersPlugin)
-            .add(CivilianRenderingPlugin)
     }
 }
 
@@ -99,8 +102,6 @@ impl PluginGroup for InputPlugins {
             .add(BevyUiInputPlugin)
             .add(InputPlugin)
             .add(GameUIPlugin)
-            .add(MapInputPlugin)
-            .add(CivilianInputPlugin)
     }
 }
 
@@ -119,16 +120,7 @@ impl Plugin for BevyUiInputPlugin {
 pub fn app() -> App {
     let mut app = App::new();
 
-    app
-        // Core Bevy plugins
-        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
-        // App state management
-        .insert_state(AppState::MainMenu)
-        .add_sub_state::<GameMode>();
-
-    #[cfg(feature = "debug")]
-    app.add_systems(Update, log_transitions::<AppState>)
-        .add_systems(Update, log_transitions::<GameMode>);
+    app.add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()));
 
     app
         // Game plugins

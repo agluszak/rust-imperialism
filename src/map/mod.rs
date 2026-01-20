@@ -35,6 +35,8 @@ pub struct MapLogicPlugin;
 
 impl Plugin for MapLogicPlugin {
     fn build(&self, app: &mut App) {
+        app.init_resource::<province_setup::ProvincesGenerated>();
+
         // Tilemap creation (Logic part)
         app.add_systems(Update, create_tilemap_logic.run_if(in_state(AppState::InGame)));
 
@@ -53,41 +55,6 @@ impl Plugin for MapLogicPlugin {
     }
 }
 
-/// Plugin that handles map rendering initialization
-pub struct MapRenderingPlugin;
-
-impl Plugin for MapRenderingPlugin {
-    fn build(&self, app: &mut App) {
-        // Terrain atlas loading
-        app.add_systems(
-            Startup,
-            rendering::terrain_atlas::start_terrain_atlas_loading,
-        )
-        .add_systems(
-            Update,
-            rendering::terrain_atlas::build_terrain_atlas_when_ready,
-        );
-
-        // Decorate tilemap with rendering components
-        app.add_systems(
-            Update,
-            setup_tilemap_rendering.run_if(in_state(AppState::InGame)),
-        );
-    }
-}
-
-/// Plugin that handles map input initialization (tile observers)
-pub struct MapInputPlugin;
-
-impl Plugin for MapInputPlugin {
-    fn build(&self, app: &mut App) {
-        // Attach observers to tiles
-        app.add_systems(
-            Update,
-            setup_tilemap_input.run_if(in_state(AppState::InGame)),
-        );
-    }
-}
 
 /// Logic part of tilemap creation: spawns entities with terrain and resources
 fn create_tilemap_logic(mut commands: Commands, tilemap_created: Option<Res<TilemapCreated>>) {
@@ -227,10 +194,10 @@ fn create_tilemap_logic(mut commands: Commands, tilemap_created: Option<Res<Tile
 }
 
 #[derive(Component)]
-struct TilemapRenderingInitialized;
+pub struct TilemapRenderingInitialized;
 
 /// Rendering part of tilemap creation: decorates entities with rendering components
-fn setup_tilemap_rendering(
+pub fn setup_tilemap_rendering(
     mut commands: Commands,
     terrain_atlas: Option<Res<rendering::TerrainAtlas>>,
     tilemap_query: Query<(Entity, &TilemapSize, &TileStorage), Without<TilemapRenderingInitialized>>,
@@ -291,10 +258,10 @@ fn setup_tilemap_rendering(
 }
 
 #[derive(Component)]
-struct TilemapInputInitialized;
+pub struct TilemapInputInitialized;
 
 /// Input part of tilemap creation: attaches observers to tiles
-fn setup_tilemap_input(
+pub fn setup_tilemap_input(
     mut commands: Commands,
     tilemap_query: Query<(Entity, &TilemapSize, &TileStorage), Without<TilemapInputInitialized>>,
 ) {

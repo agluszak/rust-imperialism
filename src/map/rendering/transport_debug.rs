@@ -7,8 +7,6 @@ use crate::economy::nation::{Capital, PlayerNation};
 use crate::economy::transport::{Depot, Port, Rails, build_rail_graph};
 use crate::map::tile_pos::TilePosExt;
 use crate::ui::components::MapTilemap;
-use crate::ui::menu::AppState;
-use crate::ui::mode::GameMode;
 
 /// Runtime toggle for the transport network debug overlay.
 #[derive(Resource, Default)]
@@ -17,7 +15,7 @@ pub struct TransportDebugSettings {
 }
 
 #[derive(Resource)]
-struct TransportDebugFont(Handle<Font>);
+pub struct TransportDebugFont(pub Handle<Font>);
 
 impl FromWorld for TransportDebugFont {
     fn from_world(world: &mut World) -> Self {
@@ -28,32 +26,16 @@ impl FromWorld for TransportDebugFont {
 
 /// Marker for debug overlay rail line visual
 #[derive(Component)]
-struct TransportDebugRailLine {
+pub struct TransportDebugRailLine {
     #[allow(dead_code)]
-    edge: (TilePos, TilePos),
+    pub edge: (TilePos, TilePos),
 }
 
 /// Marker for debug overlay labels
 #[derive(Component)]
-struct TransportDebugLabel;
+pub struct TransportDebugLabel;
 
-/// Plugin that renders transport network connectivity visualization.
-pub struct TransportDebugPlugin;
-
-impl Plugin for TransportDebugPlugin {
-    fn build(&self, app: &mut App) {
-        app.init_resource::<TransportDebugSettings>()
-            .init_resource::<TransportDebugFont>()
-            .add_systems(
-                Update,
-                (toggle_transport_debug, render_transport_debug)
-                    .run_if(in_state(AppState::InGame))
-                    .run_if(in_state(GameMode::Map)),
-            );
-    }
-}
-
-fn toggle_transport_debug(
+pub fn toggle_transport_debug(
     keys: Res<ButtonInput<KeyCode>>,
     mut settings: ResMut<TransportDebugSettings>,
 ) {
@@ -70,7 +52,7 @@ fn toggle_transport_debug(
     }
 }
 
-fn render_transport_debug(
+pub fn render_transport_debug(
     mut commands: Commands,
     settings: Res<TransportDebugSettings>,
     rails: Res<Rails>,

@@ -9,18 +9,11 @@ use bevy::render::view::screenshot::{save_to_disk, Screenshot, ScreenshotCapture
 use bevy::window::{Window, WindowPlugin, WindowResolution};
 use bevy_ecs_tilemap::prelude::*;
 use moonshine_save::prelude::*;
-use rust_imperialism::civilians::commands::SelectedCivilian;
-use rust_imperialism::civilians::types::ProspectingKnowledge;
 use rust_imperialism::constants::{get_hex_grid_size, MAP_SIZE, TILE_SIZE};
-use rust_imperialism::economy::ConnectedProduction;
-use rust_imperialism::economy::transport::Rails;
-use rust_imperialism::map::rendering::terrain_atlas::{
-    build_terrain_atlas_when_ready, start_terrain_atlas_loading, TerrainAtlas,
-};
+use rust_imperialism::map::rendering::terrain_atlas::TerrainAtlas;
 use rust_imperialism::ui::components::MapTilemap;
-use rust_imperialism::{LogicPlugins, MapLogicPlugin, MapRenderingPlugin, MapRenderingPlugins};
+use rust_imperialism::{LogicPlugins, MapLogicPlugin, MapRenderingPlugins};
 use rust_imperialism::ui::menu::AppState;
-use rust_imperialism::ui::mode::GameMode;
 
 fn main() {
     let screenshot_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -44,30 +37,26 @@ fn main() {
     );
 
     // Use Logic and Map Rendering groups
-    // Disable MapLogic and MapRendering because this tool has custom map/atlas setup
+    // Disable MapLogic because this tool has custom map setup
+    // We keep MapRenderingPlugin because it now consolidates all rendering systems we need
     app.add_plugins((
         LogicPlugins.build().disable::<MapLogicPlugin>(),
-        MapRenderingPlugins.build().disable::<MapRenderingPlugin>(),
+        MapRenderingPlugins,
     ));
 
-    app.insert_state(AppState::InGame);
-    app.add_sub_state::<GameMode>();
-
     app.init_resource::<RenderState>();
-    app.insert_resource(ConnectedProduction::default());
-    app.insert_resource(Rails::default());
-    app.insert_resource(SelectedCivilian::default());
-    app.insert_resource(ProspectingKnowledge::default());
     app.insert_resource(ScreenshotPath(screenshot_path));
+
+    // Force InGame state to trigger plugin systems
+    app.insert_state(AppState::InGame);
 
     app.add_observer(on_loaded);
 
-    app.add_systems(Startup, (request_fixture_load, start_terrain_atlas_loading, setup_camera));
+    app.add_systems(Startup, (request_fixture_load, setup_camera));
     app.add_systems(
         Update,
         (
             clear_loaded_tilemap_refs,
-            build_terrain_atlas_when_ready,
             build_tilemap_from_fixture,
         )
             .chain(),

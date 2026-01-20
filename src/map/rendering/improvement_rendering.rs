@@ -6,8 +6,6 @@ use crate::economy::production::ConnectedProduction;
 use crate::map::tile_pos::TilePosExt;
 use crate::resources::{DevelopmentLevel, TileResource};
 use crate::ui::components::MapTilemap;
-use crate::ui::menu::AppState;
-use crate::ui::mode::GameMode;
 
 /// Marker component indicating a tile has a visible improvement building
 #[derive(Component, Debug, Clone, Copy)]
@@ -20,16 +18,16 @@ pub struct TileImprovement {
 /// providing O(1) lookups when updating or despawning the marker.
 #[derive(Component)]
 #[relationship(relationship_target = TileImprovementMarker)]
-struct ImprovementMarkerFor(Entity);
+pub struct ImprovementMarkerFor(pub Entity);
 
 /// Reverse relationship component automatically attached to improved tiles.
 /// Stores the entity of the spawned sprite so we can update or despawn it efficiently.
 #[derive(Component)]
 #[relationship_target(relationship = ImprovementMarkerFor)]
-struct TileImprovementMarker(Entity);
+pub struct TileImprovementMarker(Entity);
 
 impl TileImprovementMarker {
-    fn entity(&self) -> Entity {
+    pub fn entity(&self) -> Entity {
         self.0
     }
 }
@@ -42,30 +40,7 @@ pub struct ConnectivityOverlaySettings {
 
 /// Marker component for connectivity indicator sprites
 #[derive(Component)]
-struct ConnectivityIndicator;
-
-/// Plugin to render improvement markers on tiles
-pub struct ImprovementRenderingPlugin;
-
-impl Plugin for ImprovementRenderingPlugin {
-    fn build(&self, app: &mut App) {
-        app.init_resource::<ConnectivityOverlaySettings>()
-            .add_systems(
-                Update,
-                (
-                    render_improvement_markers,
-                    update_improvement_markers,
-                    cleanup_removed_improvement_markers,
-                ),
-            )
-            .add_systems(
-                Update,
-                (toggle_connectivity_overlay, update_connectivity_overlay)
-                    .run_if(in_state(AppState::InGame))
-                    .run_if(in_state(GameMode::Map)),
-            );
-    }
-}
+pub struct ConnectivityIndicator;
 
 const IMPROVEMENT_SIZE: f32 = 16.0; // Small indicator
 const IMPROVEMENT_OFFSET_Y: f32 = 20.0; // Offset from tile center
@@ -74,7 +49,7 @@ const CONNECTIVITY_OFFSET_X: f32 = -12.0; // Offset to the left of tile center
 const CONNECTIVITY_OFFSET_Y: f32 = 20.0; // Same vertical level as improvement marker
 
 /// Render visual markers for newly improved tiles
-fn render_improvement_markers(
+pub fn render_improvement_markers(
     mut commands: Commands,
     new_improvements: Query<
         (Entity, &TilePos, &TileImprovement, &TileResource),
@@ -104,7 +79,7 @@ fn render_improvement_markers(
 }
 
 /// Update improvement markers when development level changes
-fn update_improvement_markers(
+pub fn update_improvement_markers(
     changed_tiles: Query<
         (
             Entity,
@@ -147,7 +122,7 @@ fn update_improvement_markers(
 }
 
 /// Remove improvement markers automatically when the tile loses its improvement component.
-fn cleanup_removed_improvement_markers(
+pub fn cleanup_removed_improvement_markers(
     mut removed_improvements: RemovedComponents<TileImprovement>,
     markers: Query<&TileImprovementMarker>,
     mut commands: Commands,
@@ -177,7 +152,7 @@ fn spawn_marker(commands: &mut Commands, tile_entity: Entity, pos: Vec2, color: 
 }
 
 /// Toggle connectivity overlay with C key
-fn toggle_connectivity_overlay(
+pub fn toggle_connectivity_overlay(
     keys: Res<ButtonInput<KeyCode>>,
     mut settings: ResMut<ConnectivityOverlaySettings>,
 ) {
@@ -201,7 +176,7 @@ fn toggle_connectivity_overlay(
 /// - Cross (X) = not connected (improved tiles only)
 ///
 /// Color matches the nation's border color.
-fn update_connectivity_overlay(
+pub fn update_connectivity_overlay(
     mut commands: Commands,
     settings: Res<ConnectivityOverlaySettings>,
     connected_production: Res<ConnectedProduction>,

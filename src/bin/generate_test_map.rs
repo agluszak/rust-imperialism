@@ -13,7 +13,6 @@ use rust_imperialism::constants::TERRAIN_SEED;
 use rust_imperialism::ai::AiControlledCivilian;
 use rust_imperialism::ai::AiNation;
 use rust_imperialism::civilians::Civilian;
-use rust_imperialism::economy::transport::Rails;
 use rust_imperialism::economy::nation::NationColor;
 use rust_imperialism::map::prospecting::PotentialMineral;
 use rust_imperialism::map::province_setup::TestMapConfig;
@@ -22,9 +21,7 @@ use rust_imperialism::map::province::Province;
 use rust_imperialism::map::terrain_gen::TerrainGenerator;
 use rust_imperialism::map::TerrainType;
 use rust_imperialism::resources::{ResourceType, TileResource};
-use rust_imperialism::turn_system::TurnPhase;
 use rust_imperialism::ui::menu::AppState;
-use rust_imperialism::ui::mode::GameMode;
 use rust_imperialism::{LogicPlugins, MapLogicPlugin};
 
 fn main() {
@@ -35,16 +32,11 @@ fn main() {
     // Minimal plugins for headless generation
     app.add_plugins((MinimalPlugins, StatesPlugin));
 
-    // Initialize game states
-    app.init_state::<TurnPhase>();
-    app.insert_state(AppState::InGame);
-    app.add_sub_state::<GameMode>();
-
     // Use Logic group (except MapLogic to allow custom mock tilemap setup)
     app.add_plugins(LogicPlugins.build().disable::<MapLogicPlugin>());
 
-    // Add resources normally provided by other plugins (some already in LogicPlugins but we might need more or specific ones)
-    app.insert_resource(Rails::default());
+    // Force InGame state to trigger plugin systems
+    app.insert_state(AppState::InGame);
 
     // Insert test config to trigger pruning
     app.insert_resource(TestMapConfig);

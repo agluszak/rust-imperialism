@@ -5,12 +5,48 @@ use crate::civilians::commands::SelectedCivilian;
 use crate::civilians::{Civilian, CivilianCommand, CivilianKind, CivilianOrderKind};
 use crate::map::tile_pos::TilePosExt;
 
+use crate::ui::menu::AppState;
+use crate::ui::mode::GameMode;
+
 pub struct InputPlugin;
 
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
-        // Tile click handling is done via observers attached to tiles in lib.rs
-        app.add_systems(Update, keyboard_input);
+        app.init_resource::<SelectedCivilian>()
+            .add_systems(Update, keyboard_input);
+
+        // Map tile input setup
+        app.add_systems(
+            Update,
+            crate::map::setup_tilemap_input.run_if(in_state(AppState::InGame)),
+        );
+
+        // Civilian selection and management
+        app.add_systems(
+            Update,
+            (
+                crate::civilians::systems::handle_civilian_selection,
+                crate::civilians::systems::handle_deselect_key,
+                crate::civilians::systems::handle_deselection,
+            )
+                .run_if(in_state(AppState::InGame)),
+        );
+
+        app.add_systems(
+            Update,
+            crate::civilians::systems::handle_rescind_orders
+                .before(crate::civilians::systems::handle_civilian_commands)
+                .run_if(in_state(GameMode::Map)),
+        );
+
+        app.add_systems(
+            Update,
+            (
+                crate::civilians::ui_components::update_civilian_orders_ui,
+                crate::civilians::ui_components::update_rescind_orders_ui,
+            )
+                .run_if(in_state(GameMode::Map)),
+        );
     }
 }
 

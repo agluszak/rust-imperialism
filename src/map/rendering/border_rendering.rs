@@ -5,22 +5,7 @@ use std::collections::HashMap;
 use crate::economy::NationColor;
 use crate::map::province::{Province, ProvinceId, TileProvince};
 use crate::map::tile_pos::{HexExt, TilePosExt};
-use crate::ui::menu::AppState;
-use crate::ui::mode::GameMode;
 
-/// Plugin to render province and nation borders
-pub struct BorderRenderingPlugin;
-
-impl Plugin for BorderRenderingPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            render_borders
-                .run_if(in_state(GameMode::Map))
-                .run_if(in_state(AppState::InGame)),
-        );
-    }
-}
 
 /// Marker component for border line entities
 #[derive(Component)]
