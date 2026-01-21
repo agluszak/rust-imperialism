@@ -24,8 +24,8 @@ pub struct CityUIPlugin;
 impl Plugin for CityUIPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<dialogs::DialogZIndexCounter>()
-            .add_message::<dialogs::OpenBuildingDialog>()
-            .add_message::<dialogs::CloseBuildingDialog>()
+            .add_observer(dialogs::open_building_dialogs)
+            .add_observer(dialogs::close_building_dialogs)
             .add_systems(OnEnter(GameMode::City), layout::ensure_city_screen_visible)
             .add_systems(
                 OnExit(GameMode::City),
@@ -50,8 +50,6 @@ impl Plugin for CityUIPlugin {
                     buildings::update_building_buttons,
                     buildings::update_building_button_visuals,
                     // Dialog systems
-                    dialogs::open_building_dialogs,
-                    dialogs::close_building_dialogs,
                     dialogs::update_close_button_visuals,
                     // Dialog dragging
                     dialogs::start_dialog_drag,
