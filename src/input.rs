@@ -23,29 +23,14 @@ impl Plugin for InputPlugin {
         // Civilian selection and management
         app.add_systems(
             Update,
-            (
-                crate::civilians::systems::handle_civilian_selection,
-                crate::civilians::systems::handle_deselect_key,
-                crate::civilians::systems::handle_deselection,
-            )
-                .run_if(in_state(AppState::InGame)),
+            crate::civilians::systems::handle_deselect_key.run_if(in_state(AppState::InGame)),
         );
 
-        app.add_systems(
-            Update,
-            crate::civilians::systems::handle_rescind_orders
-                .before(crate::civilians::systems::handle_civilian_commands)
-                .run_if(in_state(GameMode::Map)),
-        );
-
-        app.add_systems(
-            Update,
-            (
-                crate::civilians::ui_components::update_civilian_orders_ui,
-                crate::civilians::ui_components::update_rescind_orders_ui,
-            )
-                .run_if(in_state(GameMode::Map)),
-        );
+        // Register UI observers
+        app.add_observer(crate::civilians::ui_components::show_civilian_orders_ui)
+            .add_observer(crate::civilians::ui_components::hide_civilian_orders_ui)
+            .add_observer(crate::civilians::ui_components::show_rescind_orders_ui)
+            .add_observer(crate::civilians::ui_components::hide_rescind_orders_ui);
     }
 }
 
@@ -59,12 +44,12 @@ fn keyboard_input(keys: Res<ButtonInput<KeyCode>>, mut commands: Commands) {
 /// Handle tile clicks when any civilian is selected
 pub fn handle_tile_click(
     trigger: On<Pointer<Click>>,
+    mut commands: Commands,
     selected_civilian: Option<Res<SelectedCivilian>>,
     tile_positions: Query<&TilePos>,
     civilians: Query<(Entity, &Civilian)>,
     potential_minerals: Query<&crate::map::PotentialMineral>,
     tile_storage_query: Query<&bevy_ecs_tilemap::prelude::TileStorage>,
-    mut order_writer: MessageWriter<CivilianCommand>,
 ) {
     // Get the clicked tile position
     let Ok(clicked_pos) = tile_positions.get(trigger.entity) else {
@@ -98,7 +83,7 @@ pub fn handle_tile_click(
                 .is_some();
 
             if can_prospect {
-                order_writer.write(CivilianCommand {
+                commands.trigger(CivilianCommand {
                     civilian: civilian_entity,
                     order: CivilianOrderKind::Prospect { to: *clicked_pos },
                 });
@@ -109,7 +94,7 @@ pub fn handle_tile_click(
 
         // For other civilian types, use default tile action
         if let Some(order) = civilian.kind.default_tile_action_order(*clicked_pos) {
-            order_writer.write(CivilianCommand {
+            commands.trigger(CivilianCommand {
                 civilian: civilian_entity,
                 order,
             });
@@ -124,7 +109,7 @@ pub fn handle_tile_click(
             clicked_pos.x, clicked_pos.y
         );
 
-        order_writer.write(CivilianCommand {
+        commands.trigger(CivilianCommand {
             civilian: civilian_entity,
             order: CivilianOrderKind::BuildRail { to: *clicked_pos },
         });
@@ -143,7 +128,7 @@ pub fn handle_tile_click(
                     "Clicked tile ({}, {}) with Prospector, sending move-and-prospect order",
                     clicked_pos.x, clicked_pos.y
                 );
-                order_writer.write(CivilianCommand {
+                commands.trigger(CivilianCommand {
                     civilian: civilian_entity,
                     order: CivilianOrderKind::Prospect { to: *clicked_pos },
                 });
@@ -153,7 +138,7 @@ pub fn handle_tile_click(
                     "Clicked tile ({}, {}) with Prospector, sending Move order (no minerals)",
                     clicked_pos.x, clicked_pos.y
                 );
-                order_writer.write(CivilianCommand {
+                commands.trigger(CivilianCommand {
                     civilian: civilian_entity,
                     order: CivilianOrderKind::Move { to: *clicked_pos },
                 });
@@ -165,7 +150,7 @@ pub fn handle_tile_click(
                 "Clicked tile ({}, {}) with {:?}, sending move-and-improve order",
                 clicked_pos.x, clicked_pos.y, civilian.kind
             );
-            order_writer.write(CivilianCommand {
+            commands.trigger(CivilianCommand {
                 civilian: civilian_entity,
                 order: action_order,
             });
@@ -175,7 +160,7 @@ pub fn handle_tile_click(
                 "Clicked tile ({}, {}) with {:?}, sending Move order",
                 clicked_pos.x, clicked_pos.y, civilian.kind
             );
-            order_writer.write(CivilianCommand {
+            commands.trigger(CivilianCommand {
                 civilian: civilian_entity,
                 order: CivilianOrderKind::Move { to: *clicked_pos },
             });
