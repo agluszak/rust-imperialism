@@ -17,6 +17,10 @@ path = "src/bin/generate_test_map.rs"
 name = "ai_benchmark"
 harness = false
 
+[[bench]]
+name = "game_benchmark"
+harness = false
+
 [dependencies]
 bevy = { version = "0.18", features = ["bevy_dev_tools", "dynamic_linking", "experimental_bevy_ui_widgets"] }
 hexx = { version = "0.23", features = ["algorithms", "serde", "bevy"] }
