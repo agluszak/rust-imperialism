@@ -380,8 +380,8 @@ fn get_recipe_for_output(
 
         let inputs = variants
             .iter()
-            .map(|info| {
-                info.variant
+            .map(|variant| {
+                variant
                     .inputs()
                     .iter()
                     .map(|ingredient| (ingredient.good, ingredient.amount))
@@ -389,7 +389,7 @@ fn get_recipe_for_output(
             })
             .collect::<Vec<_>>();
 
-        let output_amount = variants[0].variant.primary_output_amount();
+        let output_amount = variants[0].primary_output_amount();
         return (inputs, (output_good, output_amount));
     }
 

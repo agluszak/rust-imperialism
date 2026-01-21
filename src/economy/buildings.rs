@@ -176,13 +176,8 @@ impl RecipeVariant {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct RecipeVariantInfo {
-    pub variant: RecipeVariant,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ProductionRecipe {
-    pub variants: &'static [RecipeVariantDefinition],
+    pub variants: &'static [RecipeVariant],
 }
 
 impl ProductionRecipe {
@@ -197,31 +192,31 @@ impl ProductionRecipe {
 
         // If there's only one variant, use it
         if self.variants.len() == 1 {
-            return Some(self.variants[0].variant);
+            return Some(self.variants[0]);
         }
 
         // Score each variant by available inputs
-        let mut best_variant = self.variants[0].variant;
-        let mut best_score = score_variant_availability(&self.variants[0].variant, stockpile);
+        let mut best_variant = self.variants[0];
+        let mut best_score = score_variant_availability(&self.variants[0], stockpile);
 
-        for definition in &self.variants[1..] {
-            let score = score_variant_availability(&definition.variant, stockpile);
+        for variant in &self.variants[1..] {
+            let score = score_variant_availability(variant, stockpile);
             if score > best_score {
                 best_score = score;
-                best_variant = definition.variant;
+                best_variant = *variant;
             }
         }
 
         Some(best_variant)
     }
 
-    pub fn variants_for_output(&self, output_good: Good) -> Vec<RecipeVariantInfo> {
+    pub fn variants_for_output(&self, output_good: Good) -> Vec<RecipeVariant> {
         self.variants_iter(output_good).collect()
     }
 
     pub fn input_amount_for(&self, output_good: Good, input_good: Good) -> Option<u32> {
-        self.variants_iter(output_good).find_map(|info| {
-            info.variant
+        self.variants_iter(output_good).find_map(|variant| {
+            variant
                 .inputs
                 .iter()
                 .find(|ingredient| ingredient.good == input_good)
@@ -233,48 +228,33 @@ impl ProductionRecipe {
         self.variants_iter(output_good).next().is_some()
     }
 
-    fn variants_iter(&self, output_good: Good) -> impl Iterator<Item = RecipeVariantInfo> + '_ {
+    fn variants_iter(&self, output_good: Good) -> impl Iterator<Item = RecipeVariant> + '_ {
         self.variants
             .iter()
-            .filter(move |definition| {
-                definition
-                    .variant
+            .filter(move |variant| {
+                variant
                     .primary_output_good()
                     .is_some_and(|good| good == output_good)
             })
-            .map(|definition| RecipeVariantInfo {
-                variant: definition.variant,
-            })
+            .copied()
     }
 }
 
 /// Score a variant based on how many batches could be produced with available inputs.
 /// Higher score means more production is possible with this variant.
 fn score_variant_availability(variant: &RecipeVariant, stockpile: &Stockpile) -> u32 {
-    if variant.inputs.is_empty() {
-        return u32::MAX; // No inputs needed, unlimited production possible
-    }
-
-    // For each input, calculate how many batches we could make with available stock
-    // The minimum across all inputs is our score
     variant
         .inputs
         .iter()
         .map(|ingredient| {
-            let available = stockpile.get_available(ingredient.good);
             if ingredient.amount == 0 {
                 u32::MAX
             } else {
-                available / ingredient.amount
+                stockpile.get_available(ingredient.good) / ingredient.amount
             }
         })
         .min()
-        .unwrap_or(0)
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct RecipeVariantDefinition {
-    pub variant: RecipeVariant,
+        .unwrap_or(u32::MAX)
 }
 
 const TEXTILE_COTTON_INPUTS: [Ingredient; 1] = [Ingredient {
@@ -289,18 +269,14 @@ const TEXTILE_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
     good: Good::Fabric,
     amount: 1,
 }];
-const TEXTILE_VARIANTS: [RecipeVariantDefinition; 2] = [
-    RecipeVariantDefinition {
-        variant: RecipeVariant {
-            inputs: &TEXTILE_COTTON_INPUTS,
-            outputs: &TEXTILE_OUTPUTS,
-        },
+const TEXTILE_VARIANTS: [RecipeVariant; 2] = [
+    RecipeVariant {
+        inputs: &TEXTILE_COTTON_INPUTS,
+        outputs: &TEXTILE_OUTPUTS,
     },
-    RecipeVariantDefinition {
-        variant: RecipeVariant {
-            inputs: &TEXTILE_WOOL_INPUTS,
-            outputs: &TEXTILE_OUTPUTS,
-        },
+    RecipeVariant {
+        inputs: &TEXTILE_WOOL_INPUTS,
+        outputs: &TEXTILE_OUTPUTS,
     },
 ];
 const TEXTILE_RECIPE: ProductionRecipe = ProductionRecipe {
@@ -319,18 +295,14 @@ const PAPER_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
     good: Good::Paper,
     amount: 1,
 }];
-const LUMBER_VARIANTS: [RecipeVariantDefinition; 2] = [
-    RecipeVariantDefinition {
-        variant: RecipeVariant {
-            inputs: &LUMBER_INPUTS,
-            outputs: &LUMBER_OUTPUTS,
-        },
+const LUMBER_VARIANTS: [RecipeVariant; 2] = [
+    RecipeVariant {
+        inputs: &LUMBER_INPUTS,
+        outputs: &LUMBER_OUTPUTS,
     },
-    RecipeVariantDefinition {
-        variant: RecipeVariant {
-            inputs: &LUMBER_INPUTS,
-            outputs: &PAPER_OUTPUTS,
-        },
+    RecipeVariant {
+        inputs: &LUMBER_INPUTS,
+        outputs: &PAPER_OUTPUTS,
     },
 ];
 const LUMBER_RECIPE: ProductionRecipe = ProductionRecipe {
@@ -351,11 +323,9 @@ const STEEL_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
     good: Good::Steel,
     amount: 1,
 }];
-const STEEL_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
-    variant: RecipeVariant {
-        inputs: &STEEL_INPUTS,
-        outputs: &STEEL_OUTPUTS,
-    },
+const STEEL_VARIANTS: [RecipeVariant; 1] = [RecipeVariant {
+    inputs: &STEEL_INPUTS,
+    outputs: &STEEL_OUTPUTS,
 }];
 const STEEL_RECIPE: ProductionRecipe = ProductionRecipe {
     variants: &STEEL_VARIANTS,
@@ -393,18 +363,14 @@ const FOOD_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
     good: Good::CannedFood,
     amount: 2,
 }];
-const FOOD_VARIANTS: [RecipeVariantDefinition; 2] = [
-    RecipeVariantDefinition {
-        variant: RecipeVariant {
-            inputs: &FOOD_LIVESTOCK_INPUTS,
-            outputs: &FOOD_OUTPUTS,
-        },
+const FOOD_VARIANTS: [RecipeVariant; 2] = [
+    RecipeVariant {
+        inputs: &FOOD_LIVESTOCK_INPUTS,
+        outputs: &FOOD_OUTPUTS,
     },
-    RecipeVariantDefinition {
-        variant: RecipeVariant {
-            inputs: &FOOD_FISH_INPUTS,
-            outputs: &FOOD_OUTPUTS,
-        },
+    RecipeVariant {
+        inputs: &FOOD_FISH_INPUTS,
+        outputs: &FOOD_OUTPUTS,
     },
 ];
 const FOOD_RECIPE: ProductionRecipe = ProductionRecipe {
@@ -419,11 +385,9 @@ const CLOTHING_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
     good: Good::Clothing,
     amount: 1,
 }];
-const CLOTHING_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
-    variant: RecipeVariant {
-        inputs: &CLOTHING_INPUTS,
-        outputs: &CLOTHING_OUTPUTS,
-    },
+const CLOTHING_VARIANTS: [RecipeVariant; 1] = [RecipeVariant {
+    inputs: &CLOTHING_INPUTS,
+    outputs: &CLOTHING_OUTPUTS,
 }];
 const CLOTHING_RECIPE: ProductionRecipe = ProductionRecipe {
     variants: &CLOTHING_VARIANTS,
@@ -437,11 +401,9 @@ const FURNITURE_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
     good: Good::Furniture,
     amount: 1,
 }];
-const FURNITURE_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
-    variant: RecipeVariant {
-        inputs: &FURNITURE_INPUTS,
-        outputs: &FURNITURE_OUTPUTS,
-    },
+const FURNITURE_VARIANTS: [RecipeVariant; 1] = [RecipeVariant {
+    inputs: &FURNITURE_INPUTS,
+    outputs: &FURNITURE_OUTPUTS,
 }];
 const FURNITURE_RECIPE: ProductionRecipe = ProductionRecipe {
     variants: &FURNITURE_VARIANTS,
@@ -459,18 +421,14 @@ const ARMAMENT_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
     good: Good::Arms,
     amount: 1,
 }];
-const METAL_VARIANTS: [RecipeVariantDefinition; 2] = [
-    RecipeVariantDefinition {
-        variant: RecipeVariant {
-            inputs: &METAL_INPUTS,
-            outputs: &HARDWARE_OUTPUTS,
-        },
+const METAL_VARIANTS: [RecipeVariant; 2] = [
+    RecipeVariant {
+        inputs: &METAL_INPUTS,
+        outputs: &HARDWARE_OUTPUTS,
     },
-    RecipeVariantDefinition {
-        variant: RecipeVariant {
-            inputs: &METAL_INPUTS,
-            outputs: &ARMAMENT_OUTPUTS,
-        },
+    RecipeVariant {
+        inputs: &METAL_INPUTS,
+        outputs: &ARMAMENT_OUTPUTS,
     },
 ];
 const METAL_RECIPE: ProductionRecipe = ProductionRecipe {
@@ -485,11 +443,9 @@ const REFINERY_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
     good: Good::Fuel,
     amount: 1,
 }];
-const REFINERY_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
-    variant: RecipeVariant {
-        inputs: &REFINERY_INPUTS,
-        outputs: &REFINERY_OUTPUTS,
-    },
+const REFINERY_VARIANTS: [RecipeVariant; 1] = [RecipeVariant {
+    inputs: &REFINERY_INPUTS,
+    outputs: &REFINERY_OUTPUTS,
 }];
 const REFINERY_RECIPE: ProductionRecipe = ProductionRecipe {
     variants: &REFINERY_VARIANTS,
@@ -509,11 +465,9 @@ const RAILYARD_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
     good: Good::Transport,
     amount: 1,
 }];
-const RAILYARD_VARIANTS: [RecipeVariantDefinition; 1] = [RecipeVariantDefinition {
-    variant: RecipeVariant {
-        inputs: &RAILYARD_INPUTS,
-        outputs: &RAILYARD_OUTPUTS,
-    },
+const RAILYARD_VARIANTS: [RecipeVariant; 1] = [RecipeVariant {
+    inputs: &RAILYARD_INPUTS,
+    outputs: &RAILYARD_OUTPUTS,
 }];
 const RAILYARD_RECIPE: ProductionRecipe = ProductionRecipe {
     variants: &RAILYARD_VARIANTS,
