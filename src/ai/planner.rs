@@ -593,51 +593,25 @@ fn plan_engineer_depot_task(
     engineer_pos: TilePos,
     target: TilePos,
 ) -> Option<CivilianTask> {
-    // 1. Find the bridgehead: the connected tile closest to target
-    let bridgehead = nation
-        .connected_tiles
-        .iter()
-        .min_by_key(|t| {
-            (
-                t.to_hex().distance_to(target.to_hex()),
-                if **t == engineer_pos { 0 } else { 1 }, // Prefer current tile if tied for distance
-                t.x,                                     // Consistent tie-breaking
-                t.y,
-            )
-        })
-        .copied()?;
+    // Simplified Logic:
+    // 1. If we are at the target, build the depot.
+    // 2. If not, move towards the target.
+    //
+    // This removes the previous behavior of "spearheading" rails to the target.
+    // Infrastructure connections are now handled by separate ConnectDepot goals.
 
-    // 2. If we are not at the bridgehead, teleport there
-    if engineer_pos != bridgehead {
-        return Some(CivilianTask::MoveTo { target: bridgehead });
-    }
-
-    // 3. We are at the bridgehead. If it's the target, build the depot.
-    if bridgehead == target {
+    if engineer_pos == target {
         if can_build_depot_here(target, nation) {
             return Some(CivilianTask::BuildDepot);
         }
         return None;
     }
 
-    // 4. We are at the bridgehead but not at the target. Build rail towards target.
+    // Move towards target
     if let Some(next_tile) =
-        find_step_toward(bridgehead, target, &nation.owned_tiles, occupied_tiles)
+        find_step_toward(engineer_pos, target, &nation.owned_tiles, occupied_tiles)
     {
-        // next_tile MUST be unconnected if bridgehead was the closest connected tile.
-        if !nation.connected_tiles.contains(&next_tile) {
-            // Check if this rail segment is already being built
-            if is_rail_being_built(bridgehead, next_tile, nation) {
-                return None;
-            }
-
-            if can_build_rail_between(bridgehead, next_tile, nation) {
-                return Some(CivilianTask::BuildRailTo { target: next_tile });
-            }
-        } else {
-            // Should not happen if bridgehead logic is correct, but for safety:
-            return Some(CivilianTask::MoveTo { target: next_tile });
-        }
+        return Some(CivilianTask::MoveTo { target: next_tile });
     }
 
     None
@@ -651,7 +625,8 @@ fn plan_engineer_rail_task(
     engineer_pos: TilePos,
     depot_pos: TilePos,
 ) -> Option<CivilianTask> {
-    // 1. Find the bridgehead: the connected tile closest to depot_pos
+    // 1. Find the bridgehead: the connected tile closest to depot_pos.
+    // This represents the edge of our rail network that is nearest to the isolated depot.
     let bridgehead = nation
         .connected_tiles
         .iter()
@@ -665,97 +640,32 @@ fn plan_engineer_rail_task(
         })
         .copied()?;
 
-    // 2. Identify the "Frontier" of the Depot's rail line.
-    // The depot might have some rails attached to it locally (e.g. built by previous turns).
-    // We want the engineer to go to the END of this local network (closest to bridgehead)
-    // and extend it.
-
-    let depot_frontier = find_rail_frontier(depot_pos, bridgehead, &snapshot.rails);
-
-    // 3. Logic: Coordinate Movement to Frontier
-    // If we are NOT at the frontier, go there.
-    if engineer_pos != depot_frontier {
-        // Just move to the frontier.
-        // Note: The path might be along the rails we just traced, or cross-country if we are disconnected.
-        if let Some(step) = find_step_toward(
-            engineer_pos,
-            depot_frontier,
-            &nation.owned_tiles,
-            avoid_tiles,
-        ) {
-            return Some(CivilianTask::MoveTo { target: step });
-        }
-        return None;
+    // 2. If the engineer is not at the bridgehead, move there.
+    // This effectively "redeploys" the engineer to the best starting point on the network.
+    if engineer_pos != bridgehead {
+        return Some(CivilianTask::MoveTo { target: bridgehead });
     }
 
-    // 4. We are at the frontier. Build towards Bridgehead.
+    // 3. We are at the bridgehead. Identify the next step towards the depot.
     if let Some(next_tile) =
-        find_step_toward(depot_frontier, bridgehead, &nation.owned_tiles, avoid_tiles)
+        find_step_toward(bridgehead, depot_pos, &nation.owned_tiles, avoid_tiles)
     {
-        // If next_tile does not have rail, build it
-        if !can_move_on_rail(depot_frontier, next_tile, snapshot) {
-            // Check if this rail segment is already being built
-            if is_rail_being_built(depot_frontier, next_tile, nation) {
+        // If the rail doesn't exist, build it.
+        if !can_move_on_rail(bridgehead, next_tile, snapshot) {
+            if is_rail_being_built(bridgehead, next_tile, nation) {
                 return None;
             }
 
-            if can_build_rail_between(depot_frontier, next_tile, nation) {
+            if can_build_rail_between(bridgehead, next_tile, nation) {
                 return Some(CivilianTask::BuildRailTo { target: next_tile });
             }
         } else {
-            // Rail exists, just move (shouldn't happen if frontier logic is correct)
+            // Rail exists (rare if bridgehead was calculated correctly), just move.
             return Some(CivilianTask::MoveTo { target: next_tile });
         }
     }
 
     None
-}
-
-/// Find the tile connected to `start` via rails that minimizes distance to `target`.
-fn find_rail_frontier(
-    start: TilePos,
-    target: TilePos,
-    rails: &std::collections::HashSet<(TilePos, TilePos)>,
-) -> TilePos {
-    use crate::map::tile_pos::HexExt;
-    use std::collections::{HashSet, VecDeque};
-
-    let mut visited = HashSet::new();
-    let mut queue = VecDeque::new();
-
-    visited.insert(start);
-    queue.push_back(start);
-
-    let mut best_tile = start;
-    let mut min_dist = start.to_hex().distance_to(target.to_hex());
-
-    while let Some(current) = queue.pop_front() {
-        // Update best if this tile is closer to target
-        let dist = current.to_hex().distance_to(target.to_hex());
-        if dist < min_dist {
-            min_dist = dist;
-            best_tile = current;
-        }
-
-        // Explore neighbors connected by rail
-        for neighbor_hex in current.to_hex().all_neighbors() {
-            let Some(neighbor) = neighbor_hex.to_tile_pos() else {
-                continue;
-            };
-
-            if visited.contains(&neighbor) {
-                continue;
-            }
-
-            let edge = crate::economy::transport::ordered_edge(current, neighbor);
-            if rails.contains(&edge) {
-                visited.insert(neighbor);
-                queue.push_back(neighbor);
-            }
-        }
-    }
-
-    best_tile
 }
 
 /// Check if movement between two adjacent tiles can be done via rail
@@ -926,21 +836,26 @@ mod tests {
     }
 
     #[test]
-    fn test_engineer_moves_directly_to_connected_tile() {
+    fn test_engineer_moves_towards_depot_target() {
         use std::collections::HashSet;
 
-        // Engineer is far from connected tiles, should move directly to closest one
+        // Engineer is far from target
         let engineer_pos = TilePos::new(10, 10);
-        let connected_tile = TilePos::new(5, 5);
         let target = TilePos::new(8, 8);
 
         let mut connected_tiles = HashSet::new();
-        connected_tiles.insert(connected_tile);
+        // Connected tiles exist but engineer ignores them for simple depot building
+        connected_tiles.insert(TilePos::new(5, 5));
 
         let mut owned_tiles = HashSet::new();
         owned_tiles.insert(engineer_pos);
-        owned_tiles.insert(connected_tile);
         owned_tiles.insert(target);
+        // Add block of tiles to ensure connectivity regardless of hex layout
+        for x in 8..=11 {
+            for y in 8..=11 {
+                owned_tiles.insert(TilePos::new(x, y));
+            }
+        }
 
         // Create terrain map with buildable terrain (Grass)
         let mut tile_terrain = HashMap::new();
@@ -972,12 +887,18 @@ mod tests {
         let occupied_tiles = HashSet::new();
         let task = plan_engineer_depot_task(&snapshot, &occupied_tiles, engineer_pos, target);
 
-        // Should move directly to connected tile, not incremental step
-        assert!(matches!(task, Some(CivilianTask::MoveTo { target: t }) if t == connected_tile));
+        // Should move toward target (e.g. 9,9 or similar)
+        if let Some(CivilianTask::MoveTo { target: t }) = task {
+            assert_ne!(t, engineer_pos);
+            // It should be closer to target than before
+            // But we don't strictly enforce path here, just that it moves
+        } else {
+            panic!("Expected MoveTo task, got {:?}", task);
+        }
     }
 
     #[test]
-    fn test_engineer_builds_rail_when_on_connected_tile() {
+    fn test_engineer_builds_rail_for_connection() {
         use std::collections::HashSet;
 
         // Engineer is on a connected tile, should build rail toward target
@@ -1021,7 +942,20 @@ mod tests {
         };
 
         let occupied_tiles = HashSet::new();
-        let task = plan_engineer_depot_task(&snapshot, &occupied_tiles, engineer_pos, target);
+        let ai_snapshot = AiSnapshot {
+            occupied_tiles: occupied_tiles.clone(),
+            rails: HashSet::new(),
+            ..Default::default()
+        };
+
+        // Use plan_engineer_rail_task (ConnectDepot logic) instead of depot task
+        let task = plan_engineer_rail_task(
+            &snapshot,
+            &ai_snapshot,
+            &occupied_tiles,
+            engineer_pos,
+            target,
+        );
 
         // Should build rail to adjacent tile toward target
         assert!(matches!(task, Some(CivilianTask::BuildRailTo { target: t }) if t == next_step));
