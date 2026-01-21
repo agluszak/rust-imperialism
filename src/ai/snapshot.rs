@@ -402,9 +402,9 @@ pub fn build_ai_snapshot(
 
                 // Check connectivity
                 // Tile is connected if it is within range (1 hex) of any active depot
-                let is_connected = active_depots.iter().any(|&d| {
-                    d.to_hex().distance_to(tile_pos.to_hex()) <= 1
-                });
+                let is_connected = active_depots
+                    .iter()
+                    .any(|&d| d.to_hex().distance_to(tile_pos.to_hex()) <= 1);
 
                 // Check clustering (adjacent developed resources of same type)
                 let mut adjacent_developed_count = 0;

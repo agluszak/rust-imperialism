@@ -322,7 +322,8 @@ fn generate_infrastructure_goals(nation: &NationSnapshot, goals: &mut Vec<Nation
     for depot in &nation.unconnected_depots {
         // Connecting existing depots is critical for the network
         // Base priority 0.9, slightly reduced by distance but kept high
-        let priority = (0.9 - (depot.distance_from_capital as f32 / 100.0).min(0.2)).clamp(0.7, 1.0);
+        let priority =
+            (0.9 - (depot.distance_from_capital as f32 / 100.0).min(0.2)).clamp(0.7, 1.0);
         goals.push(NationGoal::ConnectDepot {
             tile: depot.position,
             priority,
@@ -1142,7 +1143,10 @@ mod tests {
         }
 
         if let NationGoal::ImproveTile { tile, .. } = goals[2] {
-            assert_eq!(tile, tile3.position, "Cluster (unconnected) tile should be third");
+            assert_eq!(
+                tile, tile3.position,
+                "Cluster (unconnected) tile should be third"
+            );
         } else {
             panic!("Wrong goal type");
         }
