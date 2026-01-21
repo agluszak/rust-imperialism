@@ -10,7 +10,7 @@ fn test_ai_move_command_executes() {
 
     use rust_imperialism::civilians::systems::{execute_move_orders, handle_civilian_commands};
     use rust_imperialism::civilians::{
-        Civilian, CivilianCommand, CivilianKind, CivilianOrder, CivilianOrderKind, DeselectCivilian,
+        Civilian, CivilianCommand, CivilianKind, CivilianOrder, CivilianOrderKind,
     };
     use rust_imperialism::map::province::{Province, ProvinceId, TileProvince};
     use rust_imperialism::messages::civilians::CivilianCommandRejected;
@@ -26,9 +26,11 @@ fn test_ai_move_command_executes() {
     #[derive(Resource, Default)]
     struct Rejections(Vec<CivilianCommandRejected>);
     world.init_resource::<Rejections>();
-    world.add_observer(|trigger: On<CivilianCommandRejected>, mut rejections: ResMut<Rejections>| {
-        rejections.0.push(*trigger.event());
-    });
+    world.add_observer(
+        |trigger: On<CivilianCommandRejected>, mut rejections: ResMut<Rejections>| {
+            rejections.0.push(*trigger.event());
+        },
+    );
 
     // Owned province and tiles
     let nation = world.spawn(Nation).id();
@@ -83,13 +85,13 @@ fn test_ai_move_command_executes() {
 
 #[test]
 fn test_illegal_rail_command_rejected() {
-    use bevy::ecs::system::RunSystemOnce;
+
     use bevy::prelude::*;
     use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
 
     use rust_imperialism::civilians::systems::handle_civilian_commands;
     use rust_imperialism::civilians::{
-        Civilian, CivilianCommand, CivilianKind, CivilianOrder, CivilianOrderKind, DeselectCivilian,
+        Civilian, CivilianCommand, CivilianKind, CivilianOrder, CivilianOrderKind,
     };
     use rust_imperialism::map::province::{Province, ProvinceId, TileProvince};
     use rust_imperialism::messages::civilians::{CivilianCommandError, CivilianCommandRejected};
@@ -105,9 +107,11 @@ fn test_illegal_rail_command_rejected() {
     #[derive(Resource, Default)]
     struct Rejections(Vec<CivilianCommandRejected>);
     world.init_resource::<Rejections>();
-    world.add_observer(|trigger: On<CivilianCommandRejected>, mut rejections: ResMut<Rejections>| {
-        rejections.0.push(*trigger.event());
-    });
+    world.add_observer(
+        |trigger: On<CivilianCommandRejected>, mut rejections: ResMut<Rejections>| {
+            rejections.0.push(*trigger.event());
+        },
+    );
 
     let player = world.spawn(Nation).id();
     let other = world.spawn_empty().id();

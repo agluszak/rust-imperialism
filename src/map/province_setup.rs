@@ -633,9 +633,7 @@ mod tests {
     use crate::ai::{AiControlledCivilian, AiNation};
     use crate::civilians::Civilian;
     use crate::map::province::{Province, ProvinceId};
-    use crate::map::province_setup::{
-        assign_provinces_to_countries, boost_capital_food_tiles,
-    };
+    use crate::map::province_setup::{assign_provinces_to_countries, boost_capital_food_tiles};
     use crate::resources::{DevelopmentLevel, ResourceType, TileResource};
 
     #[test]

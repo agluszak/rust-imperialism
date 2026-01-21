@@ -69,20 +69,10 @@ pub fn execute_engineer_orders(
                 );
             }
             CivilianOrderKind::BuildDepot => {
-                handle_build_depot_order(
-                    &mut commands,
-                    entity,
-                    &mut civilian,
-                    &turn,
-                );
+                handle_build_depot_order(&mut commands, entity, &mut civilian, &turn);
             }
             CivilianOrderKind::BuildPort => {
-                handle_build_port_order(
-                    &mut commands,
-                    entity,
-                    &mut civilian,
-                    &turn,
-                );
+                handle_build_port_order(&mut commands, entity, &mut civilian, &turn);
             }
             CivilianOrderKind::Move { .. } => {
                 // Move orders are handled by execute_move_orders for all civilians

@@ -229,18 +229,16 @@ pub fn setup_tilemap_rendering(
     let grid_size = crate::constants::get_hex_grid_size();
     let map_type = TilemapType::Hexagon(HexCoordSystem::Row);
 
-    commands.entity(tilemap_entity).insert((
-        TilemapBundle {
-            grid_size,
-            map_type,
-            size: *map_size,
-            storage: (*tile_storage).clone(),
-            texture: TilemapTexture::Single(atlas.texture.clone()),
-            tile_size,
-            anchor: TilemapAnchor::Center,
-            ..Default::default()
-        },
-    ));
+    commands.entity(tilemap_entity).insert((TilemapBundle {
+        grid_size,
+        map_type,
+        size: *map_size,
+        storage: (*tile_storage).clone(),
+        texture: TilemapTexture::Single(atlas.texture.clone()),
+        tile_size,
+        anchor: TilemapAnchor::Center,
+        ..Default::default()
+    },));
 
     for x in 0..map_size.x {
         for y in 0..map_size.y {
@@ -267,7 +265,7 @@ pub fn setup_tilemap_input(
     mut commands: Commands,
     tilemap_query: Query<(Entity, &TilemapSize, &TileStorage)>,
 ) {
-    let Some((tilemap_entity, map_size, tile_storage)) = tilemap_query.iter().next() else {
+    let Some((_tilemap_entity, map_size, tile_storage)) = tilemap_query.iter().next() else {
         return;
     };
 
