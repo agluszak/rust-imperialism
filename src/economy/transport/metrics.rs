@@ -4,7 +4,7 @@ use crate::economy::{
     allocation::Allocations,
     goods::Good,
     nation::Nation,
-    production::{BuildingKind, Buildings, production_recipe},
+    buildings::{BuildingKind, Buildings, production_recipe},
     transport::{
         AllocationSlot, BASE_TRANSPORT_CAPACITY, CapacitySnapshot, DemandEntry,
         TransportAllocations, TransportCapacity, TransportCommodity, TransportDemandSnapshot,

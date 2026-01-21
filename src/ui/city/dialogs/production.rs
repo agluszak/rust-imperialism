@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::economy::production::{
+use crate::economy::buildings::{
     Building, BuildingKind, Buildings, ProductionSettings, production_recipe,
 };
 use crate::economy::transport::state::TransportCommodity;

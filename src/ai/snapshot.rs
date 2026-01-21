@@ -66,7 +66,7 @@ pub struct NationSnapshot {
     pub trade_capacity_used: u32,
     /// Buildings owned by this nation.
     pub buildings:
-        HashMap<crate::economy::production::BuildingKind, crate::economy::production::Building>,
+        HashMap<crate::economy::buildings::BuildingKind, crate::economy::buildings::Building>,
 }
 
 /// Snapshot of rail construction.
@@ -270,7 +270,7 @@ pub fn build_ai_snapshot(
             &Stockpile,
             &Treasury,
             &crate::economy::technology::Technologies,
-            &crate::economy::production::Buildings,
+            &crate::economy::buildings::Buildings,
         ),
         (With<AiNation>, With<Nation>),
     >,
