@@ -1,4 +1,4 @@
-use crate::civilians::commands::{DeselectCivilian, RescindOrders};
+use crate::civilians::commands::RescindOrders;
 use crate::civilians::engineering::{
     execute_civilian_improvement_orders, execute_engineer_orders, execute_prospector_orders,
 };
@@ -10,7 +10,6 @@ use crate::civilians::types::{
 };
 use crate::economy::nation::Nation;
 use crate::economy::transport::{Rails, ordered_edge};
-use crate::economy::treasury::Treasury;
 use crate::map::province::{Province, ProvinceId, TileProvince};
 use crate::resources::{DevelopmentLevel, ResourceType, TileResource};
 use crate::turn_system::TurnCounter;
