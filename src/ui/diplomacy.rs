@@ -73,9 +73,9 @@ enum DiplomaticAction {
 fn execute_diplomatic_action(action: DiplomaticAction) -> impl Bundle {
     observe(
         move |_activate: On<Activate>,
+              mut commands: Commands,
               selection: Res<DiplomacySelection>,
-              player: Option<Res<PlayerNation>>,
-              mut orders: MessageWriter<DiplomaticOrder>| {
+              player: Option<Res<PlayerNation>>| {
             let Some(selected) = selection.selected else {
                 return;
             };
@@ -139,7 +139,7 @@ fn execute_diplomatic_action(action: DiplomaticAction) -> impl Bundle {
                 },
             };
 
-            orders.write(order);
+            commands.trigger(order);
         },
     )
 }

@@ -6,17 +6,17 @@ use bevy::prelude::*;
 pub struct SelectedCivilian(pub Entity);
 
 /// Message: Player selects a civilian unit
-#[derive(Message, Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
 pub struct SelectCivilian {
     pub entity: Entity,
 }
 
 /// Message: Deselect the currently selected civilian
-#[derive(Message, Debug)]
+#[derive(Event, Debug)]
 pub struct DeselectCivilian;
 
 /// Message: Rescind orders for a civilian (undo their action this turn)
-#[derive(Message, Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
 pub struct RescindOrders {
     pub entity: Entity,
 }

@@ -4,14 +4,14 @@ use crate::economy::NationInstance;
 use crate::economy::workforce::WorkerSkill;
 
 /// Message to queue recruitment of untrained workers at the Capitol.
-#[derive(Message, Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
 pub struct RecruitWorkers {
     pub nation: NationInstance,
     pub count: u32,
 }
 
 /// Message to queue training of a worker at the Trade School.
-#[derive(Message, Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
 pub struct TrainWorker {
     pub nation: NationInstance,
     pub from_skill: WorkerSkill,

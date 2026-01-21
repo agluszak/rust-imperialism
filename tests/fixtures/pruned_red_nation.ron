@@ -2,7 +2,6 @@
   resources: {
     "rust_imperialism::civilians::types::NextCivilianId": (24),
     "rust_imperialism::economy::transport::types::Rails": ([]),
-    "rust_imperialism::map::province_setup::ProvincesGenerated": (),
   },
   entities: {
     4294966160: (
