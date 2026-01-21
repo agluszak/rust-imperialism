@@ -11,13 +11,13 @@ use crate::ui::city::dialogs::OpenBuildingDialog;
 pub fn open_building_on_click(building_kind: BuildingKind) -> impl Bundle {
     observe(
         move |activate: On<Activate>,
-              button_query: Query<&BuildingButton>,
-              mut open_dialog_writer: MessageWriter<OpenBuildingDialog>| {
+              mut commands: Commands,
+              button_query: Query<&BuildingButton>| {
             let entity = activate.entity;
             if let Ok(button) = button_query.get(entity) {
                 if let Some(building_entity) = button.building_entity {
                     // Open dialog for this building
-                    open_dialog_writer.write(OpenBuildingDialog {
+                    commands.trigger(OpenBuildingDialog {
                         building_entity,
                         building_kind,
                     });

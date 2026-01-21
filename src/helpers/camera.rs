@@ -38,7 +38,7 @@ fn setup(mut commands: Commands) {
 fn center_on_player_capital(
     mut camera: Query<&mut Transform, With<Camera2d>>,
     player_nation: Option<Res<PlayerNation>>,
-    capitals: Query<&Capital, With<Nation>>,
+    capitals: Query<(Entity, &Capital), With<Nation>>,
 ) {
     // Only run once when player nation is available
     let Some(player) = player_nation else {
@@ -46,8 +46,12 @@ fn center_on_player_capital(
     };
 
     // Find player's capital
-    if let Ok(capital) = capitals.get(player.entity()) {
-        if let Ok(mut transform) = camera.single_mut() {
+    let player_entity = player.entity();
+    for (entity, capital) in capitals.iter() {
+        // Check if this capital belongs to the player's nation
+        if entity == player_entity
+            && let Ok(mut transform) = camera.single_mut()
+        {
             let capital_world_pos = capital.0.to_world_pos();
             transform.translation.x = capital_world_pos.x;
             transform.translation.y = capital_world_pos.y;
@@ -55,6 +59,7 @@ fn center_on_player_capital(
                 "Camera centered on capital at ({:.1}, {:.1})",
                 capital_world_pos.x, capital_world_pos.y
             );
+            return;
         }
     }
 }

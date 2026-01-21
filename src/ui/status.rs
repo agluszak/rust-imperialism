@@ -125,8 +125,12 @@ pub fn update_tile_info_display(
                             if province.id == tile_prov.province_id {
                                 if let Some(owner_entity) = province.owner {
                                     // Find the owner name
-                                    if let Ok((_, name, _)) = nations_query.get(owner_entity) {
-                                        tile_info.push_str(&format!("\nOwner: {}", name.as_str()));
+                                    for (nation_entity, name, _) in nations_query.iter() {
+                                        if nation_entity == owner_entity {
+                                            tile_info
+                                                .push_str(&format!("\nOwner: {}", name.as_str()));
+                                            break;
+                                        }
                                     }
                                 }
 
@@ -159,9 +163,12 @@ pub fn update_tile_info_display(
                         && let Some(player) = &player
                     {
                         // Find player's tech
-                        if let Ok((_, _, techs)) = nations_query.get(player.entity()) {
-                            let buildable = check_buildability(terrain, techs);
-                            tile_info.push_str(&format!("\n{}", buildable));
+                        for (nation_entity, _, techs) in nations_query.iter() {
+                            if nation_entity == player.entity() {
+                                let buildable = check_buildability(terrain, techs);
+                                tile_info.push_str(&format!("\n{}", buildable));
+                                break;
+                            }
                         }
                     }
                 }
