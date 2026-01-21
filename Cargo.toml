@@ -21,6 +21,10 @@ harness = false
 name = "game_benchmark"
 harness = false
 
+[[bench]]
+name = "snapshot_benchmark"
+harness = false
+
 [dependencies]
 bevy = { version = "0.18", features = ["bevy_dev_tools", "dynamic_linking", "experimental_bevy_ui_widgets"] }
 hexx = { version = "0.23", features = ["algorithms", "serde", "bevy"] }
@@ -35,7 +39,7 @@ moonshine-kind = { git = "https://github.com/agluszak/moonshine_kind.git" }
 serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.8.1"
 
 [features]
 default = ["debug"]
