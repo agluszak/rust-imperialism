@@ -348,8 +348,7 @@ fn trigger_save(mut commands: Commands, state: Res<GenerationState>, mut trigger
         .include_resource::<rust_imperialism::turn_system::TurnCounter>()
         .include_resource::<rust_imperialism::economy::transport::Rails>()
         .include_resource::<rust_imperialism::civilians::ProspectingKnowledge>()
-        .include_resource::<rust_imperialism::civilians::NextCivilianId>()
-        .include_resource::<rust_imperialism::map::province_setup::ProvincesGenerated>();
+        .include_resource::<rust_imperialism::civilians::NextCivilianId>();
 
     commands.trigger_save(event);
     *triggered = true;
