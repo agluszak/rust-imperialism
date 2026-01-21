@@ -13,72 +13,71 @@ use crate::messages::civilians::HireCivilian;
 /// should send a [`HireCivilian`] message that includes the player's
 /// [`NationInstance`](crate::economy::nation::NationInstance).
 pub fn spawn_hired_civilian(
+    trigger: On<HireCivilian>,
     mut commands: Commands,
-    mut hire_events: MessageReader<HireCivilian>,
     capitals: Query<&Capital>,
     mut treasuries: Query<&mut Treasury>,
     tile_storage_query: Query<&TileStorage>,
     civilians: Query<&Civilian>,
     mut next_id: ResMut<crate::civilians::types::NextCivilianId>,
 ) {
-    for event in hire_events.read() {
-        let nation_entity = event.nation.entity();
+    let event = trigger.event();
+    let nation_entity = event.nation.entity();
 
-        let Ok(capital) = capitals.get(nation_entity) else {
-            info!(
-                "Cannot hire {:?} for {:?}: no capital found",
-                event.kind, nation_entity
-            );
-            continue;
-        };
-
-        let Some(spawn_pos) = find_unoccupied_tile_near(capital.0, &tile_storage_query, &civilians)
-        else {
-            info!(
-                "Cannot hire {:?} for {:?}: no open tiles near capital",
-                event.kind, nation_entity
-            );
-            continue;
-        };
-
-        let Ok(mut treasury) = treasuries.get_mut(nation_entity) else {
-            continue;
-        };
-
-        let cost = event.kind.hiring_cost();
-        if treasury.available() < cost {
-            info!(
-                "Not enough money to hire {:?} for {:?} (need ${}, have ${})",
-                event.kind,
-                nation_entity,
-                cost,
-                treasury.available()
-            );
-            continue;
-        }
-
-        treasury.subtract(cost);
-
-        let civilian_id = next_id.next_id();
-        let name = format!("{:?} {}", event.kind, civilian_id.0);
-
-        commands.spawn((
-            Civilian {
-                kind: event.kind,
-                position: spawn_pos,
-                owner: nation_entity,
-                civilian_id,
-                has_moved: false,
-            },
-            OwnedBy(nation_entity),
-            Name::new(name.clone()),
-        ));
-
+    let Ok(capital) = capitals.get(nation_entity) else {
         info!(
-            "Hired {} (CivilianId({})) for {:?} at ({}, {})",
-            name, civilian_id.0, nation_entity, spawn_pos.x, spawn_pos.y
+            "Cannot hire {:?} for {:?}: no capital found",
+            event.kind, nation_entity
         );
+        return;
+    };
+
+    let Some(spawn_pos) = find_unoccupied_tile_near(capital.0, &tile_storage_query, &civilians)
+    else {
+        info!(
+            "Cannot hire {:?} for {:?}: no open tiles near capital",
+            event.kind, nation_entity
+        );
+        return;
+    };
+
+    let Ok(mut treasury) = treasuries.get_mut(nation_entity) else {
+        return;
+    };
+
+    let cost = event.kind.hiring_cost();
+    if treasury.available() < cost {
+        info!(
+            "Not enough money to hire {:?} for {:?} (need ${}, have ${})",
+            event.kind,
+            nation_entity,
+            cost,
+            treasury.available()
+        );
+        return;
     }
+
+    treasury.subtract(cost);
+
+    let civilian_id = next_id.next_id();
+    let name = format!("{:?} {}", event.kind, civilian_id.0);
+
+    commands.spawn((
+        Civilian {
+            kind: event.kind,
+            position: spawn_pos,
+            owner: nation_entity,
+            civilian_id,
+            has_moved: false,
+        },
+        OwnedBy(nation_entity),
+        Name::new(name.clone()),
+    ));
+
+    info!(
+        "Hired {} (CivilianId({})) for {:?} at ({}, {})",
+        name, civilian_id.0, nation_entity, spawn_pos.x, spawn_pos.y
+    );
 }
 
 fn find_unoccupied_tile_near(
