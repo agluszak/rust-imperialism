@@ -421,6 +421,19 @@ fn assign_civilians_to_goals(
 
     // Iterate goals by priority (already sorted)
     for goal in goals {
+        // Calculate blockers for this goal attempt:
+        // Reserved tiles (Friends who moved/stayed + Enemies)
+        // + ALL Unplanned Friends (who are currently sitting at their spot)
+        //
+        // Note: This includes the candidate's own position. However, this is safe because:
+        // 1. Pathfinding (find_step_toward) checks neighbors, not the start node.
+        // 2. Target validity checks (e.g. ProspectTile) handle the "am I already there" case explicitly.
+        // 3. Target validity for movement checks !avoid_tiles.contains(target), which is correct (we can't move to ourselves anyway).
+        let mut avoid_tiles = reserved_positions.clone();
+        for &pos in unplanned_positions.values() {
+            avoid_tiles.insert(pos);
+        }
+
         // Find best candidate for this goal
         let mut best_candidate: Option<(Entity, CivilianTask)> = None;
         let mut min_distance = u32::MAX; // Score: lower is better (distance to action)
@@ -428,17 +441,6 @@ fn assign_civilians_to_goals(
         for civilian in nation.available_civilians() {
             if !unplanned_positions.contains_key(&civilian.entity) {
                 continue;
-            }
-
-            // Calculate blockers for this specific candidate:
-            // Reserved tiles (Friends who moved/stayed + Enemies)
-            // + Unplanned Friends (who are currently sitting at their spot)
-            // - EXCLUDING this candidate (since they are moving)
-            let mut avoid_tiles = reserved_positions.clone();
-            for (&entity, &pos) in &unplanned_positions {
-                if entity != civilian.entity {
-                    avoid_tiles.insert(pos);
-                }
             }
 
             let task_opt = match goal {
@@ -1001,6 +1003,7 @@ mod tests {
         // Should build rail to adjacent tile toward target
         assert!(matches!(task, Some(CivilianTask::BuildRailTo { target: t }) if t == next_step));
     }
+
 
     #[test]
     fn test_engineer_bridgehead_loop() {
