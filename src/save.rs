@@ -26,6 +26,7 @@ use crate::economy::workforce::{
 };
 use crate::economy::{Calendar, Season};
 use crate::map::province::{City, Province, ProvinceId, TileProvince};
+use crate::map::province_setup::ProvincesGenerated;
 use crate::map::tiles::TerrainType;
 use crate::resources::{DevelopmentLevel, ResourceType, TileResource};
 use crate::turn_system::{TurnCounter, TurnPhase};
@@ -152,6 +153,7 @@ fn register_reflect_types(app: &mut App) {
         .register_type::<Port>()
         .register_type::<RailConstruction>()
         .register_type::<Rails>()
+        .register_type::<ProvincesGenerated>()
         .register_type::<AiNation>()
         .register_type::<AiControlledCivilian>()
         .register_type::<TerrainType>()
@@ -187,7 +189,8 @@ fn process_save_requests(
             .include_resource::<TurnCounter>()
             .include_resource::<Rails>()
             .include_resource::<ProspectingKnowledge>()
-            .include_resource::<NextCivilianId>();
+            .include_resource::<NextCivilianId>()
+            .include_resource::<ProvincesGenerated>();
 
         commands.trigger_save(event);
         pending.path = Some(path);
@@ -333,6 +336,7 @@ mod tests {
     use crate::economy::treasury::Treasury;
     use crate::economy::workforce::{RecruitmentQueue, TrainingQueue, Workforce};
     use crate::economy::{Calendar, Season};
+    use crate::map::province_setup::ProvincesGenerated;
     use crate::save::{
         GameSavePlugin, LoadGameCompleted, LoadGameRequest, SaveGameCompleted, SaveGameRequest,
     };
@@ -367,6 +371,7 @@ mod tests {
             world.insert_resource(Calendar::default());
             world.insert_resource(TurnCounter::default());
             world.insert_resource(Rails::default());
+            world.insert_resource(ProvincesGenerated);
         }
 
         app

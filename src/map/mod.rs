@@ -26,6 +26,10 @@ pub use terrain_gen::*;
 pub use tile_pos::*;
 pub use tiles::*;
 
+/// Marker resource to track if tilemap has been created
+#[derive(Resource)]
+pub struct TilemapCreated;
+
 /// Plugin that handles core map logic and resources
 pub struct MapLogicPlugin;
 
@@ -38,39 +42,34 @@ pub struct MapGenerationPlugin;
 
 impl Plugin for MapGenerationPlugin {
     fn build(&self, app: &mut App) {
-        // Run map generation strictly once when entering game state, if not already created
-        app.add_systems(
-            OnEnter(AppState::InGame),
-            (
-                create_tilemap_logic,
-                ApplyDeferred,
-                province_setup::generate_provinces_system,
-                ApplyDeferred,
-                province_setup::assign_provinces_to_countries,
-                ApplyDeferred,
-                setup_tilemap_input,
-                ApplyDeferred,
-                province_setup::prune_to_test_map,
-            )
-                .chain()
-                .run_if(map_not_created),
-        );
-
-        // Rendering setup can happen anytime once assets are loaded
+        // Tilemap creation (Logic part)
         app.add_systems(
             Update,
-            setup_tilemap_rendering.run_if(in_state(AppState::InGame)),
+            create_tilemap_logic.run_if(in_state(AppState::InGame)),
+        );
+
+        // Province generation (runs after tilemap is created)
+        app.add_systems(
+            Update,
+            (
+                province_setup::generate_provinces_system,
+                province_setup::assign_provinces_to_countries
+                    .after(province_setup::generate_provinces_system),
+                province_setup::prune_to_test_map
+                    .after(province_setup::assign_provinces_to_countries),
+            )
+                .run_if(in_state(AppState::InGame)),
         );
     }
 }
 
-/// Helper condition to check if map needs generation
-fn map_not_created(query: Query<(), With<MapTilemap>>) -> bool {
-    query.is_empty()
-}
-
 /// Logic part of tilemap creation: spawns entities with terrain and resources
-fn create_tilemap_logic(mut commands: Commands) {
+fn create_tilemap_logic(mut commands: Commands, tilemap_created: Option<Res<TilemapCreated>>) {
+    // Skip if tilemap already created
+    if tilemap_created.is_some() {
+        return;
+    }
+
     info!("Creating tilemap logic...");
 
     let map_size = TilemapSize {
@@ -195,8 +194,14 @@ fn create_tilemap_logic(mut commands: Commands) {
         MapTilemap, // Marker to control visibility
     ));
 
+    // Mark tilemap as created
+    commands.insert_resource(TilemapCreated);
+
     info!("Tilemap logic created successfully with resources!");
 }
+
+#[derive(Component)]
+pub struct TilemapRenderingInitialized;
 
 /// Rendering part of tilemap creation: decorates entities with rendering components
 pub fn setup_tilemap_rendering(
@@ -204,7 +209,7 @@ pub fn setup_tilemap_rendering(
     terrain_atlas: Option<Res<rendering::TerrainAtlas>>,
     tilemap_query: Query<
         (Entity, &TilemapSize, &TileStorage),
-        (With<MapTilemap>, Without<TilemapTexture>),
+        Without<TilemapRenderingInitialized>,
     >,
     tiles_query: Query<(Entity, &TerrainType), Without<TileTextureIndex>>,
 ) {
@@ -229,16 +234,19 @@ pub fn setup_tilemap_rendering(
     let grid_size = crate::constants::get_hex_grid_size();
     let map_type = TilemapType::Hexagon(HexCoordSystem::Row);
 
-    commands.entity(tilemap_entity).insert((TilemapBundle {
-        grid_size,
-        map_type,
-        size: *map_size,
-        storage: (*tile_storage).clone(),
-        texture: TilemapTexture::Single(atlas.texture.clone()),
-        tile_size,
-        anchor: TilemapAnchor::Center,
-        ..Default::default()
-    },));
+    commands.entity(tilemap_entity).insert((
+        TilemapBundle {
+            grid_size,
+            map_type,
+            size: *map_size,
+            storage: (*tile_storage).clone(),
+            texture: TilemapTexture::Single(atlas.texture.clone()),
+            tile_size,
+            anchor: TilemapAnchor::Center,
+            ..Default::default()
+        },
+        TilemapRenderingInitialized,
+    ));
 
     for x in 0..map_size.x {
         for y in 0..map_size.y {
@@ -259,13 +267,15 @@ pub fn setup_tilemap_rendering(
     info!("Tilemap rendering setup complete!");
 }
 
+#[derive(Component)]
+pub struct TilemapInputInitialized;
+
 /// Input part of tilemap creation: attaches observers to tiles
-// This runs once in the OnEnter chain, so we don't need a marker component.
 pub fn setup_tilemap_input(
     mut commands: Commands,
-    tilemap_query: Query<(Entity, &TilemapSize, &TileStorage)>,
+    tilemap_query: Query<(Entity, &TilemapSize, &TileStorage), Without<TilemapInputInitialized>>,
 ) {
-    let Some((_tilemap_entity, map_size, tile_storage)) = tilemap_query.iter().next() else {
+    let Some((tilemap_entity, map_size, tile_storage)) = tilemap_query.iter().next() else {
         return;
     };
 
@@ -281,6 +291,10 @@ pub fn setup_tilemap_input(
             }
         }
     }
+
+    commands
+        .entity(tilemap_entity)
+        .insert(TilemapInputInitialized);
 
     info!("Tilemap input setup complete!");
 }

@@ -147,7 +147,7 @@ pub fn depot_coverage(position: TilePos) -> impl Iterator<Item = TilePos> {
 ///
 /// The algorithm iteratively picks the owned tile that covers the most uncovered
 /// resources until all resources are covered.
-pub fn calculate_suggested_depots(
+fn calculate_suggested_depots(
     resource_tiles: &HashSet<TilePos>,
     owned_tiles: &HashSet<TilePos>,
     depot_positions: &HashSet<TilePos>,
@@ -186,9 +186,8 @@ pub fn calculate_suggested_depots(
                     .unwrap_or(false)
             })
             .map(|&pos| {
-                let covers_count = depot_coverage(pos)
-                    .filter(|t| remaining.contains(t))
-                    .count() as u32;
+                let coverage: HashSet<TilePos> = depot_coverage(pos).collect();
+                let covers_count = remaining.intersection(&coverage).count() as u32;
                 let distance = capital_hex.distance_to(pos.to_hex()) as u32;
                 (pos, covers_count, distance)
             })
@@ -224,6 +223,10 @@ pub struct ImprovableTile {
     pub development: DevelopmentLevel,
     pub improver_kind: CivilianKind,
     pub distance_from_capital: u32,
+    /// Whether the tile is within range of a connected depot (or capital).
+    pub is_connected: bool,
+    /// Number of adjacent tiles with the same resource type that are already developed.
+    pub adjacent_developed_count: u32,
 }
 
 /// A tile with potential minerals that can be prospected.
@@ -338,6 +341,16 @@ pub fn build_ai_snapshot(
             .map(|d| d.position)
             .collect();
 
+        // Identify active depots (Capital + Connected Depots)
+        // Used to check if an improvement is effectively connected to the network
+        let active_depots: Vec<TilePos> = depots
+            .iter()
+            .filter(|d| d.owner == entity)
+            .filter(|d| connected_tiles.contains(&d.position))
+            .map(|d| d.position)
+            .chain(std::iter::once(capital_pos))
+            .collect();
+
         // Find unconnected depots
         let mut unconnected_depots: Vec<DepotInfo> = depots
             .iter()
@@ -386,12 +399,34 @@ pub fn build_ai_snapshot(
                 && let Some(improver_kind) = improver_for_resource(&resource.resource_type)
             {
                 let distance = capital_hex.distance_to(tile_pos.to_hex()) as u32;
+
+                // Check connectivity
+                // Tile is connected if it is within range (1 hex) of any active depot
+                let is_connected = active_depots
+                    .iter()
+                    .any(|&d| d.to_hex().distance_to(tile_pos.to_hex()) <= 1);
+
+                // Check clustering (adjacent developed resources of same type)
+                let mut adjacent_developed_count = 0;
+                for neighbor_hex in tile_pos.to_hex().all_neighbors() {
+                    if let Some(n_pos) = neighbor_hex.to_tile_pos()
+                        && let Some(n_entity) = storage.get(&n_pos)
+                        && let Ok(n_res) = tile_resources.get(n_entity)
+                        && n_res.resource_type == resource.resource_type
+                        && n_res.development > DevelopmentLevel::Lv0
+                    {
+                        adjacent_developed_count += 1;
+                    }
+                }
+
                 improvable_tiles.push(ImprovableTile {
                     position: tile_pos,
                     resource_type: resource.resource_type,
                     development: resource.development,
                     improver_kind,
                     distance_from_capital: distance,
+                    is_connected,
+                    adjacent_developed_count,
                 });
             }
         }

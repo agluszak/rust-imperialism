@@ -68,7 +68,9 @@ fn test_red_nation_has_connected_rail_after_20_turns() {
 
     common::rebuild_tile_storage(&mut app);
 
-    for _ in 0..20 {
+    // Increased turn count to 60 to accommodate the simplified AI logic which separates
+    // depot construction and rail connection into sequential tasks (requiring more travel time)
+    for _ in 0..60 {
         common::transition_to_phase(&mut app, TurnPhase::Processing);
         common::transition_to_phase(&mut app, TurnPhase::EnemyTurn);
         common::transition_to_phase(&mut app, TurnPhase::PlayerTurn);
