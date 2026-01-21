@@ -14,7 +14,7 @@ use crate::civilians::{
 use crate::economy::allocation::Allocations;
 use crate::economy::goods::Good;
 use crate::economy::nation::{Capital, Nation, NationColor, PlayerNation};
-use crate::economy::production::{Building, BuildingKind, Buildings, ProductionSettings};
+use crate::economy::buildings::{Building, BuildingKind, Buildings, ProductionSettings};
 use crate::economy::reservation::{ReservationSystem, ResourcePool};
 use crate::economy::stockpile::Stockpile;
 use crate::economy::technology::{Technologies, Technology};

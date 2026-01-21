@@ -6,7 +6,7 @@ use crate::economy::{
     allocation_systems::{calculate_inputs_for_one_unit, execute_queued_production_orders},
     goods::Good,
     nation::{Nation, NationInstance},
-    production::{Building, BuildingKind, Buildings},
+    buildings::{Building, BuildingKind, Buildings},
     reservation::ReservationSystem,
     stockpile::Stockpile,
     treasury::Treasury,

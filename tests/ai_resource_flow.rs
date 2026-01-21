@@ -16,7 +16,7 @@ fn test_ai_resource_discovery_and_collection() {
     use rust_imperialism::civilians::{Civilian, CivilianKind};
     use rust_imperialism::economy::{
         nation::{Capital, Nation},
-        production::Buildings,
+        buildings::Buildings,
         stockpile::Stockpile,
         technology::Technologies,
         transport::Depot,
@@ -342,7 +342,7 @@ fn test_ai_respects_terrain_constraints() {
     use rust_imperialism::civilians::{Civilian, CivilianKind};
     use rust_imperialism::economy::{
         nation::{Capital, Nation},
-        production::Buildings,
+        buildings::Buildings,
         stockpile::Stockpile,
         technology::Technologies,
         treasury::Treasury,
@@ -531,7 +531,7 @@ fn test_two_engineers_splitting_paths() {
     use rust_imperialism::civilians::{Civilian, CivilianKind};
     use rust_imperialism::economy::{
         nation::{Capital, Nation},
-        production::Buildings,
+        buildings::Buildings,
         stockpile::Stockpile,
         technology::Technologies,
         transport::{Depot, Rails},
