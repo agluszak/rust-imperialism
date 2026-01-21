@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy::state::app::StatesPlugin;
 use criterion::{criterion_group, criterion_main, Criterion};
 use rust_imperialism::app;
-use rust_imperialism::map::{MapGenerationPlugin, TilemapCreated};
+use rust_imperialism::map::{MapGenerationPlugin, TilemapCreated, TilemapRenderingInitialized};
 use rust_imperialism::turn_system::{EndPlayerTurn, TurnCounter};
 use rust_imperialism::ui::menu::AppState;
 use rust_imperialism::LogicPlugins;
@@ -75,6 +75,14 @@ fn bench_headless_turns(c: &mut Criterion) {
 fn bench_graphics_rendering(c: &mut Criterion) {
     // This benchmark requires a display (DefaultPlugins).
     // If running in a headless CI environment without Xvfb/Wayland, this might fail.
+    // We check for display environment variables to avoid panics in CI.
+    if std::env::var("DISPLAY").is_err()
+        && std::env::var("WAYLAND_DISPLAY").is_err()
+        && std::env::var("WAYLAND_SOCKET").is_err()
+    {
+        return;
+    }
+
     let mut app = app();
 
     // Transition to game
@@ -83,16 +91,26 @@ fn bench_graphics_rendering(c: &mut Criterion) {
         .set(AppState::InGame);
     app.update();
 
-    // Wait for map
+    // Wait for map AND rendering initialization
+    // TilemapCreated means logic is done.
+    // TilemapRenderingInitialized means meshes/assets are ready.
     let mut i = 0;
     loop {
         app.update();
-        if app.world().contains_resource::<TilemapCreated>() {
+        let map_ready = app.world().contains_resource::<TilemapCreated>();
+        let rendering_ready = app
+            .world_mut()
+            .query::<&TilemapRenderingInitialized>()
+            .iter(app.world())
+            .next()
+            .is_some();
+
+        if map_ready && rendering_ready {
             break;
         }
         i += 1;
-        if i > 1000 {
-            panic!("Map generation timed out");
+        if i > 5000 {
+            panic!("Map generation or rendering setup timed out");
         }
     }
 
