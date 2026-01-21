@@ -147,7 +147,7 @@ pub fn depot_coverage(position: TilePos) -> impl Iterator<Item = TilePos> {
 ///
 /// The algorithm iteratively picks the owned tile that covers the most uncovered
 /// resources until all resources are covered.
-fn calculate_suggested_depots(
+pub fn calculate_suggested_depots(
     resource_tiles: &HashSet<TilePos>,
     owned_tiles: &HashSet<TilePos>,
     depot_positions: &HashSet<TilePos>,
