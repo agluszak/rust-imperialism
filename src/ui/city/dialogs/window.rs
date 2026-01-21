@@ -90,12 +90,9 @@ pub fn spawn_dialog_frame(
                                     BorderColor::all(Color::srgba(0.7, 0.3, 0.3, 1.0)),
                                     DialogCloseButton { building_entity },
                                     observe(
-                                        move |_: On<Activate>,
-                                              mut close_writer: MessageWriter<
-                                            CloseBuildingDialog,
-                                        >| {
-                                            close_writer
-                                                .write(CloseBuildingDialog { building_entity });
+                                        move |_: On<Activate>, mut commands: Commands| {
+                                            commands
+                                                .trigger(CloseBuildingDialog { building_entity });
                                         },
                                     ),
                                 ))
