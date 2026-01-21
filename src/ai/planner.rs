@@ -587,18 +587,21 @@ fn assign_civilians_to_goals(
 }
 
 /// Plan an engineer task to build a depot at a target tile.
+///
+/// **Strategy:**
+/// This function focuses strictly on *deploying* the engineer to the site and constructing the building.
+/// It intentionally does *not* attempt to build a rail connection simultaneously (the "spearhead" approach).
+///
+/// Connectivity is handled as a separate concern by `plan_engineer_rail_task` via `ConnectDepot` goals,
+/// which allows the AI to prioritize "connecting existing depots" differently from "building new ones".
 fn plan_engineer_depot_task(
     nation: &NationSnapshot,
     occupied_tiles: &std::collections::HashSet<TilePos>,
     engineer_pos: TilePos,
     target: TilePos,
 ) -> Option<CivilianTask> {
-    // Simplified Logic:
     // 1. If we are at the target, build the depot.
-    // 2. If not, move towards the target.
-    //
-    // This removes the previous behavior of "spearheading" rails to the target.
-    // Infrastructure connections are now handled by separate ConnectDepot goals.
+    // 2. If not, move towards the target (cross-country if needed).
 
     if engineer_pos == target {
         if can_build_depot_here(target, nation) {
