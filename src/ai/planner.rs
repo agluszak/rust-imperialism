@@ -299,12 +299,18 @@ fn generate_value_added_trade(
 fn generate_infrastructure_goals(nation: &NationSnapshot, goals: &mut Vec<NationGoal>) {
     // Add goals for building depots at optimal locations (calculated via greedy set-cover)
     for depot in &nation.suggested_depots {
-        // Priority factors:
-        // - Coverage: depots that cover more resources get higher priority
-        // - Distance: closer depots are preferred
-        let coverage_factor = (depot.covers_count as f32 / 7.0).min(1.0);
-        let distance_factor = 1.0 / (1.0 + depot.distance_from_capital as f32 * 0.3);
-        let priority = (coverage_factor * 0.6 + distance_factor * 0.4).clamp(0.3, 0.85);
+        // Priority heavily based on how many resources it covers (clustering)
+        let count_priority = match depot.covers_count {
+            0 => 0.0,
+            1 => 0.5,
+            2 => 0.7,
+            _ => 0.9,
+        };
+
+        // Distance penalty
+        let distance_penalty = (depot.distance_from_capital as f32 / 100.0).min(0.2);
+
+        let priority = (count_priority - distance_penalty).clamp(0.3, 0.95);
 
         goals.push(NationGoal::BuildDepotAt {
             tile: depot.position,
@@ -314,8 +320,8 @@ fn generate_infrastructure_goals(nation: &NationSnapshot, goals: &mut Vec<Nation
 
     // Add goals for connecting existing unconnected depots
     for depot in &nation.unconnected_depots {
-        // Priority decreases with distance, but existing depots are important
-        let priority = (1.2 / (1.0 + depot.distance_from_capital as f32 * 0.1)).clamp(0.4, 0.95);
+        // Connecting existing depots is very important.
+        let priority = (0.8 - (depot.distance_from_capital as f32 / 50.0).min(0.3)).clamp(0.4, 0.95);
         goals.push(NationGoal::ConnectDepot {
             tile: depot.position,
             priority,
@@ -325,18 +331,37 @@ fn generate_infrastructure_goals(nation: &NationSnapshot, goals: &mut Vec<Nation
 
 fn generate_improvement_goals(nation: &NationSnapshot, goals: &mut Vec<NationGoal>) {
     for tile in &nation.improvable_tiles {
-        // Priority: closer tiles and lower development levels are higher priority
-        let distance_factor = 1.0 / (1.0 + tile.distance_from_capital as f32 * 0.1);
+        // Priority based on:
+        // 1. Connectivity (High impact)
+        // 2. Clustering (High potential - "build next to existing mine")
+        // 3. Distance (Logistics)
+
+        let mut priority = 0.5;
+
+        // Bonus for being connected (immediate payoff)
+        if tile.is_connected {
+            priority += 0.4;
+        }
+
+        // Bonus for clustering (economies of scale / simplified logistics)
+        if tile.adjacent_developed_count > 0 {
+            priority += 0.15 * tile.adjacent_developed_count as f32;
+        }
+
+        // Distance penalty
+        let distance_penalty = (tile.distance_from_capital as f32 / 100.0).min(0.2);
+        priority -= distance_penalty;
+
+        // Development factor
         let development_factor = match tile.development {
-            crate::resources::DevelopmentLevel::Lv0 => 1.0,
-            crate::resources::DevelopmentLevel::Lv1 => 0.7,
-            crate::resources::DevelopmentLevel::Lv2 => 0.4,
-            crate::resources::DevelopmentLevel::Lv3 => 0.0, // Already max
+            crate::resources::DevelopmentLevel::Lv0 => 1.0, // Prioritize new sources
+            _ => 0.9,                                       // Upgrading is also good
         };
+        priority *= development_factor;
 
-        let priority = distance_factor * development_factor * 0.6;
+        priority = priority.clamp(0.1, 0.95);
 
-        if priority > 0.1 {
+        if priority > 0.2 {
             goals.push(NationGoal::ImproveTile {
                 tile: tile.position,
                 civilian_kind: tile.improver_kind,
@@ -1078,6 +1103,116 @@ mod tests {
                 !matches!(task2, Some(CivilianTask::MoveTo { target: next }) if next == pos_0_1),
                 "Loop detected: (0,1) -> (0,0) -> (0,1)"
             );
+        }
+    }
+
+    #[test]
+    fn test_improvement_priorities() {
+        use crate::ai::snapshot::ImprovableTile;
+        use crate::resources::DevelopmentLevel;
+        use crate::resources::ResourceType;
+
+        // Create 4 tiles with different characteristics
+        // Tile 1: Connected + Cluster (Best)
+        let tile1 = ImprovableTile {
+            position: TilePos::new(1, 1),
+            resource_type: ResourceType::Coal,
+            development: DevelopmentLevel::Lv0,
+            improver_kind: CivilianKind::Miner,
+            distance_from_capital: 5,
+            is_connected: true,
+            adjacent_developed_count: 2,
+        };
+
+        // Tile 2: Connected + Isolated (Good)
+        let tile2 = ImprovableTile {
+            position: TilePos::new(2, 2),
+            resource_type: ResourceType::Coal,
+            development: DevelopmentLevel::Lv0,
+            improver_kind: CivilianKind::Miner,
+            distance_from_capital: 5,
+            is_connected: true,
+            adjacent_developed_count: 0,
+        };
+
+        // Tile 3: Disconnected + Cluster (Medium - "Plan to connect")
+        let tile3 = ImprovableTile {
+            position: TilePos::new(3, 3),
+            resource_type: ResourceType::Coal,
+            development: DevelopmentLevel::Lv0,
+            improver_kind: CivilianKind::Miner,
+            distance_from_capital: 5,
+            is_connected: false,
+            adjacent_developed_count: 2,
+        };
+
+        // Tile 4: Disconnected + Isolated (Bad)
+        let tile4 = ImprovableTile {
+            position: TilePos::new(4, 4),
+            resource_type: ResourceType::Coal,
+            development: DevelopmentLevel::Lv0,
+            improver_kind: CivilianKind::Miner,
+            distance_from_capital: 5,
+            is_connected: false,
+            adjacent_developed_count: 0,
+        };
+
+        let snapshot = NationSnapshot {
+            entity: Entity::PLACEHOLDER,
+            capital_pos: TilePos::new(0, 0),
+            treasury: 1000,
+            stockpile: HashMap::new(),
+            civilians: vec![],
+            connected_tiles: std::collections::HashSet::new(),
+            unconnected_depots: vec![],
+            suggested_depots: vec![],
+            improvable_tiles: vec![tile1.clone(), tile2.clone(), tile3.clone(), tile4.clone()],
+            owned_tiles: std::collections::HashSet::new(),
+            depot_positions: std::collections::HashSet::new(),
+            prospectable_tiles: vec![],
+            tile_terrain: HashMap::new(),
+            technologies: crate::economy::technology::Technologies::new(),
+            rail_constructions: vec![],
+            trade_capacity_total: 0,
+            trade_capacity_used: 0,
+            buildings: HashMap::new(),
+        };
+
+        let mut goals = Vec::new();
+        generate_improvement_goals(&snapshot, &mut goals);
+
+        // Sort goals by priority
+        goals.sort_by(|a, b| {
+            b.priority()
+                .partial_cmp(&a.priority())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        assert_eq!(goals.len(), 4);
+
+        // Verify ordering
+        if let NationGoal::ImproveTile { tile, .. } = goals[0] {
+            assert_eq!(tile, tile1.position, "Best tile should be first");
+        } else {
+            panic!("Wrong goal type");
+        }
+
+        if let NationGoal::ImproveTile { tile, .. } = goals[1] {
+            assert_eq!(tile, tile2.position, "Connected tile should be second");
+        } else {
+            panic!("Wrong goal type");
+        }
+
+        if let NationGoal::ImproveTile { tile, .. } = goals[2] {
+            assert_eq!(tile, tile3.position, "Cluster (unconnected) tile should be third");
+        } else {
+            panic!("Wrong goal type");
+        }
+
+        if let NationGoal::ImproveTile { tile, .. } = goals[3] {
+            assert_eq!(tile, tile4.position, "Worst tile should be last");
+        } else {
+            panic!("Wrong goal type");
         }
     }
 }
