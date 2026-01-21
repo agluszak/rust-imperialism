@@ -1,7 +1,8 @@
 //! AI order execution.
 //!
-//! This module converts AI plans into concrete game orders (events).
+//! This module converts AI plans into concrete game orders (messages).
 
+use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 
 use crate::ai::markers::AiNation;
@@ -23,6 +24,8 @@ pub fn execute_ai_turn(
     mut commands: Commands,
     snapshot: Res<AiSnapshot>,
     ai_nations: Query<(NationInstance, &Buildings), With<AiNation>>,
+    mut civilian_commands: MessageWriter<CivilianCommand>,
+    mut hire_messages: MessageWriter<HireCivilian>,
 ) {
     for (nation, buildings) in ai_nations.iter() {
         let Some(nation_snapshot) = snapshot.get_nation(nation.entity()) else {
@@ -39,6 +42,8 @@ pub fn execute_ai_turn(
             &plan,
             nation,
             buildings,
+            &mut civilian_commands,
+            &mut hire_messages,
         );
     }
 }
@@ -49,6 +54,8 @@ fn execute_plan(
     plan: &NationPlan,
     nation: NationInstance,
     _buildings: &Buildings,
+    civilian_commands: &mut MessageWriter<CivilianCommand>,
+    hire_messages: &mut MessageWriter<HireCivilian>,
 ) {
     // Build map of current positions for this nation's civilians
     // This allows us to know "who is at tile X" to establish dependencies
@@ -66,7 +73,7 @@ fn execute_plan(
     // Send civilian orders in sorted order
     for (civilian_entity, task) in execution_order {
         if let Some(order) = task_to_order(&task) {
-            commands.trigger(CivilianCommand {
+            civilian_commands.write(CivilianCommand {
                 civilian: civilian_entity,
                 order,
             });
@@ -95,7 +102,7 @@ fn execute_plan(
 
     // Send hire orders
     for kind in &plan.civilians_to_hire {
-        commands.trigger(HireCivilian {
+        hire_messages.write(HireCivilian {
             nation,
             kind: *kind,
         });

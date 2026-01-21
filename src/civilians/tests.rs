@@ -3,14 +3,12 @@ use crate::civilians::engineering::{
     execute_civilian_improvement_orders, execute_engineer_orders, execute_prospector_orders,
 };
 use crate::civilians::jobs::complete_improvement_jobs;
-use crate::civilians::systems::handle_rescind_orders;
 use crate::civilians::types::{
     Civilian, CivilianId, CivilianJob, CivilianKind, CivilianOrder, CivilianOrderKind, JobType,
     PreviousPosition, ProspectingKnowledge,
 };
 use crate::economy::nation::Nation;
 use crate::economy::transport::{Rails, ordered_edge};
-use crate::economy::treasury::Treasury;
 use crate::map::province::{Province, ProvinceId, TileProvince};
 use crate::resources::{DevelopmentLevel, ResourceType, TileResource};
 use crate::turn_system::TurnCounter;
@@ -24,6 +22,11 @@ fn test_engineer_does_not_start_job_on_existing_rail() {
     world.init_resource::<Rails>();
     world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
+
+    // Initialize message resources that the system uses
+    // Note: PlaceImprovement is now an Event triggered via commands.trigger(),
+    // so it doesn't need a Messages resource
+    world.init_resource::<Messages<DeselectCivilian>>();
 
     // Create a nation entity
     let nation = world.spawn(Nation).id();
@@ -100,6 +103,11 @@ fn test_engineer_starts_job_on_new_rail() {
     world.init_resource::<Rails>();
     world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
+
+    // Initialize message resources that the system uses
+    // Note: PlaceImprovement is now an Event triggered via commands.trigger(),
+    // so it doesn't need a Messages resource
+    world.init_resource::<Messages<DeselectCivilian>>();
 
     // Create a nation entity
     let nation = world.spawn(Nation).id();
@@ -251,6 +259,8 @@ fn test_prospector_starts_prospecting_job() {
     world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
 
+    world.init_resource::<Messages<DeselectCivilian>>();
+
     let nation = world.spawn(Nation).id();
     let province_id = ProvinceId(1);
     world.spawn(Province {
@@ -375,6 +385,7 @@ fn miner_requires_discovery_before_mining() {
     let mut world = World::new();
     world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
+    world.init_resource::<Messages<DeselectCivilian>>();
 
     let nation = world.spawn(Nation).id();
     let province_id = ProvinceId(5);
@@ -439,6 +450,7 @@ fn new_owner_must_reprospect_before_mining() {
     let mut world = World::new();
     world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
+    world.init_resource::<Messages<DeselectCivilian>>();
 
     let nation_a = world.spawn(Nation).id();
     let nation_b = world.spawn(Nation).id();
@@ -669,6 +681,7 @@ fn test_can_assign_order_when_no_existing_order() {
 
 #[test]
 fn test_rescind_orders_removes_civilian_order_component() {
+    use crate::civilians::systems::handle_rescind_orders;
     use crate::civilians::types::{ActionTurn, PreviousPosition};
     use crate::economy::treasury::Treasury;
 
@@ -677,8 +690,8 @@ fn test_rescind_orders_removes_civilian_order_component() {
     // Setup turn system
     world.insert_resource(TurnCounter::new(1));
 
-    // Register observer
-    world.add_observer(handle_rescind_orders);
+    // Initialize message resources
+    world.init_resource::<Messages<RescindOrders>>();
 
     // Create a nation with treasury
     let nation = world.spawn((Nation, Treasury::new(1000))).id();
@@ -703,11 +716,17 @@ fn test_rescind_orders_removes_civilian_order_component() {
         ))
         .id();
 
-    // Send rescind orders event
-    world.trigger(RescindOrders {
-        entity: civilian_entity,
-    });
-    world.flush();
+    // Send rescind orders message
+    {
+        let mut state: SystemState<MessageWriter<RescindOrders>> = SystemState::new(&mut world);
+        let mut writer = state.get_mut(&mut world);
+        writer.write(RescindOrders {
+            entity: civilian_entity,
+        });
+    }
+
+    // Run the rescind orders system
+    let _ = world.run_system_once(handle_rescind_orders);
 
     // Verify the CivilianOrder component was removed
     assert!(
@@ -739,6 +758,7 @@ fn test_rescind_orders_removes_civilian_order_component() {
 
 #[test]
 fn test_rescind_orders_removes_civilian_job_and_order() {
+    use crate::civilians::systems::handle_rescind_orders;
     use crate::civilians::types::{ActionTurn, CivilianJob, JobType, PreviousPosition};
     use crate::economy::treasury::Treasury;
 
@@ -747,8 +767,8 @@ fn test_rescind_orders_removes_civilian_job_and_order() {
     // Setup turn system
     world.insert_resource(TurnCounter::new(1));
 
-    // Register observer
-    world.add_observer(handle_rescind_orders);
+    // Initialize message resources
+    world.init_resource::<Messages<RescindOrders>>();
 
     // Create a nation with treasury
     let nation = world.spawn((Nation, Treasury::new(1000))).id();
@@ -778,11 +798,17 @@ fn test_rescind_orders_removes_civilian_job_and_order() {
         ))
         .id();
 
-    // Send rescind orders event
-    world.trigger(RescindOrders {
-        entity: civilian_entity,
-    });
-    world.flush();
+    // Send rescind orders message
+    {
+        let mut state: SystemState<MessageWriter<RescindOrders>> = SystemState::new(&mut world);
+        let mut writer = state.get_mut(&mut world);
+        writer.write(RescindOrders {
+            entity: civilian_entity,
+        });
+    }
+
+    // Run the rescind orders system
+    let _ = world.run_system_once(handle_rescind_orders);
 
     // Verify both CivilianJob and CivilianOrder were removed
     assert!(
@@ -890,11 +916,11 @@ fn test_sleep_order_persists_across_turns() {
 
 #[test]
 fn test_rescind_wakes_sleeping_civilian() {
+    use crate::civilians::systems::handle_rescind_orders;
+
     let mut world = World::new();
     world.insert_resource(TurnCounter::new(1));
-
-    // Register observer
-    world.add_observer(handle_rescind_orders);
+    world.init_resource::<Messages<RescindOrders>>();
 
     let tile_pos = TilePos { x: 5, y: 5 };
     let prev_pos = TilePos { x: 5, y: 5 }; // Same position (no move)
@@ -914,11 +940,17 @@ fn test_rescind_wakes_sleeping_civilian() {
         ))
         .id();
 
-    // Send rescind orders event to wake up the civilian
-    world.trigger(RescindOrders {
-        entity: civilian_entity,
-    });
-    world.flush();
+    // Send rescind orders message to wake up the civilian
+    {
+        let mut state: SystemState<MessageWriter<RescindOrders>> = SystemState::new(&mut world);
+        let mut writer = state.get_mut(&mut world);
+        writer.write(RescindOrders {
+            entity: civilian_entity,
+        });
+    }
+
+    // Run the rescind orders system
+    let _ = world.run_system_once(handle_rescind_orders);
 
     // Verify the Sleep order was removed (civilian is awake)
     assert!(
@@ -939,6 +971,7 @@ fn miner_respects_max_development_level() {
     let mut world = World::new();
     world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
+    world.init_resource::<Messages<DeselectCivilian>>();
 
     let nation = world.spawn(Nation).id();
     let province_id = ProvinceId(6);
@@ -993,6 +1026,7 @@ fn farmer_starts_improvement_job_on_visible_resource() {
     let mut world = World::new();
     world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
+    world.init_resource::<Messages<DeselectCivilian>>();
 
     let nation = world.spawn(Nation).id();
     let province_id = ProvinceId(7);
@@ -1051,6 +1085,7 @@ fn prospecting_knowledge_is_nation_private() {
     let mut world = World::new();
     world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
+    world.init_resource::<Messages<DeselectCivilian>>();
 
     let nation_a = world.spawn(Nation).id();
     let nation_b = world.spawn(Nation).id();
@@ -1142,6 +1177,7 @@ fn prospecting_markers_filtered_by_player_nation() {
     let mut world = World::new();
     world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
+    world.init_resource::<Messages<DeselectCivilian>>();
 
     let nation_a = world.spawn(Nation).id();
     let nation_b = world.spawn(Nation).id();
@@ -1256,6 +1292,7 @@ fn multiple_nations_can_prospect_same_tile_independently() {
     let mut world = World::new();
     world.init_resource::<TurnCounter>();
     world.init_resource::<ProspectingKnowledge>();
+    world.init_resource::<Messages<DeselectCivilian>>();
 
     let nation_a = world.spawn(Nation).id();
     let nation_b = world.spawn(Nation).id();

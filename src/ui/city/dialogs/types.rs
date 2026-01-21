@@ -12,14 +12,14 @@ pub struct BuildingDialog {
 }
 
 /// Message to open a building dialog
-#[derive(Event, Debug, Clone, Copy)]
+#[derive(Message, Debug, Clone, Copy)]
 pub struct OpenBuildingDialog {
     pub building_entity: Entity,
     pub building_kind: BuildingKind,
 }
 
 /// Message to close a building dialog
-#[derive(Event, Debug, Clone, Copy)]
+#[derive(Message, Debug, Clone, Copy)]
 pub struct CloseBuildingDialog {
     pub building_entity: Entity,
 }
