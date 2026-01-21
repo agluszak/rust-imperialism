@@ -34,7 +34,8 @@ impl Plugin for MapRenderingPlugin {
         app.init_resource::<improvement_rendering::ConnectivityOverlaySettings>()
             .init_resource::<transport_debug::TransportDebugSettings>()
             .init_resource::<transport_debug::TransportDebugFont>()
-            .init_resource::<transport_rendering::HoveredTile>();
+            .init_resource::<transport_rendering::HoveredTile>()
+            .init_resource::<border_rendering::BorderGeometry>();
 
         // Terrain atlas loading
         app.add_systems(Startup, terrain_atlas::start_terrain_atlas_loading)
