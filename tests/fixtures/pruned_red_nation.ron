@@ -1,171 +1,21 @@
 (
   resources: {
     "rust_imperialism::civilians::types::NextCivilianId": (24),
+    "rust_imperialism::civilians::types::ProspectingKnowledge": (
+      discoveries: {},
+    ),
+    "rust_imperialism::economy::calendar::Calendar": (
+      season: Spring,
+      year: 1815,
+    ),
     "rust_imperialism::economy::transport::types::Rails": ([]),
     "rust_imperialism::map::province_setup::ProvincesGenerated": (),
+    "rust_imperialism::turn_system::TurnCounter": (
+      current: 1,
+    ),
   },
   entities: {
-    4294966160: (
-      components: {
-        "bevy_ecs::name::Name": "Rancher 22",
-        "rust_imperialism::ai::markers::AiControlledCivilian": (),
-        "rust_imperialism::civilians::types::Civilian": (
-          kind: Rancher,
-          position: (
-            x: 28,
-            y: 18,
-          ),
-          owner: 4294966222,
-          civilian_id: (22),
-          has_moved: false,
-        ),
-      },
-    ),
-    4294966161: (
-      components: {
-        "bevy_ecs::name::Name": "Miner 21",
-        "rust_imperialism::ai::markers::AiControlledCivilian": (),
-        "rust_imperialism::civilians::types::Civilian": (
-          kind: Miner,
-          position: (
-            x: 28,
-            y: 19,
-          ),
-          owner: 4294966222,
-          civilian_id: (21),
-          has_moved: false,
-        ),
-      },
-    ),
-    4294966162: (
-      components: {
-        "bevy_ecs::name::Name": "Farmer 20",
-        "rust_imperialism::ai::markers::AiControlledCivilian": (),
-        "rust_imperialism::civilians::types::Civilian": (
-          kind: Farmer,
-          position: (
-            x: 29,
-            y: 19,
-          ),
-          owner: 4294966222,
-          civilian_id: (20),
-          has_moved: false,
-        ),
-      },
-    ),
-    4294966163: (
-      components: {
-        "bevy_ecs::name::Name": "Prospector 19",
-        "rust_imperialism::ai::markers::AiControlledCivilian": (),
-        "rust_imperialism::civilians::types::Civilian": (
-          kind: Prospector,
-          position: (
-            x: 30,
-            y: 18,
-          ),
-          owner: 4294966222,
-          civilian_id: (19),
-          has_moved: false,
-        ),
-      },
-    ),
-    4294966164: (
-      components: {
-        "bevy_ecs::name::Name": "Engineer 18",
-        "rust_imperialism::ai::markers::AiControlledCivilian": (),
-        "rust_imperialism::civilians::types::Civilian": (
-          kind: Engineer,
-          position: (
-            x: 29,
-            y: 18,
-          ),
-          owner: 4294966222,
-          civilian_id: (18),
-          has_moved: false,
-        ),
-      },
-    ),
-    4294966166: (
-      components: {
-        "bevy_ecs::name::Name": "Rancher 16",
-        "rust_imperialism::ai::markers::AiControlledCivilian": (),
-        "rust_imperialism::civilians::types::Civilian": (
-          kind: Rancher,
-          position: (
-            x: 8,
-            y: 11,
-          ),
-          owner: 4294966223,
-          civilian_id: (16),
-          has_moved: false,
-        ),
-      },
-    ),
-    4294966167: (
-      components: {
-        "bevy_ecs::name::Name": "Miner 15",
-        "rust_imperialism::ai::markers::AiControlledCivilian": (),
-        "rust_imperialism::civilians::types::Civilian": (
-          kind: Miner,
-          position: (
-            x: 8,
-            y: 12,
-          ),
-          owner: 4294966223,
-          civilian_id: (15),
-          has_moved: false,
-        ),
-      },
-    ),
-    4294966168: (
-      components: {
-        "bevy_ecs::name::Name": "Farmer 14",
-        "rust_imperialism::ai::markers::AiControlledCivilian": (),
-        "rust_imperialism::civilians::types::Civilian": (
-          kind: Farmer,
-          position: (
-            x: 9,
-            y: 12,
-          ),
-          owner: 4294966223,
-          civilian_id: (14),
-          has_moved: false,
-        ),
-      },
-    ),
-    4294966169: (
-      components: {
-        "bevy_ecs::name::Name": "Prospector 13",
-        "rust_imperialism::ai::markers::AiControlledCivilian": (),
-        "rust_imperialism::civilians::types::Civilian": (
-          kind: Prospector,
-          position: (
-            x: 10,
-            y: 11,
-          ),
-          owner: 4294966223,
-          civilian_id: (13),
-          has_moved: false,
-        ),
-      },
-    ),
-    4294966170: (
-      components: {
-        "bevy_ecs::name::Name": "Engineer 12",
-        "rust_imperialism::ai::markers::AiControlledCivilian": (),
-        "rust_imperialism::civilians::types::Civilian": (
-          kind: Engineer,
-          position: (
-            x: 9,
-            y: 11,
-          ),
-          owner: 4294966223,
-          civilian_id: (12),
-          has_moved: false,
-        ),
-      },
-    ),
-    4294966171: (
+    4294966123: (
       components: {
         "bevy_ecs::name::Name": "Forester 11",
         "rust_imperialism::ai::markers::AiControlledCivilian": (),
@@ -175,14 +25,14 @@
             x: 29,
             y: 2,
           ),
-          owner: 4294966224,
+          owner: 4294966206,
           civilian_id: (11),
           has_moved: false,
         ),
-        "rust_imperialism::economy::nation::OwnedBy": (4294966224),
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
       },
     ),
-    4294966172: (
+    4294966124: (
       components: {
         "bevy_ecs::name::Name": "Rancher 10",
         "rust_imperialism::ai::markers::AiControlledCivilian": (),
@@ -192,13 +42,14 @@
             x: 28,
             y: 3,
           ),
-          owner: 4294966224,
+          owner: 4294966206,
           civilian_id: (10),
           has_moved: false,
         ),
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
       },
     ),
-    4294966173: (
+    4294966125: (
       components: {
         "bevy_ecs::name::Name": "Miner 9",
         "rust_imperialism::ai::markers::AiControlledCivilian": (),
@@ -208,13 +59,14 @@
             x: 28,
             y: 4,
           ),
-          owner: 4294966224,
+          owner: 4294966206,
           civilian_id: (9),
           has_moved: false,
         ),
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
       },
     ),
-    4294966174: (
+    4294966126: (
       components: {
         "bevy_ecs::name::Name": "Farmer 8",
         "rust_imperialism::ai::markers::AiControlledCivilian": (),
@@ -224,13 +76,14 @@
             x: 29,
             y: 4,
           ),
-          owner: 4294966224,
+          owner: 4294966206,
           civilian_id: (8),
           has_moved: false,
         ),
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
       },
     ),
-    4294966175: (
+    4294966127: (
       components: {
         "bevy_ecs::name::Name": "Prospector 7",
         "rust_imperialism::ai::markers::AiControlledCivilian": (),
@@ -240,13 +93,14 @@
             x: 30,
             y: 3,
           ),
-          owner: 4294966224,
+          owner: 4294966206,
           civilian_id: (7),
           has_moved: false,
         ),
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
       },
     ),
-    4294966176: (
+    4294966128: (
       components: {
         "bevy_ecs::name::Name": "Engineer 6",
         "rust_imperialism::ai::markers::AiControlledCivilian": (),
@@ -256,196 +110,261 @@
             x: 29,
             y: 3,
           ),
-          owner: 4294966224,
+          owner: 4294966206,
           civilian_id: (6),
           has_moved: false,
         ),
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
       },
     ),
-    4294966178: (
-      components: {
-        "bevy_ecs::name::Name": "Rancher 4",
-        "rust_imperialism::civilians::types::Civilian": (
-          kind: Rancher,
-          position: (
-            x: 1,
-            y: 1,
-          ),
-          owner: 4294966225,
-          civilian_id: (4),
-          has_moved: false,
-        ),
-      },
-    ),
-    4294966179: (
-      components: {
-        "bevy_ecs::name::Name": "Miner 3",
-        "rust_imperialism::civilians::types::Civilian": (
-          kind: Miner,
-          position: (
-            x: 1,
-            y: 2,
-          ),
-          owner: 4294966225,
-          civilian_id: (3),
-          has_moved: false,
-        ),
-      },
-    ),
-    4294966180: (
-      components: {
-        "bevy_ecs::name::Name": "Farmer 2",
-        "rust_imperialism::civilians::types::Civilian": (
-          kind: Farmer,
-          position: (
-            x: 2,
-            y: 2,
-          ),
-          owner: 4294966225,
-          civilian_id: (2),
-          has_moved: false,
-        ),
-      },
-    ),
-    4294966181: (
-      components: {
-        "bevy_ecs::name::Name": "Prospector 1",
-        "rust_imperialism::civilians::types::Civilian": (
-          kind: Prospector,
-          position: (
-            x: 3,
-            y: 1,
-          ),
-          owner: 4294966225,
-          civilian_id: (1),
-          has_moved: false,
-        ),
-      },
-    ),
-    4294966182: (
-      components: {
-        "bevy_ecs::name::Name": "Engineer 0",
-        "rust_imperialism::civilians::types::Civilian": (
-          kind: Engineer,
-          position: (
-            x: 2,
-            y: 1,
-          ),
-          owner: 4294966225,
-          civilian_id: (0),
-          has_moved: false,
-        ),
-      },
-    ),
-    4294966204: (
-      components: {
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 17,
-          y: 7,
-        ),
-        "rust_imperialism::map::province::City": (
-          province: (8),
-          is_capital: false,
-        ),
-      },
-    ),
-    4294966205: (
-      components: {
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 19,
-          y: 16,
-        ),
-        "rust_imperialism::map::province::City": (
-          province: (21),
-          is_capital: false,
-        ),
-      },
-    ),
-    4294966206: (
+    4294966156: (
       components: {
         "bevy_ecs_tilemap::tiles::TilePos": (
           x: 16,
           y: 14,
         ),
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
         "rust_imperialism::map::province::City": (
           province: (18),
           is_capital: false,
         ),
       },
     ),
-    4294966207: (
+    4294966157: (
       components: {
         "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 25,
-          y: 13,
+          x: 23,
+          y: 18,
         ),
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
         "rust_imperialism::map::province::City": (
-          province: (16),
+          province: (25),
           is_capital: false,
         ),
       },
     ),
-    4294966208: (
+    4294966158: (
+      components: {
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 19,
+          y: 16,
+        ),
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
+        "rust_imperialism::map::province::City": (
+          province: (21),
+          is_capital: false,
+        ),
+      },
+    ),
+    4294966159: (
       components: {
         "bevy_ecs_tilemap::tiles::TilePos": (
           x: 20,
           y: 9,
         ),
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
         "rust_imperialism::map::province::City": (
           province: (10),
           is_capital: false,
         ),
       },
     ),
-    4294966209: (
+    4294966160: (
       components: {
         "bevy_ecs_tilemap::tiles::TilePos": (
           x: 23,
           y: 11,
         ),
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
         "rust_imperialism::map::province::City": (
           province: (15),
           is_capital: false,
         ),
       },
     ),
-    4294966210: (
+    4294966161: (
       components: {
         "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 29,
-          y: 8,
+          x: 25,
+          y: 13,
         ),
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
         "rust_imperialism::map::province::City": (
-          province: (9),
+          province: (16),
           is_capital: false,
         ),
       },
     ),
-    4294966211: (
+    4294966162: (
       components: {
         "bevy_ecs_tilemap::tiles::TilePos": (
           x: 25,
           y: 7,
         ),
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
         "rust_imperialism::map::province::City": (
           province: (7),
           is_capital: false,
         ),
       },
     ),
-    4294966212: (
+    4294966163: (
+      components: {
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 29,
+          y: 8,
+        ),
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
+        "rust_imperialism::map::province::City": (
+          province: (9),
+          is_capital: false,
+        ),
+      },
+    ),
+    4294966164: (
       components: {
         "bevy_ecs_tilemap::tiles::TilePos": (
           x: 29,
           y: 3,
         ),
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
         "rust_imperialism::map::province::City": (
           province: (4),
           is_capital: true,
         ),
       },
     ),
-    4294966224: (
+    4294966196: (
+      components: {
+        "bevy_ecs::name::Name": "SteelMill (Nation Red)",
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
+        "rust_imperialism::economy::production::Building": (
+          kind: SteelMill,
+          capacity: 4,
+        ),
+        "rust_imperialism::economy::production::ProductionSettings": (
+          target_output: 0,
+        ),
+      },
+    ),
+    4294966197: (
+      components: {
+        "bevy_ecs::name::Name": "ClothingFactory (Nation Red)",
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
+        "rust_imperialism::economy::production::Building": (
+          kind: ClothingFactory,
+          capacity: 2,
+        ),
+        "rust_imperialism::economy::production::ProductionSettings": (
+          target_output: 0,
+        ),
+      },
+    ),
+    4294966198: (
+      components: {
+        "bevy_ecs::name::Name": "FoodProcessingCenter (Nation Red)",
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
+        "rust_imperialism::economy::production::Building": (
+          kind: FoodProcessingCenter,
+          capacity: 4,
+        ),
+        "rust_imperialism::economy::production::ProductionSettings": (
+          target_output: 0,
+        ),
+      },
+    ),
+    4294966199: (
+      components: {
+        "bevy_ecs::name::Name": "LumberMill (Nation Red)",
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
+        "rust_imperialism::economy::production::Building": (
+          kind: LumberMill,
+          capacity: 4,
+        ),
+        "rust_imperialism::economy::production::ProductionSettings": (
+          target_output: 0,
+        ),
+      },
+    ),
+    4294966200: (
+      components: {
+        "bevy_ecs::name::Name": "TextileMill (Nation Red)",
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
+        "rust_imperialism::economy::production::Building": (
+          kind: TextileMill,
+          capacity: 8,
+        ),
+        "rust_imperialism::economy::production::ProductionSettings": (
+          target_output: 0,
+        ),
+      },
+    ),
+    4294966201: (
+      components: {
+        "bevy_ecs::name::Name": "Shipyard (Nation Red)",
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
+        "rust_imperialism::economy::production::Building": (
+          kind: Shipyard,
+          capacity: 4294967295,
+        ),
+        "rust_imperialism::economy::production::ProductionSettings": (
+          target_output: 0,
+        ),
+      },
+    ),
+    4294966202: (
+      components: {
+        "bevy_ecs::name::Name": "Railyard (Nation Red)",
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
+        "rust_imperialism::economy::production::Building": (
+          kind: Railyard,
+          capacity: 4294967295,
+        ),
+        "rust_imperialism::economy::production::ProductionSettings": (
+          target_output: 0,
+        ),
+      },
+    ),
+    4294966203: (
+      components: {
+        "bevy_ecs::name::Name": "Refinery (Nation Red)",
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
+        "rust_imperialism::economy::production::Building": (
+          kind: Refinery,
+          capacity: 2,
+        ),
+        "rust_imperialism::economy::production::ProductionSettings": (
+          target_output: 0,
+        ),
+      },
+    ),
+    4294966204: (
+      components: {
+        "bevy_ecs::name::Name": "MetalWorks (Nation Red)",
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
+        "rust_imperialism::economy::production::Building": (
+          kind: MetalWorks,
+          capacity: 2,
+        ),
+        "rust_imperialism::economy::production::ProductionSettings": (
+          target_output: 0,
+        ),
+      },
+    ),
+    4294966205: (
+      components: {
+        "bevy_ecs::name::Name": "FurnitureFactory (Nation Red)",
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
+        "rust_imperialism::economy::production::Building": (
+          kind: FurnitureFactory,
+          capacity: 2,
+        ),
+        "rust_imperialism::economy::production::ProductionSettings": (
+          target_output: 0,
+        ),
+      },
+    ),
+    4294966206: (
       components: {
         "bevy_ecs::name::Name": "Nation Red",
         "rust_imperialism::ai::markers::AiNation": (),
@@ -460,27 +379,62 @@
           blue: 0.2,
           alpha: 1.0,
         ))),
-        "rust_imperialism::economy::nation::NationMember": (4294966171),
+        "rust_imperialism::economy::nation::NationMember": ([
+          4294966205,
+          4294966204,
+          4294966203,
+          4294966202,
+          4294966201,
+          4294966200,
+          4294966199,
+          4294966198,
+          4294966197,
+          4294966196,
+          4294966252,
+          4294966164,
+          4294966247,
+          4294966163,
+          4294966249,
+          4294966162,
+          4294966240,
+          4294966161,
+          4294966241,
+          4294966160,
+          4294966246,
+          4294966159,
+          4294966235,
+          4294966158,
+          4294966231,
+          4294966157,
+          4294966238,
+          4294966156,
+          4294966128,
+          4294966127,
+          4294966126,
+          4294966125,
+          4294966124,
+          4294966123,
+        ]),
         "rust_imperialism::economy::production::Buildings": (
           buildings: {
             Railyard: (
               kind: Railyard,
               capacity: 4294967295,
             ),
-            Refinery: (
-              kind: Refinery,
-              capacity: 2,
-            ),
-            ClothingFactory: (
-              kind: ClothingFactory,
-              capacity: 2,
-            ),
             MetalWorks: (
               kind: MetalWorks,
               capacity: 2,
             ),
-            SteelMill: (
-              kind: SteelMill,
+            Refinery: (
+              kind: Refinery,
+              capacity: 2,
+            ),
+            Shipyard: (
+              kind: Shipyard,
+              capacity: 4294967295,
+            ),
+            FoodProcessingCenter: (
+              kind: FoodProcessingCenter,
               capacity: 4,
             ),
             TextileMill: (
@@ -491,26 +445,27 @@
               kind: LumberMill,
               capacity: 4,
             ),
-            FoodProcessingCenter: (
-              kind: FoodProcessingCenter,
-              capacity: 4,
-            ),
             FurnitureFactory: (
               kind: FurnitureFactory,
               capacity: 2,
             ),
-            Shipyard: (
-              kind: Shipyard,
-              capacity: 4294967295,
+            SteelMill: (
+              kind: SteelMill,
+              capacity: 4,
+            ),
+            ClothingFactory: (
+              kind: ClothingFactory,
+              capacity: 2,
             ),
           },
         ),
-        "rust_imperialism::economy::production::ProductionSettings": (
-          target_output: 0,
-        ),
         "rust_imperialism::economy::stockpile::Stockpile": (
           pools: {
-            Cotton: (
+            Paper: (
+              total: 5,
+              reserved: 0,
+            ),
+            Wool: (
               total: 10,
               reserved: 0,
             ),
@@ -518,7 +473,19 @@
               total: 10,
               reserved: 0,
             ),
-            Wool: (
+            Iron: (
+              total: 10,
+              reserved: 0,
+            ),
+            Grain: (
+              total: 20,
+              reserved: 0,
+            ),
+            Livestock: (
+              total: 20,
+              reserved: 0,
+            ),
+            CannedFood: (
               total: 10,
               reserved: 0,
             ),
@@ -526,19 +493,15 @@
               total: 10,
               reserved: 0,
             ),
-            Paper: (
-              total: 5,
-              reserved: 0,
-            ),
-            Grain: (
+            Timber: (
               total: 20,
               reserved: 0,
             ),
-            Iron: (
+            Cotton: (
               total: 10,
               reserved: 0,
             ),
-            Livestock: (
+            Fruit: (
               total: 20,
               reserved: 0,
             ),
@@ -546,19 +509,7 @@
               total: 10,
               reserved: 0,
             ),
-            Timber: (
-              total: 20,
-              reserved: 0,
-            ),
-            Fruit: (
-              total: 20,
-              reserved: 0,
-            ),
             Furniture: (
-              total: 10,
-              reserved: 0,
-            ),
-            CannedFood: (
               total: 10,
               reserved: 0,
             ),
@@ -605,8 +556,104 @@
         ),
       },
     ),
-    4294966243: (
+    4294966231: (
       components: {
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
+        "rust_imperialism::map::province::Province": (
+          id: (25),
+          tiles: [
+            (
+              x: 23,
+              y: 17,
+            ),
+            (
+              x: 24,
+              y: 17,
+            ),
+            (
+              x: 23,
+              y: 18,
+            ),
+            (
+              x: 22,
+              y: 18,
+            ),
+            (
+              x: 24,
+              y: 18,
+            ),
+            (
+              x: 23,
+              y: 19,
+            ),
+            (
+              x: 22,
+              y: 19,
+            ),
+            (
+              x: 21,
+              y: 19,
+            ),
+            (
+              x: 25,
+              y: 18,
+            ),
+            (
+              x: 24,
+              y: 19,
+            ),
+            (
+              x: 23,
+              y: 20,
+            ),
+            (
+              x: 22,
+              y: 20,
+            ),
+            (
+              x: 21,
+              y: 20,
+            ),
+            (
+              x: 20,
+              y: 20,
+            ),
+            (
+              x: 20,
+              y: 19,
+            ),
+            (
+              x: 26,
+              y: 18,
+            ),
+            (
+              x: 25,
+              y: 19,
+            ),
+            (
+              x: 26,
+              y: 17,
+            ),
+            (
+              x: 24,
+              y: 20,
+            ),
+            (
+              x: 23,
+              y: 21,
+            ),
+          ],
+          city_tile: (
+            x: 23,
+            y: 18,
+          ),
+          owner: Some(4294966206),
+        ),
+      },
+    ),
+    4294966235: (
+      components: {
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
         "rust_imperialism::map::province::Province": (
           id: (21),
           tiles: [
@@ -695,12 +742,13 @@
             x: 19,
             y: 16,
           ),
-          owner: Some(4294966224),
+          owner: Some(4294966206),
         ),
       },
     ),
-    4294966246: (
+    4294966238: (
       components: {
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
         "rust_imperialism::map::province::Province": (
           id: (18),
           tiles: [
@@ -789,12 +837,13 @@
             x: 16,
             y: 14,
           ),
-          owner: Some(4294966224),
+          owner: Some(4294966206),
         ),
       },
     ),
-    4294966248: (
+    4294966240: (
       components: {
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
         "rust_imperialism::map::province::Province": (
           id: (16),
           tiles: [
@@ -883,12 +932,13 @@
             x: 25,
             y: 13,
           ),
-          owner: Some(4294966224),
+          owner: Some(4294966206),
         ),
       },
     ),
-    4294966249: (
+    4294966241: (
       components: {
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
         "rust_imperialism::map::province::Province": (
           id: (15),
           tiles: [
@@ -977,12 +1027,13 @@
             x: 23,
             y: 11,
           ),
-          owner: Some(4294966224),
+          owner: Some(4294966206),
         ),
       },
     ),
-    4294966254: (
+    4294966246: (
       components: {
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
         "rust_imperialism::map::province::Province": (
           id: (10),
           tiles: [
@@ -1071,12 +1122,13 @@
             x: 20,
             y: 9,
           ),
-          owner: Some(4294966224),
+          owner: Some(4294966206),
         ),
       },
     ),
-    4294966255: (
+    4294966247: (
       components: {
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
         "rust_imperialism::map::province::Province": (
           id: (9),
           tiles: [
@@ -1165,106 +1217,13 @@
             x: 29,
             y: 8,
           ),
-          owner: Some(4294966224),
+          owner: Some(4294966206),
         ),
       },
     ),
-    4294966256: (
+    4294966249: (
       components: {
-        "rust_imperialism::map::province::Province": (
-          id: (8),
-          tiles: [
-            (
-              x: 17,
-              y: 6,
-            ),
-            (
-              x: 18,
-              y: 6,
-            ),
-            (
-              x: 17,
-              y: 7,
-            ),
-            (
-              x: 16,
-              y: 7,
-            ),
-            (
-              x: 19,
-              y: 6,
-            ),
-            (
-              x: 18,
-              y: 7,
-            ),
-            (
-              x: 17,
-              y: 8,
-            ),
-            (
-              x: 16,
-              y: 8,
-            ),
-            (
-              x: 15,
-              y: 8,
-            ),
-            (
-              x: 15,
-              y: 7,
-            ),
-            (
-              x: 19,
-              y: 7,
-            ),
-            (
-              x: 18,
-              y: 8,
-            ),
-            (
-              x: 17,
-              y: 9,
-            ),
-            (
-              x: 16,
-              y: 9,
-            ),
-            (
-              x: 15,
-              y: 9,
-            ),
-            (
-              x: 14,
-              y: 9,
-            ),
-            (
-              x: 20,
-              y: 7,
-            ),
-            (
-              x: 19,
-              y: 8,
-            ),
-            (
-              x: 18,
-              y: 9,
-            ),
-            (
-              x: 17,
-              y: 10,
-            ),
-          ],
-          city_tile: (
-            x: 17,
-            y: 7,
-          ),
-          owner: Some(4294966224),
-        ),
-      },
-    ),
-    4294966257: (
-      components: {
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
         "rust_imperialism::map::province::Province": (
           id: (7),
           tiles: [
@@ -1353,12 +1312,13 @@
             x: 25,
             y: 7,
           ),
-          owner: Some(4294966224),
+          owner: Some(4294966206),
         ),
       },
     ),
-    4294966260: (
+    4294966252: (
       components: {
+        "rust_imperialism::economy::nation::OwnedBy": (4294966206),
         "rust_imperialism::map::province::Province": (
           id: (4),
           tiles: [
@@ -1447,13 +1407,13 @@
             x: 29,
             y: 3,
           ),
-          owner: Some(4294966224),
+          owner: Some(4294966206),
         ),
       },
     ),
-    4294966286: (
+    4294966278: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -1482,9 +1442,9 @@
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
-    4294966287: (
+    4294966279: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -1513,9 +1473,9 @@
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
-    4294966288: (
+    4294966280: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -1549,9 +1509,9 @@
         ),
       },
     ),
-    4294966289: (
+    4294966281: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -1580,9 +1540,9 @@
         "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
-    4294966290: (
+    4294966282: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -1611,9 +1571,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966291: (
+    4294966283: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -1642,9 +1602,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966292: (
+    4294966284: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -1673,9 +1633,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966293: (
+    4294966285: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -1704,9 +1664,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966294: (
+    4294966286: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -1735,9 +1695,9 @@
         "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
-    4294966295: (
+    4294966287: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -1766,9 +1726,9 @@
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
-    4294966296: (
+    4294966288: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -1802,9 +1762,9 @@
         ),
       },
     ),
-    4294966317: (
+    4294966309: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -1838,9 +1798,9 @@
         ),
       },
     ),
-    4294966318: (
+    4294966310: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -1874,9 +1834,9 @@
         ),
       },
     ),
-    4294966319: (
+    4294966311: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -1905,9 +1865,9 @@
         "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
-    4294966320: (
+    4294966312: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -1936,9 +1896,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966321: (
+    4294966313: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -1967,9 +1927,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966322: (
+    4294966314: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -1998,9 +1958,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966323: (
+    4294966315: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2029,9 +1989,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966324: (
+    4294966316: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2060,9 +2020,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966325: (
+    4294966317: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2091,9 +2051,9 @@
         "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
-    4294966326: (
+    4294966318: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2122,9 +2082,9 @@
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
-    4294966327: (
+    4294966319: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2153,9 +2113,9 @@
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
-    4294966349: (
+    4294966341: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2189,9 +2149,9 @@
         ),
       },
     ),
-    4294966350: (
+    4294966342: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2220,9 +2180,9 @@
         "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
-    4294966351: (
+    4294966343: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2251,9 +2211,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966352: (
+    4294966344: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2282,9 +2242,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966353: (
+    4294966345: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2313,9 +2273,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966354: (
+    4294966346: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2344,9 +2304,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966355: (
+    4294966347: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2375,9 +2335,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966356: (
+    4294966348: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2406,9 +2366,9 @@
         "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
-    4294966357: (
+    4294966349: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2442,9 +2402,9 @@
         ),
       },
     ),
-    4294966358: (
+    4294966350: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2473,9 +2433,9 @@
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
-    4294966380: (
+    4294966372: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2509,9 +2469,9 @@
         ),
       },
     ),
-    4294966381: (
+    4294966373: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2540,9 +2500,9 @@
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
-    4294966382: (
+    4294966374: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2571,9 +2531,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966383: (
+    4294966375: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2602,9 +2562,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966384: (
+    4294966376: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2633,9 +2593,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966385: (
+    4294966377: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2664,9 +2624,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966386: (
+    4294966378: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2695,9 +2655,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966387: (
+    4294966379: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2726,9 +2686,9 @@
         "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
-    4294966388: (
+    4294966380: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2762,9 +2722,9 @@
         ),
       },
     ),
-    4294966389: (
+    4294966381: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2793,9 +2753,9 @@
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
-    4294966412: (
+    4294966404: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2824,9 +2784,9 @@
         "rust_imperialism::map::tiles::TerrainType": Desert,
       },
     ),
-    4294966413: (
+    4294966405: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2855,9 +2815,9 @@
         "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
-    4294966414: (
+    4294966406: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2886,9 +2846,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966415: (
+    4294966407: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2917,9 +2877,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966416: (
+    4294966408: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2948,9 +2908,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966417: (
+    4294966409: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -2979,9 +2939,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966418: (
+    4294966410: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3010,9 +2970,9 @@
         "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
-    4294966419: (
+    4294966411: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3046,9 +3006,9 @@
         ),
       },
     ),
-    4294966420: (
+    4294966412: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3082,9 +3042,81 @@
         ),
       },
     ),
-    4294966443: (
+    4294966430: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 26,
+          y: 18,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Grass,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Livestock,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966431: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 26,
+          y: 17,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Grass,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Livestock,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966435: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3113,9 +3145,9 @@
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
-    4294966444: (
+    4294966436: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3149,9 +3181,9 @@
         ),
       },
     ),
-    4294966445: (
+    4294966437: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3180,9 +3212,9 @@
         "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
-    4294966446: (
+    4294966438: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3211,9 +3243,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966447: (
+    4294966439: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3242,9 +3274,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966448: (
+    4294966440: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3273,9 +3305,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966449: (
+    4294966441: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3304,9 +3336,9 @@
         "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
-    4294966450: (
+    4294966442: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3335,9 +3367,9 @@
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
-    4294966451: (
+    4294966443: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3371,9 +3403,71 @@
         ),
       },
     ),
-    4294966471: (
+    4294966461: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 25,
+          y: 19,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Mountain,
+      },
+    ),
+    4294966462: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 25,
+          y: 18,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Hills,
+      },
+    ),
+    4294966463: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3407,9 +3501,9 @@
         ),
       },
     ),
-    4294966472: (
+    4294966464: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3443,9 +3537,9 @@
         ),
       },
     ),
-    4294966473: (
+    4294966465: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3474,9 +3568,9 @@
         "rust_imperialism::map::tiles::TerrainType": Desert,
       },
     ),
-    4294966474: (
+    4294966466: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3505,9 +3599,9 @@
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
-    4294966475: (
+    4294966467: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3536,9 +3630,9 @@
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
-    4294966476: (
+    4294966468: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3572,9 +3666,9 @@
         ),
       },
     ),
-    4294966477: (
+    4294966469: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3603,9 +3697,9 @@
         "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
-    4294966478: (
+    4294966470: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3634,9 +3728,9 @@
         "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
-    4294966479: (
+    4294966471: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3665,9 +3759,9 @@
         "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
-    4294966480: (
+    4294966472: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3696,9 +3790,9 @@
         "rust_imperialism::map::tiles::TerrainType": Desert,
       },
     ),
-    4294966481: (
+    4294966473: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3732,9 +3826,9 @@
         ),
       },
     ),
-    4294966482: (
+    4294966474: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3763,9 +3857,138 @@
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
-    4294966504: (
+    4294966492: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 24,
+          y: 20,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Mountain,
+      },
+    ),
+    4294966493: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 24,
+          y: 19,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Mountain,
+      },
+    ),
+    4294966494: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 24,
+          y: 18,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Mountain,
+      },
+    ),
+    4294966495: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 24,
+          y: 17,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Grass,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Wool,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966496: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3799,9 +4022,9 @@
         ),
       },
     ),
-    4294966505: (
+    4294966497: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3835,9 +4058,9 @@
         ),
       },
     ),
-    4294966506: (
+    4294966498: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3871,9 +4094,9 @@
         ),
       },
     ),
-    4294966507: (
+    4294966499: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3902,9 +4125,9 @@
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
-    4294966508: (
+    4294966500: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3933,9 +4156,9 @@
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
-    4294966509: (
+    4294966501: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3964,9 +4187,9 @@
         "rust_imperialism::map::tiles::TerrainType": Desert,
       },
     ),
-    4294966510: (
+    4294966502: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -3995,9 +4218,9 @@
         "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
-    4294966511: (
+    4294966503: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -4026,9 +4249,9 @@
         "rust_imperialism::map::tiles::TerrainType": Desert,
       },
     ),
-    4294966512: (
+    4294966504: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -4057,9 +4280,9 @@
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
-    4294966513: (
+    4294966505: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -4088,9 +4311,164 @@
         "rust_imperialism::map::tiles::TerrainType": Swamp,
       },
     ),
-    4294966536: (
+    4294966523: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 23,
+          y: 21,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Mountain,
+      },
+    ),
+    4294966524: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 23,
+          y: 20,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Mountain,
+      },
+    ),
+    4294966525: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 23,
+          y: 19,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Mountain,
+      },
+    ),
+    4294966526: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 23,
+          y: 18,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Mountain,
+      },
+    ),
+    4294966527: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 23,
+          y: 17,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Hills,
+      },
+    ),
+    4294966528: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -4115,281 +4493,281 @@
         "bevy_render::sync_world::SyncToRenderWorld": (),
         "rust_imperialism::map::province::TileProvince": (
           province_id: (16),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Grass,
+      },
+    ),
+    4294966529: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 23,
+          y: 15,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (16),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Forest,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Timber,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966530: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 23,
+          y: 14,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (15),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Forest,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Timber,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966531: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 23,
+          y: 13,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (15),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Grass,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Wool,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966532: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 23,
+          y: 12,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (15),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Grass,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Livestock,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966533: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 23,
+          y: 11,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (6),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (15),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Desert,
+      },
+    ),
+    4294966534: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 23,
+          y: 10,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (6),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (15),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Desert,
+      },
+    ),
+    4294966535: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 23,
+          y: 9,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (6),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (10),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Desert,
+      },
+    ),
+    4294966536: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 23,
+          y: 8,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (7),
         ),
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
     4294966537: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 23,
-          y: 15,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (16),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Forest,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Timber,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966538: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 23,
-          y: 14,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (15),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Forest,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Timber,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966539: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 23,
-          y: 13,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (15),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Grass,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Wool,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966540: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 23,
-          y: 12,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (15),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Grass,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Livestock,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966541: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 23,
-          y: 11,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (6),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (15),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Desert,
-      },
-    ),
-    4294966542: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 23,
-          y: 10,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (6),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (15),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Desert,
-      },
-    ),
-    4294966543: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 23,
-          y: 9,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (6),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (10),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Desert,
-      },
-    ),
-    4294966544: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 23,
-          y: 8,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (7),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Grass,
-      },
-    ),
-    4294966545: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -4416,11 +4794,372 @@
           province_id: (7),
         ),
         "rust_imperialism::map::tiles::TerrainType": Grass,
+      },
+    ),
+    4294966556: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 22,
+          y: 20,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Mountain,
+      },
+    ),
+    4294966557: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 22,
+          y: 19,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Mountain,
+      },
+    ),
+    4294966558: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 22,
+          y: 18,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Mountain,
+      },
+    ),
+    4294966559: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 22,
+          y: 17,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (21),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Hills,
+      },
+    ),
+    4294966560: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 22,
+          y: 16,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (16),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Hills,
+      },
+    ),
+    4294966561: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 22,
+          y: 15,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (16),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Grass,
+      },
+    ),
+    4294966562: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 22,
+          y: 14,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (21),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Forest,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Timber,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966563: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 22,
+          y: 13,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (15),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Forest,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Timber,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966564: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 22,
+          y: 12,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (15),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Forest,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Timber,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966565: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 22,
+          y: 11,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (15),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Grass,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Wool,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966566: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 22,
+          y: 10,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (6),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (10),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Desert,
       },
     ),
     4294966567: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -4434,24 +5173,29 @@
         ),
         "bevy_ecs_tilemap::tiles::TilePos": (
           x: 22,
-          y: 17,
+          y: 9,
         ),
         "bevy_ecs_tilemap::tiles::TilePosOld": ((
           x: 0,
           y: 0,
         )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
         "bevy_ecs_tilemap::tiles::TileVisible": (true),
         "bevy_render::sync_world::SyncToRenderWorld": (),
         "rust_imperialism::map::province::TileProvince": (
-          province_id: (21),
+          province_id: (10),
         ),
-        "rust_imperialism::map::tiles::TerrainType": Hills,
+        "rust_imperialism::map::tiles::TerrainType": Grass,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Livestock,
+          development: Lv0,
+          discovered: true,
+        ),
       },
     ),
     4294966568: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -4465,302 +5209,29 @@
         ),
         "bevy_ecs_tilemap::tiles::TilePos": (
           x: 22,
-          y: 16,
+          y: 8,
         ),
         "bevy_ecs_tilemap::tiles::TilePosOld": ((
           x: 0,
           y: 0,
         )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (7),
         "bevy_ecs_tilemap::tiles::TileVisible": (true),
         "bevy_render::sync_world::SyncToRenderWorld": (),
         "rust_imperialism::map::province::TileProvince": (
-          province_id: (16),
+          province_id: (10),
         ),
-        "rust_imperialism::map::tiles::TerrainType": Hills,
+        "rust_imperialism::map::tiles::TerrainType": Farmland,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Cotton,
+          development: Lv0,
+          discovered: true,
+        ),
       },
     ),
     4294966569: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 22,
-          y: 15,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (16),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Grass,
-      },
-    ),
-    4294966570: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 22,
-          y: 14,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (21),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Forest,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Timber,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966571: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 22,
-          y: 13,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (15),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Forest,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Timber,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966572: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 22,
-          y: 12,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (15),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Forest,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Timber,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966573: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 22,
-          y: 11,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (15),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Grass,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Wool,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966574: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 22,
-          y: 10,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (6),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (10),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Desert,
-      },
-    ),
-    4294966575: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 22,
-          y: 9,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (10),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Grass,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Livestock,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966576: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 22,
-          y: 8,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (7),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (10),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Farmland,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Cotton,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966577: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -4792,11 +5263,341 @@
           development: Lv0,
           discovered: true,
         ),
+      },
+    ),
+    4294966588: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 21,
+          y: 20,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Mountain,
+      },
+    ),
+    4294966589: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 21,
+          y: 19,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Mountain,
+      },
+    ),
+    4294966590: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 21,
+          y: 18,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (21),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Hills,
+      },
+    ),
+    4294966591: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 21,
+          y: 17,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (21),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Hills,
+      },
+    ),
+    4294966592: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 21,
+          y: 16,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (21),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Grass,
+      },
+    ),
+    4294966593: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 21,
+          y: 15,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (21),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Forest,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Timber,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966594: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 21,
+          y: 14,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (21),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Forest,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Timber,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966595: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 21,
+          y: 13,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (15),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Forest,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Timber,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966596: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 21,
+          y: 12,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (15),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Forest,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Timber,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966597: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 21,
+          y: 11,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (10),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
     4294966598: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -4810,24 +5611,29 @@
         ),
         "bevy_ecs_tilemap::tiles::TilePos": (
           x: 21,
-          y: 18,
+          y: 10,
         ),
         "bevy_ecs_tilemap::tiles::TilePosOld": ((
           x: 0,
           y: 0,
         )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (7),
         "bevy_ecs_tilemap::tiles::TileVisible": (true),
         "bevy_render::sync_world::SyncToRenderWorld": (),
         "rust_imperialism::map::province::TileProvince": (
-          province_id: (21),
+          province_id: (10),
         ),
-        "rust_imperialism::map::tiles::TerrainType": Hills,
+        "rust_imperialism::map::tiles::TerrainType": Farmland,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Grain,
+          development: Lv0,
+          discovered: true,
+        ),
       },
     ),
     4294966599: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -4841,24 +5647,29 @@
         ),
         "bevy_ecs_tilemap::tiles::TilePos": (
           x: 21,
-          y: 17,
+          y: 9,
         ),
         "bevy_ecs_tilemap::tiles::TilePosOld": ((
           x: 0,
           y: 0,
         )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (7),
         "bevy_ecs_tilemap::tiles::TileVisible": (true),
         "bevy_render::sync_world::SyncToRenderWorld": (),
         "rust_imperialism::map::province::TileProvince": (
-          province_id: (21),
+          province_id: (10),
         ),
-        "rust_imperialism::map::tiles::TerrainType": Hills,
+        "rust_imperialism::map::tiles::TerrainType": Farmland,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Grain,
+          development: Lv0,
+          discovered: true,
+        ),
       },
     ),
     4294966600: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -4872,307 +5683,29 @@
         ),
         "bevy_ecs_tilemap::tiles::TilePos": (
           x: 21,
-          y: 16,
+          y: 8,
         ),
         "bevy_ecs_tilemap::tiles::TilePosOld": ((
           x: 0,
           y: 0,
         )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (7),
         "bevy_ecs_tilemap::tiles::TileVisible": (true),
         "bevy_render::sync_world::SyncToRenderWorld": (),
         "rust_imperialism::map::province::TileProvince": (
-          province_id: (21),
+          province_id: (10),
         ),
-        "rust_imperialism::map::tiles::TerrainType": Grass,
+        "rust_imperialism::map::tiles::TerrainType": Farmland,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Grain,
+          development: Lv0,
+          discovered: true,
+        ),
       },
     ),
     4294966601: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 21,
-          y: 15,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (21),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Forest,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Timber,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966602: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 21,
-          y: 14,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (21),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Forest,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Timber,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966603: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 21,
-          y: 13,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (15),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Forest,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Timber,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966604: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 21,
-          y: 12,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (15),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Forest,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Timber,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966605: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 21,
-          y: 11,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (10),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Hills,
-      },
-    ),
-    4294966606: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 21,
-          y: 10,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (7),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (10),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Farmland,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Grain,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966607: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 21,
-          y: 9,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (7),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (10),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Farmland,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Grain,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966608: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 21,
-          y: 8,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (7),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (10),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Farmland,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Grain,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966609: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -5204,11 +5737,336 @@
           development: Lv0,
           discovered: true,
         ),
+      },
+    ),
+    4294966620: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 20,
+          y: 20,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Grass,
+      },
+    ),
+    4294966621: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 20,
+          y: 19,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (6),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (25),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Desert,
+      },
+    ),
+    4294966622: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 20,
+          y: 18,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (21),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Grass,
+      },
+    ),
+    4294966623: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 20,
+          y: 17,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (21),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Grass,
+      },
+    ),
+    4294966624: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 20,
+          y: 16,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (7),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (21),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Farmland,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Grain,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966625: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 20,
+          y: 15,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (7),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (21),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Farmland,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Cotton,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966626: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 20,
+          y: 14,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (21),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Forest,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Timber,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966627: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 20,
+          y: 13,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (15),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Hills,
+      },
+    ),
+    4294966628: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 20,
+          y: 12,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (15),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Hills,
+      },
+    ),
+    4294966629: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 20,
+          y: 11,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (10),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
     4294966630: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -5222,287 +6080,24 @@
         ),
         "bevy_ecs_tilemap::tiles::TilePos": (
           x: 20,
-          y: 18,
+          y: 10,
         ),
         "bevy_ecs_tilemap::tiles::TilePosOld": ((
           x: 0,
           y: 0,
         )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
         "bevy_ecs_tilemap::tiles::TileVisible": (true),
         "bevy_render::sync_world::SyncToRenderWorld": (),
         "rust_imperialism::map::province::TileProvince": (
-          province_id: (21),
+          province_id: (10),
         ),
-        "rust_imperialism::map::tiles::TerrainType": Grass,
+        "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
     4294966631: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 20,
-          y: 17,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (21),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Grass,
-      },
-    ),
-    4294966632: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 20,
-          y: 16,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (7),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (21),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Farmland,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Grain,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966633: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 20,
-          y: 15,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (7),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (21),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Farmland,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Cotton,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966634: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 20,
-          y: 14,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (21),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Forest,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Timber,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966635: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 20,
-          y: 13,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (15),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Hills,
-      },
-    ),
-    4294966636: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 20,
-          y: 12,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (15),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Hills,
-      },
-    ),
-    4294966637: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 20,
-          y: 11,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (10),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Hills,
-      },
-    ),
-    4294966638: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 20,
-          y: 10,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (10),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Hills,
-      },
-    ),
-    4294966639: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -5536,9 +6131,9 @@
         ),
       },
     ),
-    4294966640: (
+    4294966632: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -5572,45 +6167,9 @@
         ),
       },
     ),
-    4294966641: (
+    4294966654: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 20,
-          y: 7,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Forest,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Timber,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966662: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -5644,277 +6203,277 @@
         ),
       },
     ),
+    4294966655: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 19,
+          y: 17,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (7),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (21),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Farmland,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Grain,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966656: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 19,
+          y: 16,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (7),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (21),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Farmland,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Grain,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966657: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 19,
+          y: 15,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (7),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (21),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Farmland,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Grain,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966658: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 19,
+          y: 14,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (18),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Forest,
+        "rust_imperialism::resources::TileResource": (
+          resource_type: Timber,
+          development: Lv0,
+          discovered: true,
+        ),
+      },
+    ),
+    4294966659: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 19,
+          y: 13,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (18),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Hills,
+      },
+    ),
+    4294966660: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 19,
+          y: 12,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (18),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Mountain,
+      },
+    ),
+    4294966661: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 19,
+          y: 11,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (10),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Mountain,
+      },
+    ),
+    4294966662: (
+      components: {
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
+        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          alpha: 1.0,
+        ))),
+        "bevy_ecs_tilemap::tiles::TileFlip": (
+          x: false,
+          y: false,
+          d: false,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePos": (
+          x: 19,
+          y: 10,
+        ),
+        "bevy_ecs_tilemap::tiles::TilePosOld": ((
+          x: 0,
+          y: 0,
+        )),
+        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
+        "bevy_ecs_tilemap::tiles::TileVisible": (true),
+        "bevy_render::sync_world::SyncToRenderWorld": (),
+        "rust_imperialism::map::province::TileProvince": (
+          province_id: (10),
+        ),
+        "rust_imperialism::map::tiles::TerrainType": Mountain,
+      },
+    ),
     4294966663: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 19,
-          y: 17,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (7),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (21),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Farmland,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Grain,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966664: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 19,
-          y: 16,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (7),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (21),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Farmland,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Grain,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966665: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 19,
-          y: 15,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (7),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (21),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Farmland,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Grain,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966666: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 19,
-          y: 14,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (18),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Forest,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Timber,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966667: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 19,
-          y: 13,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (18),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Hills,
-      },
-    ),
-    4294966668: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 19,
-          y: 12,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (18),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Mountain,
-      },
-    ),
-    4294966669: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 19,
-          y: 11,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (10),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Mountain,
-      },
-    ),
-    4294966670: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 19,
-          y: 10,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (10),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Mountain,
-      },
-    ),
-    4294966671: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -5943,112 +6502,9 @@
         "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
-    4294966672: (
+    4294966687: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 19,
-          y: 8,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Grass,
-      },
-    ),
-    4294966673: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 19,
-          y: 7,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (1),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Forest,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Timber,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966674: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 19,
-          y: 6,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Grass,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Livestock,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966695: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6082,9 +6538,9 @@
         ),
       },
     ),
-    4294966696: (
+    4294966688: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6113,9 +6569,9 @@
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
-    4294966697: (
+    4294966689: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6149,9 +6605,9 @@
         ),
       },
     ),
-    4294966698: (
+    4294966690: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6180,9 +6636,9 @@
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
-    4294966699: (
+    4294966691: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6211,9 +6667,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966700: (
+    4294966692: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6242,9 +6698,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966701: (
+    4294966693: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6273,9 +6729,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966702: (
+    4294966694: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6304,138 +6760,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966703: (
+    4294966719: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 18,
-          y: 9,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Hills,
-      },
-    ),
-    4294966704: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 18,
-          y: 8,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Hills,
-      },
-    ),
-    4294966705: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 18,
-          y: 7,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Grass,
-      },
-    ),
-    4294966706: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 18,
-          y: 6,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Grass,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Wool,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966727: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6469,9 +6796,9 @@
         ),
       },
     ),
-    4294966728: (
+    4294966720: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6505,9 +6832,9 @@
         ),
       },
     ),
-    4294966729: (
+    4294966721: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6536,9 +6863,9 @@
         "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
-    4294966730: (
+    4294966722: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6567,9 +6894,9 @@
         "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
-    4294966731: (
+    4294966723: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6598,9 +6925,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966732: (
+    4294966724: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6629,9 +6956,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966733: (
+    4294966725: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6660,169 +6987,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966734: (
+    4294966751: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 17,
-          y: 10,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (3),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Mountain,
-      },
-    ),
-    4294966735: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 17,
-          y: 9,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Hills,
-      },
-    ),
-    4294966736: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 17,
-          y: 8,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Hills,
-      },
-    ),
-    4294966737: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 17,
-          y: 7,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (7),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Farmland,
-        "rust_imperialism::resources::TileResource": (
-          resource_type: Grain,
-          development: Lv0,
-          discovered: true,
-        ),
-      },
-    ),
-    4294966738: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 17,
-          y: 6,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Grass,
-      },
-    ),
-    4294966759: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6856,9 +7023,9 @@
         ),
       },
     ),
-    4294966760: (
+    4294966752: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6892,9 +7059,9 @@
         ),
       },
     ),
-    4294966761: (
+    4294966753: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6928,9 +7095,9 @@
         ),
       },
     ),
-    4294966762: (
+    4294966754: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6959,9 +7126,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966763: (
+    4294966755: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -6990,102 +7157,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966767: (
+    4294966784: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 16,
-          y: 9,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (2),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Hills,
-      },
-    ),
-    4294966768: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 16,
-          y: 8,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Grass,
-      },
-    ),
-    4294966769: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 16,
-          y: 7,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (6),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Desert,
-      },
-    ),
-    4294966792: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -7114,9 +7188,9 @@
         "rust_imperialism::map::tiles::TerrainType": Desert,
       },
     ),
-    4294966793: (
+    4294966785: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -7145,9 +7219,9 @@
         "rust_imperialism::map::tiles::TerrainType": Hills,
       },
     ),
-    4294966794: (
+    4294966786: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -7176,102 +7250,9 @@
         "rust_imperialism::map::tiles::TerrainType": Mountain,
       },
     ),
-    4294966799: (
+    4294966817: (
       components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 15,
-          y: 9,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Grass,
-      },
-    ),
-    4294966800: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 15,
-          y: 8,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (6),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Desert,
-      },
-    ),
-    4294966801: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 15,
-          y: 7,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (6),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Desert,
-      },
-    ),
-    4294966825: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
+        "bevy_ecs_tilemap::map::TilemapId": (4294967281),
         "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
           red: 1.0,
           green: 1.0,
@@ -7298,37 +7279,6 @@
           province_id: (18),
         ),
         "rust_imperialism::map::tiles::TerrainType": Hills,
-      },
-    ),
-    4294966831: (
-      components: {
-        "bevy_ecs_tilemap::map::TilemapId": (4294967289),
-        "bevy_ecs_tilemap::tiles::TileColor": (LinearRgba((
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          alpha: 1.0,
-        ))),
-        "bevy_ecs_tilemap::tiles::TileFlip": (
-          x: false,
-          y: false,
-          d: false,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePos": (
-          x: 14,
-          y: 9,
-        ),
-        "bevy_ecs_tilemap::tiles::TilePosOld": ((
-          x: 0,
-          y: 0,
-        )),
-        "bevy_ecs_tilemap::tiles::TileTextureIndex": (0),
-        "bevy_ecs_tilemap::tiles::TileVisible": (true),
-        "bevy_render::sync_world::SyncToRenderWorld": (),
-        "rust_imperialism::map::province::TileProvince": (
-          province_id: (8),
-        ),
-        "rust_imperialism::map::tiles::TerrainType": Grass,
       },
     ),
   },
