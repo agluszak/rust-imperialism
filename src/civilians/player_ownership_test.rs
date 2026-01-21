@@ -1,4 +1,3 @@
-use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
 
 use crate::civilians::commands::{SelectCivilian, SelectedCivilian};
@@ -10,7 +9,7 @@ use bevy_ecs_tilemap::prelude::TilePos;
 #[test]
 fn test_cannot_select_enemy_units() {
     let mut world = World::new();
-    world.init_resource::<Messages<SelectCivilian>>();
+    world.add_observer(handle_civilian_selection);
 
     // Create player nation
     let player_nation_entity = world.spawn(Nation).id();
@@ -33,32 +32,11 @@ fn test_cannot_select_enemy_units() {
         })
         .id();
 
-    // Manually write a SelectCivilian event to the message queue
-    {
-        let mut system_state: SystemState<MessageWriter<SelectCivilian>> =
-            SystemState::new(&mut world);
-        let mut writer = system_state.get_mut(&mut world);
-        writer.write(SelectCivilian {
-            entity: enemy_civilian_entity,
-        });
-        system_state.apply(&mut world);
-    }
-
-    // Run the selection system
-    {
-        let mut system_state: SystemState<(
-            Commands,
-            Option<Res<PlayerNation>>,
-            MessageReader<SelectCivilian>,
-            Option<Res<SelectedCivilian>>,
-            Query<&Civilian>,
-        )> = SystemState::new(&mut world);
-
-        let (commands, player_nation, events, selected, civilians) =
-            system_state.get_mut(&mut world);
-        handle_civilian_selection(commands, player_nation, events, selected, civilians);
-        system_state.apply(&mut world);
-    }
+    // Trigger SelectCivilian event
+    world.trigger(SelectCivilian {
+        entity: enemy_civilian_entity,
+    });
+    world.flush();
 
     // Verify that the enemy unit was NOT selected
     assert!(
@@ -70,7 +48,7 @@ fn test_cannot_select_enemy_units() {
 #[test]
 fn test_can_select_own_units() {
     let mut world = World::new();
-    world.init_resource::<Messages<SelectCivilian>>();
+    world.add_observer(handle_civilian_selection);
 
     // Create player nation
     let player_nation_entity = world.spawn(Nation).id();
@@ -90,32 +68,11 @@ fn test_can_select_own_units() {
         })
         .id();
 
-    // Manually write a SelectCivilian event to the message queue
-    {
-        let mut system_state: SystemState<MessageWriter<SelectCivilian>> =
-            SystemState::new(&mut world);
-        let mut writer = system_state.get_mut(&mut world);
-        writer.write(SelectCivilian {
-            entity: player_civilian_entity,
-        });
-        system_state.apply(&mut world);
-    }
-
-    // Run the selection system
-    {
-        let mut system_state: SystemState<(
-            Commands,
-            Option<Res<PlayerNation>>,
-            MessageReader<SelectCivilian>,
-            Option<Res<SelectedCivilian>>,
-            Query<&Civilian>,
-        )> = SystemState::new(&mut world);
-
-        let (commands, player_nation, events, selected, civilians) =
-            system_state.get_mut(&mut world);
-        handle_civilian_selection(commands, player_nation, events, selected, civilians);
-        system_state.apply(&mut world);
-    }
+    // Trigger SelectCivilian event
+    world.trigger(SelectCivilian {
+        entity: player_civilian_entity,
+    });
+    world.flush();
 
     // Verify that the player unit WAS selected
     let selected = world
@@ -130,7 +87,7 @@ fn test_can_select_own_units() {
 #[test]
 fn test_selecting_player_unit_deselects_others() {
     let mut world = World::new();
-    world.init_resource::<Messages<SelectCivilian>>();
+    world.add_observer(handle_civilian_selection);
 
     // Create player nation
     let player_nation_entity = world.spawn(Nation).id();
@@ -162,57 +119,16 @@ fn test_selecting_player_unit_deselects_others() {
         .id();
 
     // Select the first civilian first
-    {
-        let mut system_state: SystemState<MessageWriter<SelectCivilian>> =
-            SystemState::new(&mut world);
-        let mut writer = system_state.get_mut(&mut world);
-        writer.write(SelectCivilian {
-            entity: first_civilian_entity,
-        });
-        system_state.apply(&mut world);
-    }
-
-    {
-        let mut system_state: SystemState<(
-            Commands,
-            Option<Res<PlayerNation>>,
-            MessageReader<SelectCivilian>,
-            Option<Res<SelectedCivilian>>,
-            Query<&Civilian>,
-        )> = SystemState::new(&mut world);
-
-        let (commands, player_nation, events, selected, civilians) =
-            system_state.get_mut(&mut world);
-        handle_civilian_selection(commands, player_nation, events, selected, civilians);
-        system_state.apply(&mut world);
-    }
+    world.trigger(SelectCivilian {
+        entity: first_civilian_entity,
+    });
+    world.flush();
 
     // Select the second civilian
-    {
-        let mut system_state: SystemState<MessageWriter<SelectCivilian>> =
-            SystemState::new(&mut world);
-        let mut writer = system_state.get_mut(&mut world);
-        writer.write(SelectCivilian {
-            entity: second_civilian_entity,
-        });
-        system_state.apply(&mut world);
-    }
-
-    // Run the selection system
-    {
-        let mut system_state: SystemState<(
-            Commands,
-            Option<Res<PlayerNation>>,
-            MessageReader<SelectCivilian>,
-            Option<Res<SelectedCivilian>>,
-            Query<&Civilian>,
-        )> = SystemState::new(&mut world);
-
-        let (commands, player_nation, events, selected, civilians) =
-            system_state.get_mut(&mut world);
-        handle_civilian_selection(commands, player_nation, events, selected, civilians);
-        system_state.apply(&mut world);
-    }
+    world.trigger(SelectCivilian {
+        entity: second_civilian_entity,
+    });
+    world.flush();
 
     // Verify that only the second unit is selected
     let selected = world

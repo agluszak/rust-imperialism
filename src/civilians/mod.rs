@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 
 use crate::turn_system::{PlayerTurnSet, TurnPhase};
-use crate::ui::menu::AppState;
 use crate::ui::mode::GameMode;
 
 // Re-exports for public API
@@ -69,20 +68,15 @@ impl Plugin for CivilianLogicPlugin {
 
         app.init_resource::<ProspectingKnowledge>()
             .init_resource::<NextCivilianId>()
-            .add_message::<SelectCivilian>()
-            .add_message::<DeselectCivilian>()
-            .add_message::<RescindOrders>()
-            .add_message::<CivilianCommand>()
-            .add_message::<CivilianCommandRejected>()
-            .add_message::<HireCivilian>()
-            .add_systems(
-                Update,
-                hiring::spawn_hired_civilian.run_if(in_state(AppState::InGame)),
-            )
+            // Register observers
+            .add_observer(systems::handle_civilian_commands)
+            .add_observer(hiring::spawn_hired_civilian)
+            .add_observer(systems::handle_civilian_selection)
+            .add_observer(systems::handle_deselection)
+            .add_observer(systems::handle_rescind_orders)
             .add_systems(
                 Update,
                 (
-                    systems::handle_civilian_commands,
                     // Apply deferred commands so CivilianOrder is visible to execution systems
                     bevy::ecs::schedule::ApplyDeferred,
                     systems::execute_move_orders,

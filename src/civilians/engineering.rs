@@ -17,7 +17,6 @@ use crate::turn_system::TurnCounter;
 pub fn execute_engineer_orders(
     mut commands: Commands,
     mut engineers: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
-    mut deselect_writer: MessageWriter<DeselectCivilian>,
     rails: Res<Rails>,
     turn: Res<TurnCounter>,
     tile_storage_query: Query<(&TileStorage, &TilemapSize)>,
@@ -62,7 +61,6 @@ pub fn execute_engineer_orders(
                     entity,
                     &mut civilian,
                     to,
-                    &mut deselect_writer,
                     &rails,
                     &turn,
                     &tile_storage_query,
@@ -71,22 +69,10 @@ pub fn execute_engineer_orders(
                 );
             }
             CivilianOrderKind::BuildDepot => {
-                handle_build_depot_order(
-                    &mut commands,
-                    entity,
-                    &mut civilian,
-                    &mut deselect_writer,
-                    &turn,
-                );
+                handle_build_depot_order(&mut commands, entity, &mut civilian, &turn);
             }
             CivilianOrderKind::BuildPort => {
-                handle_build_port_order(
-                    &mut commands,
-                    entity,
-                    &mut civilian,
-                    &mut deselect_writer,
-                    &turn,
-                );
+                handle_build_port_order(&mut commands, entity, &mut civilian, &turn);
             }
             CivilianOrderKind::Move { .. } => {
                 // Move orders are handled by execute_move_orders for all civilians
@@ -106,7 +92,6 @@ fn handle_build_rail_order(
     entity: Entity,
     civilian: &mut Civilian,
     to: TilePos,
-    deselect_writer: &mut MessageWriter<DeselectCivilian>,
     rails: &Res<Rails>,
     turn: &Res<TurnCounter>,
     tile_storage_query: &Query<(&TileStorage, &TilemapSize)>,
@@ -153,7 +138,7 @@ fn handle_build_rail_order(
         );
         civilian.position = to;
         civilian.has_moved = true;
-        deselect_writer.write(DeselectCivilian);
+        commands.trigger(DeselectCivilian);
         commands
             .entity(entity)
             .insert((PreviousPosition(previous_pos), ActionTurn(turn.current)));
@@ -170,7 +155,7 @@ fn handle_build_rail_order(
         // Move Engineer to the target tile after starting construction
         civilian.position = to;
         civilian.has_moved = true;
-        deselect_writer.write(DeselectCivilian); // Auto-deselect after action
+        commands.trigger(DeselectCivilian); // Auto-deselect after action
         // Add job to lock Engineer and previous position for rescinding
         let job_type = JobType::BuildingRail;
         commands.entity(entity).insert((
@@ -189,7 +174,6 @@ fn handle_build_depot_order(
     commands: &mut Commands,
     entity: Entity,
     civilian: &mut Civilian,
-    deselect_writer: &mut MessageWriter<DeselectCivilian>,
     turn: &Res<TurnCounter>,
 ) {
     // Store previous position for potential undo
@@ -203,7 +187,7 @@ fn handle_build_depot_order(
         engineer: Some(entity),
     });
     civilian.has_moved = true;
-    deselect_writer.write(DeselectCivilian); // Auto-deselect after action
+    commands.trigger(DeselectCivilian); // Auto-deselect after action
     // Add job to lock Engineer and previous position for rescinding
     let job_type = JobType::BuildingDepot;
     commands.entity(entity).insert((
@@ -221,7 +205,6 @@ fn handle_build_port_order(
     commands: &mut Commands,
     entity: Entity,
     civilian: &mut Civilian,
-    deselect_writer: &mut MessageWriter<DeselectCivilian>,
     turn: &Res<TurnCounter>,
 ) {
     // Store previous position for potential undo
@@ -235,7 +218,7 @@ fn handle_build_port_order(
         engineer: Some(entity),
     });
     civilian.has_moved = true;
-    deselect_writer.write(DeselectCivilian); // Auto-deselect after action
+    commands.trigger(DeselectCivilian); // Auto-deselect after action
     // Add job to lock Engineer and previous position for rescinding
     let job_type = JobType::BuildingPort;
     commands.entity(entity).insert((
@@ -253,7 +236,6 @@ fn handle_build_port_order(
 pub fn execute_prospector_orders(
     mut commands: Commands,
     mut prospectors: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
-    mut deselect_writer: MessageWriter<DeselectCivilian>,
     turn: Res<TurnCounter>,
     tile_storage_query: Query<(&TileStorage, &TilemapSize)>,
     tile_provinces: Query<&TileProvince>,
@@ -347,7 +329,7 @@ pub fn execute_prospector_orders(
                         to.x, to.y
                     );
                     civilian.has_moved = true;
-                    deselect_writer.write(DeselectCivilian);
+                    commands.trigger(DeselectCivilian);
                 } else {
                     info!(
                         "Cannot prospect at ({}, {}): no mineral deposits possible here",
@@ -365,7 +347,6 @@ pub fn execute_prospector_orders(
 pub fn execute_civilian_improvement_orders(
     mut commands: Commands,
     mut civilians: Query<(Entity, &mut Civilian, &CivilianOrder), With<Civilian>>,
-    mut deselect_writer: MessageWriter<DeselectCivilian>,
     turn: Res<TurnCounter>,
     tile_storage_query: Query<(&TileStorage, &TilemapSize)>,
     tile_provinces: Query<&TileProvince>,
@@ -487,7 +468,7 @@ pub fn execute_civilian_improvement_orders(
                         job_type.duration()
                     );
                     civilian.has_moved = true;
-                    deselect_writer.write(DeselectCivilian); // Auto-deselect after action
+                    commands.trigger(DeselectCivilian); // Auto-deselect after action
                 } else if !can_improve {
                     info!(
                         "{:?} cannot improve {:?} at ({}, {})",
