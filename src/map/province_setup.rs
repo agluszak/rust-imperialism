@@ -20,11 +20,6 @@ use crate::map::tiles::TerrainType;
 use crate::resources::{DevelopmentLevel, TileResource};
 use crate::ui::components::MapTilemap;
 
-/// Resource to track if provinces have been generated
-#[derive(Resource, Reflect, Default)]
-#[reflect(Resource)]
-pub struct ProvincesGenerated;
-
 /// Resource to enable map pruning for tests
 #[derive(Resource, Default)]
 pub struct TestMapConfig;
@@ -34,13 +29,7 @@ pub fn generate_provinces_system(
     mut commands: Commands,
     tile_storage_query: Query<&TileStorage>,
     tile_types: Query<&TerrainType>,
-    provinces_generated: Option<Res<ProvincesGenerated>>,
 ) {
-    // Skip if already generated
-    if provinces_generated.is_some() {
-        return;
-    }
-
     // Wait for tile storage to exist
     let Some(tile_storage) = tile_storage_query.iter().next() else {
         return;
@@ -52,8 +41,6 @@ pub fn generate_provinces_system(
         generate_provinces(&mut commands, tile_storage, &tile_types, MAP_SIZE, MAP_SIZE);
 
     // Cities will be spawned when provinces are assigned to countries
-
-    commands.insert_resource(ProvincesGenerated);
     info!("Province generation complete!");
 }
 
@@ -61,14 +48,8 @@ pub fn generate_provinces_system(
 pub fn assign_provinces_to_countries(
     mut commands: Commands,
     mut provinces: Query<(Entity, &mut Province)>,
-    provinces_generated: Option<Res<ProvincesGenerated>>,
     mut next_civilian_id: ResMut<crate::civilians::types::NextCivilianId>,
 ) {
-    // Skip if provinces not yet generated
-    if provinces_generated.is_none() {
-        return;
-    }
-
     // Check if already assigned (provinces have owners)
     if provinces.iter().any(|(_, p)| p.owner.is_some()) {
         return;
@@ -653,7 +634,7 @@ mod tests {
     use crate::civilians::Civilian;
     use crate::map::province::{Province, ProvinceId};
     use crate::map::province_setup::{
-        ProvincesGenerated, assign_provinces_to_countries, boost_capital_food_tiles,
+        assign_provinces_to_countries, boost_capital_food_tiles,
     };
     use crate::resources::{DevelopmentLevel, ResourceType, TileResource};
 
@@ -702,7 +683,7 @@ mod tests {
     #[test]
     fn ai_nations_receive_capitals_and_civilians() {
         let mut world = World::new();
-        world.insert_resource(ProvincesGenerated);
+        // Removed ProvincesGenerated resource insertion
         world.insert_resource(crate::civilians::types::NextCivilianId::default());
 
         let province_positions = [
