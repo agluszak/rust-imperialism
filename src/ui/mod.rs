@@ -58,7 +58,9 @@ impl Plugin for GameUIPlugin {
                 status::update_treasury_display,
                 status::update_tile_info_display,
                 // Button interaction visual feedback (standard Button widget handles mode switching via observers)
-                button_style::unified_button_interaction_system,
+                button_style::button_interaction_system,
+                button_style::accent_button_interaction_system,
+                button_style::danger_button_interaction_system,
             ),
         );
     }
