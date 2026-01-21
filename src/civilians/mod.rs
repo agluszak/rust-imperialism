@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 
 use crate::turn_system::{PlayerTurnSet, TurnPhase};
-use crate::ui::menu::AppState;
 use crate::ui::mode::GameMode;
 
 // Re-exports for public API
