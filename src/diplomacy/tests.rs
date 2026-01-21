@@ -13,7 +13,7 @@ use crate::turn_system::TurnCounter;
 fn setup_world() -> World {
     let mut world = World::new();
     world.init_resource::<TurnCounter>();
-    world.init_resource::<Messages<DiplomaticOrder>>();
+    world.add_observer(process_diplomatic_orders);
     world.insert_resource(DiplomacyState::default());
     world.insert_resource(ForeignAidLedger::default());
     world.insert_resource(DiplomaticOffers::default());
@@ -46,15 +46,11 @@ fn consulate_requires_funds_and_relations() {
     let _ = world.run_system_once(sync_diplomatic_pairs);
 
     // Attempt to open a consulate with insufficient funds (should fail)
-    {
-        let mut messages = world.resource_mut::<Messages<DiplomaticOrder>>();
-        messages.write(DiplomaticOrder {
-            actor: player_inst,
-            target: minor_inst,
-            kind: DiplomaticOrderKind::EstablishConsulate,
-        });
-    }
-    let _ = world.run_system_once(process_diplomatic_orders);
+    world.trigger(DiplomaticOrder {
+        actor: player_inst,
+        target: minor_inst,
+        kind: DiplomaticOrderKind::EstablishConsulate,
+    });
 
     // Treasury unchanged and no consulate flag set
     let treasury = world.get::<Treasury>(player).unwrap();
@@ -74,16 +70,11 @@ fn consulate_requires_funds_and_relations() {
         .resource_mut::<DiplomacyState>()
         .adjust_score(player_inst, minor_inst, 5);
 
-    {
-        let mut messages = world.resource_mut::<Messages<DiplomaticOrder>>();
-        messages.write(DiplomaticOrder {
-            actor: player_inst,
-            target: minor_inst,
-            kind: DiplomaticOrderKind::EstablishConsulate,
-        });
-    }
-
-    let _ = world.run_system_once(process_diplomatic_orders);
+    world.trigger(DiplomaticOrder {
+        actor: player_inst,
+        target: minor_inst,
+        kind: DiplomaticOrderKind::EstablishConsulate,
+    });
 
     let treasury = world.get::<Treasury>(player).unwrap();
     assert_eq!(treasury.total(), 100); // 400 + 200 - 500 cost
@@ -116,19 +107,14 @@ fn recurring_aid_transfers_each_turn() {
     // Initialize relations and record the aid order
     let _ = world.run_system_once(sync_diplomatic_pairs);
 
-    {
-        let mut messages = world.resource_mut::<Messages<DiplomaticOrder>>();
-        messages.write(DiplomaticOrder {
-            actor: donor_inst,
-            target: recipient_inst,
-            kind: DiplomaticOrderKind::SendAid {
-                amount: 1_000,
-                locked: true,
-            },
-        });
-    }
-
-    let _ = world.run_system_once(process_diplomatic_orders);
+    world.trigger(DiplomaticOrder {
+        actor: donor_inst,
+        target: recipient_inst,
+        kind: DiplomaticOrderKind::SendAid {
+            amount: 1_000,
+            locked: true,
+        },
+    });
 
     // At start of next player turn apply recurring aid
     // Phase is handled by OnEnter scheduling - no need to set manually in tests
@@ -182,15 +168,11 @@ fn embassy_requires_consulate_and_relations() {
     let _ = world.run_system_once(sync_diplomatic_pairs);
 
     // Attempt to open an embassy without a consulate
-    {
-        let mut messages = world.resource_mut::<Messages<DiplomaticOrder>>();
-        messages.write(DiplomaticOrder {
-            actor: empire_inst,
-            target: neighbor_inst,
-            kind: DiplomaticOrderKind::OpenEmbassy,
-        });
-    }
-    let _ = world.run_system_once(process_diplomatic_orders);
+    world.trigger(DiplomaticOrder {
+        actor: empire_inst,
+        target: neighbor_inst,
+        kind: DiplomaticOrderKind::OpenEmbassy,
+    });
 
     assert!(
         !world
@@ -209,16 +191,11 @@ fn embassy_requires_consulate_and_relations() {
         .resource_mut::<DiplomacyState>()
         .adjust_score(empire_inst, neighbor_inst, 35);
 
-    {
-        let mut messages = world.resource_mut::<Messages<DiplomaticOrder>>();
-        messages.write(DiplomaticOrder {
-            actor: empire_inst,
-            target: neighbor_inst,
-            kind: DiplomaticOrderKind::OpenEmbassy,
-        });
-    }
-
-    let _ = world.run_system_once(process_diplomatic_orders);
+    world.trigger(DiplomaticOrder {
+        actor: empire_inst,
+        target: neighbor_inst,
+        kind: DiplomaticOrderKind::OpenEmbassy,
+    });
 
     assert!(
         world
@@ -262,16 +239,11 @@ fn declare_war_shifts_world_opinion() {
         state.adjust_score(foe_inst, rival_inst, -70);
     }
 
-    {
-        let mut messages = world.resource_mut::<Messages<DiplomaticOrder>>();
-        messages.write(DiplomaticOrder {
-            actor: empire_inst,
-            target: rival_inst,
-            kind: DiplomaticOrderKind::DeclareWar,
-        });
-    }
-
-    let _ = world.run_system_once(process_diplomatic_orders);
+    world.trigger(DiplomaticOrder {
+        actor: empire_inst,
+        target: rival_inst,
+        kind: DiplomaticOrderKind::DeclareWar,
+    });
 
     let state = world.resource::<DiplomacyState>();
     let relation_with_friend = state
@@ -321,16 +293,11 @@ fn offer_peace_creates_pending_offer() {
             t.at_war = true;
         });
 
-    {
-        let mut orders = world.resource_mut::<Messages<DiplomaticOrder>>();
-        orders.write(DiplomaticOrder {
-            actor: player_inst,
-            target: foe_inst,
-            kind: DiplomaticOrderKind::OfferPeace,
-        });
-    }
-
-    let _ = world.run_system_once(process_diplomatic_orders);
+    world.trigger(DiplomaticOrder {
+        actor: player_inst,
+        target: foe_inst,
+        kind: DiplomaticOrderKind::OfferPeace,
+    });
 
     let relation = world
         .resource::<DiplomacyState>()
@@ -361,16 +328,11 @@ fn proposing_non_aggression_creates_offer() {
         .resource_mut::<DiplomacyState>()
         .set_treaty(player_inst, neighbor_inst, |t| t.embassy = true);
 
-    {
-        let mut messages = world.resource_mut::<Messages<DiplomaticOrder>>();
-        messages.write(DiplomaticOrder {
-            actor: player_inst,
-            target: neighbor_inst,
-            kind: DiplomaticOrderKind::SignNonAggressionPact,
-        });
-    }
-
-    let _ = world.run_system_once(process_diplomatic_orders);
+    world.trigger(DiplomaticOrder {
+        actor: player_inst,
+        target: neighbor_inst,
+        kind: DiplomaticOrderKind::SignNonAggressionPact,
+    });
 
     let offers = world.resource::<DiplomaticOffers>();
     let mut pending = offers.iter_for(neighbor_inst);
@@ -463,16 +425,11 @@ fn declare_war_triggers_alliance_calls() {
         });
     }
 
-    {
-        let mut orders = world.resource_mut::<Messages<DiplomaticOrder>>();
-        orders.write(DiplomaticOrder {
-            actor: attacker_inst,
-            target: victim_inst,
-            kind: DiplomaticOrderKind::DeclareWar,
-        });
-    }
-
-    let _ = world.run_system_once(process_diplomatic_orders);
+    world.trigger(DiplomaticOrder {
+        actor: attacker_inst,
+        target: victim_inst,
+        kind: DiplomaticOrderKind::DeclareWar,
+    });
 
     let offers = world.resource::<DiplomaticOffers>();
     let mut defensive_call = offers.iter_for(defender_ally_inst);

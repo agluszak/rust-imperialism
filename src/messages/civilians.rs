@@ -4,14 +4,14 @@ use bevy_ecs_tilemap::prelude::TilePos;
 use crate::civilians::{CivilianKind, CivilianOrderKind};
 use crate::economy::nation::NationInstance;
 
-#[derive(Message, Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
 pub struct CivilianCommand {
     pub civilian: Entity,
     pub order: CivilianOrderKind,
 }
 
 /// Message sent when a nation hires a new civilian unit.
-#[derive(Message, Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
 pub struct HireCivilian {
     pub nation: NationInstance,
     pub kind: CivilianKind,
@@ -52,7 +52,7 @@ impl CivilianCommandError {
     }
 }
 
-#[derive(Message, Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
 pub struct CivilianCommandRejected {
     pub civilian: Entity,
     pub order: CivilianOrderKind,
