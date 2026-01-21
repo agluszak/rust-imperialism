@@ -13,6 +13,7 @@ use rust_imperialism::turn_system::TurnPhase;
 use rust_imperialism::ui::menu::AppState;
 use rust_imperialism::ui::mode::GameMode;
 
+#[allow(dead_code)]
 /// Helper function to transition between turn phases in tests
 /// Encapsulates the double-update pattern needed for state transitions
 pub fn transition_to_phase(app: &mut bevy::app::App, phase: TurnPhase) {
@@ -23,6 +24,7 @@ pub fn transition_to_phase(app: &mut bevy::app::App, phase: TurnPhase) {
     app.update(); // Run systems in the new phase
 }
 
+#[allow(dead_code)]
 /// Get the path to a test fixture file
 pub fn fixture_path(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -31,18 +33,22 @@ pub fn fixture_path(name: &str) -> PathBuf {
         .join(name)
 }
 
+#[allow(dead_code)]
 /// Filename for the pruned Red nation test map
 pub const PRUNED_RED_NATION_MAP: &str = "pruned_red_nation.ron";
 
 /// Resource to track if a fixture load has completed
 #[derive(Resource, Default)]
+#[allow(dead_code)]
 struct FixtureLoadCompleted(bool);
 
+#[allow(dead_code)]
 /// Observer that marks when load is complete
 fn on_fixture_loaded(_: On<Loaded>, mut completed: ResMut<FixtureLoadCompleted>) {
     completed.0 = true;
 }
 
+#[allow(dead_code)]
 /// Creates a test app configured for loading fixtures
 pub fn create_fixture_test_app() -> bevy::app::App {
     let mut app = bevy::app::App::new();
@@ -66,6 +72,7 @@ pub fn create_fixture_test_app() -> bevy::app::App {
     app
 }
 
+#[allow(dead_code)]
 /// Creates a test app configured for turn-based simulations with AI/economy logic.
 pub fn create_fixture_simulation_app() -> bevy::app::App {
     let mut app = bevy::app::App::new();
@@ -83,6 +90,7 @@ pub fn create_fixture_simulation_app() -> bevy::app::App {
     app
 }
 
+#[allow(dead_code)]
 /// Rebuilds TileStorage from loaded tiles and spawns a tilemap entity.
 pub fn rebuild_tile_storage(app: &mut bevy::app::App) -> Entity {
     let (tiles, map_size, existing_tilemaps) = {
@@ -127,6 +135,7 @@ pub fn rebuild_tile_storage(app: &mut bevy::app::App) -> Entity {
     world.spawn((tile_storage, map_size)).id()
 }
 
+#[allow(dead_code)]
 /// Loads a test fixture into the app. Returns true if load completed.
 pub fn load_fixture(app: &mut bevy::app::App, fixture_name: &str) -> bool {
     let path = fixture_path(fixture_name);
