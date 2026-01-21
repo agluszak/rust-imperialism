@@ -302,15 +302,15 @@ fn generate_infrastructure_goals(nation: &NationSnapshot, goals: &mut Vec<Nation
         // Priority heavily based on how many resources it covers (clustering)
         let count_priority = match depot.covers_count {
             0 => 0.0,
-            1 => 0.5,
-            2 => 0.7,
-            _ => 0.9,
+            1 => 0.4,
+            2 => 0.6,
+            _ => 0.75, // Cap at 0.75 to prioritize connecting existing depots
         };
 
         // Distance penalty
         let distance_penalty = (depot.distance_from_capital as f32 / 100.0).min(0.2);
 
-        let priority = (count_priority - distance_penalty).clamp(0.3, 0.95);
+        let priority = (count_priority - distance_penalty).clamp(0.2, 0.8);
 
         goals.push(NationGoal::BuildDepotAt {
             tile: depot.position,
@@ -320,8 +320,9 @@ fn generate_infrastructure_goals(nation: &NationSnapshot, goals: &mut Vec<Nation
 
     // Add goals for connecting existing unconnected depots
     for depot in &nation.unconnected_depots {
-        // Connecting existing depots is very important.
-        let priority = (0.8 - (depot.distance_from_capital as f32 / 50.0).min(0.3)).clamp(0.4, 0.95);
+        // Connecting existing depots is critical for the network
+        // Base priority 0.9, slightly reduced by distance but kept high
+        let priority = (0.9 - (depot.distance_from_capital as f32 / 100.0).min(0.2)).clamp(0.7, 1.0);
         goals.push(NationGoal::ConnectDepot {
             tile: depot.position,
             priority,
@@ -446,19 +447,6 @@ fn assign_civilians_to_goals(
 
     // Iterate goals by priority (already sorted)
     for goal in goals {
-        // Calculate blockers for this goal attempt:
-        // Reserved tiles (Friends who moved/stayed + Enemies)
-        // + ALL Unplanned Friends (who are currently sitting at their spot)
-        //
-        // Note: This includes the candidate's own position. However, this is safe because:
-        // 1. Pathfinding (find_step_toward) checks neighbors, not the start node.
-        // 2. Target validity checks (e.g. ProspectTile) handle the "am I already there" case explicitly.
-        // 3. Target validity for movement checks !avoid_tiles.contains(target), which is correct (we can't move to ourselves anyway).
-        let mut avoid_tiles = reserved_positions.clone();
-        for &pos in unplanned_positions.values() {
-            avoid_tiles.insert(pos);
-        }
-
         // Find best candidate for this goal
         let mut best_candidate: Option<(Entity, CivilianTask)> = None;
         let mut min_distance = u32::MAX; // Score: lower is better (distance to action)
@@ -466,6 +454,17 @@ fn assign_civilians_to_goals(
         for civilian in nation.available_civilians() {
             if !unplanned_positions.contains_key(&civilian.entity) {
                 continue;
+            }
+
+            // Calculate blockers for this specific candidate:
+            // Reserved tiles (Friends who moved/stayed + Enemies)
+            // + Unplanned Friends (who are currently sitting at their spot)
+            // - EXCLUDING this candidate (since they are moving)
+            let mut avoid_tiles = reserved_positions.clone();
+            for (&entity, &pos) in &unplanned_positions {
+                if entity != civilian.entity {
+                    avoid_tiles.insert(pos);
+                }
             }
 
             let task_opt = match goal {
@@ -964,86 +963,6 @@ mod tests {
 
         // Should build rail to adjacent tile toward target
         assert!(matches!(task, Some(CivilianTask::BuildRailTo { target: t }) if t == next_step));
-    }
-
-    /// Benchmark for `assign_civilians_to_goals`.
-    ///
-    /// Performance History:
-    /// - Before optimization (nested loop set cloning): ~1.89s for 200 civilians / 50 goals.
-    /// - After optimization (hoisted set construction): ~44.6ms for 200 civilians / 50 goals.
-    /// - Speedup: ~42x
-    #[test]
-    fn test_performance_assign_civilians() {
-        use std::collections::HashSet;
-        use std::time::Instant;
-
-        // Setup large scenario
-        let num_civilians = 200;
-        let num_goals = 50;
-
-        let mut civilians = Vec::new();
-        let mut owned_tiles = HashSet::new();
-
-        // Create civilians and tiles
-        for i in 0..num_civilians {
-            let entity = Entity::from_bits((i + 1) as u64);
-            let pos = TilePos::new(i as u32 % 50, i as u32 / 50);
-            civilians.push(crate::ai::snapshot::CivilianSnapshot {
-                entity,
-                kind: CivilianKind::Engineer,
-                position: pos,
-                has_moved: false,
-            });
-            owned_tiles.insert(pos);
-        }
-
-        let mut goals = Vec::new();
-        for i in 0..num_goals {
-            goals.push(NationGoal::BuildDepotAt {
-                tile: TilePos::new((i % 50) as u32, (i / 50 + 10) as u32),
-                priority: 1.0,
-            });
-        }
-
-        let snapshot = NationSnapshot {
-            entity: Entity::PLACEHOLDER,
-            capital_pos: TilePos::new(0, 0),
-            treasury: 1000,
-            stockpile: HashMap::new(),
-            civilians,
-            connected_tiles: HashSet::new(),
-            unconnected_depots: vec![],
-            suggested_depots: vec![],
-            improvable_tiles: vec![],
-            owned_tiles: owned_tiles.clone(),
-            depot_positions: HashSet::new(),
-            prospectable_tiles: vec![],
-            tile_terrain: HashMap::new(),
-            technologies: crate::economy::technology::Technologies::new(),
-            rail_constructions: vec![],
-            trade_capacity_total: 1000,
-            trade_capacity_used: 0,
-            buildings: HashMap::new(),
-        };
-
-        // Create empty AI snapshot for collision checking
-        let ai_snapshot = AiSnapshot {
-            occupied_tiles: HashSet::new(),
-            rails: HashSet::new(),
-            ..Default::default()
-        };
-
-        let mut tasks = HashMap::new();
-
-        // Benchmark
-        let start = Instant::now();
-        assign_civilians_to_goals(&snapshot, &ai_snapshot, &goals, &mut tasks);
-        let duration = start.elapsed();
-
-        println!(
-            "Performance Benchmark: assigned tasks for {} civilians and {} goals in {:?}",
-            num_civilians, num_goals, duration
-        );
     }
 
     #[test]

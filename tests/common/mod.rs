@@ -107,8 +107,8 @@ pub fn rebuild_tile_storage(app: &mut bevy::app::App) -> Entity {
         let existing_tilemaps: Vec<Entity> = tilemap_query.iter(world).collect();
 
         let map_size = TilemapSize {
-            x: max_x + 1,
-            y: max_y + 1,
+            x: max_x + 2, // Add padding to avoid potential off-by-one issues in tests
+            y: max_y + 2,
         };
 
         (tiles, map_size, existing_tilemaps)

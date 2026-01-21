@@ -30,18 +30,15 @@ fn test_map_pruning_to_red_nation() {
 
     // Adding only the systems we need to test map generation and pruning
     app.add_systems(
-        OnEnter(AppState::InGame),
+        Update,
         (
             setup_mock_tilemap,
-            ApplyDeferred,
             generate_provinces_system,
-            ApplyDeferred,
             assign_provinces_to_countries,
-            ApplyDeferred,
             prune_to_test_map,
-            ApplyDeferred,
         )
-            .chain(),
+            .chain()
+            .run_if(in_state(AppState::InGame)),
     );
 
     // Add the test configuration to trigger pruning

@@ -147,7 +147,7 @@ pub fn depot_coverage(position: TilePos) -> impl Iterator<Item = TilePos> {
 ///
 /// The algorithm iteratively picks the owned tile that covers the most uncovered
 /// resources until all resources are covered.
-pub fn calculate_suggested_depots(
+fn calculate_suggested_depots(
     resource_tiles: &HashSet<TilePos>,
     owned_tiles: &HashSet<TilePos>,
     depot_positions: &HashSet<TilePos>,
@@ -186,9 +186,8 @@ pub fn calculate_suggested_depots(
                     .unwrap_or(false)
             })
             .map(|&pos| {
-                let covers_count = depot_coverage(pos)
-                    .filter(|t| remaining.contains(t))
-                    .count() as u32;
+                let coverage: HashSet<TilePos> = depot_coverage(pos).collect();
+                let covers_count = remaining.intersection(&coverage).count() as u32;
                 let distance = capital_hex.distance_to(pos.to_hex()) as u32;
                 (pos, covers_count, distance)
             })
