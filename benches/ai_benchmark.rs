@@ -1,50 +1,38 @@
-use bevy::prelude::Entity;
-use bevy_ecs_tilemap::prelude::TilePos;
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rust_imperialism::ai::planner::plan_nation;
-use rust_imperialism::ai::snapshot::{
-    AiSnapshot, CivilianSnapshot, DepotInfo, ImprovableTile, MarketSnapshot, NationSnapshot,
-    ProspectableTile, SuggestedDepot,
-};
+use rust_imperialism::ai::snapshot::{AiSnapshot, NationSnapshot, CivilianSnapshot, SuggestedDepot, DepotInfo, ImprovableTile, ProspectableTile, MarketSnapshot};
 use rust_imperialism::civilians::types::CivilianKind;
 use rust_imperialism::economy::goods::Good;
 use rust_imperialism::economy::stockpile::StockpileEntry;
 use rust_imperialism::map::tiles::TerrainType;
 use rust_imperialism::resources::{DevelopmentLevel, ResourceType};
+use bevy::prelude::Entity;
+use bevy_ecs_tilemap::prelude::TilePos;
 use std::collections::{HashMap, HashSet};
 
 fn create_test_snapshot() -> (NationSnapshot, AiSnapshot) {
     let mut stockpile = HashMap::new();
     // Shortage of coal
-    stockpile.insert(
-        Good::Coal,
-        StockpileEntry {
-            good: Good::Coal,
-            total: 5,
-            available: 5,
-            reserved: 0,
-        },
-    );
+    stockpile.insert(Good::Coal, StockpileEntry {
+        good: Good::Coal,
+        total: 5,
+        available: 5,
+        reserved: 0
+    });
     // Surplus of grain
-    stockpile.insert(
-        Good::Grain,
-        StockpileEntry {
-            good: Good::Grain,
-            total: 100,
-            available: 100,
-            reserved: 0,
-        },
-    );
+    stockpile.insert(Good::Grain, StockpileEntry {
+        good: Good::Grain,
+        total: 100,
+        available: 100,
+        reserved: 0
+    });
     // Some steel
-    stockpile.insert(
-        Good::Steel,
-        StockpileEntry {
-            good: Good::Steel,
-            total: 20,
-            available: 20,
-            reserved: 0,
-        },
-    );
+    stockpile.insert(Good::Steel, StockpileEntry {
+        good: Good::Steel,
+        total: 20,
+        available: 20,
+        reserved: 0
+    });
 
     let mut nation = NationSnapshot {
         entity: Entity::from_bits(1),
@@ -140,9 +128,7 @@ fn create_test_snapshot() -> (NationSnapshot, AiSnapshot) {
 
 fn bench_plan_nation(c: &mut Criterion) {
     let (nation, snapshot) = create_test_snapshot();
-    c.bench_function("plan_nation", |b| {
-        b.iter(|| plan_nation(black_box(&nation), black_box(&snapshot)))
-    });
+    c.bench_function("plan_nation", |b| b.iter(|| plan_nation(black_box(&nation), black_box(&snapshot))));
 }
 
 criterion_group!(benches, bench_plan_nation);

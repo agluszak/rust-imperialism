@@ -36,7 +36,10 @@ pub fn handle_civilian_click(
 }
 
 /// Handle Escape key to deselect the selected civilian
-pub fn handle_deselect_key(keys: Option<Res<ButtonInput<KeyCode>>>, mut commands: Commands) {
+pub fn handle_deselect_key(
+    keys: Option<Res<ButtonInput<KeyCode>>>,
+    mut commands: Commands,
+) {
     if let Some(keys) = keys
         && keys.just_pressed(KeyCode::Escape)
     {
@@ -253,10 +256,7 @@ pub fn handle_rescind_orders(
     let entity = event.entity;
     let current_turn = turn.current;
 
-    info!(
-        "handle_rescind_orders: received rescind event for {:?}",
-        entity
-    );
+    info!("handle_rescind_orders: received rescind event for {:?}", entity);
 
     // Perform updates in a command to ensure atomicity (all updates happen at sync point)
     // This prevents race conditions where position is reset but order/job still exists

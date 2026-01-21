@@ -262,6 +262,7 @@ pub fn setup_tilemap_rendering(
 }
 
 /// Input part of tilemap creation: attaches observers to tiles
+// This runs once in the OnEnter chain, so we don't need a marker component.
 pub fn setup_tilemap_input(
     mut commands: Commands,
     tilemap_query: Query<(Entity, &TilemapSize, &TileStorage)>,

@@ -6,6 +6,7 @@ use crate::civilians::{Civilian, CivilianCommand, CivilianKind, CivilianOrderKin
 use crate::map::tile_pos::TilePosExt;
 
 use crate::ui::menu::AppState;
+use crate::ui::mode::GameMode;
 
 pub struct InputPlugin;
 

@@ -3,7 +3,7 @@ use bevy::ui::widget::Button as OldButton;
 use bevy::ui_widgets::{Activate, Button};
 
 use crate::civilians::commands::{DeselectCivilian, RescindOrders, SelectCivilian};
-use crate::civilians::types::{Civilian, PreviousPosition};
+use crate::civilians::types::{Civilian, CivilianOrderDefinition, PreviousPosition};
 use crate::messages::civilians::CivilianCommand;
 use crate::ui::button_style::*;
 
@@ -105,7 +105,9 @@ pub fn show_civilian_orders_ui(
                     BackgroundColor(NORMAL_BUTTON),
                 ))
                 .observe(
-                    move |_: On<Activate>, mut commands: Commands, civilians: Query<&Civilian>| {
+                    move |_: On<Activate>,
+                          mut commands: Commands,
+                          civilians: Query<&Civilian>| {
                         // Get the civilian's current position to use as the target
                         let target_pos = civilians
                             .get(civilian_entity)
@@ -242,15 +244,15 @@ pub fn show_rescind_orders_ui(
                         BackgroundColor(NORMAL_DANGER),
                         crate::ui::button_style::DangerButton,
                     ))
-                    .observe(move |_: On<Activate>, mut commands: Commands| {
-                        info!(
-                            "Rescind Orders button clicked for civilian {:?}",
-                            civilian_entity
-                        );
-                        commands.trigger(RescindOrders {
-                            entity: civilian_entity,
-                        });
-                    })
+                    .observe(
+                        move |_: On<Activate>,
+                              mut commands: Commands| {
+                            info!("Rescind Orders button clicked for civilian {:?}", civilian_entity);
+                            commands.trigger(RescindOrders {
+                                entity: civilian_entity,
+                            });
+                        },
+                    )
                     .with_children(|button_parent| {
                         button_parent.spawn((
                             Text::new("Rescind Orders"),

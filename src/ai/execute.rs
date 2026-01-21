@@ -33,7 +33,13 @@ pub fn execute_ai_turn(
         let plan = plan_nation(nation_snapshot, &snapshot);
 
         // Execute the plan
-        execute_plan(&mut commands, &snapshot, &plan, nation, buildings);
+        execute_plan(
+            &mut commands,
+            &snapshot,
+            &plan,
+            nation,
+            buildings,
+        );
     }
 }
 

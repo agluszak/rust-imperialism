@@ -1004,6 +1004,7 @@ mod tests {
         assert!(matches!(task, Some(CivilianTask::BuildRailTo { target: t }) if t == next_step));
     }
 
+
     /// Benchmark for `assign_civilians_to_goals`.
     ///
     /// Performance History:

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::civilians::commands::SelectCivilian;
+use crate::civilians::commands::{DeselectCivilian, SelectCivilian};
 use crate::civilians::types::{Civilian, CivilianId, CivilianKind};
 use crate::civilians::ui_components::{CivilianOrdersPanel, show_civilian_orders_ui};
 use crate::economy::{Nation, PlayerNation};

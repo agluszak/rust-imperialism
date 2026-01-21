@@ -47,63 +47,67 @@ pub fn spawn_dialog_frame(
             ))
             .with_children(|dialog| {
                 // Header row: title + close button (draggable)
-                header_entity = dialog
-                    .spawn((
-                        Node {
-                            width: Val::Percent(100.0),
-                            justify_content: JustifyContent::SpaceBetween,
-                            align_items: AlignItems::Center,
-                            margin: UiRect::bottom(Val::Px(4.0)),
-                            ..default()
-                        },
-                        Interaction::None,
-                        DialogDragHandle {
-                            dialog_entity: Entity::PLACEHOLDER, // Will be updated below
-                        },
-                    ))
-                    .with_children(|header| {
-                        // Title
-                        header.spawn((
-                            Text::new(title),
-                            TextFont {
-                                font_size: 16.0,
+                header_entity =
+                    dialog
+                        .spawn((
+                            Node {
+                                width: Val::Percent(100.0),
+                                justify_content: JustifyContent::SpaceBetween,
+                                align_items: AlignItems::Center,
+                                margin: UiRect::bottom(Val::Px(4.0)),
                                 ..default()
                             },
-                            TextColor(Color::srgb(1.0, 0.95, 0.8)),
-                        ));
-
-                        // Close button
-                        header
-                            .spawn((
-                                Button,
-                                OldButton,
-                                Node {
-                                    width: Val::Px(24.0),
-                                    height: Val::Px(24.0),
-                                    justify_content: JustifyContent::Center,
-                                    align_items: AlignItems::Center,
-                                    border: UiRect::all(Val::Px(1.0)),
+                            Interaction::None,
+                            DialogDragHandle {
+                                dialog_entity: Entity::PLACEHOLDER, // Will be updated below
+                            },
+                        ))
+                        .with_children(|header| {
+                            // Title
+                            header.spawn((
+                                Text::new(title),
+                                TextFont {
+                                    font_size: 16.0,
                                     ..default()
                                 },
-                                BackgroundColor(Color::srgba(0.5, 0.2, 0.2, 1.0)),
-                                BorderColor::all(Color::srgba(0.7, 0.3, 0.3, 1.0)),
-                                DialogCloseButton { building_entity },
-                                observe(move |_: On<Activate>, mut commands: Commands| {
-                                    commands.trigger(CloseBuildingDialog { building_entity });
-                                }),
-                            ))
-                            .with_children(|btn| {
-                                btn.spawn((
-                                    Text::new("X"),
-                                    TextFont {
-                                        font_size: 20.0,
+                                TextColor(Color::srgb(1.0, 0.95, 0.8)),
+                            ));
+
+                            // Close button
+                            header
+                                .spawn((
+                                    Button,
+                                    OldButton,
+                                    Node {
+                                        width: Val::Px(24.0),
+                                        height: Val::Px(24.0),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        border: UiRect::all(Val::Px(1.0)),
                                         ..default()
                                     },
-                                    TextColor(Color::srgb(1.0, 0.9, 0.9)),
-                                ));
-                            });
-                    })
-                    .id();
+                                    BackgroundColor(Color::srgba(0.5, 0.2, 0.2, 1.0)),
+                                    BorderColor::all(Color::srgba(0.7, 0.3, 0.3, 1.0)),
+                                    DialogCloseButton { building_entity },
+                                    observe(
+                                        move |_: On<Activate>, mut commands: Commands| {
+                                            commands
+                                                .trigger(CloseBuildingDialog { building_entity });
+                                        },
+                                    ),
+                                ))
+                                .with_children(|btn| {
+                                    btn.spawn((
+                                        Text::new("X"),
+                                        TextFont {
+                                            font_size: 20.0,
+                                            ..default()
+                                        },
+                                        TextColor(Color::srgb(1.0, 0.9, 0.9)),
+                                    ));
+                                });
+                        })
+                        .id();
 
                 // Divider
                 dialog.spawn((
