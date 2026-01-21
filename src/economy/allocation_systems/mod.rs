@@ -3,11 +3,11 @@ use bevy::prelude::*;
 use crate::economy::{
     allocation::Allocations,
     goods::Good,
-    production::{BuildingKind, Buildings, building_for_output},
+    production::{building_for_output, Building, BuildingKind, Buildings},
     reservation::ReservationSystem,
     stockpile::Stockpile,
     treasury::Treasury,
-    workforce::{RecruitmentCapacity, types::*},
+    workforce::{types::*, RecruitmentCapacity},
 };
 use crate::{
     map::province::Province,
@@ -34,74 +34,22 @@ pub fn apply_production_adjustments(
 /// based on stockpile availability (e.g., Cotton vs Wool, Fish vs Livestock)
 pub(crate) fn calculate_inputs_for_one_unit(
     kind: BuildingKind,
-    _output: Good,
+    output: Good,
     stockpile: &Stockpile,
 ) -> Vec<(Good, u32)> {
-    match kind {
-        BuildingKind::TextileMill => {
-            // 2 fiber → 1 fabric
-            // Intelligently pick Cotton or Wool based on availability
-            let cotton_available = stockpile.get_available(Good::Cotton);
-            let wool_available = stockpile.get_available(Good::Wool);
+    use crate::economy::production::production_recipe;
 
-            // Prefer whichever has more available (at least 2 units needed)
-            let fiber = if cotton_available >= 2 {
-                Good::Cotton
-            } else if wool_available >= 2 {
-                Good::Wool
-            } else if cotton_available > wool_available {
-                Good::Cotton
-            } else {
-                Good::Wool
-            };
-            vec![(fiber, 2)]
+    if let Some(recipe) = production_recipe(kind) {
+        if let Some(variant) = recipe.best_variant_for_output(output, stockpile) {
+            return variant
+                .inputs()
+                .iter()
+                .map(|i| (i.good, i.amount))
+                .collect();
         }
-
-        BuildingKind::LumberMill => {
-            // 2 timber → 1 output (Lumber or Paper)
-            vec![(Good::Timber, 2)]
-        }
-
-        BuildingKind::SteelMill => {
-            // 1 iron + 1 coal → 1 steel
-            vec![(Good::Iron, 1), (Good::Coal, 1)]
-        }
-
-        BuildingKind::FoodProcessingCenter => {
-            // 2 Grain + 1 Fruit + 1 Meat → 2 CannedFood
-            // Per unit: 2 Grain, 1 Fruit, 1 Meat (produces 2 units)
-            // Intelligently pick Fish or Livestock based on availability
-            let fish_available = stockpile.get_available(Good::Fish);
-            let livestock_available = stockpile.get_available(Good::Livestock);
-
-            let meat = if fish_available >= 1 {
-                Good::Fish
-            } else if livestock_available >= 1 {
-                Good::Livestock
-            } else if fish_available > 0 {
-                Good::Fish
-            } else {
-                Good::Livestock
-            };
-
-            vec![(Good::Grain, 2), (Good::Fruit, 1), (meat, 1)]
-        }
-
-        BuildingKind::ClothingFactory => vec![(Good::Fabric, 2)],
-
-        BuildingKind::FurnitureFactory => vec![(Good::Lumber, 2)],
-
-        BuildingKind::MetalWorks => vec![(Good::Steel, 2)],
-
-        BuildingKind::Refinery => vec![(Good::Oil, 2)],
-
-        BuildingKind::Railyard => vec![(Good::Steel, 1), (Good::Lumber, 1)],
-
-        // Shipyard no longer produces goods - ships are constructed separately
-        BuildingKind::Shipyard => vec![],
-
-        BuildingKind::Capitol | BuildingKind::TradeSchool | BuildingKind::PowerPlant => vec![],
     }
+
+    vec![]
 }
 
 // ============================================================================
@@ -638,8 +586,13 @@ pub fn finalize_allocations(
         &mut crate::economy::workforce::RecruitmentQueue,
         &mut crate::economy::workforce::TrainingQueue,
     )>,
-    mut buildings: Query<&mut crate::economy::production::ProductionSettings>,
+    mut buildings: Query<(
+        &mut crate::economy::production::ProductionSettings,
+        &Building,
+    )>,
 ) {
+    use crate::economy::production::production_recipe;
+
     for (
         allocations,
         mut reservations,
@@ -686,17 +639,43 @@ pub fn finalize_allocations(
         for ((building_entity, output_good), res_ids) in &allocations.production {
             let production_count = res_ids.len();
             if production_count > 0 {
+                // Determine output amount per batch
+                let output_amount =
+                    if let Ok((_, building)) = buildings.get(*building_entity) {
+                        if let Some(recipe) = production_recipe(building.kind) {
+                            let variants = recipe.variants_for_output(*output_good);
+                            if let Some(info) = variants.first() {
+                                info.variant.primary_output_amount()
+                            } else {
+                                1
+                            }
+                        } else {
+                            1
+                        }
+                    } else {
+                        1
+                    };
+
                 // Consume all production reservations
                 for res_id in res_ids {
                     reservations.consume(*res_id, &mut stockpile, &mut workforce, &mut treasury);
                 }
 
+                // Add output to stockpile
+                let total_output = (production_count as u32) * output_amount;
+                stockpile.add(*output_good, total_output);
+
+                info!(
+                    "Production executed: building {:?}, output {:?} x {}",
+                    building_entity, output_good, total_output
+                );
+
                 // Update production settings
-                if let Ok(mut settings) = buildings.get_mut(*building_entity) {
-                    settings.target_output = production_count as u32;
+                if let Ok((mut settings, _)) = buildings.get_mut(*building_entity) {
+                    settings.target_output = total_output;
                     info!(
                         "Finalized production: building {:?}, output {:?}, target {}",
-                        building_entity, output_good, production_count
+                        building_entity, output_good, total_output
                     );
                 }
             }

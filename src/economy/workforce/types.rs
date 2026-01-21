@@ -79,6 +79,11 @@ impl Workforce {
         self.labor_pool.release(amount);
     }
 
+    /// Consume reserved labor (for ReservationSystem)
+    pub fn consume_reserved_labor(&mut self, amount: u32) {
+        self.labor_pool.consume_reserved(amount);
+    }
+
     /// Train a worker from Untrained to Trained or Trained to Expert
     /// Returns true if a worker was trained, false if none available
     pub fn train_worker(&mut self, from_skill: WorkerSkill) -> bool {

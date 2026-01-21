@@ -13,7 +13,6 @@ use crate::{
 };
 use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
 
-use crate::economy::workforce::Workforce;
 use crate::economy::{goods::Good, stockpile::Stockpile};
 
 /// Resource that stores the total connected production output for each nation.
@@ -615,6 +614,36 @@ impl ProductionRecipe {
         Some(best_variant)
     }
 
+    pub fn best_variant_for_output(
+        &self,
+        output_good: Good,
+        stockpile: &Stockpile,
+    ) -> Option<RecipeVariant> {
+        let variants: Vec<_> = self.variants_iter(output_good).collect();
+        if variants.is_empty() {
+            return None;
+        }
+
+        // If there's only one variant, use it
+        if variants.len() == 1 {
+            return Some(variants[0].variant);
+        }
+
+        // Score each variant by available inputs
+        let mut best_variant = variants[0].variant;
+        let mut best_score = score_variant_availability(&variants[0].variant, stockpile);
+
+        for info in &variants[1..] {
+            let score = score_variant_availability(&info.variant, stockpile);
+            if score > best_score {
+                best_score = score;
+                best_variant = info.variant;
+            }
+        }
+
+        Some(best_variant)
+    }
+
     pub fn variants_for_output(&self, output_good: Good) -> Vec<RecipeVariantInfo> {
         self.variants_iter(output_good).collect()
     }
@@ -796,13 +825,13 @@ const FOOD_OUTPUTS: [ProductAmount; 1] = [ProductAmount {
 const FOOD_VARIANTS: [RecipeVariantDefinition; 2] = [
     RecipeVariantDefinition {
         variant: RecipeVariant {
-            inputs: &FOOD_LIVESTOCK_INPUTS,
+            inputs: &FOOD_FISH_INPUTS,
             outputs: &FOOD_OUTPUTS,
         },
     },
     RecipeVariantDefinition {
         variant: RecipeVariant {
-            inputs: &FOOD_FISH_INPUTS,
+            inputs: &FOOD_LIVESTOCK_INPUTS,
             outputs: &FOOD_OUTPUTS,
         },
     },
@@ -996,167 +1025,3 @@ impl Buildings {
     }
 }
 
-/// Runs production across all entities that have both a Stockpile and a Building.
-/// Consumes reserved resources and produces outputs.
-/// Production rules follow 2:1 ratios (2 inputs → 1 output).
-/// Production now requires labor points from workers.
-///
-/// Note: This system runs via OnEnter(TurnPhase::Processing) in ProcessingSet::Production,
-/// so no phase check is needed.
-pub fn run_production(
-    mut q: Query<(
-        Option<&Workforce>,
-        &mut Stockpile,
-        &Building,
-        &mut ProductionSettings,
-    )>,
-) {
-    for (workforce_opt, mut stock, building, mut settings) in q.iter_mut() {
-        // Calculate available labor (0 if no workforce)
-        let available_labor = workforce_opt.map(|w| w.available_labor()).unwrap_or(0);
-
-        // Each unit of production requires 1 labor point
-        // This acts as another constraint on production alongside capacity and inputs
-        let max_from_labor = available_labor;
-        let Some(recipe) = production_recipe(building.kind) else {
-            continue;
-        };
-
-        let desired_output = settings
-            .target_output
-            .min(max_from_labor)
-            .min(building.capacity);
-        if desired_output == 0 {
-            settings.target_output = 0;
-            continue;
-        }
-
-        // Select variant based on stockpile availability instead of stored choice
-        let Some(variant) = recipe.best_variant_for_stockpile(&stock) else {
-            settings.target_output = 0;
-            debug!(
-                "Skipping production for {:?}: no suitable variant found",
-                building.kind
-            );
-            continue;
-        };
-
-        let output_per_batch = variant.primary_output_amount();
-        if output_per_batch == 0 {
-            settings.target_output = 0;
-            continue;
-        }
-
-        let target_batches = desired_output.div_ceil(output_per_batch);
-        if target_batches == 0 {
-            settings.target_output = 0;
-            continue;
-        }
-
-        let (produced_output, consumption) = execute_variant(&mut stock, variant, target_batches);
-
-        if produced_output < desired_output {
-            log_production_shortfall(
-                building.kind,
-                variant,
-                desired_output,
-                produced_output,
-                &consumption,
-            );
-        }
-
-        settings.target_output = produced_output;
-    }
-}
-
-#[derive(Clone, Debug)]
-struct ConsumptionRecord {
-    ingredient: Ingredient,
-    consumed: u32,
-    required: u32,
-}
-
-fn execute_variant(
-    stock: &mut Stockpile,
-    variant: RecipeVariant,
-    target_batches: u32,
-) -> (u32, Vec<ConsumptionRecord>) {
-    if target_batches == 0 {
-        return (0, Vec::new());
-    }
-
-    let mut actual_batches = target_batches;
-    let mut consumption = Vec::with_capacity(variant.inputs().len());
-
-    for ingredient in variant.inputs() {
-        let required = ingredient.amount.saturating_mul(target_batches);
-        let consumed = if required > 0 {
-            stock.consume_reserved(ingredient.good, required)
-        } else {
-            0
-        };
-        if ingredient.amount > 0 {
-            actual_batches = actual_batches.min(consumed / ingredient.amount);
-        }
-        consumption.push(ConsumptionRecord {
-            ingredient: *ingredient,
-            consumed,
-            required,
-        });
-    }
-
-    let primary_output = variant.primary_output();
-    let mut produced_primary = 0;
-
-    for output in variant.outputs() {
-        let produced_amount = actual_batches.saturating_mul(output.amount);
-        if produced_amount > 0 {
-            stock.add(output.good, produced_amount);
-        }
-        if primary_output.is_some_and(|primary| primary.good == output.good) {
-            produced_primary = produced_amount;
-        }
-    }
-
-    (produced_primary, consumption)
-}
-
-fn log_production_shortfall(
-    building_kind: BuildingKind,
-    variant: RecipeVariant,
-    requested_output: u32,
-    produced_output: u32,
-    consumption: &[ConsumptionRecord],
-) {
-    if produced_output >= requested_output {
-        return;
-    }
-
-    let Some(output_good) = variant.primary_output_good() else {
-        warn!(
-            "{:?}: requested {} output but recipe variant has no primary output good (produced {}). Consumption: {:?}",
-            building_kind, requested_output, produced_output, consumption
-        );
-        return;
-    };
-
-    let details = if consumption.is_empty() {
-        "no inputs consumed".to_string()
-    } else {
-        consumption
-            .iter()
-            .map(|record| {
-                format!(
-                    "{:?} {}/{}",
-                    record.ingredient.good, record.consumed, record.required
-                )
-            })
-            .collect::<Vec<_>>()
-            .join(", ")
-    };
-
-    info!(
-        "{:?}: requested {} {:?} but produced {} ({})",
-        building_kind, requested_output, output_good, produced_output, details
-    );
-}

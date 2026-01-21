@@ -37,8 +37,15 @@ impl ResourcePool {
         self.reserved = self.reserved.saturating_sub(amount);
     }
 
+    /// Consume a specific amount of reserved resources
+    /// Reduces both total and reserved by the amount
+    pub fn consume_reserved(&mut self, amount: u32) {
+        self.total = self.total.saturating_sub(amount);
+        self.reserved = self.reserved.saturating_sub(amount);
+    }
+
     /// Consume all reservations (turn resources into actual usage)
-    pub fn consume_reserved(&mut self) {
+    pub fn consume_all_reserved(&mut self) {
         self.total = self.total.saturating_sub(self.reserved);
         self.reserved = 0;
     }
@@ -186,13 +193,11 @@ impl ReservationSystem {
     ) {
         if let Some(data) = self.reservations.remove(&id) {
             // For each reserved resource, consume it (subtract from total, clear reservation)
-            for (good, _amt) in data.goods {
-                if let Some(pool) = stockpile.get_pool_mut(good) {
-                    pool.consume_reserved();
-                }
+            for (good, amt) in data.goods {
+                stockpile.consume_reserved(good, amt);
             }
-            workforce.labor_pool.consume_reserved();
-            treasury.consume_reserved();
+            workforce.consume_reserved_labor(data.labor);
+            treasury.consume_reserved(data.money);
         }
     }
 
@@ -243,7 +248,25 @@ mod tests {
         let mut pool = ResourcePool::new(10);
         pool.try_reserve(4);
 
-        pool.consume_reserved();
+        pool.consume_all_reserved();
+
+        assert_eq!(pool.total, 6);
+        assert_eq!(pool.reserved, 0);
+        assert_eq!(pool.available(), 6);
+    }
+
+    #[test]
+    fn resource_pool_consume_amount() {
+        let mut pool = ResourcePool::new(10);
+        pool.try_reserve(4);
+
+        pool.consume_reserved(2);
+
+        assert_eq!(pool.total, 8); // 10 - 2
+        assert_eq!(pool.reserved, 2); // 4 - 2
+        assert_eq!(pool.available(), 6); // 8 - 2
+
+        pool.consume_reserved(2);
 
         assert_eq!(pool.total, 6);
         assert_eq!(pool.reserved, 0);
