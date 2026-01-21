@@ -259,38 +259,48 @@ fn generate_value_added_trade(
 
     if steel_shortfall > 0 && steel_price > steel_input_cost {
         // Steel is profitable to craft; queue production and buy inputs
-        let steel_batches = steel_shortfall.min(steel_mill.capacity);
-        plan.production_orders.push(ProductionOrder {
-            building: nation.entity,
-            output: Good::Steel,
-            qty: steel_batches,
-        });
+        if let Some(steel_mill_entity) = nation
+            .building_entities
+            .get(&crate::economy::production::BuildingKind::SteelMill)
+        {
+            let steel_batches = steel_shortfall.min(steel_mill.capacity);
+            plan.production_orders.push(ProductionOrder {
+                building: *steel_mill_entity,
+                output: Good::Steel,
+                qty: steel_batches,
+            });
 
-        // Buy the raw inputs required to cover the steel shortfall
-        let required_iron = steel_batches;
-        let required_coal = steel_batches;
+            // Buy the raw inputs required to cover the steel shortfall
+            let required_iron = steel_batches;
+            let required_coal = steel_batches;
 
-        let iron_have = nation.available_amount(Good::Iron);
-        let coal_have = nation.available_amount(Good::Coal);
+            let iron_have = nation.available_amount(Good::Iron);
+            let coal_have = nation.available_amount(Good::Coal);
 
-        let iron_buy = required_iron.saturating_sub(iron_have);
-        let coal_buy = required_coal.saturating_sub(coal_have);
+            let iron_buy = required_iron.saturating_sub(iron_have);
+            let coal_buy = required_coal.saturating_sub(coal_have);
 
-        if iron_buy > 0 {
-            plan.market_buys.push((Good::Iron, iron_buy));
-        }
+            if iron_buy > 0 {
+                plan.market_buys.push((Good::Iron, iron_buy));
+            }
 
-        if coal_buy > 0 {
-            plan.market_buys.push((Good::Coal, coal_buy));
+            if coal_buy > 0 {
+                plan.market_buys.push((Good::Coal, coal_buy));
+            }
         }
     }
 
     // Queue hardware production using available + incoming steel
-    plan.production_orders.push(ProductionOrder {
-        building: nation.entity,
-        output: Good::Hardware,
-        qty: desired_hardware,
-    });
+    if let Some(metal_works_entity) = nation
+        .building_entities
+        .get(&crate::economy::production::BuildingKind::MetalWorks)
+    {
+        plan.production_orders.push(ProductionOrder {
+            building: *metal_works_entity,
+            output: Good::Hardware,
+            qty: desired_hardware,
+        });
+    }
 
     // Plan to sell the finished goods once produced
     plan.market_sells.push((Good::Hardware, desired_hardware));
@@ -845,20 +855,28 @@ fn generate_transport_allocations(_nation: &NationSnapshot, plan: &mut NationPla
 
 /// Generate production orders to build transport capacity.
 /// AI should produce Transport goods when it has the resources.
-fn generate_production_orders(nation: &NationSnapshot, _plan: &mut NationPlan) {
+fn generate_production_orders(nation: &NationSnapshot, plan: &mut NationPlan) {
     // Check if we have steel and lumber for Transport production
     let steel_available = nation.available_amount(Good::Steel);
     let lumber_available = nation.available_amount(Good::Lumber);
 
     // If we have materials, produce some transport capacity
     if steel_available >= 2 && lumber_available >= 2 {
-        // Find the railyard building entity (we don't have it in snapshot, so skip for now)
-        // TODO: Add building entities to NationSnapshot so AI can issue production orders
-        // For now, the allocation alone should help since players can manually produce
-        info!(
-            "AI Nation {:?} has materials for Transport production (Steel: {}, Lumber: {})",
-            nation.entity, steel_available, lumber_available
-        );
+        if let Some(railyard_entity) = nation
+            .building_entities
+            .get(&crate::economy::production::BuildingKind::Railyard)
+        {
+            info!(
+                "AI Nation {:?} producing Transport (Steel: {}, Lumber: {})",
+                nation.entity, steel_available, lumber_available
+            );
+            // Produce 1 batch (yields 1 Transport)
+            plan.production_orders.push(ProductionOrder {
+                building: *railyard_entity,
+                output: Good::Transport,
+                qty: 1,
+            });
+        }
     }
 }
 
@@ -942,6 +960,7 @@ mod tests {
             trade_capacity_total: 3,
             trade_capacity_used: 0,
             buildings: HashMap::new(),
+            building_entities: HashMap::new(),
         };
 
         let occupied_tiles = HashSet::new();
@@ -993,6 +1012,7 @@ mod tests {
             trade_capacity_total: 3,
             trade_capacity_used: 0,
             buildings: HashMap::new(),
+            building_entities: HashMap::new(),
         };
 
         let occupied_tiles = HashSet::new();
@@ -1046,6 +1066,7 @@ mod tests {
             trade_capacity_total: 3,
             trade_capacity_used: 0,
             buildings: HashMap::new(),
+            building_entities: HashMap::new(),
         };
 
         let occupied_tiles = HashSet::new();

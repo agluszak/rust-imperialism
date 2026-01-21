@@ -579,7 +579,7 @@ fn execute_queued_production_orders_apply_and_clear() {
     let mut world = World::new();
     world.insert_resource(OrdersQueue::default());
 
-    let building_entity = world.spawn((Buildings::with_all_initial(),)).id();
+    let building_entity = world.spawn(Building::textile_mill(8)).id();
 
     let nation_entity = world
         .spawn((
@@ -628,7 +628,7 @@ fn execute_queued_production_orders_apply_and_clear() {
             &mut Stockpile,
             &mut Workforce,
         )>,
-        Query<&Buildings>,
+        Query<&Building>,
     )>::new(&mut world);
 
     {
@@ -660,9 +660,11 @@ fn execute_queued_production_orders_respect_building_kind_capacity() {
             Stockpile::default(),
             Workforce::new(),
             Treasury::new(0),
-            Buildings::with_all_initial(),
         ))
         .id();
+
+    let food_factory = world.spawn(Building::food_processing_center(4)).id();
+    let clothing_factory = world.spawn(Building::clothing_factory(2)).id();
 
     {
         let mut stockpile = world
@@ -689,7 +691,7 @@ fn execute_queued_production_orders_respect_building_kind_capacity() {
         .resource_mut::<OrdersQueue>()
         .queue_production(AdjustProduction {
             nation: nation_instance,
-            building: nation_entity,
+            building: food_factory,
             output_good: Good::CannedFood,
             target_output: 4,
         });
@@ -698,7 +700,7 @@ fn execute_queued_production_orders_respect_building_kind_capacity() {
         .resource_mut::<OrdersQueue>()
         .queue_production(AdjustProduction {
             nation: nation_instance,
-            building: nation_entity,
+            building: clothing_factory,
             output_good: Good::Clothing,
             target_output: 2,
         });
@@ -711,7 +713,7 @@ fn execute_queued_production_orders_respect_building_kind_capacity() {
             &mut Stockpile,
             &mut Workforce,
         )>,
-        Query<&Buildings>,
+        Query<&Building>,
     )>::new(&mut world);
 
     {
@@ -724,11 +726,11 @@ fn execute_queued_production_orders_respect_building_kind_capacity() {
         .get::<Allocations>(nation_entity)
         .expect("allocations not found");
     assert_eq!(
-        allocations.production_count(nation_entity, Good::CannedFood),
+        allocations.production_count(food_factory, Good::CannedFood),
         4
     );
     assert_eq!(
-        allocations.production_count(nation_entity, Good::Clothing),
+        allocations.production_count(clothing_factory, Good::Clothing),
         2
     );
 }
