@@ -10,7 +10,7 @@ fn test_ai_move_command_executes() {
 
     use rust_imperialism::civilians::systems::{execute_move_orders, handle_civilian_commands};
     use rust_imperialism::civilians::{
-        Civilian, CivilianCommand, CivilianKind, CivilianOrder, CivilianOrderKind,
+        Civilian, CivilianCommand, CivilianKind, CivilianOrder, CivilianOrderKind, DeselectCivilian,
     };
     use rust_imperialism::map::province::{Province, ProvinceId, TileProvince};
     use rust_imperialism::messages::civilians::CivilianCommandRejected;
@@ -18,19 +18,9 @@ fn test_ai_move_command_executes() {
 
     let mut world = World::new();
     world.init_resource::<TurnCounter>();
-
-    // Register observers
-    world.add_observer(handle_civilian_commands);
-
-    // Track rejections
-    #[derive(Resource, Default)]
-    struct Rejections(Vec<CivilianCommandRejected>);
-    world.init_resource::<Rejections>();
-    world.add_observer(
-        |trigger: On<CivilianCommandRejected>, mut rejections: ResMut<Rejections>| {
-            rejections.0.push(*trigger.event());
-        },
-    );
+    world.init_resource::<Messages<CivilianCommand>>();
+    world.init_resource::<Messages<CivilianCommandRejected>>();
+    world.init_resource::<Messages<DeselectCivilian>>();
 
     // Owned province and tiles
     let nation = world.spawn(Nation).id();
@@ -62,17 +52,25 @@ fn test_ai_move_command_executes() {
         })
         .id();
 
-    // Trigger the command
-    world.trigger(CivilianCommand {
-        civilian,
-        order: CivilianOrderKind::Move { to: target },
-    });
+    {
+        let mut commands = world.resource_mut::<Messages<CivilianCommand>>();
+        commands.write(CivilianCommand {
+            civilian,
+            order: CivilianOrderKind::Move { to: target },
+        });
+    }
+
+    let _ = world.run_system_once(handle_civilian_commands);
     world.flush();
 
     assert!(world.get::<CivilianOrder>(civilian).is_some());
 
-    let rejections = world.resource::<Rejections>();
-    assert!(rejections.0.is_empty());
+    let rejections = world
+        .run_system_once(|mut reader: MessageReader<CivilianCommandRejected>| {
+            reader.read().cloned().collect::<Vec<_>>()
+        })
+        .expect("read civilian rejections");
+    assert!(rejections.is_empty());
 
     let _ = world.run_system_once(execute_move_orders);
     world.flush();
@@ -85,12 +83,13 @@ fn test_ai_move_command_executes() {
 
 #[test]
 fn test_illegal_rail_command_rejected() {
+    use bevy::ecs::system::RunSystemOnce;
     use bevy::prelude::*;
     use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
 
     use rust_imperialism::civilians::systems::handle_civilian_commands;
     use rust_imperialism::civilians::{
-        Civilian, CivilianCommand, CivilianKind, CivilianOrder, CivilianOrderKind,
+        Civilian, CivilianCommand, CivilianKind, CivilianOrder, CivilianOrderKind, DeselectCivilian,
     };
     use rust_imperialism::map::province::{Province, ProvinceId, TileProvince};
     use rust_imperialism::messages::civilians::{CivilianCommandError, CivilianCommandRejected};
@@ -98,19 +97,9 @@ fn test_illegal_rail_command_rejected() {
 
     let mut world = World::new();
     world.init_resource::<TurnCounter>();
-
-    // Register observers
-    world.add_observer(handle_civilian_commands);
-
-    // Track rejections
-    #[derive(Resource, Default)]
-    struct Rejections(Vec<CivilianCommandRejected>);
-    world.init_resource::<Rejections>();
-    world.add_observer(
-        |trigger: On<CivilianCommandRejected>, mut rejections: ResMut<Rejections>| {
-            rejections.0.push(*trigger.event());
-        },
-    );
+    world.init_resource::<Messages<CivilianCommand>>();
+    world.init_resource::<Messages<CivilianCommandRejected>>();
+    world.init_resource::<Messages<DeselectCivilian>>();
 
     let player = world.spawn(Nation).id();
     let other = world.spawn_empty().id();
@@ -158,19 +147,27 @@ fn test_illegal_rail_command_rejected() {
         })
         .id();
 
-    // Trigger the command
-    world.trigger(CivilianCommand {
-        civilian: engineer,
-        order: CivilianOrderKind::BuildRail { to: target },
-    });
+    {
+        let mut commands = world.resource_mut::<Messages<CivilianCommand>>();
+        commands.write(CivilianCommand {
+            civilian: engineer,
+            order: CivilianOrderKind::BuildRail { to: target },
+        });
+    }
+
+    let _ = world.run_system_once(handle_civilian_commands);
     world.flush();
 
     assert!(world.get::<CivilianOrder>(engineer).is_none());
 
-    let rejections = world.resource::<Rejections>();
-    assert_eq!(rejections.0.len(), 1);
+    let rejections = world
+        .run_system_once(|mut reader: MessageReader<CivilianCommandRejected>| {
+            reader.read().cloned().collect::<Vec<_>>()
+        })
+        .expect("read civilian rejections");
+    assert_eq!(rejections.len(), 1);
     assert_eq!(
-        rejections.0[0].reason,
+        rejections[0].reason,
         CivilianCommandError::TargetTileUnowned
     );
 }
