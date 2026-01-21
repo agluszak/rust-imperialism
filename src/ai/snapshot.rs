@@ -409,16 +409,13 @@ pub fn build_ai_snapshot(
                 // Check clustering (adjacent developed resources of same type)
                 let mut adjacent_developed_count = 0;
                 for neighbor_hex in tile_pos.to_hex().all_neighbors() {
-                    if let Some(n_pos) = neighbor_hex.to_tile_pos() {
-                        if let Some(n_entity) = storage.get(&n_pos) {
-                            if let Ok(n_res) = tile_resources.get(n_entity) {
-                                if n_res.resource_type == resource.resource_type
-                                    && n_res.development > DevelopmentLevel::Lv0
-                                {
-                                    adjacent_developed_count += 1;
-                                }
-                            }
-                        }
+                    if let Some(n_pos) = neighbor_hex.to_tile_pos()
+                        && let Some(n_entity) = storage.get(&n_pos)
+                        && let Ok(n_res) = tile_resources.get(n_entity)
+                        && n_res.resource_type == resource.resource_type
+                        && n_res.development > DevelopmentLevel::Lv0
+                    {
+                        adjacent_developed_count += 1;
                     }
                 }
 

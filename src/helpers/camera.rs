@@ -46,16 +46,16 @@ fn center_on_player_capital(
     };
 
     // Find player's capital
-    if let Ok(capital) = capitals.get(player.entity()) {
-        if let Ok(mut transform) = camera.single_mut() {
-            let capital_world_pos = capital.0.to_world_pos();
-            transform.translation.x = capital_world_pos.x;
-            transform.translation.y = capital_world_pos.y;
-            info!(
-                "Camera centered on capital at ({:.1}, {:.1})",
-                capital_world_pos.x, capital_world_pos.y
-            );
-        }
+    if let Ok(capital) = capitals.get(player.entity())
+        && let Ok(mut transform) = camera.single_mut()
+    {
+        let capital_world_pos = capital.0.to_world_pos();
+        transform.translation.x = capital_world_pos.x;
+        transform.translation.y = capital_world_pos.y;
+        info!(
+            "Camera centered on capital at ({:.1}, {:.1})",
+            capital_world_pos.x, capital_world_pos.y
+        );
     }
 }
 
