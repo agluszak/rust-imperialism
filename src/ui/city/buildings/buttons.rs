@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::ui_widgets::{Activate, observe};
 
-use crate::economy::production::BuildingKind;
+use crate::economy::buildings::BuildingKind;
 use crate::ui::button_style::*;
 use crate::ui::city::components::BuildingButton;
 use crate::ui::city::dialogs::OpenBuildingDialog;

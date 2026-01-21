@@ -10,7 +10,7 @@ use crate::ai::planner::{CivilianTask, NationPlan, plan_nation};
 use crate::ai::snapshot::AiSnapshot;
 use crate::civilians::types::CivilianOrderKind;
 use crate::economy::NationInstance;
-use crate::economy::production::Buildings;
+use crate::economy::buildings::Buildings;
 use crate::messages::civilians::CivilianCommand;
 use crate::messages::{AdjustMarketOrder, AdjustProduction, HireCivilian, MarketInterest};
 

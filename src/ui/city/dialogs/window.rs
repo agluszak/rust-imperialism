@@ -13,7 +13,7 @@ pub fn spawn_dialog_frame(
     parent_entity: Entity,
     title: &str,
     building_entity: Entity,
-    building_kind: crate::economy::production::BuildingKind,
+    building_kind: crate::economy::buildings::BuildingKind,
     z_index: i32,
 ) -> Entity {
     let mut dialog_entity = Entity::PLACEHOLDER;

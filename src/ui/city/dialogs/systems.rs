@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::economy::production::BuildingKind;
+use crate::economy::buildings::BuildingKind;
 
 use crate::ui::city::dialogs::types::{
     BuildingDialog, CloseBuildingDialog, DialogZIndexCounter, OpenBuildingDialog,
