@@ -186,8 +186,9 @@ fn calculate_suggested_depots(
                     .unwrap_or(false)
             })
             .map(|&pos| {
-                let coverage: HashSet<TilePos> = depot_coverage(pos).collect();
-                let covers_count = remaining.intersection(&coverage).count() as u32;
+                let covers_count = depot_coverage(pos)
+                    .filter(|t| remaining.contains(t))
+                    .count() as u32;
                 let distance = capital_hex.distance_to(pos.to_hex()) as u32;
                 (pos, covers_count, distance)
             })
