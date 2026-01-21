@@ -18,79 +18,80 @@ pub struct RecruitmentQueue {
 /// System to queue worker recruitment orders at the Capitol (Input Layer)
 /// Validates resources exist and caps, reserves resources, queues the order
 pub fn handle_recruitment(
-    trigger: On<RecruitWorkers>,
+    mut events: MessageReader<RecruitWorkers>,
     mut nations: Query<(&mut RecruitmentQueue, &mut Stockpile)>,
     recruitment_capacity: Query<&RecruitmentCapacity>,
     provinces: Query<&Province>,
 ) {
-    let event = trigger.event();
-    if let Ok((mut queue, mut stockpile)) = nations.get_mut(event.nation.entity()) {
-        // Calculate recruitment cap (count provinces owned by this nation entity)
-        let province_count = provinces
-            .iter()
-            .filter(|p| p.owner == Some(event.nation.entity()))
-            .count() as u32;
+    for event in events.read() {
+        if let Ok((mut queue, mut stockpile)) = nations.get_mut(event.nation.entity()) {
+            // Calculate recruitment cap (count provinces owned by this nation entity)
+            let province_count = provinces
+                .iter()
+                .filter(|p| p.owner == Some(event.nation.entity()))
+                .count() as u32;
 
-        let capacity = recruitment_capacity
-            .get(event.nation.entity())
-            .map(|c| c.upgraded)
-            .unwrap_or(false);
+            let capacity = recruitment_capacity
+                .get(event.nation.entity())
+                .map(|c| c.upgraded)
+                .unwrap_or(false);
 
-        let cap = calculate_recruitment_cap(province_count, capacity);
+            let cap = calculate_recruitment_cap(province_count, capacity);
 
-        // Limit requested count to cap
-        let actual_count = event.count.min(cap);
+            // Limit requested count to cap
+            let actual_count = event.count.min(cap);
 
-        if actual_count == 0 {
-            warn!("Cannot queue recruitment: cap is 0 (need more provinces)");
-            info!("Cannot recruit: need more provinces");
-            return;
-        }
+            if actual_count == 0 {
+                warn!("Cannot queue recruitment: cap is 0 (need more provinces)");
+                info!("Cannot recruit: need more provinces");
+                continue;
+            }
 
-        // Check available resources (not already reserved/allocated)
-        let canned_food_available = stockpile.get_available(Good::CannedFood);
-        let clothing_available = stockpile.get_available(Good::Clothing);
-        let furniture_available = stockpile.get_available(Good::Furniture);
+            // Check available resources (not already reserved/allocated)
+            let canned_food_available = stockpile.get_available(Good::CannedFood);
+            let clothing_available = stockpile.get_available(Good::Clothing);
+            let furniture_available = stockpile.get_available(Good::Furniture);
 
-        // How many can we actually recruit with available resources?
-        let max_by_resources = canned_food_available
-            .min(clothing_available)
-            .min(furniture_available);
+            // How many can we actually recruit with available resources?
+            let max_by_resources = canned_food_available
+                .min(clothing_available)
+                .min(furniture_available);
 
-        let final_count = actual_count.min(max_by_resources);
+            let final_count = actual_count.min(max_by_resources);
 
-        if final_count == 0 {
-            warn!(
-                "Cannot queue recruitment: not enough available resources (need: {} each, available: {} food, {} clothing, {} furniture)",
-                actual_count, canned_food_available, clothing_available, furniture_available
+            if final_count == 0 {
+                warn!(
+                    "Cannot queue recruitment: not enough available resources (need: {} each, available: {} food, {} clothing, {} furniture)",
+                    actual_count, canned_food_available, clothing_available, furniture_available
+                );
+                info!(
+                    "Cannot recruit: need Canned Food, Clothing, Furniture (available: {}, {}, {})",
+                    canned_food_available, clothing_available, furniture_available
+                );
+                continue;
+            }
+
+            // Reserve the resources
+            if !stockpile.reserve(Good::CannedFood, final_count)
+                || !stockpile.reserve(Good::Clothing, final_count)
+                || !stockpile.reserve(Good::Furniture, final_count)
+            {
+                warn!("Failed to reserve resources (race condition?)");
+                continue;
+            }
+
+            // Queue the order (resources now reserved)
+            queue.queued += final_count;
+
+            info!(
+                "Queued {} workers for recruitment (total queued: {}, cap: {})",
+                final_count, queue.queued, cap
             );
             info!(
-                "Cannot recruit: need Canned Food, Clothing, Furniture (available: {}, {}, {})",
-                canned_food_available, clothing_available, furniture_available
+                "Queued {} workers for recruitment (will hire next turn)",
+                final_count
             );
-            return;
         }
-
-        // Reserve the resources
-        if !stockpile.reserve(Good::CannedFood, final_count)
-            || !stockpile.reserve(Good::Clothing, final_count)
-            || !stockpile.reserve(Good::Furniture, final_count)
-        {
-            warn!("Failed to reserve resources (race condition?)");
-            return;
-        }
-
-        // Queue the order (resources now reserved)
-        queue.queued += final_count;
-
-        info!(
-            "Queued {} workers for recruitment (total queued: {}, cap: {})",
-            final_count, queue.queued, cap
-        );
-        info!(
-            "Queued {} workers for recruitment (will hire next turn)",
-            final_count
-        );
     }
 }
 

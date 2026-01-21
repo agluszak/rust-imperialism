@@ -20,16 +20,10 @@ pub struct OwnedBy(pub Entity);
 
 /// Auto-maintained target marker for entities owned by a nation.
 /// Automatically added/removed when OwnedBy relationship is changed.
-#[derive(Component, Clone, Copy, Debug, Reflect)]
+#[derive(Component, Clone, Debug, Default, Reflect)]
 #[reflect(Component)]
 #[relationship_target(relationship = OwnedBy)]
-pub struct NationMember(Entity);
-
-impl NationMember {
-    pub fn nation(&self) -> Entity {
-        self.0
-    }
-}
+pub struct NationMember(Vec<Entity>);
 
 /// Type-safe handle to a nation entity.
 /// Can be used directly in queries: `Query<(NationInstance, &Name)>`

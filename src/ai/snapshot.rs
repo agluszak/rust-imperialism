@@ -67,6 +67,8 @@ pub struct NationSnapshot {
     /// Buildings owned by this nation.
     pub buildings:
         HashMap<crate::economy::production::BuildingKind, crate::economy::production::Building>,
+    /// Entities for each building kind.
+    pub building_entities: HashMap<crate::economy::production::BuildingKind, Entity>,
 }
 
 /// Snapshot of rail construction.
@@ -258,11 +260,13 @@ pub fn resource_target_days(good: Good) -> f32 {
 /// Builds the complete AI snapshot at the start of EnemyTurn.
 #[allow(clippy::too_many_arguments)]
 pub fn build_ai_snapshot(
-    mut snapshot: ResMut<AiSnapshot>,
-    turn: Res<TurnCounter>,
-    pricing: Res<MarketPriceModel>,
-    rails: Res<Rails>,
-    trade_capacity: Res<crate::economy::trade_capacity::TradeCapacity>,
+    (mut snapshot, turn, pricing, rails, trade_capacity): (
+        ResMut<AiSnapshot>,
+        Res<TurnCounter>,
+        Res<MarketPriceModel>,
+        Res<Rails>,
+        Res<crate::economy::trade_capacity::TradeCapacity>,
+    ),
     ai_nations: Query<
         (
             Entity,
@@ -283,6 +287,11 @@ pub fn build_ai_snapshot(
     tile_resources: Query<&TileResource>,
     tile_terrain: Query<&crate::map::tiles::TerrainType>,
     potential_minerals: Query<&PotentialMineral>,
+    building_entities_query: Query<(
+        Entity,
+        &crate::economy::production::Building,
+        &crate::economy::OwnedBy,
+    )>,
     prospecting: Option<Res<ProspectingKnowledge>>,
 ) {
     snapshot.turn = turn.current;
@@ -475,6 +484,14 @@ pub fn build_ai_snapshot(
             })
             .collect();
 
+        // Collect building entities for this nation
+        let mut nation_building_entities = HashMap::new();
+        for (b_entity, building, owned_by) in building_entities_query.iter() {
+            if owned_by.0 == entity {
+                nation_building_entities.insert(building.kind, b_entity);
+            }
+        }
+
         // Get trade capacity
         let capacity_snapshot = trade_capacity.snapshot(entity);
 
@@ -499,6 +516,7 @@ pub fn build_ai_snapshot(
                 trade_capacity_total: capacity_snapshot.total,
                 trade_capacity_used: capacity_snapshot.used,
                 buildings: buildings.buildings.clone(),
+                building_entities: nation_building_entities,
             },
         );
     }
@@ -893,6 +911,7 @@ mod tests {
             trade_capacity_total: 3,
             trade_capacity_used: 0,
             buildings: HashMap::new(),
+            building_entities: HashMap::new(),
         };
 
         // Only civilians with has_moved = false should be available

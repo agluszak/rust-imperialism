@@ -70,9 +70,7 @@ impl Plugin for EconomyPlugin {
             .add_observer(allocation_systems::apply_recruitment_adjustments)
             .add_observer(allocation_systems::apply_training_adjustments)
             .add_observer(allocation_systems::apply_production_adjustments)
-            .add_observer(allocation_systems::apply_market_order_adjustments)
-            .add_observer(workforce::handle_recruitment)
-            .add_observer(workforce::handle_training);
+            .add_observer(allocation_systems::apply_market_order_adjustments);
 
         // Configure the economy system set to run only in-game
         app.configure_sets(Update, EconomySet.run_if(in_state(AppState::InGame)));

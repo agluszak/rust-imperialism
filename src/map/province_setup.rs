@@ -125,7 +125,7 @@ pub fn assign_provinces_to_countries(
 
         let country_builder = commands.spawn((
             Nation,
-            Name::new(name),
+            Name::new(name.clone()),
             NationColor(color),
             Treasury::new(10_000),
             stockpile,
@@ -146,9 +146,18 @@ pub fn assign_provinces_to_countries(
         workforce.add_untrained(starting_workers);
         workforce.update_labor_pool();
 
+        let buildings = Buildings::with_all_initial();
+        for (kind, building) in &buildings.buildings {
+            commands.spawn((
+                *building,
+                ProductionSettings::default(),
+                OwnedBy(country_entity),
+                Name::new(format!("{:?} ({})", kind, name)),
+            ));
+        }
+
         commands.entity(country_entity).insert((
-            Buildings::with_all_initial(),
-            ProductionSettings::default(),
+            buildings,
             workforce,
             RecruitmentCapacity::default(),
             RecruitmentQueue::default(),

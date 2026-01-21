@@ -23,73 +23,45 @@ pub fn button_node() -> Node {
     }
 }
 
-/// System that handles button interaction visual feedback
-/// Updates BackgroundColor based on Interaction state
-pub fn button_interaction_system(
-    mut interaction_query: Query<(&Interaction, &mut BackgroundColor), Changed<Interaction>>,
-) {
-    for (interaction, mut color) in interaction_query.iter_mut() {
-        match *interaction {
-            Interaction::Pressed => {
-                *color = PRESSED_BUTTON.into();
-            }
-            Interaction::Hovered => {
-                *color = HOVERED_BUTTON.into();
-            }
-            Interaction::None => {
-                *color = NORMAL_BUTTON.into();
-            }
-        }
-    }
-}
-
 /// Marker component for accent-styled buttons
 #[derive(Component)]
 pub struct AccentButton;
-
-/// System that handles accent button interaction visual feedback
-pub fn accent_button_interaction_system(
-    mut interaction_query: Query<
-        (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<AccentButton>),
-    >,
-) {
-    for (interaction, mut color) in interaction_query.iter_mut() {
-        match *interaction {
-            Interaction::Pressed => {
-                *color = PRESSED_ACCENT.into();
-            }
-            Interaction::Hovered => {
-                *color = HOVERED_ACCENT.into();
-            }
-            Interaction::None => {
-                *color = NORMAL_ACCENT.into();
-            }
-        }
-    }
-}
 
 /// Marker component for danger-styled buttons
 #[derive(Component)]
 pub struct DangerButton;
 
-/// System that handles danger button interaction visual feedback
-pub fn danger_button_interaction_system(
+/// System that handles button interaction visual feedback for all button types
+/// Updates BackgroundColor based on Interaction state and button type markers
+pub fn unified_button_interaction_system(
     mut interaction_query: Query<
-        (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<DangerButton>),
+        (
+            &Interaction,
+            &mut BackgroundColor,
+            Option<&AccentButton>,
+            Option<&DangerButton>,
+        ),
+        Changed<Interaction>,
     >,
 ) {
-    for (interaction, mut color) in interaction_query.iter_mut() {
+    for (interaction, mut color, accent, danger) in interaction_query.iter_mut() {
+        let (normal, hovered, pressed) = if accent.is_some() {
+            (NORMAL_ACCENT, HOVERED_ACCENT, PRESSED_ACCENT)
+        } else if danger.is_some() {
+            (NORMAL_DANGER, HOVERED_DANGER, PRESSED_DANGER)
+        } else {
+            (NORMAL_BUTTON, HOVERED_BUTTON, PRESSED_BUTTON)
+        };
+
         match *interaction {
             Interaction::Pressed => {
-                *color = PRESSED_DANGER.into();
+                *color = pressed.into();
             }
             Interaction::Hovered => {
-                *color = HOVERED_DANGER.into();
+                *color = hovered.into();
             }
             Interaction::None => {
-                *color = NORMAL_DANGER.into();
+                *color = normal.into();
             }
         }
     }

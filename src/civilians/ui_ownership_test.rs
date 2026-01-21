@@ -1,22 +1,50 @@
+use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
 
-use crate::civilians::commands::SelectCivilian;
+use crate::civilians::commands::{DeselectCivilian, SelectCivilian};
 use crate::civilians::types::{Civilian, CivilianId, CivilianKind};
-use crate::civilians::ui_components::{CivilianOrdersPanel, show_civilian_orders_ui};
+use crate::civilians::ui_components::{CivilianOrdersPanel, update_civilian_orders_ui};
 use crate::economy::{Nation, PlayerNation};
 use bevy_ecs_tilemap::prelude::TilePos;
 
 /// Helper function to send a SelectCivilian event
 fn send_select_event(world: &mut World, entity: Entity) {
-    world.trigger(SelectCivilian { entity });
-    world.flush();
+    let mut system_state: SystemState<MessageWriter<SelectCivilian>> = SystemState::new(world);
+    let mut writer = system_state.get_mut(world);
+    writer.write(SelectCivilian { entity });
+    system_state.apply(world);
+}
+
+/// Helper function to run the UI update system
+fn run_ui_update_system(world: &mut World) {
+    let mut system_state: SystemState<(
+        Commands,
+        Option<Res<PlayerNation>>,
+        MessageReader<SelectCivilian>,
+        MessageReader<DeselectCivilian>,
+        Query<&Civilian>,
+        Query<Entity, With<CivilianOrdersPanel>>,
+    )> = SystemState::new(world);
+
+    let (commands, player_nation, select_events, deselect_events, civilians, existing_panel) =
+        system_state.get_mut(world);
+    update_civilian_orders_ui(
+        commands,
+        player_nation,
+        select_events,
+        deselect_events,
+        civilians,
+        existing_panel,
+    );
+    system_state.apply(world);
 }
 
 /// Test that civilian orders UI is NOT shown for enemy units
 #[test]
 fn test_ui_not_shown_for_enemy_units() {
     let mut world = World::new();
-    world.add_observer(show_civilian_orders_ui);
+    world.init_resource::<Messages<SelectCivilian>>();
+    world.init_resource::<Messages<DeselectCivilian>>();
 
     // Create player nation
     let player_nation_entity = world.spawn(Nation).id();
@@ -42,6 +70,9 @@ fn test_ui_not_shown_for_enemy_units() {
     // Send SelectCivilian event for enemy unit
     send_select_event(&mut world, enemy_civilian_entity);
 
+    // Run the UI update system
+    run_ui_update_system(&mut world);
+
     // Verify that NO UI panel was created
     let panel_count = world
         .query_filtered::<Entity, With<CivilianOrdersPanel>>()
@@ -58,7 +89,8 @@ fn test_ui_not_shown_for_enemy_units() {
 #[test]
 fn test_ui_shown_for_player_units() {
     let mut world = World::new();
-    world.add_observer(show_civilian_orders_ui);
+    world.init_resource::<Messages<SelectCivilian>>();
+    world.init_resource::<Messages<DeselectCivilian>>();
 
     // Create player nation
     let player_nation_entity = world.spawn(Nation).id();
@@ -81,6 +113,9 @@ fn test_ui_shown_for_player_units() {
     // Send SelectCivilian event for player unit
     send_select_event(&mut world, player_civilian_entity);
 
+    // Run the UI update system
+    run_ui_update_system(&mut world);
+
     // Verify that a UI panel WAS created
     let panel_count = world
         .query_filtered::<Entity, With<CivilianOrdersPanel>>()
@@ -97,7 +132,8 @@ fn test_ui_shown_for_player_units() {
 #[test]
 fn test_ui_not_shown_without_player_nation() {
     let mut world = World::new();
-    world.add_observer(show_civilian_orders_ui);
+    world.init_resource::<Messages<SelectCivilian>>();
+    world.init_resource::<Messages<DeselectCivilian>>();
 
     // DO NOT set PlayerNation resource
 
@@ -117,6 +153,9 @@ fn test_ui_not_shown_without_player_nation() {
 
     // Send SelectCivilian event
     send_select_event(&mut world, civilian_entity);
+
+    // Run the UI update system
+    run_ui_update_system(&mut world);
 
     // Verify that NO UI panel was created
     let panel_count = world

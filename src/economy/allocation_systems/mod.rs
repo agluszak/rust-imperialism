@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::economy::{
     allocation::Allocations,
     goods::Good,
-    production::{BuildingKind, Buildings, building_for_output},
+    production::{Building, BuildingKind, building_for_output},
     reservation::ReservationSystem,
     stockpile::Stockpile,
     treasury::Treasury,
@@ -145,7 +145,7 @@ pub fn execute_queued_production_orders(
         &mut Stockpile,
         &mut Workforce,
     )>,
-    buildings_query: Query<&Buildings>,
+    buildings_query: Query<&Building>,
 ) {
     let queued = orders.take_production();
     if queued.is_empty() {
@@ -165,7 +165,7 @@ fn process_production_adjustment(
         &mut Stockpile,
         &mut Workforce,
     )>,
-    buildings_query: &Query<&Buildings>,
+    buildings_query: &Query<&Building>,
 ) {
     let Ok((mut allocations, mut reservations, mut stockpile, mut workforce)) =
         nations.get_mut(msg.nation.entity())
@@ -174,8 +174,8 @@ fn process_production_adjustment(
         return;
     };
 
-    let Ok(buildings_collection) = buildings_query.get(msg.building) else {
-        warn!("Cannot adjust production: buildings not found");
+    let Ok(building) = buildings_query.get(msg.building) else {
+        warn!("Cannot adjust production: building not found");
         return;
     };
 
@@ -198,13 +198,13 @@ fn process_production_adjustment(
         }
     };
 
-    let Some(building) = buildings_collection.get(building_kind) else {
+    if building.kind != building_kind {
         warn!(
-            "Cannot adjust production: building kind not found: {:?}",
-            building_kind
+            "Cannot adjust production: building {:?} (kind {:?}) cannot produce {:?}",
+            msg.building, building.kind, msg.output_good
         );
         return;
-    };
+    }
 
     let key = (msg.building, msg.output_good);
     let current_count = allocations.production_count(msg.building, msg.output_good);

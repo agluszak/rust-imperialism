@@ -5,7 +5,7 @@ use std::iter;
 use crate::{
     civilians::types::ProspectingKnowledge,
     economy::{
-        nation::Capital,
+        nation::{Capital, OwnedBy},
         transport::{Depot, Port},
     },
     map::tile_pos::{HexExt, TilePosExt},
@@ -996,22 +996,28 @@ impl Buildings {
     }
 }
 
-/// Runs production across all entities that have both a Stockpile and a Building.
-/// Consumes reserved resources and produces outputs.
+/// Runs production across all entities that have a Building and OwnedBy component.
+/// Consumes reserved resources and produces outputs using the owner's Stockpile and Workforce.
 /// Production rules follow 2:1 ratios (2 inputs → 1 output).
 /// Production now requires labor points from workers.
 ///
 /// Note: This system runs via OnEnter(TurnPhase::Processing) in ProcessingSet::Production,
 /// so no phase check is needed.
 pub fn run_production(
-    mut q: Query<(
-        Option<&Workforce>,
-        &mut Stockpile,
+    mut buildings: Query<(
+        Entity,
         &Building,
         &mut ProductionSettings,
+        &OwnedBy,
     )>,
+    mut nations: Query<(&mut Stockpile, Option<&Workforce>)>,
 ) {
-    for (workforce_opt, mut stock, building, mut settings) in q.iter_mut() {
+    for (entity, building, mut settings, owned_by) in buildings.iter_mut() {
+        let Ok((mut stock, workforce_opt)) = nations.get_mut(owned_by.0) else {
+            warn!("Building {:?} has invalid owner {:?}", entity, owned_by.0);
+            continue;
+        };
+
         // Calculate available labor (0 if no workforce)
         let available_labor = workforce_opt.map(|w| w.available_labor()).unwrap_or(0);
 

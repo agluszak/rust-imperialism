@@ -73,7 +73,7 @@ fn test_ai_climbs_value_chain_when_hardware_is_profitable() {
 
     app.world_mut().spawn((tile_storage, map_size));
 
-    // Create AI nation with initial buildings and plenty of money
+    // Create AI nation with plenty of money
     let ai_nation = app
         .world_mut()
         .spawn((
@@ -83,10 +83,20 @@ fn test_ai_climbs_value_chain_when_hardware_is_profitable() {
             Stockpile::default(),
             Treasury::new(10_000),
             Technologies::default(),
-            Buildings::with_all_initial(),
-            ProductionSettings::default(),
         ))
         .id();
+
+    // Spawn buildings for the nation
+    let buildings_data = Buildings::with_all_initial();
+    for (_kind, building) in &buildings_data.buildings {
+        let e = app.world_mut().spawn((
+            *building,
+            ProductionSettings::default(),
+        )).id();
+        app.world_mut().entity_mut(e).insert(rust_imperialism::economy::OwnedBy(ai_nation));
+    }
+
+    app.world_mut().entity_mut(ai_nation).insert(buildings_data);
 
     // Create province owned by the AI nation
     app.world_mut().spawn(Province {
