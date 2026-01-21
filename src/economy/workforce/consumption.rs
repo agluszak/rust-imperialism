@@ -27,10 +27,24 @@ pub fn feed_workers(
         // Feed each worker
         for worker in workforce.workers.iter_mut() {
             let preferred_food = Workforce::preferred_food_for_slot(worker.food_preference_slot);
+            let mut ate_preferred = false;
 
             // Try preferred raw food first
-            if stockpile.has_at_least(preferred_food, 1) {
+            if preferred_food == Good::Livestock {
+                // Meat preference: Accept either Livestock or Fish
+                if stockpile.has_at_least(Good::Livestock, 1) {
+                    stockpile.take_up_to(Good::Livestock, 1);
+                    ate_preferred = true;
+                } else if stockpile.has_at_least(Good::Fish, 1) {
+                    stockpile.take_up_to(Good::Fish, 1);
+                    ate_preferred = true;
+                }
+            } else if stockpile.has_at_least(preferred_food, 1) {
                 stockpile.take_up_to(preferred_food, 1);
+                ate_preferred = true;
+            }
+
+            if ate_preferred {
                 worker.health = WorkerHealth::Healthy;
             }
             // Try canned food as fallback
