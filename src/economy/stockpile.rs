@@ -56,13 +56,15 @@ impl Stockpile {
     /// Consume reserved resources (both from total and reserved)
     /// Should only be called after resources have been reserved
     pub fn consume_reserved(&mut self, good: Good, qty: u32) -> u32 {
-        // Remove from reserved first
         let reserved = self.get_reserved(good);
         let to_consume = reserved.min(qty);
-        self.unreserve(good, to_consume);
 
-        // Then remove from total
-        self.take_up_to(good, to_consume)
+        if to_consume > 0 {
+            if let Some(pool) = self.pools.get_mut(&good) {
+                pool.consume_reserved(to_consume);
+            }
+        }
+        to_consume
     }
 
     /// Attempts to remove `qty` units from total; returns how many were actually removed

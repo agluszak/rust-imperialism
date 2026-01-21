@@ -150,12 +150,6 @@ impl Plugin for EconomyPlugin {
             allocation_systems::finalize_allocations.in_set(ProcessingSet::Finalize),
         );
 
-        // Production: Execute production
-        app.add_systems(
-            OnEnter(TurnPhase::Processing),
-            production::run_production.in_set(ProcessingSet::Production),
-        );
-
         // Conversion: Convert goods to capacity
         app.add_systems(
             OnEnter(TurnPhase::Processing),
