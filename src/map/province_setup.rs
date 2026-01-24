@@ -10,7 +10,7 @@ use crate::economy::{
     Allocations, Capital, Good, Nation, NationColor, OwnedBy, PlayerNation, RecruitmentCapacity,
     RecruitmentQueue, ReservationSystem, Stockpile, Technologies, TrainingQueue, Treasury,
     Workforce,
-    production::{Buildings, ProductionSettings},
+    buildings::{Buildings, ProductionSettings},
 };
 use crate::map::province::{City, Province, ProvinceId};
 use crate::map::province_gen::generate_provinces;

@@ -23,7 +23,7 @@ use rust_imperialism::civilians::{Civilian, CivilianKind};
 use rust_imperialism::economy::{
     goods::Good,
     nation::{Capital, Nation},
-    production::Buildings,
+    buildings::Buildings,
     stockpile::Stockpile,
     technology::Technologies,
     transport::Depot,

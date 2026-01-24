@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::economy::{
     allocation::Allocations,
     goods::Good,
-    production::{BuildingKind, Buildings, building_for_output},
+    buildings::{BuildingKind, Buildings, building_for_output},
     reservation::ReservationSystem,
     stockpile::Stockpile,
     treasury::Treasury,
@@ -638,7 +638,7 @@ pub fn finalize_allocations(
         &mut crate::economy::workforce::RecruitmentQueue,
         &mut crate::economy::workforce::TrainingQueue,
     )>,
-    mut buildings: Query<&mut crate::economy::production::ProductionSettings>,
+    mut buildings: Query<&mut crate::economy::buildings::ProductionSettings>,
 ) {
     for (
         allocations,

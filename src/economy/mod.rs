@@ -6,6 +6,7 @@ use crate::ui::menu::AppState;
 
 pub mod allocation;
 pub mod allocation_systems;
+pub mod buildings;
 pub mod calendar;
 pub mod goods;
 pub mod market;
@@ -24,11 +25,12 @@ pub use crate::messages::{
     AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, MarketInterest,
 };
 pub use allocation::Allocations;
+pub use buildings::{Building, BuildingKind};
 pub use calendar::{Calendar, Season};
 pub use goods::Good;
 pub use market::{MARKET_RESOURCES, MarketPriceModel, MarketVolume};
 pub use nation::{Capital, Nation, NationColor, NationInstance, OwnedBy, PlayerNation};
-pub use production::{Building, BuildingKind, ConnectedProduction};
+pub use production::ConnectedProduction;
 pub use reservation::{ReservationId, ReservationSystem, ResourcePool};
 pub use stockpile::Stockpile;
 pub use technology::{Technologies, Technology};
