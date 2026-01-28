@@ -8,6 +8,7 @@ use crate::economy::transport::types::{
 use crate::economy::transport::validation::{are_adjacent, can_build_rail_on_terrain};
 use crate::map::tile_pos::{HexExt, TilePosExt};
 use crate::map::tiles::TerrainType;
+use hexx::Hex;
 
 use crate::economy::{
     nation::{OwnedBy, PlayerNation},
@@ -241,30 +242,50 @@ fn handle_port_placement(
     let port_pos = a;
     let hex = port_pos.to_hex();
 
-    // Check if any adjacent tile is water
-    let mut adjacent_to_water = false;
+    // Identify all adjacent water tiles
+    let mut adjacent_water_tiles = Vec::new();
+
+    // We only need one valid tile storage (usually there is only one map layer)
+    // But we iterate just in case
+    let mut relevant_storage = None;
+
     for tile_storage in tile_storage_query.iter() {
+        let mut found_any = false;
         for neighbor_hex in hex.all_neighbors() {
             if let Some(neighbor_pos) = neighbor_hex.to_tile_pos()
                 && let Some(neighbor_entity) = tile_storage.get(&neighbor_pos)
                 && let Ok(terrain) = tile_types.get(neighbor_entity)
                 && *terrain == TerrainType::Water
             {
-                adjacent_to_water = true;
-                break;
+                adjacent_water_tiles.push(neighbor_pos);
+                found_any = true;
             }
         }
-        if adjacent_to_water {
-            break;
+        if found_any {
+            relevant_storage = Some(tile_storage);
+            break; // Found the map layer with tiles
         }
     }
 
-    if !adjacent_to_water {
+    if adjacent_water_tiles.is_empty() {
         info!(
             "Cannot build port at ({}, {}): must be adjacent to water",
             port_pos.x, port_pos.y
         );
         return;
+    }
+
+    // Determine if it is a river port or ocean port
+    // It is a river port if ALL adjacent water tiles are rivers
+    // It is an ocean port if ANY adjacent water tile is ocean
+    let mut is_river = true;
+    if let Some(storage) = relevant_storage {
+        for water_pos in adjacent_water_tiles {
+            if is_ocean_tile(water_pos, storage, tile_types) {
+                is_river = false;
+                break;
+            }
+        }
     }
 
     // Port is placed on a single tile
@@ -283,7 +304,7 @@ fn handle_port_placement(
                     position: a,
                     owner: owner_entity,
                     connected: false,
-                    is_river: false, // TODO: detect from terrain
+                    is_river,
                 },
                 OwnedBy(owner_entity),
             ));
@@ -296,4 +317,74 @@ fn handle_port_placement(
             );
         }
     }
+}
+
+/// Helper function to classify a water tile as Ocean or River
+/// Returns true if the tile is part of an Ocean (open water or coast)
+/// Returns false if the tile is part of a River (narrow channel or confluence)
+pub(crate) fn is_ocean_tile(
+    pos: TilePos,
+    tile_storage: &TileStorage,
+    tile_types: &Query<&TerrainType>,
+) -> bool {
+    let hex = pos.to_hex();
+
+    // Use specific offsets to ensure we iterate neighbors in a contiguous ring
+    // Axial coordinates offsets: (1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1), (0, 1)
+    let offsets = [
+        (1, 0),
+        (1, -1),
+        (0, -1),
+        (-1, 0),
+        (-1, 1),
+        (0, 1),
+    ];
+
+    let mut water_neighbors = 0;
+    let mut neighbor_is_water = [false; 6];
+
+    for (i, (dx, dy)) in offsets.iter().enumerate() {
+        let neighbor_hex = Hex::new(hex.x + dx, hex.y + dy);
+
+        // Check if neighbor is water
+        // Note: Out of bounds (None) is treated as Land (not Water)
+        if let Some(n_pos) = neighbor_hex.to_tile_pos()
+            && let Some(n_entity) = tile_storage.get(&n_pos)
+            && let Ok(terrain) = tile_types.get(n_entity)
+            && *terrain == TerrainType::Water
+        {
+            neighbor_is_water[i] = true;
+            water_neighbors += 1;
+        }
+    }
+
+    // Logic to distinguish Ocean vs River:
+    // 1. If surrounded by Water (>= 4 neighbors), it's Open Water/Ocean.
+    if water_neighbors >= 4 {
+        return true;
+    }
+
+    // 2. If surrounded by Land (<= 2 neighbors), it's a River/Canal/Lake-end.
+    if water_neighbors <= 2 {
+        return false;
+    }
+
+    // 3. If exactly 3 neighbors are water:
+    //    - If they are contiguous, it's a Straight Coast (Ocean).
+    //    - If they are separated, it's a River Confluence.
+    // Count transitions from Water to Land and Land to Water
+    let mut transitions = 0;
+    for i in 0..6 {
+        let current = neighbor_is_water[i];
+        let next = neighbor_is_water[(i + 1) % 6];
+        if current != next {
+            transitions += 1;
+        }
+    }
+
+    // Coast: WWWLLL (2 transitions)
+    // Confluence: WLWLWL (6 transitions)
+    // Or WLWWLL (4 transitions)
+    // Coast implies contiguous block of water.
+    transitions <= 2
 }
