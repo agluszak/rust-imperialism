@@ -92,3 +92,81 @@ jobs:
       
       - name: Check formatting
         run: cargo fmt --all -- --check
+
+  bench:
+    name: Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install Bevy dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            g++ \
+            pkg-config \
+            libx11-dev \
+            libasound2-dev \
+            libudev-dev \
+            libxkbcommon-x11-0 \
+            libwayland-dev \
+            libxkbcommon-dev \
+            libvulkan1 \
+            mesa-vulkan-drivers
+
+      - name: Install Rust toolchain
+        run: rustup toolchain install
+
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "rust-imperialism"
+
+      - name: Download baseline benchmarks (main)
+        if: github.event_name == 'pull_request'
+        id: baseline_run
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const workflow_id = 'ci.yml';
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner,
+              repo,
+              workflow_id,
+              branch: 'main',
+              status: 'success',
+              per_page: 1,
+            });
+            if (!runs.data.workflow_runs.length) {
+              core.notice('No successful main runs found; skipping baseline download.');
+              return;
+            }
+            core.setOutput('run_id', String(runs.data.workflow_runs[0].id));
+
+      - name: Download baseline benchmarks (main)
+        if: github.event_name == 'pull_request' && steps.baseline_run.outputs.run_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: criterion-baseline
+          path: target/criterion
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.baseline_run.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          if-no-files-found: warn
+
+      - name: Run benchmarks
+        run: cargo bench --bench ai_benchmark --bench game_benchmark --bench snapshot_benchmark
+
+      - name: Emit regression warnings
+        if: github.event_name == 'pull_request'
+        run: python3 scripts/bench_regressions.py
+
+      - name: Upload baseline benchmarks
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: criterion-baseline
+          path: target/criterion
