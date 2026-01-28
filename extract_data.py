@@ -74,11 +74,42 @@ def must_raw(typ: str):
     t = typ.upper()
     return t in ("WAVE", "TABLE", "6")  # 6=STRINGTABLE
 
-def extract_one(gob: Path, item: dict, out_root: Path):
+def process_extracted_file(f: Path, item: dict, out_root: Path):
     typ, name, lang = item["type"], item["name"], item["lang"]
     folder, suggested_name = wanted_folder_and_ext(typ, name)
     out_dir = out_root / folder
     ensure_dir(out_dir)
+
+    # Post-process for STRINGTABLE: also create a .txt skim
+    if typ == "6":
+        # move .bin
+        dst_bin = unique_path(out_dir / suggested_name)
+        shutil.move(str(f), str(dst_bin))
+        # txt skim
+        try:
+            rc, out, _ = run(["strings", "-el", str(dst_bin)], quiet=True)
+            (out_dir / "README.txt").write_text(
+                "These are raw Win32 STRINGTABLE blocks. The .txt files are a quick UTF-16LE skim.\n",
+                encoding="utf-8",
+            )
+            dst_txt = unique_path(out_dir / (Path(suggested_name).with_suffix(".txt").name))
+            dst_txt.write_text(out, encoding="utf-8", errors="ignore")
+        except Exception:
+            pass
+        return
+
+    # WAVE: ensure .wav extension
+    if typ.upper() == "WAVE":
+        dst = unique_path(out_dir / suggested_name)
+        shutil.move(str(f), str(dst))
+        return
+
+    # BITMAP (or anything else decoded / raw): enforce target name
+    dst = unique_path(out_dir / suggested_name)
+    shutil.move(str(f), str(dst))
+
+def extract_one(gob: Path, item: dict, out_root: Path):
+    typ, name = item["type"], item["name"]
 
     # one-resource temp extraction
     with tempfile.TemporaryDirectory() as tmpd:
@@ -96,35 +127,71 @@ def extract_one(gob: Path, item: dict, out_root: Path):
             # nothing came out; skip politely
             return
 
-        f = produced[0]
+        process_extracted_file(produced[0], item, out_root)
 
-        # Post-process for STRINGTABLE: also create a .txt skim
-        if typ == "6":
-            # move .bin
-            dst_bin = unique_path(out_dir / suggested_name)
-            shutil.move(str(f), str(dst_bin))
-            # txt skim
-            try:
-                rc, out, _ = run(["strings", "-el", str(dst_bin)], quiet=True)
-                (out_dir / "README.txt").write_text(
-                    "These are raw Win32 STRINGTABLE blocks. The .txt files are a quick UTF-16LE skim.\n",
-                    encoding="utf-8",
-                )
-                dst_txt = unique_path(out_dir / (Path(suggested_name).with_suffix(".txt").name))
-                dst_txt.write_text(out, encoding="utf-8", errors="ignore")
-            except Exception:
-                pass
-            return
+def extract_batch(gob: Path, items: list, out_root: Path):
+    from collections import defaultdict
 
-        # WAVE: ensure .wav extension
-        if typ.upper() == "WAVE":
-            dst = unique_path(out_dir / suggested_name)
-            shutil.move(str(f), str(dst))
-            return
+    # Group by type
+    by_type = defaultdict(list)
+    for it in items:
+        by_type[it['type']].append(it)
 
-        # BITMAP (or anything else decoded / raw): enforce target name
-        dst = unique_path(out_dir / suggested_name)
-        shutil.move(str(f), str(dst))
+    for typ, type_items in by_type.items():
+        # Determine mode
+        is_raw = must_raw(typ) or not can_normal_decode(typ)
+
+        # We need to process this group
+        # Create a temp dir
+        with tempfile.TemporaryDirectory() as tmpd:
+            tmp = Path(tmpd)
+
+            # Construct command for batch extraction by type
+            cmd = ["wrestool", "-x"]
+            if is_raw:
+                cmd.append("--raw")
+            cmd.extend([f"--type={typ}", "-o", str(tmp), str(gob)])
+
+            # Run batch extraction
+            run(cmd, quiet=True)
+
+            # List all files extracted
+            extracted_files = list(tmp.iterdir())
+            available_files = set(extracted_files)
+
+            retry_items = []
+
+            for it in type_items:
+                name = it['name']
+                # Strategy: find file that contains the name segment
+                # Filenames usually look like: gobname_type_name.ext
+                # We split by _ and . to check exact segments
+
+                candidates = []
+                for f in available_files:
+                    # Split by _ and .
+                    segments = re.split(r'[_\.]', f.name)
+                    if name in segments:
+                        candidates.append(f)
+
+                if len(candidates) == 1:
+                    # Unique match
+                    f = candidates[0]
+                    try:
+                        process_extracted_file(f, it, out_root)
+                        available_files.remove(f)
+                    except Exception as e:
+                        print(f"    [skip] {it['type']}:{it['name']} ({e})")
+                else:
+                    # No match or ambiguous match -> fallback
+                    retry_items.append(it)
+
+            # Retry failed items with single extraction
+            for it in retry_items:
+                try:
+                    extract_one(gob, it, out_root)
+                except Exception as e:
+                    print(f"    [skip] {it['type']}:{it['name']} ({e})")
 
 def copy_fonts(data_dir: Path, out_root: Path):
     font_out = out_root / "fonts"
@@ -156,11 +223,7 @@ def main():
         if not items:
             print("    (no listable resources)")
             continue
-        for it in items:
-            try:
-                extract_one(gob, it, out_root)
-            except Exception as e:
-                print(f"    [skip] {it['type']}:{it['name']} ({e})")
+        extract_batch(gob, items, out_root)
 
     copy_fonts(data_dir, out_root)
     print(f"[✓] Done → {out_root}")
