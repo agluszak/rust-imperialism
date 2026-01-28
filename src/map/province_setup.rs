@@ -160,6 +160,12 @@ pub fn assign_provinces_to_countries(
     let mut assigned: HashSet<ProvinceId> = HashSet::new();
     let mut country_idx = 0;
 
+    // Create a lookup map for faster access to province entities and city tiles
+    let province_lookup: HashMap<ProvinceId, (Entity, TilePos)> = province_list
+        .iter()
+        .map(|&(entity, id, pos)| (id, (entity, pos)))
+        .collect();
+
     for &(_province_entity, province_id, _city_tile) in &province_list {
         if assigned.contains(&province_id) {
             continue;
@@ -180,9 +186,7 @@ pub fn assign_provinces_to_countries(
             assigned.insert(prov_id);
 
             // Find the province entity and city tile
-            if let Some(&(prov_entity, _, prov_city)) =
-                province_list.iter().find(|(_, id, _)| *id == prov_id)
-            {
+            if let Some(&(prov_entity, prov_city)) = province_lookup.get(&prov_id) {
                 assign_province_to_country(
                     &mut commands,
                     &mut provinces,
