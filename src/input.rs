@@ -60,9 +60,7 @@ pub fn handle_tile_click(
         return;
     };
     let selected = selected_civilian.0;
-    let Some((civilian_entity, civilian)) =
-        civilians.iter().find(|(entity, _)| *entity == selected)
-    else {
+    let Ok((civilian_entity, civilian)) = civilians.get(selected) else {
         return;
     };
 

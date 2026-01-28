@@ -25,6 +25,10 @@ harness = false
 name = "snapshot_benchmark"
 harness = false
 
+[[bench]]
+name = "query_lookup_benchmark"
+harness = false
+
 [dependencies]
 bevy = { version = "0.18", features = ["bevy_dev_tools", "dynamic_linking", "experimental_bevy_ui_widgets"] }
 hexx = { version = "0.23", features = ["algorithms", "serde", "bevy"] }
