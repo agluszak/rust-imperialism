@@ -446,6 +446,7 @@ fn assign_province_to_country(
     commands.spawn((
         City {
             province: province_id,
+            province_entity,
             is_capital,
         },
         city_tile,

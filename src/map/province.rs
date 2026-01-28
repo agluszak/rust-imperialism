@@ -22,11 +22,18 @@ pub struct Province {
 
 /// Marker component for the city within a province
 #[derive(Component, Debug, Clone, Copy, Reflect)]
-#[reflect(Component)]
+#[reflect(Component, MapEntities)]
 #[require(Save)]
 pub struct City {
     pub province: ProvinceId,
+    pub province_entity: Entity,
     pub is_capital: bool,
+}
+
+impl MapEntities for City {
+    fn map_entities<M: EntityMapper>(&mut self, mapper: &mut M) {
+        self.province_entity = mapper.get_mapped(self.province_entity);
+    }
 }
 
 /// Component that marks a tile as belonging to a province
