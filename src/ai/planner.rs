@@ -466,11 +466,17 @@ fn assign_civilians_to_goals(
                     if civilian.position == *tile || is_adjacent(civilian.position, *tile) {
                         Some(CivilianTask::ProspectTile { target: *tile })
                     } else if !avoid_tiles.contains(tile) {
-                        // Only move if target valid (and path exists - checked by find_step implicitly via simple move?)
-                        // Wait, move logic here is simple MoveTo. We should checking pathfinding.
-                        // But for now, just checking target validity is a start.
-                        // Ideally we'd use pathfinding here too.
-                        Some(CivilianTask::MoveTo { target: *tile })
+                        // Move one step toward the target
+                        if let Some(step) = find_step_toward(
+                            civilian.position,
+                            *tile,
+                            &nation.owned_tiles,
+                            &avoid_tiles,
+                        ) {
+                            Some(CivilianTask::MoveTo { target: step })
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }
@@ -483,7 +489,17 @@ fn assign_civilians_to_goals(
                     if civilian.position == *tile || is_adjacent(civilian.position, *tile) {
                         Some(CivilianTask::ImproveTile { target: *tile })
                     } else if !avoid_tiles.contains(tile) {
-                        Some(CivilianTask::MoveTo { target: *tile })
+                        // Move one step toward the target
+                        if let Some(step) = find_step_toward(
+                            civilian.position,
+                            *tile,
+                            &nation.owned_tiles,
+                            &avoid_tiles,
+                        ) {
+                            Some(CivilianTask::MoveTo { target: step })
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }
@@ -493,36 +509,23 @@ fn assign_civilians_to_goals(
 
             if let Some(task) = task_opt {
                 // Calculate score (approx distance)
-                let distance = match task {
-                    CivilianTask::MoveTo { target } => {
-                        civilian.position.to_hex().distance_to(target.to_hex()) as u32
+                let distance = match goal {
+                    NationGoal::ProspectTile { tile, .. } | NationGoal::ImproveTile { tile, .. } => {
+                        civilian.position.to_hex().distance_to(tile.to_hex()) as u32
                     }
-                    CivilianTask::BuildRailTo { target } => {
-                        civilian.position.to_hex().distance_to(target.to_hex()) as u32
-                    }
-                    _ => 0, // 0 distance means immediate action possible
+                    _ => match task {
+                        CivilianTask::MoveTo { target } => {
+                            civilian.position.to_hex().distance_to(target.to_hex()) as u32
+                        }
+                        CivilianTask::BuildRailTo { target } => {
+                            civilian.position.to_hex().distance_to(target.to_hex()) as u32
+                        }
+                        _ => 0, // 0 distance means immediate action possible
+                    },
                 };
 
-                // Check strict path validity?
-                // The helper functions `plan_engineer...` use `find_step_toward` which checks `avoid_tiles`.
-                // But `MoveTo` above is raw.
-                // We should ensure `MoveTo` doesn't jump into an obstacle.
-                // Simple hack: if distance > 1, assume pathfinding will handle it next turn?
-                // NO. If we assign `MoveTo(target)`, we MUST ensure target is not blocked.
-                // The checks `!avoid_tiles.contains(tile)` above handle the goal target.
-                // But what if we are far away?
-                // We generate `MoveTo` directly to Goal. The Execution system validates step-by-step?
-                // No, execution system blindly takes `MoveTo`.
-                // Actually `MoveTo` in `CivilianTask` usually means "Move one step towards"?
-                // Let's check `CivilianTask` definition.
-                // If `MoveTo` target is far away, does it work?
-                // `execute.rs` -> `task_to_order` -> `CivilianOrderKind::Move { to }`.
-                // `CivilianOrderKind::Move` usually implies distinct movement.
-                // But `planner.rs` usually generates `find_step_toward` for Engineers?
-                // For Prospectors/Farmers above, `Some(CivilianTask::MoveTo { target: *tile })`.
-                // This implies "Teleport/Long Move"?
-                // Let's trust that for now, but focus on RESERVATION.
-
+                // Note: We now ensure `MoveTo` tasks are single-step movements by using
+                // `find_step_toward` in the goal handling logic above.
                 if distance < min_distance {
                     min_distance = distance;
                     best_candidate = Some((civilian.entity, task));
@@ -1161,5 +1164,73 @@ mod tests {
                 "Loop detected: (0,1) -> (0,0) -> (0,1)"
             );
         }
+    }
+
+    #[test]
+    fn test_prospector_pathfinding() {
+        use std::collections::HashSet;
+
+        let prospector_pos = TilePos::new(0, 0);
+        let target = TilePos::new(0, 5);
+
+        let mut owned_tiles = HashSet::new();
+        for y in 0..=5 {
+            owned_tiles.insert(TilePos::new(0, y));
+        }
+
+        let mut civilians = Vec::new();
+        civilians.push(crate::ai::snapshot::CivilianSnapshot {
+            entity: Entity::from_bits(1),
+            kind: CivilianKind::Prospector,
+            position: prospector_pos,
+            has_moved: false,
+        });
+
+        let mut tile_terrain = HashMap::new();
+        for pos in &owned_tiles {
+            tile_terrain.insert(*pos, crate::map::tiles::TerrainType::Grass);
+        }
+
+        let snapshot = NationSnapshot {
+            entity: Entity::PLACEHOLDER,
+            capital_pos: TilePos::new(0, 0),
+            treasury: 1000,
+            stockpile: HashMap::new(),
+            civilians,
+            connected_tiles: HashSet::new(),
+            unconnected_depots: vec![],
+            suggested_depots: vec![],
+            improvable_tiles: vec![],
+            owned_tiles: owned_tiles.clone(),
+            depot_positions: HashSet::new(),
+            prospectable_tiles: vec![],
+            tile_terrain,
+            technologies: crate::economy::technology::Technologies::new(),
+            rail_constructions: vec![],
+            trade_capacity_total: 10,
+            trade_capacity_used: 0,
+            buildings: HashMap::new(),
+        };
+
+        let goals = vec![NationGoal::ProspectTile {
+            tile: target,
+            priority: 1.0,
+        }];
+
+        let ai_snapshot = AiSnapshot {
+            occupied_tiles: HashSet::new(),
+            rails: HashSet::new(),
+            ..Default::default()
+        };
+
+        let mut tasks = HashMap::new();
+        assign_civilians_to_goals(&snapshot, &ai_snapshot, &goals, &mut tasks);
+
+        let task = tasks.get(&Entity::from_bits(1));
+
+        // Expect move to (0,1)
+        let expected_step = TilePos::new(0, 1);
+        assert!(matches!(task, Some(CivilianTask::MoveTo { target: t }) if *t == expected_step),
+            "Expected move to step (0,1), got {:?}", task);
     }
 }
