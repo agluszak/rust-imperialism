@@ -88,9 +88,7 @@ pub fn update_province_resources_display(
     };
 
     // Get the province
-    let province = provinces.iter().find(|p| p.id == city.province);
-
-    let Some(province) = province else {
+    let Ok(province) = provinces.get(city.province_entity) else {
         **text = format!("Province {} not found", city.province.0);
         return;
     };
