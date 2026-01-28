@@ -39,3 +39,4 @@ pub use connectivity::{
 // Input handlers (Input Layer)
 pub mod input;
 pub use input::apply_improvements;
+#[cfg(test)] mod river_tests;
