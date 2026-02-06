@@ -1,6 +1,6 @@
 use bevy::prelude::Entity;
 use bevy_ecs_tilemap::prelude::TilePos;
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
 use rust_imperialism::ai::planner::plan_nation;
 use rust_imperialism::ai::snapshot::{
     AiSnapshot, CivilianSnapshot, DepotInfo, ImprovableTile, MarketSnapshot, NationSnapshot,
@@ -125,8 +125,10 @@ fn create_test_snapshot() -> (NationSnapshot, AiSnapshot) {
     });
 
     // AiSnapshot
-    let mut ai_snapshot = AiSnapshot::default();
-    ai_snapshot.occupied_tiles = HashSet::new();
+    let mut ai_snapshot = AiSnapshot {
+        occupied_tiles: HashSet::new(),
+        ..Default::default()
+    };
 
     // Market prices
     let mut prices = HashMap::new();
@@ -141,7 +143,12 @@ fn create_test_snapshot() -> (NationSnapshot, AiSnapshot) {
 fn bench_plan_nation(c: &mut Criterion) {
     let (nation, snapshot) = create_test_snapshot();
     c.bench_function("plan_nation", |b| {
-        b.iter(|| plan_nation(black_box(&nation), black_box(&snapshot)))
+        b.iter(|| {
+            plan_nation(
+                std::hint::black_box(&nation),
+                std::hint::black_box(&snapshot),
+            )
+        })
     });
 }
 

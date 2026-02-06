@@ -85,7 +85,6 @@ fn test_ai_move_command_executes() {
 
 #[test]
 fn test_illegal_rail_command_rejected() {
-
     use bevy::prelude::*;
     use bevy_ecs_tilemap::prelude::{TilePos, TileStorage, TilemapSize};
 

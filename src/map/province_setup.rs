@@ -160,6 +160,12 @@ pub fn assign_provinces_to_countries(
     let mut assigned: HashSet<ProvinceId> = HashSet::new();
     let mut country_idx = 0;
 
+    // Create a lookup map for faster access to province entities and city tiles
+    let province_lookup: HashMap<ProvinceId, (Entity, TilePos)> = province_list
+        .iter()
+        .map(|&(entity, id, pos)| (id, (entity, pos)))
+        .collect();
+
     for &(_province_entity, province_id, _city_tile) in &province_list {
         if assigned.contains(&province_id) {
             continue;
@@ -180,9 +186,7 @@ pub fn assign_provinces_to_countries(
             assigned.insert(prov_id);
 
             // Find the province entity and city tile
-            if let Some(&(prov_entity, _, prov_city)) =
-                province_list.iter().find(|(_, id, _)| *id == prov_id)
-            {
+            if let Some(&(prov_entity, prov_city)) = province_lookup.get(&prov_id) {
                 assign_province_to_country(
                     &mut commands,
                     &mut provinces,
@@ -446,6 +450,7 @@ fn assign_province_to_country(
     commands.spawn((
         City {
             province: province_id,
+            province_entity,
             is_capital,
         },
         city_tile,
@@ -542,35 +547,56 @@ pub(crate) fn boost_capital_food_tiles(world: &mut World, capital_pos: TilePos) 
 fn build_province_adjacency(
     provinces: &Query<(Entity, &mut Province)>,
 ) -> HashMap<ProvinceId, Vec<ProvinceId>> {
-    use std::collections::{HashMap, HashSet};
-
-    let mut adjacency: HashMap<ProvinceId, HashSet<ProvinceId>> = HashMap::new();
-
     // Collect all province tiles
     let province_tiles: Vec<(ProvinceId, Vec<TilePos>)> = provinces
         .iter()
         .map(|(_, p)| (p.id, p.tiles.clone()))
         .collect();
 
-    // Check each province against all others
-    for (i, (id1, tiles1)) in province_tiles.iter().enumerate() {
-        for (id2, tiles2) in province_tiles.iter().skip(i + 1) {
-            // Check if any tiles are adjacent
-            let mut are_adjacent = false;
-            'outer: for tile1 in tiles1 {
-                let hex1 = tile1.to_hex();
-                for tile2 in tiles2 {
-                    let hex2 = tile2.to_hex();
-                    if hex1.distance_to(hex2) == 1 {
-                        are_adjacent = true;
-                        break 'outer;
+    calculate_adjacency(&province_tiles)
+}
+
+pub fn calculate_adjacency(
+    province_tiles: &[(ProvinceId, Vec<TilePos>)],
+) -> HashMap<ProvinceId, Vec<ProvinceId>> {
+    use std::collections::{HashMap, HashSet};
+
+    let mut adjacency: HashMap<ProvinceId, HashSet<ProvinceId>> = HashMap::new();
+    let mut tile_to_province: HashMap<TilePos, ProvinceId> = HashMap::new();
+
+    // 1. Build tile -> province map
+    for (province_id, tiles) in province_tiles {
+        for tile_pos in tiles {
+            tile_to_province.insert(*tile_pos, *province_id);
+        }
+    }
+
+    // 2. Check neighbors
+    for (province_id, tiles) in province_tiles {
+        for tile_pos in tiles {
+            let hex = tile_pos.to_hex();
+            for neighbor_hex in hex.all_neighbors() {
+                // If neighbor is on the map
+                if let Some(neighbor_pos) = neighbor_hex.to_tile_pos() {
+                    // Check if neighbor belongs to a province
+                    if let Some(neighbor_province) = tile_to_province.get(&neighbor_pos) {
+                        // If it belongs to a different province, record adjacency
+                        if neighbor_province != province_id {
+                            adjacency
+                                .entry(*province_id)
+                                .or_default()
+                                .insert(*neighbor_province);
+                            // We don't strictly need to insert the reverse here because
+                            // we will eventually visit the neighbor tile and insert the reverse then.
+                            // But doing it here ensures symmetry even if tiles are processed weirdly,
+                            // and HashSet handles duplicates cheaply.
+                            adjacency
+                                .entry(*neighbor_province)
+                                .or_default()
+                                .insert(*province_id);
+                        }
                     }
                 }
-            }
-
-            if are_adjacent {
-                adjacency.entry(*id1).or_default().insert(*id2);
-                adjacency.entry(*id2).or_default().insert(*id1);
             }
         }
     }

@@ -4,3 +4,5 @@
 .serena
 assets/extracted
 .junie
+__pycache__/
+*.pyc

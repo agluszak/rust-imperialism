@@ -2,12 +2,14 @@ use bevy::ecs::message::MessageWriter;
 use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
 use bevy::state::app::StatesPlugin;
-use criterion::{criterion_group, criterion_main, Criterion};
-use rust_imperialism::app;
-use rust_imperialism::map::{MapGenerationPlugin, TilemapCreated, TilemapRenderingInitialized};
-use rust_imperialism::turn_system::{EndPlayerTurn, TurnCounter};
-use rust_imperialism::ui::menu::AppState;
+use bevy_ecs_tilemap::prelude::TilemapTexture;
+use criterion::{Criterion, criterion_group, criterion_main};
 use rust_imperialism::LogicPlugins;
+use rust_imperialism::app;
+use rust_imperialism::map::MapGenerationPlugin;
+use rust_imperialism::turn_system::{EndPlayerTurn, TurnCounter};
+use rust_imperialism::ui::components::MapTilemap;
+use rust_imperialism::ui::menu::AppState;
 
 fn setup_headless_app() -> App {
     let mut app = App::new();
@@ -28,7 +30,15 @@ fn setup_headless_app() -> App {
     let mut i = 0;
     loop {
         app.update();
-        if app.world().contains_resource::<TilemapCreated>() {
+        let map_ready = {
+            let world = app.world_mut();
+            world
+                .query_filtered::<Entity, With<MapTilemap>>()
+                .iter(world)
+                .next()
+                .is_some()
+        };
+        if map_ready {
             break;
         }
         i += 1;
@@ -49,7 +59,8 @@ fn bench_headless_turns(c: &mut Criterion) {
             let start_turn = app.world().resource::<TurnCounter>().current;
 
             // End player turn
-            let _ = app.world_mut()
+            let _ = app
+                .world_mut()
                 .run_system_once(|mut writer: MessageWriter<EndPlayerTurn>| {
                     writer.write(EndPlayerTurn);
                 });
@@ -92,18 +103,27 @@ fn bench_graphics_rendering(c: &mut Criterion) {
     app.update();
 
     // Wait for map AND rendering initialization
-    // TilemapCreated means logic is done.
-    // TilemapRenderingInitialized means meshes/assets are ready.
+    // MapTilemap means logic setup is done.
+    // TilemapTexture means rendering setup is done.
     let mut i = 0;
     loop {
         app.update();
-        let map_ready = app.world().contains_resource::<TilemapCreated>();
-        let rendering_ready = app
-            .world_mut()
-            .query::<&TilemapRenderingInitialized>()
-            .iter(app.world())
-            .next()
-            .is_some();
+        let map_ready = {
+            let world = app.world_mut();
+            world
+                .query_filtered::<Entity, With<MapTilemap>>()
+                .iter(world)
+                .next()
+                .is_some()
+        };
+        let rendering_ready = {
+            let world = app.world_mut();
+            world
+                .query::<&TilemapTexture>()
+                .iter(world)
+                .next()
+                .is_some()
+        };
 
         if map_ready && rendering_ready {
             break;

@@ -1,8 +1,8 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use bevy_ecs_tilemap::prelude::TilePos;
-use std::collections::{HashMap, HashSet};
+use criterion::{Criterion, criterion_group, criterion_main};
 use rust_imperialism::ai::snapshot::calculate_suggested_depots;
 use rust_imperialism::map::tiles::TerrainType;
+use std::collections::{HashMap, HashSet};
 
 fn benchmark_calculate_suggested_depots(c: &mut Criterion) {
     // Setup a large scenario
@@ -31,11 +31,11 @@ fn benchmark_calculate_suggested_depots(c: &mut Criterion) {
     c.bench_function("calculate_suggested_depots", |b| {
         b.iter(|| {
             calculate_suggested_depots(
-                black_box(&resource_tiles),
-                black_box(&owned_tiles),
-                black_box(&depot_positions),
-                black_box(capital_pos),
-                black_box(&tile_terrain),
+                std::hint::black_box(&resource_tiles),
+                std::hint::black_box(&owned_tiles),
+                std::hint::black_box(&depot_positions),
+                std::hint::black_box(capital_pos),
+                std::hint::black_box(&tile_terrain),
             )
         })
     });
