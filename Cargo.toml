@@ -54,3 +54,10 @@ debug = ["dep:bevy-inspector-egui"]
 
 [profile.release]
 debug = true
+
+[dev-dependencies]
+image = "0.25"
+
+[[test]]
+name = "screenshot_acceptance_test"
+harness = false
