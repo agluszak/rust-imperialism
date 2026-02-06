@@ -46,7 +46,7 @@ moonshine-kind = { git = "https://github.com/agluszak/moonshine_kind.git" }
 serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
-criterion = "0.8.1"
+criterion = "0.8.2"
 
 [features]
 default = ["debug"]
