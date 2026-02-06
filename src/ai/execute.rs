@@ -59,7 +59,7 @@ fn execute_plan(
 
     // Send civilian orders in sorted order
     for (civilian_entity, task) in execution_order {
-        if let Some(order) = task_to_order(&task) {
+        if let Some(order) = task_to_order(task) {
             commands.trigger(CivilianCommand {
                 civilian: civilian_entity,
                 order,
@@ -130,10 +130,10 @@ fn task_to_order(task: &CivilianTask) -> Option<CivilianOrderKind> {
 }
 
 /// Sort tasks to resolve dependencies (A wants to move to B's tile -> B must move first).
-fn sort_civilian_tasks_topologically(
-    tasks: &std::collections::HashMap<Entity, CivilianTask>,
+pub fn sort_civilian_tasks_topologically<'a>(
+    tasks: &'a std::collections::HashMap<Entity, CivilianTask>,
     current_positions: &std::collections::HashMap<bevy_ecs_tilemap::tiles::TilePos, Entity>,
-) -> Vec<(Entity, CivilianTask)> {
+) -> Vec<(Entity, &'a CivilianTask)> {
     use std::collections::{HashMap, HashSet};
 
     let mut graph: HashMap<Entity, HashSet<Entity>> = HashMap::new();
@@ -205,7 +205,7 @@ fn sort_civilian_tasks_topologically(
     // Map back to tasks
     sorted
         .into_iter()
-        .filter_map(|e| tasks.get(&e).map(|t| (e, t.clone())))
+        .filter_map(|e| tasks.get(&e).map(|t| (e, t)))
         .collect()
 }
 
