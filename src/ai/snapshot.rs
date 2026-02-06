@@ -352,58 +352,23 @@ pub fn build_ai_snapshot(
             .collect();
         unconnected_depots.sort_by_key(|d| d.distance_from_capital);
 
-        // Find resource tiles and improvable tiles
+        // Find resource tiles, improvable tiles, prospectable tiles, and collect terrain info
         let mut resource_tiles = HashSet::new();
         let mut improvable_tiles = Vec::new();
-        for &tile_pos in &owned_tiles {
-            let Some(tile_entity) = storage.get(&tile_pos) else {
-                continue;
-            };
-            let Ok(resource) = tile_resources.get(tile_entity) else {
-                continue;
-            };
-            if !resource.discovered {
-                continue;
-            }
-            // Check prospecting knowledge for minerals
-            let prospected = if resource.requires_prospecting() {
-                if let Some(ref knowledge) = prospecting {
-                    knowledge.is_discovered_by(tile_entity, entity)
-                } else {
-                    false
-                }
-            } else {
-                true
-            };
-            if !prospected {
-                continue;
-            }
-            // Track all discovered resource tiles for depot coverage calculation
-            resource_tiles.insert(tile_pos);
-
-            // Track improvable tiles (not at max development)
-            if resource.development < DevelopmentLevel::Lv3
-                && let Some(improver_kind) = improver_for_resource(&resource.resource_type)
-            {
-                let distance = capital_hex.distance_to(tile_pos.to_hex()) as u32;
-                improvable_tiles.push(ImprovableTile {
-                    position: tile_pos,
-                    resource_type: resource.resource_type,
-                    development: resource.development,
-                    improver_kind,
-                    distance_from_capital: distance,
-                });
-            }
-        }
-        improvable_tiles.sort_by_key(|t| (t.distance_from_capital, t.development as u8));
-
-        // Find prospectable tiles (owned tiles with PotentialMineral not yet prospected by this nation)
         let mut prospectable_tiles = Vec::new();
+        let mut tile_terrain_map = HashMap::new();
+
         for &tile_pos in &owned_tiles {
             let Some(tile_entity) = storage.get(&tile_pos) else {
                 continue;
             };
-            // Check if tile has potential minerals
+
+            // Collect terrain information
+            if let Ok(terrain) = tile_terrain.get(tile_entity) {
+                tile_terrain_map.insert(tile_pos, *terrain);
+            }
+
+            // Check if tile has potential minerals (prospectable)
             if potential_minerals.get(tile_entity).is_ok() {
                 // Check if we've already prospected this tile
                 let already_prospected = prospecting
@@ -417,18 +382,46 @@ pub fn build_ai_snapshot(
                     });
                 }
             }
-        }
-        prospectable_tiles.sort_by_key(|t| t.distance_from_capital);
 
-        // Collect terrain information for owned tiles
-        let mut tile_terrain_map = HashMap::new();
-        for &tile_pos in &owned_tiles {
-            if let Some(tile_entity) = storage.get(&tile_pos)
-                && let Ok(terrain) = tile_terrain.get(tile_entity)
-            {
-                tile_terrain_map.insert(tile_pos, *terrain);
+            // Check for resources
+            if let Ok(resource) = tile_resources.get(tile_entity) {
+                if !resource.discovered {
+                    continue;
+                }
+                // Check prospecting knowledge for minerals
+                let prospected = if resource.requires_prospecting() {
+                    if let Some(ref knowledge) = prospecting {
+                        knowledge.is_discovered_by(tile_entity, entity)
+                    } else {
+                        false
+                    }
+                } else {
+                    true
+                };
+                if !prospected {
+                    continue;
+                }
+                // Track all discovered resource tiles for depot coverage calculation
+                resource_tiles.insert(tile_pos);
+
+                // Track improvable tiles (not at max development)
+                if resource.development < DevelopmentLevel::Lv3
+                    && let Some(improver_kind) = improver_for_resource(&resource.resource_type)
+                {
+                    let distance = capital_hex.distance_to(tile_pos.to_hex()) as u32;
+                    improvable_tiles.push(ImprovableTile {
+                        position: tile_pos,
+                        resource_type: resource.resource_type,
+                        development: resource.development,
+                        improver_kind,
+                        distance_from_capital: distance,
+                    });
+                }
             }
         }
+
+        improvable_tiles.sort_by_key(|t| (t.distance_from_capital, t.development as u8));
+        prospectable_tiles.sort_by_key(|t| t.distance_from_capital);
 
         // Calculate optimal depot locations using greedy set-cover algorithm
         let suggested_depots = calculate_suggested_depots(
