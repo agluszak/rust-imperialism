@@ -55,12 +55,6 @@ impl Plugin for MapGenerationPlugin {
                 .chain()
                 .run_if(map_not_created),
         );
-
-        // Rendering setup can happen anytime once assets are loaded
-        app.add_systems(
-            Update,
-            setup_tilemap_rendering.run_if(in_state(AppState::InGame)),
-        );
     }
 }
 

@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::{
     TileColor, TileFlip, TilePos, TilePosOld, TileTextureIndex, TileVisible, TilemapId,
@@ -300,6 +301,11 @@ fn rebuild_runtime_state_after_load(
             }
         });
     }
+
+    // Re-attach tile input observers once after a scene load.
+    commands.queue(|world: &mut World| {
+        let _ = world.run_system_once(crate::map::setup_tilemap_input);
+    });
 }
 
 #[cfg(test)]

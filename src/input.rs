@@ -13,12 +13,6 @@ impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, keyboard_input);
 
-        // Map tile input setup
-        app.add_systems(
-            Update,
-            crate::map::setup_tilemap_input.run_if(in_state(AppState::InGame)),
-        );
-
         // Civilian selection and management
         app.add_systems(
             Update,
