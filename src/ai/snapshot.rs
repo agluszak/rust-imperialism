@@ -173,18 +173,27 @@ pub fn calculate_suggested_depots(
 
     let mut suggestions = Vec::new();
 
+    // Generate candidate tiles: neighbors of remaining resources that are valid for depots.
+    // This reduces the search space significantly compared to iterating all owned tiles.
+    let candidates: Vec<TilePos> = remaining
+        .iter()
+        .flat_map(|&r| depot_coverage(r))
+        .filter(|pos| owned_tiles.contains(pos))
+        .filter(|pos| !depot_positions.contains(pos))
+        .filter(|pos| {
+            tile_terrain
+                .get(pos)
+                .map(crate::economy::transport::can_build_depot_on_terrain)
+                .unwrap_or(false)
+        })
+        .collect::<HashSet<_>>() // Dedup
+        .into_iter()
+        .collect();
+
     // Greedy algorithm: pick the tile that covers the most uncovered resources
     while !remaining.is_empty() {
-        let best = owned_tiles
+        let best = candidates
             .iter()
-            .filter(|pos| !depot_positions.contains(pos)) // No depot already here
-            .filter(|pos| {
-                // Filter out tiles with invalid terrain
-                tile_terrain
-                    .get(pos)
-                    .map(crate::economy::transport::can_build_depot_on_terrain)
-                    .unwrap_or(false)
-            })
             .map(|&pos| {
                 let covers_count = depot_coverage(pos)
                     .filter(|t| remaining.contains(t))
