@@ -1,9 +1,10 @@
 use bevy::prelude::Entity;
 use bevy_ecs_tilemap::prelude::TilePos;
-use criterion::{Criterion, criterion_group, criterion_main, black_box};
-use rust_imperialism::ai::planner::CivilianTask;
+use criterion::{Criterion, criterion_group, criterion_main};
 use rust_imperialism::ai::execute::sort_civilian_tasks_topologically;
+use rust_imperialism::ai::planner::CivilianTask;
 use std::collections::HashMap;
+use std::hint::black_box;
 
 fn create_test_data(count: u32) -> (HashMap<Entity, CivilianTask>, HashMap<TilePos, Entity>) {
     let mut tasks = HashMap::new();
@@ -25,7 +26,7 @@ fn create_test_data(count: u32) -> (HashMap<Entity, CivilianTask>, HashMap<TileP
         let target_pos = if i < count - 1 {
             TilePos::new((i + 1) % 100, (i + 1) / 100)
         } else {
-             TilePos::new((i + 2) % 100, (i + 2) / 100)
+            TilePos::new((i + 2) % 100, (i + 2) / 100)
         };
 
         tasks.insert(entity, CivilianTask::MoveTo { target: target_pos });
@@ -41,9 +42,7 @@ fn bench_topological_sort(c: &mut Criterion) {
     let (tasks, positions) = create_test_data(count);
 
     c.bench_function("sort_civilian_tasks_topologically", |b| {
-        b.iter(|| {
-            sort_civilian_tasks_topologically(black_box(&tasks), black_box(&positions))
-        })
+        b.iter(|| sort_civilian_tasks_topologically(black_box(&tasks), black_box(&positions)))
     });
 }
 
