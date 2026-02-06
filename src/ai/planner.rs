@@ -222,12 +222,12 @@ fn generate_value_added_trade(
 ) {
     let buildings = &nation.buildings;
 
-    let Some(steel_mill) = buildings.get(&crate::economy::production::BuildingKind::SteelMill)
+    let Some(steel_mill) = buildings.get(&crate::economy::buildings::BuildingKind::SteelMill)
     else {
         return;
     };
 
-    let Some(metal_works) = buildings.get(&crate::economy::production::BuildingKind::MetalWorks)
+    let Some(metal_works) = buildings.get(&crate::economy::buildings::BuildingKind::MetalWorks)
     else {
         return;
     };
