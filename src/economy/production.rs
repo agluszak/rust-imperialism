@@ -11,7 +11,7 @@ use crate::{
     map::tile_pos::{HexExt, TilePosExt},
     resources::{ResourceType, TileResource},
 };
-use bevy_ecs_tilemap::prelude::{TilePos, TileStorage};
+use bevy_ecs_tilemap::prelude::{TilePos, TilemapSize, TileStorage};
 
 use crate::economy::workforce::Workforce;
 use crate::economy::{goods::Good, stockpile::Stockpile};
@@ -65,7 +65,7 @@ pub fn calculate_connected_production(
     connected_depots: Query<&Depot>,
     connected_ports: Query<&Port>,
     capitals: Query<(Entity, &Capital)>,
-    tile_storage: Query<&TileStorage>,
+    tile_storage: Query<(&TileStorage, &TilemapSize)>,
     tile_resources: Query<&TileResource>,
     prospecting_knowledge: Res<ProspectingKnowledge>,
 ) {
@@ -75,7 +75,7 @@ pub fn calculate_connected_production(
 
     let mut processed_tiles: HashSet<TilePos> = HashSet::new();
 
-    let Ok(tile_storage) = tile_storage.single() else {
+    let Ok((tile_storage, map_size)) = tile_storage.single() else {
         return;
     };
 
@@ -121,6 +121,7 @@ pub fn calculate_connected_production(
         owner: Entity,
         position: TilePos,
         tile_storage: &TileStorage,
+        map_size: &TilemapSize,
         tile_resources: &Query<&TileResource>,
         prospecting_knowledge: &ProspectingKnowledge,
     ) {
@@ -130,6 +131,9 @@ pub fn calculate_connected_production(
 
         for hex in tiles_to_check {
             if let Some(tile_pos) = hex.to_tile_pos() {
+                if tile_pos.x >= map_size.x || tile_pos.y >= map_size.y {
+                    continue;
+                }
                 if processed_tiles.contains(&tile_pos) {
                     continue; // Avoid double-counting
                 }
@@ -168,6 +172,7 @@ pub fn calculate_connected_production(
             depot.owner,
             depot.position,
             tile_storage,
+            map_size,
             &tile_resources,
             &prospecting_knowledge,
         );
@@ -181,6 +186,7 @@ pub fn calculate_connected_production(
             port.owner,
             port.position,
             tile_storage,
+            map_size,
             &tile_resources,
             &prospecting_knowledge,
         );
@@ -202,6 +208,9 @@ pub fn calculate_connected_production(
 
         for hex in center_hex.all_neighbors() {
             if let Some(tile_pos) = hex.to_tile_pos() {
+                if tile_pos.x >= map_size.x || tile_pos.y >= map_size.y {
+                    continue;
+                }
                 if processed_tiles.contains(&tile_pos) {
                     continue;
                 }
