@@ -133,6 +133,10 @@ pub fn calculate_connected_production(
                 if processed_tiles.contains(&tile_pos) {
                     continue; // Avoid double-counting
                 }
+                // Check bounds explicitly to avoid panic in bevy_ecs_tilemap 0.18.1
+                if tile_pos.x >= tile_storage.size.x || tile_pos.y >= tile_storage.size.y {
+                    continue;
+                }
                 if let Some(tile_entity) = tile_storage.get(&tile_pos)
                     && let Ok(resource) = tile_resources.get(tile_entity)
                     && resource.discovered
@@ -203,6 +207,10 @@ pub fn calculate_connected_production(
         for hex in center_hex.all_neighbors() {
             if let Some(tile_pos) = hex.to_tile_pos() {
                 if processed_tiles.contains(&tile_pos) {
+                    continue;
+                }
+                // Check bounds explicitly to avoid panic in bevy_ecs_tilemap 0.18.1
+                if tile_pos.x >= tile_storage.size.x || tile_pos.y >= tile_storage.size.y {
                     continue;
                 }
                 if let Some(tile_entity) = tile_storage.get(&tile_pos)
