@@ -116,19 +116,20 @@ impl Workforce {
         }
     }
 
-    /// Assign food preferences to workers (cyclic pattern: Grain → Fruit → Livestock/Fish)
+    /// Assign food preferences to workers (cyclic pattern: Grain → Grain → Fruit → Livestock/Fish)
+    /// Distribution: 50% Grain, 25% Fruit, 25% Meat (Livestock/Fish)
     pub fn assign_food_preferences(&mut self) {
         for (i, worker) in self.workers.iter_mut().enumerate() {
-            worker.food_preference_slot = (i % 3) as u8;
+            worker.food_preference_slot = (i % 4) as u8;
         }
     }
 
     /// Get the preferred food for a worker's slot
     pub fn preferred_food_for_slot(slot: u8) -> Good {
-        match slot % 3 {
-            0 => Good::Grain,
-            1 => Good::Fruit,
-            2 => Good::Livestock, // or Fish, but we'll use Livestock as default
+        match slot % 4 {
+            0 | 1 => Good::Grain,
+            2 => Good::Fruit,
+            3 => Good::Livestock, // or Fish, checked in consumption logic
             _ => unreachable!(),
         }
     }
@@ -274,9 +275,9 @@ mod tests {
         workforce.assign_food_preferences();
 
         assert_eq!(workforce.workers[0].food_preference_slot, 0); // Grain
-        assert_eq!(workforce.workers[1].food_preference_slot, 1); // Fruit
-        assert_eq!(workforce.workers[2].food_preference_slot, 2); // Livestock
-        assert_eq!(workforce.workers[3].food_preference_slot, 0); // Grain again
+        assert_eq!(workforce.workers[1].food_preference_slot, 1); // Grain
+        assert_eq!(workforce.workers[2].food_preference_slot, 2); // Fruit
+        assert_eq!(workforce.workers[3].food_preference_slot, 3); // Meat
     }
 
     #[test]
