@@ -735,7 +735,7 @@ pub fn reset_allocations(
         nations.iter_mut()
     {
         // Release all production reservations
-        for (_key, res_ids) in allocations.production.iter() {
+        for res_ids in allocations.production.values() {
             for res_id in res_ids {
                 reservations.release(*res_id, &mut stockpile, &mut workforce, &mut treasury);
             }
@@ -747,7 +747,7 @@ pub fn reset_allocations(
         }
 
         // Release all training reservations
-        for (_skill, res_ids) in allocations.training.iter() {
+        for res_ids in allocations.training.values() {
             for res_id in res_ids {
                 reservations.release(*res_id, &mut stockpile, &mut workforce, &mut treasury);
             }
@@ -756,7 +756,7 @@ pub fn reset_allocations(
         // Buy interest has no reservations to release (it's just a flag)
 
         // Release market sell reservations (return goods)
-        for (_good, res_ids) in allocations.market_sells.iter() {
+        for res_ids in allocations.market_sells.values() {
             for res_id in res_ids {
                 reservations.release(*res_id, &mut stockpile, &mut workforce, &mut treasury);
             }
