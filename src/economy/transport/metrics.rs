@@ -4,7 +4,7 @@ use crate::economy::{
     allocation::Allocations,
     goods::Good,
     nation::Nation,
-    production::{BuildingKind, Buildings, production_recipe},
+    buildings::{BuildingKind, Buildings, production_recipe},
     transport::{
         AllocationSlot, BASE_TRANSPORT_CAPACITY, CapacitySnapshot, DemandEntry,
         TransportAllocations, TransportCapacity, TransportCommodity, TransportDemandSnapshot,
@@ -103,9 +103,8 @@ fn inputs_for_output(kind: BuildingKind, output: Good) -> Vec<(Good, u32)> {
 
     // Use the first variant as a representative estimate
     // (In reality, the choice is made dynamically based on stockpile)
-    if let Some(variant_info) = variants.first() {
-        variant_info
-            .variant
+    if let Some(variant) = variants.first() {
+        variant
             .inputs()
             .iter()
             .map(|ing| (ing.good, ing.amount))

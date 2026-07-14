@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::economy::production::BuildingKind;
+use crate::economy::buildings::BuildingKind;
 
 /// Marker for a building dialog window
 #[derive(Component, Clone)]

@@ -3,7 +3,7 @@ use bevy::ui_widgets::{Activate, observe};
 
 use crate::economy::{
     Allocations, Good, PlayerNation, Stockpile, Treasury,
-    production::{Buildings, building_for_output, input_requirement_per_unit},
+    buildings::{Buildings, building_for_output, input_requirement_per_unit},
 };
 use crate::messages::{
     AdjustMarketOrder, AdjustProduction, AdjustRecruitment, AdjustTraining, MarketInterest,
@@ -208,7 +208,7 @@ pub fn update_all_allocation_bars(
     allocations: Query<&Allocations>,
     stockpiles: Query<&Stockpile>,
     treasuries: Query<&Treasury>,
-    buildings_query: Query<&crate::economy::production::Buildings>,
+    buildings_query: Query<&crate::economy::buildings::Buildings>,
     mut bars: Query<(
         &mut Text,
         &mut BackgroundColor,

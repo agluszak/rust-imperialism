@@ -16,7 +16,7 @@ fn test_ai_climbs_value_chain_when_hardware_is_profitable() {
     use rust_imperialism::economy::{
         goods::Good,
         nation::{Capital, Nation},
-        production::{Buildings, ProductionSettings},
+        buildings::{Buildings, ProductionSettings},
         stockpile::Stockpile,
         technology::Technologies,
         treasury::Treasury,
@@ -125,13 +125,13 @@ fn test_ai_climbs_value_chain_when_hardware_is_profitable() {
     assert!(
         nation_snapshot
             .buildings
-            .contains_key(&rust_imperialism::economy::production::BuildingKind::SteelMill),
+            .contains_key(&rust_imperialism::economy::buildings::BuildingKind::SteelMill),
         "Should have SteelMill"
     );
     assert!(
         nation_snapshot
             .buildings
-            .contains_key(&rust_imperialism::economy::production::BuildingKind::MetalWorks),
+            .contains_key(&rust_imperialism::economy::buildings::BuildingKind::MetalWorks),
         "Should have MetalWorks"
     );
 

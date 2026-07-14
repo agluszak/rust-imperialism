@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::economy::production::BuildingKind;
+use crate::economy::buildings::BuildingKind;
 use crate::economy::workforce::calculate_recruitment_cap;
 use crate::economy::{
     Good, PlayerNation, RecruitmentCapacity, RecruitmentQueue, Stockpile, WorkerSkill, Workforce,

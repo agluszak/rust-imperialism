@@ -3,7 +3,7 @@ use bevy::ui::widget::Button as OldButton;
 use bevy::ui_widgets::Button;
 
 use crate::economy::PlayerNation;
-use crate::economy::production::{BuildingKind, Buildings};
+use crate::economy::buildings::{BuildingKind, Buildings};
 use crate::ui::button_style::*;
 use crate::ui::city::buildings::buttons::open_building_on_click;
 use crate::ui::city::components::{BuildingButton, BuildingGrid};

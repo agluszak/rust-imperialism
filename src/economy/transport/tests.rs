@@ -4,7 +4,8 @@ use std::collections::HashMap;
 
 use crate::economy::allocation::Allocations;
 use crate::economy::nation::NationId;
-use crate::economy::production::{Buildings, ConnectedProduction};
+use crate::economy::buildings::Buildings;
+use crate::economy::production::ConnectedProduction;
 use crate::economy::transport::{
     apply_transport_allocations, update_transport_capacity, update_transport_demand_snapshot,
     TransportAllocations, TransportCapacity, TransportCommodity, TransportDemandSnapshot,
