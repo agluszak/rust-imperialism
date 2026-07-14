@@ -62,9 +62,14 @@ impl Treasury {
         self.money_pool.release(amount);
     }
 
-    /// Consume reserved money (for ReservationSystem)
-    pub fn consume_reserved(&mut self) {
-        self.money_pool.consume_reserved();
+    /// Consume specific amount of reserved money
+    pub fn consume_reserved(&mut self, amount: u32) {
+        self.money_pool.consume_reserved(amount);
+    }
+
+    /// Consume all reserved money
+    pub fn consume_all_reserved(&mut self) {
+        self.money_pool.consume_all_reserved();
     }
 }
 
