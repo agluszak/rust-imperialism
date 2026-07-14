@@ -54,3 +54,7 @@ debug = ["dep:bevy-inspector-egui"]
 
 [profile.release]
 debug = true
+
+[[bench]]
+name = "task_execution_benchmark"
+harness = false
